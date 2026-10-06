@@ -102,6 +102,83 @@ func createVideo(at url: URL) throws {
 	}
 }
 
+func createStockVideo(at url: URL) throws {
+	let width = 1920
+	let height = 1080
+	let frameRate: Int32 = 25
+	let frameCount = 75
+	let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+	let input = AVAssetWriterInput(
+		mediaType: .video,
+		outputSettings: [
+			AVVideoCodecKey: AVVideoCodecType.h264,
+			AVVideoWidthKey: width,
+			AVVideoHeightKey: height,
+			AVVideoCompressionPropertiesKey: [
+				AVVideoAverageBitRateKey: 600_000,
+				AVVideoMaxKeyFrameIntervalKey: 25,
+				AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+			]
+		]
+	)
+	input.expectsMediaDataInRealTime = false
+	let attributes: [String: Any] = [
+		kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
+		kCVPixelBufferWidthKey as String: width,
+		kCVPixelBufferHeightKey as String: height,
+		kCVPixelBufferCGImageCompatibilityKey as String: true,
+		kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+	]
+	let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+		assetWriterInput: input,
+		sourcePixelBufferAttributes: attributes
+	)
+	guard writer.canAdd(input) else { throw NSError(domain: "Fixture", code: 20) }
+	writer.add(input)
+	guard writer.startWriting() else {
+		throw writer.error ?? NSError(domain: "Fixture", code: 21)
+	}
+	writer.startSession(atSourceTime: .zero)
+	for frame in 0..<frameCount {
+		while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.002) }
+		var optionalBuffer: CVPixelBuffer?
+		guard CVPixelBufferPoolCreatePixelBuffer(
+			kCFAllocatorDefault,
+			adaptor.pixelBufferPool!,
+			&optionalBuffer
+		) == kCVReturnSuccess, let buffer = optionalBuffer else {
+			throw NSError(domain: "Fixture", code: 22)
+		}
+		CVPixelBufferLockBaseAddress(buffer, [])
+		if let baseAddress = CVPixelBufferGetBaseAddress(buffer) {
+			let rowBytes = CVPixelBufferGetBytesPerRow(buffer)
+			let pixels = baseAddress.assumingMemoryBound(to: UInt8.self)
+			for y in 0..<height {
+				for x in 0..<width {
+					let offset = y * rowBytes + x * 4
+					let gradient = (x + frame * 12) % 256
+					let band = (y / 90 + frame / 5) % 2 == 0 ? 42 : 12
+					pixels[offset] = 255
+					pixels[offset + 1] = UInt8(gradient)
+					pixels[offset + 2] = UInt8((y / 5 + frame * 2) % 256)
+					pixels[offset + 3] = UInt8((gradient / 2 + band) % 256)
+				}
+			}
+		}
+		CVPixelBufferUnlockBaseAddress(buffer, [])
+		guard adaptor.append(buffer, withPresentationTime: CMTime(value: Int64(frame), timescale: frameRate)) else {
+			throw writer.error ?? NSError(domain: "Fixture", code: 23)
+		}
+	}
+	input.markAsFinished()
+	let finished = DispatchSemaphore(value: 0)
+	writer.finishWriting { finished.signal() }
+	finished.wait()
+	if writer.status != .completed {
+		throw writer.error ?? NSError(domain: "Fixture", code: 24)
+	}
+}
+
 func createColorVideo(at url: URL) throws {
 	let width = 160
 	let height = 90
@@ -269,6 +346,9 @@ let toneURL = outputDirectory.appendingPathComponent("tone.wav")
 let colorsToneURL = outputDirectory.appendingPathComponent("colors-tone.wav")
 let sampleURL = outputDirectory.appendingPathComponent("sample.mp4")
 let colorsURL = outputDirectory.appendingPathComponent("colors.mp4")
+let stockVideoOnlyURL = outputDirectory.appendingPathComponent("stock-1080p25-noaudio.mp4")
+let stockVideoSourceURL = outputDirectory.appendingPathComponent("stock-1080p25-source.mp4")
+let stockAudioURL = outputDirectory.appendingPathComponent("stock-1080p25-audio.mp4")
 let stillURL = outputDirectory.appendingPathComponent("still.png")
 let overlayURL = outputDirectory.appendingPathComponent("overlay.png")
 let brokenURL = outputDirectory.appendingPathComponent("bad.mp4")
@@ -276,10 +356,16 @@ try? FileManager.default.removeItem(at: videoOnlyURL)
 try? FileManager.default.removeItem(at: colorsVideoOnlyURL)
 try? FileManager.default.removeItem(at: sampleURL)
 try? FileManager.default.removeItem(at: colorsURL)
+try? FileManager.default.removeItem(at: stockVideoOnlyURL)
+try? FileManager.default.removeItem(at: stockVideoSourceURL)
+try? FileManager.default.removeItem(at: stockAudioURL)
 try writeWav(to: toneURL, seconds: 3)
 try writeWav(to: colorsToneURL, seconds: 6)
 try createVideo(at: videoOnlyURL)
 try createColorVideo(at: colorsVideoOnlyURL)
+try createStockVideo(at: stockVideoOnlyURL)
+try createStockVideo(at: stockVideoSourceURL)
+try muxVideoAndAudio(videoURL: stockVideoSourceURL, audioURL: toneURL, outputURL: stockAudioURL)
 try muxVideoAndAudio(videoURL: videoOnlyURL, audioURL: toneURL, outputURL: sampleURL)
 try muxVideoAndAudio(videoURL: colorsVideoOnlyURL, audioURL: colorsToneURL, outputURL: colorsURL)
 let colorsAttributes = try FileManager.default.attributesOfItem(atPath: colorsURL.path)
@@ -294,3 +380,14 @@ try sampleData.prefix(128).write(to: brokenURL)
 try? FileManager.default.removeItem(at: videoOnlyURL)
 try? FileManager.default.removeItem(at: colorsVideoOnlyURL)
 try? FileManager.default.removeItem(at: colorsToneURL)
+try? FileManager.default.removeItem(at: stockVideoSourceURL)
+for stockURL in [stockVideoOnlyURL, stockAudioURL] {
+	let size = try FileManager.default.attributesOfItem(atPath: stockURL.path)[.size] as? NSNumber
+	guard let size, size.intValue < 3_000_000 else {
+		throw NSError(
+			domain: "Fixture",
+			code: 25,
+			userInfo: [NSLocalizedDescriptionKey: "\(stockURL.lastPathComponent) exceeds 3 MB."]
+		)
+	}
+}

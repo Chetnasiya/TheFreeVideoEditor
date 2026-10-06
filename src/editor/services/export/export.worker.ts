@@ -118,6 +118,9 @@ async function start(message: Extract<ExportWorkerRequest, { type: 'start' }>): 
 			}),
 			...(message.videoCodec ? { videoCodec: message.videoCodec } : {}),
 			...(message.audioCodec ? { audioCodec: message.audioCodec } : {}),
+			onWarning(messageText) {
+				send({ type: 'warning', message: messageText });
+			},
 			onProgress(progress) {
 				send({
 					type: 'progress',

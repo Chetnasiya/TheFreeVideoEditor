@@ -29,6 +29,11 @@ export interface Asset {
 	fps?: number;
 	fpsEstimated?: boolean;
 	hasAudio: boolean;
+	audioChecked?: boolean;
+	audioDecodable?: boolean;
+	audioCodec?: string;
+	videoDecodable?: boolean;
+	videoCodec?: string;
 	opfsPath: string;
 	offline?: boolean;
 }

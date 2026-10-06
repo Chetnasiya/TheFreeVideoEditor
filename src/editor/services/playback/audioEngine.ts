@@ -76,6 +76,7 @@ export class AudioEngine {
 		if (!playing || rate !== 1 || sources.length === 0) {
 			for (const audio of this.connected.values()) {
 				ramp(audio.gain.gain, 0, this.context?.currentTime ?? 0);
+				audio.volume = 0;
 				audio.element.pause();
 			}
 			return;
@@ -99,12 +100,16 @@ export class AudioEngine {
 			element.volume = 1;
 			element.playbackRate = 1;
 			if (element.paused) {
-				void element.play().catch((error: unknown) => this.reportError(error, asset.id));
+				void element.play().catch((error: unknown) => {
+					if (isInterruptedPlay(error)) return;
+					this.reportError(error, asset.id);
+				});
 			}
 		}
 		for (const [element, audio] of this.connected) {
 			if (active.has(element)) continue;
 			ramp(audio.gain.gain, 0, context.currentTime);
+			audio.volume = 0;
 			element.pause();
 		}
 	}
@@ -217,6 +222,10 @@ export class AudioEngine {
 			assetId
 		);
 	}
+}
+
+function isInterruptedPlay(error: unknown): boolean {
+	return error instanceof DOMException && error.name === 'AbortError';
 }
 
 function ramp(parameter: AudioParam, value: number, currentTime: number): void {

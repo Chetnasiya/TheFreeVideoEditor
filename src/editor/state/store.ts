@@ -74,6 +74,7 @@ import {
 	type ImportBatchResult
 } from '../services/media/import';
 import { probeMedia } from '../services/media/probe';
+import { repairProjectAudioMetadata } from '../services/media/repairAudio';
 import { projectNameSchema } from '../services/project/projectName';
 import { applyTheme, initializeTheme, type ThemeMode } from '../services/theme/theme';
 import { clampPanelSize } from '../ui/shell/panelSizing';
@@ -237,6 +238,7 @@ export interface EditorState {
 	saveProjectName: () => void;
 	renameProject: (name: string) => void;
 	renameSavedProject: (id: ProjectId, name: string) => Promise<boolean>;
+	repairAudioMetadata: () => Promise<{ project: Project | null; warnings: string[] }>;
 	resizePanel: (handle: ResizeHandle, delta: number) => void;
 	createProject: (options: ProjectOptions) => Promise<void>;
 	openProject: (id: ProjectId) => Promise<void>;
@@ -543,6 +545,7 @@ export function createEditorStore() {
 			}
 
 			async function reconcileProject(project: Project): Promise<Project> {
+				let reconciled: Project;
 				if (!isOpfsSupported()) {
 					set((state) => {
 						state.projectMessage =
@@ -551,15 +554,23 @@ export function createEditorStore() {
 					const assets = Object.fromEntries(
 						Object.values(project.assets).map((asset) => [asset.id, { ...asset, offline: true }])
 					) as Project['assets'];
-					return { ...project, assets };
+					reconciled = { ...project, assets };
+				} else {
+					const result = await reconcileProjectMedia(project);
+					if (result.unknownFiles.length > 0) {
+						set((state) => {
+							state.projectMessage = `Found ${result.unknownFiles.length} untracked file(s) in this project's media folder. They were preserved.`;
+						});
+					}
+					reconciled = result.changed ? { ...project, assets: result.assets } : project;
 				}
-				const result = await reconcileProjectMedia(project);
-				if (result.unknownFiles.length > 0) {
+				const audioRepair = await repairProjectAudioMetadata(reconciled);
+				if (audioRepair.warnings.length > 0) {
 					set((state) => {
-						state.projectMessage = `Found ${result.unknownFiles.length} untracked file(s) in this project's media folder. They were preserved.`;
+						state.projectMessage = audioRepair.warnings.join(' ');
 					});
 				}
-				return result.changed ? { ...project, assets: result.assets } : project;
+				return audioRepair.project;
 			}
 
 			function scheduleDerived(projectId: ProjectId, asset: Asset): void {
@@ -1020,6 +1031,24 @@ export function createEditorStore() {
 				},
 				async refreshProjects() {
 					await refreshProjects();
+				},
+				async repairAudioMetadata() {
+					const project = get().project;
+					if (!project) return { project: null, warnings: [] };
+					const result = await repairProjectAudioMetadata(project);
+					if (result.project !== project) {
+						mutateProject('Repair audio metadata', () => result.project, {
+							target: project,
+							dirty: true,
+							history: 'skip'
+						});
+					}
+					if (result.warnings.length > 0) {
+						set((state) => {
+							state.projectMessage = result.warnings.join(' ');
+						});
+					}
+					return { project: get().project, warnings: result.warnings };
 				},
 				async replaceProject(rawProject) {
 					if (
@@ -1722,7 +1751,9 @@ export function createEditorStore() {
 									throw new Error('The media asset is not compatible with this track.');
 								}
 								const withTrack = addTrackOperation(project, kind);
-								const track = withTrack.tracks.at(-1);
+								const track = withTrack.tracks.find(
+									(candidate) => !project.tracks.some((existing) => existing.id === candidate.id)
+								);
 								if (!track) throw new Error('Could not create a timeline track.');
 								return addClipFromAssetOperation(withTrack, {
 									assetId,

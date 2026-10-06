@@ -120,6 +120,11 @@ export async function importFiles(
 				...(probed.fps === undefined ? {} : { fps: probed.fps }),
 				...(probed.fpsEstimated === undefined ? {} : { fpsEstimated: probed.fpsEstimated }),
 				hasAudio: probed.hasAudio,
+				audioChecked: probed.audioChecked,
+				...(probed.audioDecodable === undefined ? {} : { audioDecodable: probed.audioDecodable }),
+				...(probed.audioCodec === undefined ? {} : { audioCodec: probed.audioCodec }),
+				...(probed.videoDecodable === undefined ? {} : { videoDecodable: probed.videoDecodable }),
+				...(probed.videoCodec === undefined ? {} : { videoCodec: probed.videoCodec }),
 				opfsPath,
 				offline: false
 			};

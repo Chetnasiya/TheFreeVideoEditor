@@ -66,11 +66,6 @@ test('exports a timeline video and an OTIO project file', async ({ page }) => {
 	await exportDialog.getByLabel('Quality').selectOption('low');
 	const mode = exportDialog.getByLabel('Export method');
 	await mode.selectOption('webcodecs');
-	const durationLabel =
-		(await page.getByRole('status', { name: 'Current timecode and duration' }).textContent()) ?? '';
-	const durationTimecode = durationLabel.split('/').at(-1)?.trim() ?? '';
-	const [hours = 0, minutes = 0, seconds = 0, frames = 0] = durationTimecode.split(':').map(Number);
-	const planTotalFrames = (hours * 3600 + minutes * 60 + seconds) * 30 + frames;
 	const clipDescription =
 		(await page.locator('.timeline-clip.is-video').first().getAttribute('aria-label')) ?? '';
 	const startTimecode = clipDescription.match(/starts (\d{2}:\d{2}:\d{2}:\d{2})/)?.[1] ?? '';
@@ -158,10 +153,27 @@ test('exports a timeline video and an OTIO project file', async ({ page }) => {
 		},
 		{ clipStartSeconds }
 	)) as VerifiedExportFile;
-	expect(decoded.timestamps).toHaveLength(planTotalFrames);
+	const exportPlan = await page.evaluate(() => window.__TFVE_EXPORT_TEST_HOOKS__?.lastPlan);
+	expect(exportPlan).toBeDefined();
+	if (!exportPlan) throw new Error('The exporter did not expose the plan used for this test run.');
+	console.info(
+		`EXPORT_SAMPLE_TIMING ${JSON.stringify({
+			planTotalFrames: exportPlan.totalFrames,
+			sampleCount: decoded.timestamps.length,
+			first: decoded.timestamps.slice(0, 3),
+			last: decoded.timestamps.slice(-3),
+			duration: decoded.duration
+		})}`
+	);
+	expect(decoded.timestamps).toHaveLength(exportPlan.totalFrames);
 	expect(decoded.timestamps[0]).toBeCloseTo(0, 3);
-	expect(decoded.timestamps.at(-1)).toBeCloseTo((planTotalFrames - 1) / 30, 2);
-	expect(Math.abs(decoded.duration - planTotalFrames / 30)).toBeLessThanOrEqual(1 / 30);
+	expect(decoded.timestamps.at(-1)).toBeCloseTo(
+		Math.round(((exportPlan.totalFrames - 1) * 1_000_000) / exportPlan.fps) / 1_000_000,
+		3
+	);
+	expect(Math.abs(decoded.duration - exportPlan.durationUs / 1_000_000)).toBeLessThanOrEqual(
+		1 / exportPlan.fps
+	);
 	expect(decoded.width).toBe(1280);
 	expect(decoded.height).toBe(720);
 	expect(decoded.black.slice(0, 3).every((channel) => channel < 40)).toBe(true);

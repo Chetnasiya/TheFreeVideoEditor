@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyProject } from '../../core';
-import { audioSchedulesForChunk } from './audioMix';
+import { audioSchedulesForChunk, decodeAudioAssets } from './audioMix';
+import { WorkerAudioMixer } from './workerAudioMix';
 
 describe('export audio mix scheduling', () => {
 	it('honors muted tracks, trimmed source time, speed, volume, and chunk boundaries', () => {
@@ -47,5 +48,98 @@ describe('export audio mix scheduling', () => {
 		});
 		track.muted = true;
 		expect(audioSchedulesForChunk(project, 0, 6_000_000)).toEqual([]);
+	});
+
+	it('skips an unsupported audio asset with a visible warning instead of failing export', async () => {
+		const project = createEmptyProject({ name: 'Unsupported audio' });
+		const track = project.tracks.find((item) => item.kind === 'audio');
+		if (!track) throw new Error('Factory did not create an audio track.');
+		const assetId = 'unsupported' as keyof typeof project.assets;
+		project.assets[assetId] = {
+			id: assetId,
+			kind: 'audio',
+			name: 'unsupported.wav',
+			mimeType: 'audio/wav',
+			size: 5,
+			duration: 1_000_000,
+			hasAudio: true,
+			audioDecodable: false,
+			opfsPath: 'unsupported.wav'
+		};
+		track.clips.push({
+			id: 'unsupported-clip' as (typeof track.clips)[number]['id'],
+			assetId,
+			start: 0,
+			duration: 1_000_000,
+			sourceIn: 0,
+			sourceOut: 1_000_000,
+			speed: 1,
+			volume: 1
+		});
+		const warnings: string[] = [];
+		const buffers = await decodeAudioAssets(
+			project,
+			{
+				decodeAudioData: async () => {
+					throw new Error('Must not decode unsupported audio.');
+				}
+			},
+			async () => {
+				throw new Error('Must not read unsupported audio.');
+			},
+			(message) => warnings.push(message)
+		);
+
+		expect(buffers.size).toBe(0);
+		expect(warnings).toEqual([
+			'Audio from “unsupported.wav” was skipped: its codec is not decodable.'
+		]);
+	});
+
+	it('continues worker mixdown with silence and warns when an individual asset cannot be read', async () => {
+		const project = createEmptyProject({ name: 'Worker audio failure' });
+		const track = project.tracks.find((item) => item.kind === 'audio');
+		if (!track) throw new Error('Factory did not create an audio track.');
+		const assetId = 'missing' as keyof typeof project.assets;
+		project.assets[assetId] = {
+			id: assetId,
+			kind: 'audio',
+			name: 'missing.wav',
+			mimeType: 'audio/wav',
+			size: 5,
+			duration: 1_000_000,
+			hasAudio: true,
+			opfsPath: 'missing.wav'
+		};
+		track.clips.push({
+			id: 'missing-clip' as (typeof track.clips)[number]['id'],
+			assetId,
+			start: 0,
+			duration: 1_000_000,
+			sourceIn: 0,
+			sourceOut: 1_000_000,
+			speed: 1,
+			volume: 1
+		});
+		const warnings: string[] = [];
+		const mixer = new WorkerAudioMixer(
+			project,
+			async () => {
+				throw new Error('The source file is missing.');
+			},
+			(message) => warnings.push(message)
+		);
+		try {
+			const sample = await mixer.mixChunk(0, 1_000_000, 48_000);
+			expect(sample).not.toBeNull();
+			expect(sample?.numberOfFrames).toBe(48_000);
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('missing.wav');
+			sample?.close();
+			await mixer.mixChunk(0, 1_000_000, 48_000);
+			expect(warnings).toHaveLength(1);
+		} finally {
+			await mixer.dispose();
+		}
 	});
 });

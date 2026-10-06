@@ -37,6 +37,7 @@
 .application-bar,
 .workspace-bar,
 .menu-bar,
+.panel-tabs,
 .topbar-actions,
 .brand-mark,
 .project-title,
@@ -457,6 +458,7 @@
 .monitor-panel,
 .timeline-panel {
 	min-width: 0;
+	min-height: 0;
 	overflow: hidden;
 	background: var(--color-canvas);
 }
@@ -484,6 +486,7 @@
 .monitor {
 	display: flex;
 	min-width: 0;
+	min-height: 0;
 	flex-direction: column;
 	overflow: hidden;
 }
@@ -718,8 +721,152 @@
 	min-height: 0;
 	flex: 1;
 	place-items: center;
+	overflow: hidden;
 	background: var(--color-preview-stage);
 	padding: var(--spacing-md);
+}
+
+.monitor-stage > .preview-panel-content,
+.monitor-stage > .source-monitor-content {
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+}
+
+.source-monitor-content {
+	display: flex;
+	flex-direction: column;
+}
+
+.source-media-stage {
+	position: relative;
+	display: grid;
+	min-width: 0;
+	min-height: 0;
+	flex: 1;
+	place-items: center;
+	overflow: hidden;
+}
+
+.source-video,
+.source-image {
+	display: block;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	object-fit: contain;
+}
+
+.source-audio-label,
+.source-placeholder {
+	display: grid;
+	max-width: 100%;
+	justify-items: center;
+	gap: var(--spacing-sm);
+	color: var(--color-preview-foreground);
+	text-align: center;
+}
+
+.source-audio-label > span {
+	color: var(--color-link);
+	font-size: 3rem;
+}
+
+.source-audio-label strong {
+	max-width: 100%;
+	overflow: hidden;
+	font-size: var(--text-body-sm);
+	font-weight: var(--font-weight-medium);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.source-placeholder p {
+	margin: 0;
+	font-size: var(--text-body-sm);
+	font-weight: var(--font-weight-medium);
+}
+
+.source-placeholder span {
+	color: var(--color-mute);
+	font-size: var(--text-body-sm);
+}
+
+.source-error {
+	position: absolute;
+	z-index: 1;
+	right: var(--spacing-sm);
+	bottom: var(--spacing-sm);
+	left: var(--spacing-sm);
+	margin-inline: auto;
+	max-width: 90%;
+	border: 1px solid var(--color-warning);
+	border-radius: var(--radius-sm);
+	background: var(--color-canvas-elevated);
+	padding: var(--spacing-xs) var(--spacing-sm);
+	color: var(--color-warning-deep);
+	font-size: var(--text-body-sm);
+	text-align: center;
+}
+
+.source-monitor-controls {
+	display: flex;
+	min-height: 2.75rem;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--spacing-xxs);
+	border-top: var(--panel-divider);
+	padding: 0 var(--spacing-xs);
+}
+
+.source-monitor-controls button {
+	min-width: 1.75rem;
+	min-height: 1.75rem;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--color-body);
+	font-size: var(--text-body-sm);
+}
+
+.source-monitor-controls button:hover:not(:disabled) {
+	border-color: var(--color-hairline);
+	background: var(--color-hairline-soft);
+	color: var(--color-ink);
+}
+
+.source-monitor-controls button:focus-visible,
+.source-monitor-controls input:focus-visible {
+	outline: 2px solid var(--color-focus);
+	outline-offset: 2px;
+}
+
+.source-monitor-controls button:disabled {
+	color: var(--color-mute);
+	cursor: not-allowed;
+}
+
+.source-monitor-controls .source-play-button {
+	border-color: var(--color-hairline);
+	background: var(--color-hairline-soft);
+	color: var(--color-ink);
+}
+
+.source-monitor-controls input[type='range'] {
+	width: min(32%, 9rem);
+	min-width: 3rem;
+	accent-color: var(--color-link);
+}
+
+.source-monitor-controls output {
+	color: var(--color-body);
+	font-family: var(--font-mono);
+	font-size: 0.625rem;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 }
 
 .monitor-placeholder {
@@ -1134,6 +1281,19 @@
 	color: var(--color-ink);
 	box-shadow: var(--shadow-floating);
 	overscroll-behavior: contain;
+}
+
+.editor-dialog:not([open]) {
+	display: none;
+}
+
+.editor-dialog[open] {
+	position: fixed;
+	inset: auto;
+	top: 50%;
+	left: 50%;
+	margin: 0;
+	transform: translate(-50%, -50%);
 }
 
 .shortcut-dialog {
@@ -1560,6 +1720,13 @@
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: repeat(2, minmax(0, 1fr));
 		overflow: auto;
+	}
+
+	.editor-workspace {
+		grid-template-rows: minmax(24rem, 1fr) 6px minmax(
+				15rem,
+				min(var(--timeline-panel-height), 16rem)
+			);
 	}
 
 	.monitor {

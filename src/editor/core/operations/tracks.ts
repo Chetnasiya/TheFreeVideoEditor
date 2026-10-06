@@ -14,7 +14,15 @@ export function addTrack(project: Project, kind: Track['kind'], index?: number):
 		clips: []
 	};
 	const tracks = [...project.tracks];
-	const target = index === undefined ? tracks.length : Math.max(0, Math.min(index, tracks.length));
+	const videoTrackCount = tracks.filter((item) => item.kind === 'video').length;
+	const target =
+		index === undefined
+			? kind === 'video'
+				? 0
+				: tracks.length
+			: kind === 'video'
+				? Math.max(0, Math.min(index, videoTrackCount))
+				: Math.max(videoTrackCount, Math.min(index, tracks.length));
 	tracks.splice(target, 0, track);
 	return { ...project, tracks };
 }
@@ -53,7 +61,12 @@ export function reorderTrack(project: Project, trackId: TrackId, targetIndex: nu
 	if (index < 0) throw new TrackNotFoundError(trackId);
 	const tracks = [...project.tracks];
 	const [track] = tracks.splice(index, 1);
-	tracks.splice(Math.max(0, Math.min(targetIndex, tracks.length)), 0, track!);
+	const videoTrackCount = tracks.filter((item) => item.kind === 'video').length;
+	const target =
+		track?.kind === 'video'
+			? Math.max(0, Math.min(targetIndex, videoTrackCount))
+			: Math.max(videoTrackCount, Math.min(targetIndex, tracks.length));
+	tracks.splice(target, 0, track!);
 	return { ...project, tracks };
 }
 

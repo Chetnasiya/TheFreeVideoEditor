@@ -42,6 +42,10 @@ limitations are intentional at this stage:
 - Preview decoding depends on browser codecs. Chromium and Safari generally decode
   H.264/AAC when supported by the operating system; Firefox codec availability
   varies by platform. An accepted file extension does not guarantee decoding.
+- The Source monitor uses the browser's native media decoder. Unsupported source
+  codecs display a decode error rather than a frame preview. On export, an audio
+  stream that the browser cannot decode is skipped with an asset-specific warning;
+  video export continues.
 - Reverse and shuttle playback are visual-only. Audio is enabled only at normal
   forward speed. The preview corrects video drift by seeking when it exceeds
   approximately 80 ms, which can cause visible jumps on slower decoders.

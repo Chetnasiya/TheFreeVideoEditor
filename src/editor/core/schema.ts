@@ -69,6 +69,11 @@ export const assetSchema = z.object({
 	fps: z.number().positive().optional(),
 	fpsEstimated: z.boolean().optional(),
 	hasAudio: z.boolean(),
+	audioChecked: z.boolean().optional(),
+	audioDecodable: z.boolean().optional(),
+	audioCodec: z.string().min(1).optional(),
+	videoDecodable: z.boolean().optional(),
+	videoCodec: z.string().min(1).optional(),
 	opfsPath: z.string(),
 	offline: z.boolean().optional()
 });

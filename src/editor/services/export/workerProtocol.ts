@@ -30,6 +30,11 @@ export interface ExportWorkerProgress {
 	etaMs: number;
 }
 
+export interface ExportWorkerWarning {
+	type: 'warning';
+	message: string;
+}
+
 export interface ExportWorkerChunk {
 	type: 'chunk';
 	jobId: string;
@@ -47,6 +52,7 @@ export type ExportWorkerRequest =
 export type ExportWorkerResponse =
 	| { type: 'ready'; supported: boolean; reason?: string }
 	| ExportWorkerProgress
+	| ExportWorkerWarning
 	| ExportWorkerChunk
 	| { type: 'done'; jobId: string; bytes: number; durationUs: number }
 	| { type: 'error'; jobId?: string; code: string; message: string };

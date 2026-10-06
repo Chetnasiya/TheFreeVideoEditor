@@ -14,7 +14,7 @@ import {
 	saveFile
 } from '../../services/storage/fileAccess';
 import type { SaveFileType } from '../../services/storage/fileAccess';
-import { useEditorStore } from '../../state/EditorProvider';
+import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import './export-dialog.css';
 
 type ExportTab = 'video' | 'project';
@@ -84,8 +84,10 @@ function interchangeFileTypes(format: InterchangeFormat, packageFile: boolean): 
 export default function ExportDialog() {
 	const open = useEditorStore((state) => state.isExportDialogOpen);
 	const project = useEditorStore((state) => state.project);
+	const editorStore = useEditorStoreApi();
 	const close = useEditorStore((state) => state.closeExportDialog);
 	const setExporting = useEditorStore((state) => state.setExporting);
+	const repairAudioMetadata = useEditorStore((state) => state.repairAudioMetadata);
 	const isClosePromptOpen = useEditorStore((state) => state.isExportClosePromptOpen);
 	const dismissClosePrompt = useEditorStore((state) => state.dismissExportClosePrompt);
 	const confirmCancelAndContinue = useEditorStore((state) => state.confirmCancelExportAndContinue);
@@ -118,6 +120,17 @@ export default function ExportDialog() {
 		() => (project ? Object.values(project.assets).filter((asset) => asset.offline) : []),
 		[project]
 	);
+	const undecodableAudioAssets = useMemo(() => {
+		if (!project) return [];
+		const scheduledAssets = new Set(
+			project.tracks
+				.filter((track) => track.kind === 'audio' && !track.muted)
+				.flatMap((track) => track.clips.map((clip) => clip.assetId))
+		);
+		return Object.values(project.assets).filter(
+			(asset) => asset.hasAudio && asset.audioDecodable === false && scheduledAssets.has(asset.id)
+		);
+	}, [project]);
 	const settings = useMemo(
 		() =>
 			project
@@ -272,17 +285,25 @@ export default function ExportDialog() {
 	async function runVideoExport(): Promise<void> {
 		if (!project || !settings || !runtime || isRunning) return;
 		const exportRuntime = runtime;
-		const snapshot = structuredClone(project);
 		const controller = new AbortController();
 		cancelRef.current = controller;
 		let unregister: (() => void) | null = null;
 		let fallbackNotice = '';
+		const exportWarnings: string[] = [];
 		setIsRunning(true);
 		setExporting(true);
 		setErrorMessage('');
 		setNotice('');
 		setProgress(null);
 		try {
+			const audioRepair = await repairAudioMetadata();
+			if (audioRepair.warnings.length > 0) {
+				exportWarnings.push(...audioRepair.warnings);
+				setNotice(audioRepair.warnings.join(' '));
+			}
+			const currentProject = audioRepair.project ?? editorStore.getState().project;
+			if (!currentProject) throw new Error('The project closed before export could start.');
+			const snapshot = structuredClone(currentProject);
 			unregister = registerProjectExport(snapshot.id, controller);
 			if (mode === 'compatibility') {
 				exportRuntime.recordExportPath('compatibility');
@@ -296,7 +317,8 @@ export default function ExportDialog() {
 				if (controller.signal.aborted) throw new DOMException('Export cancelled.', 'AbortError');
 				const result = await exportRuntime.exportWithMediaRecorder(snapshot, settings, {
 					signal: controller.signal,
-					onProgress: setProgress
+					onProgress: setProgress,
+					onWarning: (warning) => exportWarnings.push(warning)
 				});
 				if (saveTarget) {
 					try {
@@ -310,13 +332,17 @@ export default function ExportDialog() {
 					await saveFile(result.blob, result.filename, types);
 				}
 				setNotice(
-					'Compatibility export uses real-time browser recording. Some frames may be dropped on slower devices.'
+					[
+						'Compatibility export uses real-time browser recording. Some frames may be dropped on slower devices.',
+						...exportWarnings
+					].join(' ')
 				);
 				return;
 			}
 			const result = await exportRuntime.exportTimeline(snapshot, settings, {
 				signal: controller.signal,
 				onProgress: setProgress,
+				onWarning: (warning) => exportWarnings.push(warning),
 				onFallback: (reason) => {
 					fallbackNotice = reason;
 					setNotice(reason);
@@ -335,11 +361,11 @@ export default function ExportDialog() {
 				];
 				await saveFile(result.blob, settings.filename, types);
 			}
-			setNotice(
+			const completionNotice =
 				result.path === 'main-webcodecs'
 					? `${videoFormat.toUpperCase()} export complete. ${fallbackNotice || 'The yielding main-thread encoder was used; the editor may respond more slowly.'}`
-					: `${videoFormat.toUpperCase()} video export complete.`
-			);
+					: `${videoFormat.toUpperCase()} video export complete.`;
+			setNotice([completionNotice, ...exportWarnings].join(' '));
 		} catch (error) {
 			if (
 				isAbortError(error) ||
@@ -598,6 +624,13 @@ export default function ExportDialog() {
 									choose another format.
 								</p>
 							)}
+							{includeAudio &&
+								undecodableAudioAssets.map((asset) => (
+									<p className="export-warning" role="status" key={asset.id}>
+										Audio from “{asset.name}” will be skipped because this browser cannot decode its
+										codec.
+									</p>
+								))}
 							<label className="export-checkbox">
 								<input
 									type="checkbox"

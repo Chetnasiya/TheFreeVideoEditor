@@ -18,7 +18,12 @@ import { createStreamingSaveTarget } from '../storage/fileAccess';
 import type { StreamingSaveTarget } from '../storage/fileAccess';
 import type { ExportWorkerRequest, ExportWorkerResponse } from './workerProtocol';
 import { WorkerAudioMixer } from './workerAudioMix';
-import { recordExportPath, recordExportProgress, recordWorkerTermination } from './testHooks';
+import {
+	recordExportPath,
+	recordExportPlan,
+	recordExportProgress,
+	recordWorkerTermination
+} from './testHooks';
 import type { ExportPath } from './testHooks';
 import { workerExportFallbackReason, yieldToEventLoop } from './workerSupport';
 export { recordExportPath } from './testHooks';
@@ -58,6 +63,7 @@ export class ExportError extends Error {
 export interface ExportRunOptions {
 	signal?: AbortSignal;
 	onProgress?: (progress: ExportProgress) => void;
+	onWarning?: (message: string) => void;
 	getFile?: typeof getMediaFile;
 	sink?: ExportSink;
 	videoCodec?: string;
@@ -110,6 +116,11 @@ async function exportTimelineMain(
 	let plan: ExportPlan;
 	try {
 		plan = buildExportPlan(project, settings);
+		recordExportPlan({
+			totalFrames: plan.totalFrames,
+			durationUs: plan.durationUs,
+			fps: plan.fps
+		});
 	} catch (error) {
 		throw new ExportError(
 			'EMPTY_TIMELINE',
@@ -162,10 +173,19 @@ async function exportTimelineMain(
 		);
 		if (settings.audio && hasAudioAssets) {
 			if (typeof AudioContext === 'undefined') {
-				workerAudioMixer = new WorkerAudioMixer(snapshot, options.getFile ?? getMediaFile);
+				workerAudioMixer = new WorkerAudioMixer(
+					snapshot,
+					options.getFile ?? getMediaFile,
+					options.onWarning
+				);
 			} else {
 				audioContext = new AudioContext();
-				audioBuffers = await decodeAudioAssets(snapshot, audioContext, options.getFile);
+				audioBuffers = await decodeAudioAssets(
+					snapshot,
+					audioContext,
+					options.getFile,
+					options.onWarning
+				);
 			}
 			if (
 				[...snapshot.tracks].some(
@@ -411,6 +431,10 @@ async function tryWorkerExport(
 			});
 			return;
 		}
+		if (message.type === 'warning') {
+			options.onWarning?.(message.message);
+			return;
+		}
 		if (message.type === 'chunk') {
 			const chunkId = message.chunkId;
 			void (async () => {
@@ -575,6 +599,11 @@ export async function exportTimeline(
 		return { ...(await exportTimelineMain(project, settings, options)), path: 'main-webcodecs' };
 	}
 	const plan = buildExportPlan(project, settings);
+	recordExportPlan({
+		totalFrames: plan.totalFrames,
+		durationUs: plan.durationUs,
+		fps: plan.fps
+	});
 	const snapshot = structuredClone(project);
 	let streaming: StreamingSaveTarget | null = null;
 	try {

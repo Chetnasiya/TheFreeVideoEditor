@@ -62,16 +62,36 @@ export function audioSchedulesForChunk(
 export async function decodeAudioAssets(
 	project: Project,
 	audioContext: Pick<AudioContext, 'decodeAudioData'>,
-	getFile: typeof getMediaFile = getMediaFile
+	getFile: typeof getMediaFile = getMediaFile,
+	onWarning?: (message: string) => void
 ): Promise<Map<AssetId, AudioBuffer>> {
 	const buffers = new Map<AssetId, AudioBuffer>();
+	const scheduledAssetIds = new Set(
+		project.tracks
+			.filter((track) => track.kind === 'audio' && !track.muted)
+			.flatMap((track) => track.clips.map((clip) => clip.assetId))
+	);
 	for (const asset of Object.values(project.assets)) {
-		if (asset.kind === 'image' || !asset.hasAudio || asset.offline) continue;
+		if (
+			asset.kind === 'image' ||
+			!asset.hasAudio ||
+			asset.offline ||
+			!scheduledAssetIds.has(asset.id)
+		) {
+			continue;
+		}
+		if (asset.audioDecodable === false) {
+			onWarning?.(`Audio from “${asset.name}” was skipped: its codec is not decodable.`);
+			continue;
+		}
 		try {
 			const file = await getFile(project.id, asset);
 			buffers.set(asset.id, await audioContext.decodeAudioData(await file.arrayBuffer()));
 		} catch (error) {
-			throw new AudioMixError(asset.id, asset.name, error);
+			const failure = new AudioMixError(asset.id, asset.name, error);
+			onWarning?.(
+				`Audio from “${asset.name}” was skipped: ${failure.message} Video export will continue.`
+			);
 		}
 	}
 	return buffers;

@@ -352,18 +352,18 @@ test('composites image layers, hides tracks, meters audio, and shows offline med
 		});
 	await expect(page.locator('.timeline-clip')).toHaveCount(4);
 	await seekTo(page, 0.5);
-	await expectDominantColor(page, 'red');
-	await page.getByRole('button', { name: 'Hide Video 1' }).click();
-	await seekTo(page, 0.5);
-	await expect
-		.poll(async () => (await getPlaybackStats(page)).activeVideoAssets[0]?.name)
-		.toBe('overlay.png');
 	await expect
 		.poll(async () => {
 			const [red, green, blue] = await readCenterPixel(page);
 			return red! < 100 && green! > 100 && blue! > 150;
 		})
 		.toBe(true);
+	await page.getByRole('button', { name: 'Hide Video 2' }).click();
+	await seekTo(page, 0.5);
+	await expect
+		.poll(async () => (await getPlaybackStats(page)).activeVideoAssets[0]?.name)
+		.toBe('colors.mp4');
+	await expectDominantColor(page, 'red');
 
 	await page.getByRole('button', { name: 'Mute audio', exact: true }).click();
 	await expect(page.getByRole('button', { name: 'Unmute audio', exact: true })).toHaveAttribute(
@@ -379,7 +379,7 @@ test('composites image layers, hides tracks, meters audio, and shows offline med
 	await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
 	await expect.poll(async () => (await getPlaybackStats(page)).meter).toBeGreaterThan(0.005);
 	await page.keyboard.press('k');
-	await page.getByRole('button', { name: 'Show Video 1' }).click();
+	await page.getByRole('button', { name: 'Show Video 2' }).click();
 
 	await expect(page.locator('.save-status')).toHaveText('Saved', { timeout: 20_000 });
 	await page.getByRole('button', { name: 'File', exact: true }).click();

@@ -17,6 +17,16 @@ test('imports, persists, and archives local media with a project', async ({ page
 	const manager = page.getByRole('dialog', { name: 'Your Projects' });
 	await manager.getByRole('button', { name: 'New project' }).click();
 	const newProjectDialog = page.getByRole('dialog', { name: 'Create a Project' });
+	const newProjectBounds = await newProjectDialog.boundingBox();
+	const viewport = page.viewportSize();
+	expect(newProjectBounds).not.toBeNull();
+	expect(viewport).not.toBeNull();
+	expect(
+		Math.abs(newProjectBounds!.x + newProjectBounds!.width / 2 - viewport!.width / 2)
+	).toBeLessThan(2);
+	expect(
+		Math.abs(newProjectBounds!.y + newProjectBounds!.height / 2 - viewport!.height / 2)
+	).toBeLessThan(2);
 	await newProjectDialog.getByRole('textbox', { name: 'Project name' }).fill('Media Import Test');
 	await newProjectDialog.getByRole('button', { name: 'Create project' }).click();
 	await expect(page.getByRole('heading', { name: 'Media Import Test' })).toBeVisible();
@@ -31,6 +41,12 @@ test('imports, persists, and archives local media with a project', async ({ page
 		]);
 	const assets = page.getByRole('listbox', { name: 'Project media' });
 	await expect(assets.getByRole('option')).toHaveCount(3, { timeout: 20_000 });
+	const thumbnailHeight = page.locator('input[name="media-thumbnail-height"]');
+	await thumbnailHeight.fill('104');
+	await expect(page.locator('.media-asset-preview').first()).toHaveCSS('height', '104px');
+	await page.getByRole('button', { name: 'Grid view' }).click();
+	await expect(page.locator('.media-asset-preview').first()).toHaveCSS('height', '104px');
+	await page.getByRole('button', { name: 'List view' }).click();
 	await assets.getByRole('option').first().click();
 	await assets
 		.getByRole('option')
@@ -52,6 +68,14 @@ test('imports, persists, and archives local media with a project', async ({ page
 	await page.getByRole('menuitem', { name: /Save a Copy as \.tfve/ }).click();
 	const saveCopyDialog = page.getByRole('dialog', { name: 'Save a project copy?' });
 	await expect(saveCopyDialog).toBeVisible();
+	const saveCopyBounds = await saveCopyDialog.boundingBox();
+	expect(saveCopyBounds).not.toBeNull();
+	expect(
+		Math.abs(saveCopyBounds!.x + saveCopyBounds!.width / 2 - viewport!.width / 2)
+	).toBeLessThan(2);
+	expect(
+		Math.abs(saveCopyBounds!.y + saveCopyBounds!.height / 2 - viewport!.height / 2)
+	).toBeLessThan(2);
 	const downloadPromise = page.waitForEvent('download');
 	await saveCopyDialog.getByRole('button', { name: 'Save Copy as .tfve' }).click();
 	const download = await downloadPromise;

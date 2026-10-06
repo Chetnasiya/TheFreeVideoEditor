@@ -29,6 +29,7 @@ import { clipEnd, framesToTicks, timelineDuration } from '../../core';
 import type { PlaybackEngine } from '../../services/playback/engine';
 import type { ResizeHandle } from '../../state/store';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
+import SourceMonitor from '../preview/SourceMonitor';
 import ExportDialog from '../export/ExportDialog';
 
 interface PanelLayoutStyle extends CSSProperties {
@@ -42,52 +43,6 @@ const PANEL_LIMITS = {
 	inspector: { min: 210, max: 400 },
 	timeline: { min: 170, max: 460 }
 } as const;
-
-function MonitorControls({ label, disabled }: { label: string; disabled: boolean }) {
-	return (
-		<div className="monitor-controls" role="group" aria-label={label}>
-			<output className="timecode" aria-label="Current time">
-				--:--:--:--
-			</output>
-			<div className="transport-actions">
-				<button
-					type="button"
-					disabled={disabled}
-					title="Playback controls are planned for a later phase."
-					aria-label="Step back one frame"
-				>
-					|◀
-				</button>
-				<button
-					className="transport-play"
-					type="button"
-					disabled={disabled}
-					title="Playback controls are planned for a later phase."
-					aria-label="Play"
-				>
-					▶
-				</button>
-				<button
-					type="button"
-					disabled={disabled}
-					title="Playback controls are planned for a later phase."
-					aria-label="Step forward one frame"
-				>
-					▶|
-				</button>
-			</div>
-			<button
-				className="panel-menu-button"
-				type="button"
-				disabled
-				title="Playback resolution is planned for a later phase."
-				aria-label="Playback resolution"
-			>
-				1/2
-			</button>
-		</div>
-	);
-}
 
 function EditorShell() {
 	const editorStore = useEditorStoreApi();
@@ -857,21 +812,11 @@ function EditorShell() {
 					<div className="monitor monitor-source" aria-labelledby="source-title">
 						<div className="monitor-heading">
 							<h2 id="source-title">Source</h2>
-							<span className="panel-meta">Media preview · Gate C</span>
+							<span className="panel-meta">Project media</span>
 						</div>
 						<div className="monitor-stage">
-							<div className="monitor-placeholder">
-								<div className="preview-icon" aria-hidden="true">
-									<svg viewBox="0 0 24 24" fill="none">
-										<path d="M4 5.5h16v13H4z" />
-										<path d="m10 9 5 3-5 3z" />
-									</svg>
-								</div>
-								<p>{project ? 'No clip selected' : 'No project open'}</p>
-								<span>Media preview is planned for a later phase.</span>
-							</div>
+							<SourceMonitor />
 						</div>
-						<MonitorControls label="Source playback controls" disabled />
 					</div>
 
 					<div className="monitor monitor-program" aria-labelledby="program-title">

@@ -110,9 +110,10 @@ async function activeAudioSources(
 	project: Project,
 	context: AudioContext,
 	destination: MediaStreamAudioDestinationNode,
-	getFile: typeof getMediaFile = getMediaFile
+	getFile: typeof getMediaFile = getMediaFile,
+	onWarning?: (message: string) => void
 ): Promise<void> {
-	const buffers = await decodeAudioAssets(project, context, getFile);
+	const buffers = await decodeAudioAssets(project, context, getFile, onWarning);
 	const duration = Math.max(
 		1,
 		project.tracks
@@ -158,6 +159,7 @@ export async function exportWithMediaRecorder(
 		signal?: AbortSignal;
 		onProgress?: (event: ExportProgress) => void;
 		getFile?: typeof getMediaFile;
+		onWarning?: (message: string) => void;
 	} = {}
 ): Promise<RecorderExportResult> {
 	if (typeof MediaRecorder === 'undefined') {
@@ -204,7 +206,13 @@ export async function exportWithMediaRecorder(
 	try {
 		if (options.signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
 		if (audioContext && audioDestination) {
-			await activeAudioSources(snapshot, audioContext, audioDestination, options.getFile);
+			await activeAudioSources(
+				snapshot,
+				audioContext,
+				audioDestination,
+				options.getFile,
+				options.onWarning
+			);
 			await audioContext.resume();
 		}
 		recording = new Promise<Blob>((resolve, reject) => {

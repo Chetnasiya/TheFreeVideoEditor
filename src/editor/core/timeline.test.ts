@@ -185,7 +185,7 @@ describe('timeline queries and clip operations', () => {
 		const video = project.tracks.find((track) => track.kind === 'video')!;
 		const clip = video.clips[0]!;
 		const addedTrack = addTrack(project, 'video');
-		const target = addedTrack.tracks.at(-1)!;
+		const target = addedTrack.tracks[0]!;
 		const moved = moveClips(addedTrack, {
 			clipIds: [clip.id],
 			deltaTime: 2_000_000,
@@ -248,10 +248,10 @@ describe('timeline queries and clip operations', () => {
 		const secondTrack = project.tracks[1]!;
 		const changed = setTrackFlags(project, firstTrack.id, { locked: true, hidden: true });
 		const reordered = reorderTrack(changed, firstTrack.id, 1);
-		expect(reordered.tracks.map((track) => track.id)).toEqual([secondTrack.id, firstTrack.id]);
-		expect(reordered.tracks[1]?.locked).toBe(true);
-		expect(reordered.tracks[1]?.hidden).toBe(true);
-		expect(renameTrack(reordered, firstTrack.id, '  Main video  ').tracks[1]?.name).toBe(
+		expect(reordered.tracks.map((track) => track.id)).toEqual([firstTrack.id, secondTrack.id]);
+		expect(reordered.tracks[0]?.locked).toBe(true);
+		expect(reordered.tracks[0]?.hidden).toBe(true);
+		expect(renameTrack(reordered, firstTrack.id, '  Main video  ').tracks[0]?.name).toBe(
 			'Main video'
 		);
 		expect(() => renameTrack(reordered, firstTrack.id, '  ')).toThrow('cannot be empty');
@@ -303,6 +303,26 @@ describe('timeline queries and clip operations', () => {
 		]);
 	});
 
+	it('moves a detached audio clip, including onto another audio track', () => {
+		let project = addVideo();
+		const videoClip = project.tracks.find((track) => track.kind === 'video')!.clips[0]!;
+		const audioTrack = project.tracks.find((track) => track.kind === 'audio')!;
+		const audioClip = audioTrack.clips[0]!;
+		project = unlinkClips(project, [audioClip.id]);
+		project = addTrack(project, 'audio');
+		const second = project.tracks.filter((track) => track.kind === 'audio')[1]!;
+		const moved = moveClips(project, {
+			clipIds: [audioClip.id],
+			deltaTime: 1_000_000,
+			targetTrackId: second.id
+		});
+		const movedAudio = moved.tracks.find((track) => track.id === second.id)!.clips[0]!;
+		expect(movedAudio.start).toBe(1_000_000);
+		expect(moved.tracks.find((track) => track.kind === 'video')!.clips[0]!.start).toBe(
+			videoClip.start
+		);
+	});
+
 	it('makes edge splits a typed no-op and refuses locked tracks', () => {
 		const project = addVideo();
 		const clip = project.tracks[0]!.clips[0]!;
@@ -342,9 +362,29 @@ describe('timeline queries and clip operations', () => {
 
 	it('adds additional tracks without changing existing track records', () => {
 		const project = videoProject();
-		const result = addTrack(project, 'audio');
-		expect(result.tracks).toHaveLength(project.tracks.length + 1);
-		expect(result.tracks.at(-1)?.kind).toBe('audio');
+		const videoTrack = addTrack(project, 'video').tracks[0];
+		expect(videoTrack?.kind).toBe('video');
+		expect(project.tracks.every((track) => track.id !== videoTrack?.id)).toBe(true);
+
+		const withAudio = addTrack(project, 'audio');
+		expect(withAudio.tracks).toHaveLength(project.tracks.length + 1);
+		expect(withAudio.tracks.at(-1)?.kind).toBe('audio');
+		expect(withAudio.tracks.findIndex((track) => track.kind === 'audio')).toBeGreaterThan(
+			withAudio.tracks.findLastIndex((track) => track.kind === 'video')
+		);
+	});
+
+	it('keeps video tracks above audio tracks during manual reordering', () => {
+		const project = videoProject();
+		const withVideo = addTrack(project, 'video');
+		const videoTrack = withVideo.tracks[0]!;
+		const audioTrack = withVideo.tracks.find((track) => track.kind === 'audio')!;
+
+		const reorderedVideo = reorderTrack(withVideo, videoTrack.id, withVideo.tracks.length - 1);
+		expect(reorderedVideo.tracks.findIndex((track) => track.id === videoTrack.id)).toBe(1);
+		expect(reorderedVideo.tracks.slice(0, 2).every((track) => track.kind === 'video')).toBe(true);
+		const reordered = reorderTrack(withVideo, audioTrack.id, 0);
+		expect(reordered.tracks.at(-1)?.id).toBe(audioTrack.id);
 	});
 
 	it('preserves the no-overlap invariant over 500 generated placements and edits', () => {

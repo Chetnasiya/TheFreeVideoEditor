@@ -16,6 +16,8 @@ interface PreviewState {
 	hasAudio: boolean;
 	missing: string[];
 	loading: boolean;
+	error: string;
+	unsupported: string;
 }
 
 export default function PreviewPlayer({ project, engine, zoom, canvasRef }: PreviewPlayerProps) {
@@ -81,7 +83,9 @@ function PreviewNotice({ project, engine }: { project: Project; engine: Playback
 		hasVideo: false,
 		hasAudio: false,
 		missing: [],
-		loading: false
+		loading: false,
+		error: '',
+		unsupported: ''
 	});
 
 	useEffect(() => {
@@ -89,16 +93,25 @@ function PreviewNotice({ project, engine }: { project: Project; engine: Playback
 		const update = (snapshot: PlaybackSnapshot) => {
 			const resolved = resolveFrame(project, snapshot.time);
 			const names = [...new Set(snapshot.missing.map((id) => project.assets[id]?.name ?? id))];
+			const unsupportedAsset = resolved.videoLayers
+				.map((layer) => project.assets[layer.assetId])
+				.find((asset) => asset?.videoDecodable === false);
 			const nextState: PreviewState = {
 				hasVideo: resolved.videoLayers.some((layer) => !snapshot.missing.includes(layer.assetId)),
 				hasAudio: resolved.audioSources.length > 0,
 				missing: names,
-				loading: snapshot.loading
+				loading: snapshot.loading,
+				error: snapshot.error,
+				unsupported: unsupportedAsset
+					? `${unsupportedAsset.name}${unsupportedAsset.videoCodec ? ` (${unsupportedAsset.videoCodec})` : ''}`
+					: ''
 			};
 			setState((previous) =>
 				previous.hasVideo === nextState.hasVideo &&
 				previous.hasAudio === nextState.hasAudio &&
 				previous.loading === nextState.loading &&
+				previous.error === nextState.error &&
+				previous.unsupported === nextState.unsupported &&
 				previous.missing.join('\0') === nextState.missing.join('\0')
 					? previous
 					: nextState
@@ -112,6 +125,22 @@ function PreviewNotice({ project, engine }: { project: Project; engine: Playback
 			<div className="preview-warning-overlay" role="status" aria-live="polite">
 				<strong>Offline media</strong>
 				<span>{state.missing.join(', ')}</span>
+			</div>
+		);
+	}
+	if (state.error) {
+		return (
+			<div className="preview-warning-overlay" role="alert">
+				<strong>Playback error</strong>
+				<span>{state.error}</span>
+			</div>
+		);
+	}
+	if (state.unsupported) {
+		return (
+			<div className="preview-warning-overlay" role="alert">
+				<strong>Unsupported video codec</strong>
+				<span>This browser cannot decode “{state.unsupported}”.</span>
 			</div>
 		);
 	}

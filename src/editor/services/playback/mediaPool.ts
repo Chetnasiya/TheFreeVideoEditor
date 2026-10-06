@@ -210,7 +210,10 @@ export class MediaPool {
 			video.playbackRate = rate;
 			if (needsDriftCorrection(video.currentTime, expected)) this.requestSeek(entry, expected);
 			if (video.paused)
-				void video.play().catch((error: unknown) => this.reportError(error, asset.id));
+				void video.play().catch((error: unknown) => {
+					if (error instanceof DOMException && error.name === 'AbortError') return;
+					this.reportError(error, asset.id);
+				});
 		} else {
 			video.pause();
 			this.requestSeek(entry, expected);

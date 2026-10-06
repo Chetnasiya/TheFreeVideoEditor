@@ -336,6 +336,13 @@ function ActiveTimeline({ project }: { project: Project }) {
 	} | null>(null);
 	const [context, setContext] = useState<ContextPosition | null>(null);
 	const [viewportWidth, setViewportWidth] = useState(1_000);
+	const [trackHeights, setTrackHeights] = useState<Record<string, number>>({});
+	const trackResize = useRef<{
+		trackId: TrackId;
+		pointerId: number;
+		startY: number;
+		startHeight: number;
+	} | null>(null);
 	const [removePending, setRemovePending] = useState<Track | null>(null);
 	const [newTrackDropKind, setNewTrackDropKind] = useState<Track['kind'] | null>(null);
 	const removeDialogRef = useRef<HTMLDialogElement>(null);
@@ -352,6 +359,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 	const visibleClipRange = {
 		start: Math.max(0, scrollLeft - HEADER_WIDTH - clipOverscan),
 		end: scrollLeft + viewportWidth - HEADER_WIDTH + clipOverscan
+	};
+	const setTrackHeight = (trackId: TrackId, height: number) => {
+		setTrackHeights((current) => ({ ...current, [trackId]: Math.max(48, Math.min(240, height)) }));
 	};
 
 	useEffect(() => {
@@ -465,8 +475,10 @@ function ActiveTimeline({ project }: { project: Project }) {
 					: session.kind === 'trim-end' && primary
 						? primary.start + primary.duration + rawTime - session.pointerStartTime
 						: rawTime;
-		const candidates = [referenceStart];
-		if (session.kind === 'move' && primary) candidates.push(referenceStart + primary.duration);
+		const candidates = [Math.max(0, referenceStart)];
+		if (session.kind === 'move' && primary) {
+			candidates.push(Math.max(0, referenceStart + primary.duration));
+		}
 		const snappedCandidates = candidates
 			.map((candidate) => snapTime(candidate, points, snapTolerance))
 			.filter((result) => result.snappedTo !== undefined)
@@ -759,7 +771,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 		if (!(target instanceof HTMLElement)) return;
 		if (
 			target.closest(
-				'.timeline-clip, .timeline-track-header, .timeline-ruler, .timeline-track-controls, .timeline-context-menu'
+				'.timeline-clip, .timeline-track-header, .timeline-ruler, .timeline-track-controls, .timeline-track-resize-handle, .timeline-context-menu'
 			)
 		)
 			return;
@@ -976,7 +988,12 @@ function ActiveTimeline({ project }: { project: Project }) {
 						{activeProject.tracks.map((track, index) => {
 							const previewPositions = dragPositionsByTrack.get(track.id) ?? [];
 							return (
-								<div className={`timeline-track-row track-${track.kind}`} role="row" key={track.id}>
+								<div
+									className={`timeline-track-row track-${track.kind}`}
+									role="row"
+									key={track.id}
+									style={{ '--track-height': `${trackHeights[track.id] ?? 80}px` } as CSSProperties}
+								>
 									<TrackHeader
 										track={track}
 										index={index}
@@ -1091,6 +1108,60 @@ function ActiveTimeline({ project }: { project: Project }) {
 											);
 										})}
 									</div>
+									<button
+										className="timeline-track-resize-handle"
+										type="button"
+										role="separator"
+										aria-label={`Resize ${track.name} track height`}
+										aria-orientation="horizontal"
+										aria-valuemin={48}
+										aria-valuemax={240}
+										aria-valuenow={trackHeights[track.id] ?? 80}
+										onPointerDown={(event) => {
+											event.preventDefault();
+											event.currentTarget.setPointerCapture(event.pointerId);
+											trackResize.current = {
+												trackId: track.id,
+												pointerId: event.pointerId,
+												startY: event.clientY,
+												startHeight: trackHeights[track.id] ?? 80
+											};
+										}}
+										onPointerMove={(event) => {
+											const active = trackResize.current;
+											if (
+												!active ||
+												active.trackId !== track.id ||
+												active.pointerId !== event.pointerId
+											) {
+												return;
+											}
+											setTrackHeight(track.id, active.startHeight + event.clientY - active.startY);
+										}}
+										onPointerUp={() => {
+											trackResize.current = null;
+										}}
+										onPointerCancel={() => {
+											trackResize.current = null;
+										}}
+										onKeyDown={(event) => {
+											const step = event.shiftKey ? 24 : 8;
+											const current = trackHeights[track.id] ?? 80;
+											if (event.key === 'ArrowUp') {
+												event.preventDefault();
+												setTrackHeight(track.id, current + step);
+											} else if (event.key === 'ArrowDown') {
+												event.preventDefault();
+												setTrackHeight(track.id, current - step);
+											} else if (event.key === 'Home') {
+												event.preventDefault();
+												setTrackHeight(track.id, 48);
+											} else if (event.key === 'End') {
+												event.preventDefault();
+												setTrackHeight(track.id, 240);
+											}
+										}}
+									/>
 								</div>
 							);
 						})}

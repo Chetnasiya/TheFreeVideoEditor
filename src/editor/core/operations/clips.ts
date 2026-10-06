@@ -152,7 +152,8 @@ export function moveClips(project: Project, args: MoveClipsArgs): Project {
 				: findTrack(project, track.id);
 		if (destination.locked) throw new TrackLockedError(destination.id);
 		const asset = project.assets[clip.assetId];
-		if (!asset || !fitsTrack(asset, destination, clip.linkId)) throw new TrackKindMismatchError();
+		const audioSource = track.kind === 'audio' ? (clip.linkId ?? 'detached-audio') : clip.linkId;
+		if (!asset || !fitsTrack(asset, destination, audioSource)) throw new TrackKindMismatchError();
 		const desiredStart = Math.max(0, clip.start + (desiredAnchor - anchor.clip.start));
 		return { clip, destination, desiredStart };
 	});

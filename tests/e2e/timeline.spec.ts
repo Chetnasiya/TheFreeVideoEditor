@@ -92,6 +92,16 @@ test('timeline edits through drag, keyboard, autosave, reload, and native projec
 	await expect(clip).toContainText('fixture.wav');
 	await expect(clip).toHaveAttribute('aria-label', /selected/);
 
+	const initialClipBox = await clip.boundingBox();
+	expect(initialClipBox).not.toBeNull();
+	await page.mouse.move(initialClipBox!.x + 20, initialClipBox!.y + 20);
+	await page.mouse.down();
+	await page.mouse.move(initialClipBox!.x - 40, initialClipBox!.y + 20, { steps: 4 });
+	await page.mouse.up();
+	await expect
+		.poll(() => clip.evaluate((element) => Number.parseFloat((element as HTMLElement).style.left)))
+		.toBe(0);
+
 	const beforeMove = await clip.evaluate((element) =>
 		Number.parseFloat((element as HTMLElement).style.left)
 	);
@@ -202,6 +212,7 @@ test('virtualizes 500 timeline clips and keeps scrub interactions responsive', a
 			request.onsuccess = () => resolve(request.result);
 			request.onerror = () => reject(request.error);
 		});
+
 		const projectId = await new Promise<string>((resolve, reject) => {
 			const request = database
 				.transaction('meta', 'readonly')
@@ -279,4 +290,50 @@ test('virtualizes 500 timeline clips and keeps scrub interactions responsive', a
 	).not.toContainText('00:00:00:00');
 	const longestTask = await page.evaluate(() => Math.max(0, ...(window.__timelineLongTasks ?? [])));
 	expect(longestTask).toBeLessThan(100);
+});
+
+test('resizes tracks and keeps video above audio tracks', async ({ page }) => {
+	await page.goto('/editor');
+	await page
+		.getByRole('dialog', { name: 'Your Projects' })
+		.getByRole('button', { name: 'New project' })
+		.click();
+	const createDialog = page.getByRole('dialog', { name: 'Create a Project' });
+	await createDialog.getByRole('textbox', { name: 'Project name' }).fill('Track layout');
+	await createDialog.getByRole('button', { name: 'Create project' }).click();
+	await expect(page.getByRole('heading', { name: 'Track layout' })).toBeVisible();
+
+	await page.getByRole('button', { name: '+ Video Track' }).click();
+	await expect(page.getByRole('gridcell', { name: 'Video 2 track lane' })).toBeVisible();
+	await page.getByRole('button', { name: '+ Audio Track' }).click();
+	await expect(page.getByRole('gridcell', { name: 'Audio 2 track lane' })).toBeVisible();
+	const rows = page.locator('.timeline-track-row');
+	await expect(rows).toHaveCount(4);
+	expect(
+		await rows.evaluateAll((elements) =>
+			elements.map((element) => element.classList.contains('track-video'))
+		)
+	).toEqual([true, true, false, false]);
+
+	const resizeHandle = page.getByRole('separator', { name: 'Resize Video 2 track height' });
+	const initialHeight = Number(await resizeHandle.getAttribute('aria-valuenow'));
+	const handleBox = await resizeHandle.boundingBox();
+	expect(handleBox).not.toBeNull();
+	await page.mouse.move(handleBox!.x + 80, handleBox!.y + 3);
+	await page.mouse.down();
+	await page.mouse.move(handleBox!.x + 80, handleBox!.y + 43, { steps: 4 });
+	await page.mouse.up();
+	await expect(resizeHandle).toHaveAttribute('aria-valuenow', String(initialHeight + 40));
+	await resizeHandle.focus();
+	await page.keyboard.press('ArrowDown');
+	await expect(resizeHandle).toHaveAttribute('aria-valuenow', String(initialHeight + 32));
+
+	const audioTrackHeader = page.locator('[data-track-header-id]').filter({ hasText: 'Audio 1' });
+	const videoTrackHeader = page.locator('[data-track-header-id]').filter({ hasText: 'Video 2' });
+	await audioTrackHeader.dragTo(videoTrackHeader);
+	expect(
+		await rows.evaluateAll((elements) =>
+			elements.map((element) => element.classList.contains('track-video'))
+		)
+	).toEqual([true, true, false, false]);
 });

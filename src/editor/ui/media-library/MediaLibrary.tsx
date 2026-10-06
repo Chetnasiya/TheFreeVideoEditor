@@ -5,7 +5,8 @@ import {
 	useState,
 	type DragEvent,
 	type KeyboardEvent,
-	type MouseEvent
+	type MouseEvent,
+	type CSSProperties
 } from 'react';
 import { ACCEPTED_TYPES, getAssetUsage, ticksToTimecode } from '../../core';
 import type { Asset, AssetId, ProjectId } from '../../core';
@@ -139,6 +140,7 @@ export default function MediaLibrary() {
 	const [relinkMismatch, setRelinkMismatch] = useState('');
 	const [isImporting, setIsImporting] = useState(false);
 	const [activeAssetId, setActiveAssetId] = useState<AssetId | null>(null);
+	const [thumbnailHeight, setThumbnailHeight] = useState(40);
 	const generateAssetDerived = useEditorStore((state) => state.generateAssetDerived);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const relinkInputRef = useRef<HTMLInputElement>(null);
@@ -372,6 +374,7 @@ export default function MediaLibrary() {
 	return (
 		<div
 			className={`media-library ${isDragging ? 'is-drop-target' : ''}`}
+			style={{ '--media-thumbnail-height': `${thumbnailHeight}px` } as CSSProperties}
 			onDragEnter={dragEnter}
 			onDragOver={(event) => event.preventDefault()}
 			onDragLeave={dragLeave}
@@ -421,6 +424,19 @@ export default function MediaLibrary() {
 					</button>
 				</div>
 			</div>
+			<label className="media-thumbnail-size">
+				<span>Thumbnail height</span>
+				<input
+					type="range"
+					name="media-thumbnail-height"
+					min="40"
+					max="160"
+					step="8"
+					value={thumbnailHeight}
+					onChange={(event) => setThumbnailHeight(Number(event.currentTarget.value))}
+				/>
+				<output>{thumbnailHeight}px</output>
+			</label>
 			<label className="media-search">
 				<span className="sr-only">Search media</span>
 				<input
@@ -561,6 +577,13 @@ export default function MediaLibrary() {
 													Retry
 												</button>
 											</>
+										) : asset.kind === 'video' && asset.audioChecked === false ? (
+											<span
+												className="media-chip is-failed"
+												title="This browser could not inspect the container audio tracks; audio may be omitted."
+											>
+												Audio track unverified
+											</span>
 										) : null}
 									</div>
 								</div>

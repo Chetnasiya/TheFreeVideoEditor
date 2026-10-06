@@ -17,10 +17,13 @@ interface AudioDecoderEntry {
 
 export class WorkerAudioMixer {
 	private readonly decoders = new Map<AssetId, AudioDecoderEntry>();
+	private readonly failedAssets = new Set<AssetId>();
+	private readonly warnedAssets = new Set<AssetId>();
 
 	constructor(
 		private readonly project: Project,
-		private readonly getFile: typeof getMediaFile
+		private readonly getFile: typeof getMediaFile,
+		private readonly onWarning?: (message: string) => void
 	) {}
 
 	async mixChunk(
@@ -36,12 +39,26 @@ export class WorkerAudioMixer {
 		const right = new Float32Array(frameCount);
 		for (const schedule of schedules) {
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
-			const segments = await this.decodeRange(
-				schedule.assetId,
-				schedule.sourceOffsetSeconds,
-				schedule.sourceDurationSeconds,
-				signal
-			);
+			if (this.failedAssets.has(schedule.assetId)) continue;
+			let segments: DecodedSegment[];
+			try {
+				segments = await this.decodeRange(
+					schedule.assetId,
+					schedule.sourceOffsetSeconds,
+					schedule.sourceDurationSeconds,
+					signal
+				);
+			} catch (error) {
+				if (error instanceof DOMException && error.name === 'AbortError') throw error;
+				this.failedAssets.add(schedule.assetId);
+				const asset = this.project.assets[schedule.assetId];
+				const detail = error instanceof Error ? error.message : 'Unknown audio decoding error.';
+				if (asset && !this.warnedAssets.has(schedule.assetId)) {
+					this.warnedAssets.add(schedule.assetId);
+					this.onWarning?.(`Audio from “${asset.name}” was skipped: ${detail}`);
+				}
+				continue;
+			}
 			this.addSchedule(
 				segments,
 				schedule.whenSeconds,
@@ -82,6 +99,13 @@ export class WorkerAudioMixer {
 	): Promise<DecodedSegment[]> {
 		const asset = this.project.assets[assetId];
 		if (!asset) throw new Error(`Project asset “${assetId}” is missing.`);
+		if (asset.audioDecodable === false) {
+			throw new AudioMixError(
+				asset.id,
+				asset.name,
+				new Error('The media decoder reports that this codec is unsupported.')
+			);
+		}
 		try {
 			const decoder = await this.getDecoder(assetId);
 			const segments: DecodedSegment[] = [];

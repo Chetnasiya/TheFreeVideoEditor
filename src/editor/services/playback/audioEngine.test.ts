@@ -178,4 +178,26 @@ describe('audio engine', () => {
 		expect(audioElement.play).not.toHaveBeenCalled();
 		await audio.dispose();
 	});
+
+	it('restores track gain when playback resumes after a pause', async () => {
+		setLocalStorage();
+		const audioElement = makeAudioElement();
+		const pool = { getAudioElement: () => audioElement } as unknown as Pick<
+			MediaPool,
+			'getAudioElement'
+		>;
+		const harness = makeContext();
+		const audio = new AudioEngine(pool, { createContext: () => harness.context });
+		const { project, source } = makeProject();
+
+		await audio.sync([source], project, true, 1);
+		await audio.sync([], project, false, 1);
+		expect(harness.gains[1]?.gain.value).toBe(0);
+		await audio.sync([source], project, true, 1);
+		expect(harness.gains[1]?.gain.value).toBe(0.5);
+		await audio.sync([], project, true, 1);
+		await audio.sync([source], project, true, 1);
+		expect(harness.gains[1]?.gain.value).toBe(0.5);
+		await audio.dispose();
+	});
 });

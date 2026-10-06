@@ -8,7 +8,9 @@ export interface ExportTestHooks {
 	addSecondClipAfterGap?: () => boolean;
 	addSampleOverlay?: () => boolean;
 	hideTopVideoTrack?: (hidden: boolean) => boolean;
+	createUiAuditFixture?: () => Promise<{ trackCount: number; clipCount: number } | false>;
 	lastProgress?: { framesDone: number; totalFrames: number; fps: number; phase: string };
+	lastPlan?: { totalFrames: number; durationUs: number; fps: number };
 }
 
 declare global {
@@ -52,5 +54,16 @@ export function recordExportProgress(progress: {
 	if (typeof window !== 'undefined' && import.meta.env.DEV) {
 		window.__TFVE_EXPORT_TEST_HOOKS__ ??= {};
 		window.__TFVE_EXPORT_TEST_HOOKS__.lastProgress = progress;
+	}
+}
+
+export function recordExportPlan(plan: {
+	totalFrames: number;
+	durationUs: number;
+	fps: number;
+}): void {
+	if (typeof window !== 'undefined' && import.meta.env.DEV) {
+		window.__TFVE_EXPORT_TEST_HOOKS__ ??= {};
+		window.__TFVE_EXPORT_TEST_HOOKS__.lastPlan = plan;
 	}
 }
