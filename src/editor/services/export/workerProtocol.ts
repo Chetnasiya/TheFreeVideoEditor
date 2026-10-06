@@ -14,6 +14,7 @@ export interface ExportWorkerStart {
 	files: Array<{ assetId: AssetId; file: File }>;
 	videoCodec?: string;
 	audioCodec?: string;
+	renderer?: 'webgl2' | 'canvas2d';
 }
 
 export interface ExportWorkerCancel {
@@ -54,5 +55,11 @@ export type ExportWorkerResponse =
 	| ExportWorkerProgress
 	| ExportWorkerWarning
 	| ExportWorkerChunk
-	| { type: 'done'; jobId: string; bytes: number; durationUs: number }
+	| {
+			type: 'done';
+			jobId: string;
+			bytes: number;
+			durationUs: number;
+			renderer?: 'webgl2' | 'canvas2d';
+	  }
 	| { type: 'error'; jobId?: string; code: string; message: string };

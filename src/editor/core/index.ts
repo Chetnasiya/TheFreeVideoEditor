@@ -1,3 +1,5 @@
+export * from './animation';
+export * from './timeRemap';
 export * from './factory';
 export * from './media';
 export * from './assets';
@@ -10,3 +12,9 @@ export * from './operations';
 export * from './schema';
 export * from './time';
 export * from './types';
+export * from './layerGeometry';
+export * from './gpuFeatures';
+export * from './crop';
+export * from './properties';
+export * from './keyframeEdit';
+export * from './gizmo';

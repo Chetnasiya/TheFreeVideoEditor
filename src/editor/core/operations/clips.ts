@@ -1,5 +1,7 @@
+import { retimeClipAnimation, splitClipAnimation } from '../clipAnimation';
 import { createAssetId } from '../ids';
 import { framesToTicks } from '../time';
+import { timelineToSource } from '../timeRemap';
 import { clipEnd, findFreeGap, groupOf, nearestValidStart } from '../timeline';
 import type { Asset, Clip, ClipId, Project, Time, Track, TrackId } from '../types';
 import {
@@ -272,7 +274,14 @@ export function trimClip(
 		return {
 			old: member,
 			trackId: memberTrack.id,
-			clip: { ...member, start, duration, sourceIn, sourceOut }
+			clip: {
+				...member,
+				start,
+				duration,
+				sourceIn,
+				sourceOut,
+				...(edge === 'start' ? retimeClipAnimation(member, start - member.start) : {})
+			}
 		};
 	});
 	const movingIds = new Set(edits.map(({ old }) => old.id));
@@ -328,7 +337,10 @@ export function splitClipsAt(
 			}
 			if (track.locked) throw new TrackLockedError(track.id);
 			const leftDuration = time - clip.start;
-			const sourceMiddle = clip.sourceIn + Math.round(leftDuration * clip.speed);
+			const sourceMiddle = clip.timeRemap
+				? timelineToSource(clip, time)
+				: clip.sourceIn + Math.round(leftDuration * clip.speed);
+			const [leftAnimation, rightAnimation] = splitClipAnimation(clip, leftDuration);
 			const leftLink = clip.linkId
 				? (leftLinkMap.get(clip.linkId) ?? leftLinkMap.set(clip.linkId, makeId()).get(clip.linkId)!)
 				: undefined;
@@ -340,6 +352,7 @@ export function splitClipsAt(
 				...clip,
 				duration: leftDuration,
 				sourceOut: sourceMiddle,
+				...leftAnimation,
 				...(leftLink ? { linkId: leftLink } : {})
 			};
 			const right: Clip = {
@@ -348,7 +361,13 @@ export function splitClipsAt(
 				start: time,
 				duration: clipEnd(clip) - time,
 				sourceIn: sourceMiddle,
-				effects: clip.effects?.map((effect) => ({ ...effect, id: makeId() })),
+				...rightAnimation,
+				...(rightAnimation.effects
+					? { effects: rightAnimation.effects.map((effect) => ({ ...effect, id: makeId() })) }
+					: {}),
+				...(rightAnimation.masks
+					? { masks: rightAnimation.masks.map((mask) => ({ ...mask, id: makeId() })) }
+					: {}),
 				...(rightLink ? { linkId: rightLink } : {})
 			};
 			clips.push(left, right);
@@ -464,7 +483,8 @@ export function duplicateClips(project: Project, clipIds: readonly ClipId[]): Pr
 				id: makeId() as ClipId,
 				start: clip.start + delta,
 				...(linkId ? { linkId } : {}),
-				effects: clip.effects?.map((effect) => ({ ...effect, id: makeId() }))
+				effects: clip.effects?.map((effect) => ({ ...effect, id: makeId() })),
+				...(clip.masks ? { masks: clip.masks.map((mask) => ({ ...mask, id: makeId() })) } : {})
 			};
 		});
 		return { ...track, clips: [...track.clips, ...copies].toSorted((a, b) => a.start - b.start) };

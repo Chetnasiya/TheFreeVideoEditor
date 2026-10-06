@@ -75,7 +75,7 @@ describe('native TFVE projects', () => {
 	});
 
 	it('rejects future project schemas', async () => {
-		const project = { ...createEmptyProject({ name: 'Future' }), schemaVersion: 2 };
+		const project = { ...createEmptyProject({ name: 'Future' }), schemaVersion: 3 };
 		const { zipSync } = await import('fflate');
 		const archive = {
 			'manifest.json': strToU8(

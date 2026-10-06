@@ -118,6 +118,7 @@ async function start(message: Extract<ExportWorkerRequest, { type: 'start' }>): 
 			}),
 			...(message.videoCodec ? { videoCodec: message.videoCodec } : {}),
 			...(message.audioCodec ? { audioCodec: message.audioCodec } : {}),
+			...(message.renderer ? { renderer: message.renderer } : {}),
 			onWarning(messageText) {
 				send({ type: 'warning', message: messageText });
 			},
@@ -136,7 +137,8 @@ async function start(message: Extract<ExportWorkerRequest, { type: 'start' }>): 
 			type: 'done',
 			jobId: message.jobId,
 			bytes: bytesWritten,
-			durationUs: result.plan.durationUs
+			durationUs: result.plan.durationUs,
+			...(result.renderer ? { renderer: result.renderer } : {})
 		});
 	} catch (error) {
 		const code =

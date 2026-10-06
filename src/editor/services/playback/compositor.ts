@@ -1,6 +1,13 @@
 import { fitRect } from '../../core/composition';
 import type { ActiveLayer } from '../../core/playback';
-import type { ClipId } from '../../core/types';
+import type { BlendMode, ClipId } from '../../core/types';
+
+const CANVAS_BLEND: Record<BlendMode, GlobalCompositeOperation> = {
+	normal: 'source-over',
+	add: 'lighter',
+	multiply: 'multiply',
+	screen: 'screen'
+};
 
 export type FrameSource = CanvasImageSource | VideoFrame;
 export type FrameProvider = (layer: ActiveLayer) => FrameSource | null;
@@ -15,6 +22,7 @@ export interface CompositionContext {
 	canvas?: { width: number; height: number } | OffscreenCanvasRenderingContext2D['canvas'];
 	fillStyle: string | CanvasGradient | CanvasPattern;
 	globalAlpha: number;
+	globalCompositeOperation?: GlobalCompositeOperation;
 	clearRect(x: number, y: number, width: number, height: number): void;
 	fillRect(x: number, y: number, width: number, height: number): void;
 	drawImage(
@@ -23,6 +31,17 @@ export interface CompositionContext {
 		y: number,
 		width: number,
 		height: number
+	): void;
+	drawImage(
+		image: CanvasImageSource | VideoFrame,
+		sx: number,
+		sy: number,
+		sw: number,
+		sh: number,
+		dx: number,
+		dy: number,
+		dw: number,
+		dh: number
 	): void;
 	save(): void;
 	restore(): void;
@@ -71,23 +90,54 @@ export function renderFrame(
 		lastGoodFrames.set(layer.clipId, source);
 		const rect = fitRect(dimensions.width, dimensions.height, size.width, size.height);
 		const transform = layer.transform;
-		if (!transform) {
-			context.drawImage(source, rect.x, rect.y, rect.width, rect.height);
+		const blendMode = layer.blendMode ?? 'normal';
+		const [cropLeft, cropTop, cropRight, cropBottom] = layer.crop ?? [0, 0, 0, 0];
+		const cropped = Boolean(layer.crop);
+		const drawRect = {
+			x: rect.x + cropLeft * rect.width,
+			y: rect.y + cropTop * rect.height,
+			width: rect.width * (1 - cropLeft - cropRight),
+			height: rect.height * (1 - cropTop - cropBottom)
+		};
+		const sourceRect = {
+			x: cropLeft * dimensions.width,
+			y: cropTop * dimensions.height,
+			width: dimensions.width * (1 - cropLeft - cropRight),
+			height: dimensions.height * (1 - cropTop - cropBottom)
+		};
+		const draw = (offsetX: number, offsetY: number): void => {
+			if (cropped) {
+				context.drawImage(
+					source,
+					sourceRect.x,
+					sourceRect.y,
+					sourceRect.width,
+					sourceRect.height,
+					drawRect.x - offsetX,
+					drawRect.y - offsetY,
+					drawRect.width,
+					drawRect.height
+				);
+			} else {
+				context.drawImage(source, rect.x - offsetX, rect.y - offsetY, rect.width, rect.height);
+			}
+		};
+		if (!transform && blendMode === 'normal') {
+			draw(0, 0);
 			continue;
 		}
 
 		context.save();
-		context.globalAlpha = transform.opacity;
-		context.translate(size.width / 2 + transform.x, size.height / 2 + transform.y);
-		context.rotate((transform.rotation * Math.PI) / 180);
-		context.scale(transform.scaleX, transform.scaleY);
-		context.drawImage(
-			source,
-			rect.x - size.width / 2,
-			rect.y - size.height / 2,
-			rect.width,
-			rect.height
+		context.globalAlpha = transform?.opacity ?? 1;
+		context.globalCompositeOperation = CANVAS_BLEND[blendMode];
+		const anchor = layer.anchor ?? { x: 0, y: 0 };
+		context.translate(
+			size.width / 2 + (transform?.x ?? 0) + anchor.x,
+			size.height / 2 + (transform?.y ?? 0) + anchor.y
 		);
+		context.rotate(((transform?.rotation ?? 0) * Math.PI) / 180);
+		context.scale(transform?.scaleX ?? 1, transform?.scaleY ?? 1);
+		draw(size.width / 2 + anchor.x, size.height / 2 + anchor.y);
 		context.restore();
 	}
 }

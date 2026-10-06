@@ -3,7 +3,13 @@ import { framesToTicks, ticksToTimecode, timelineDuration } from '../../core';
 import type { AssetId, ClipId, Project, Time } from '../../core';
 import type { EditorStore } from '../../state/store';
 import { AudioEngine } from './audioEngine';
-import { renderFrame, type FrameSource, type LastGoodFrames } from './compositor';
+import type { FrameSource, LastGoodFrames } from './compositor';
+import {
+	createFrameRenderer,
+	type RendererKind,
+	type FrameRenderer,
+	type RenderStats
+} from '../render';
 import { createPlaybackClock, type PlaybackRate } from './clock';
 import { MediaPool } from './mediaPool';
 
@@ -32,12 +38,13 @@ export interface PlaybackDebugStats {
 	rate: PlaybackRate;
 	looping: boolean;
 	activeVideoAssets: Array<{ id: AssetId; name: string; trackId: ActiveLayer['trackId'] }>;
+	render: RenderStats | null;
 }
 
 export interface PlaybackEngine {
 	readonly projectId: Project['id'];
 	readonly snapshot: PlaybackSnapshot;
-	attach(canvas: HTMLCanvasElement): void;
+	attach(canvas: HTMLCanvasElement, renderer?: RendererKind): void;
 	detach(): void;
 	setProject(project: Project): void;
 	play(): void;
@@ -84,7 +91,7 @@ export function createPlaybackEngine(store: EditorStore, initialProject: Project
 class PlaybackEngineImpl implements PlaybackEngine {
 	private project: Project;
 	private canvas: HTMLCanvasElement | null = null;
-	private context: CanvasRenderingContext2D | null = null;
+	private renderer: FrameRenderer | null = null;
 	private renderHandle: number | null = null;
 	private loadingTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly listeners = new Set<(snapshot: PlaybackSnapshot) => void>();
@@ -206,16 +213,20 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		return this.project.id;
 	}
 
-	attach(canvas: HTMLCanvasElement): void {
+	attach(canvas: HTMLCanvasElement, rendererKind: RendererKind = 'canvas2d'): void {
 		if (this.disposed) throw new Error('Cannot attach a disposed playback engine.');
 		this.detach();
-		const context = canvas.getContext('2d');
-		if (!context) {
-			this.reportError(new Error('The preview canvas does not support 2D rendering.'));
+		const renderer = createFrameRenderer(canvas, {
+			forceCanvas2d: rendererKind === 'canvas2d',
+			preserveDrawingBuffer: true,
+			onContextRestored: () => this.requestRender()
+		});
+		if (!renderer) {
+			this.reportError(new Error('The preview canvas could not be initialised for rendering.'));
 			return;
 		}
 		this.canvas = canvas;
-		this.context = context;
+		this.renderer = renderer;
 		this.resizeCanvas();
 		this.syncAndRender();
 	}
@@ -224,7 +235,8 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		if (this.renderHandle !== null) cancelAnimationFrame(this.renderHandle);
 		this.renderHandle = null;
 		this.canvas = null;
-		this.context = null;
+		this.renderer?.dispose();
+		this.renderer = null;
 	}
 
 	setProject(project: Project): void {
@@ -350,6 +362,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			playing: this.clock.playing,
 			rate: this.clock.rate,
 			looping: this.clock.looping,
+			render: this.renderer?.stats ?? null,
 			activeVideoAssets: resolveFrame(this.project, this.clock.time).videoLayers.flatMap(
 				(layer) => {
 					const asset = this.project.assets[layer.assetId];
@@ -400,7 +413,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	}
 
 	private requestRender(): void {
-		if (this.disposed || !this.context || this.renderHandle !== null) return;
+		if (this.disposed || !this.renderer || this.renderHandle !== null) return;
 		this.renderHandle = requestAnimationFrame(() => {
 			this.renderHandle = null;
 			this.drawCurrentFrame();
@@ -408,9 +421,9 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	}
 
 	private drawCurrentFrame(): void {
-		const context = this.context;
+		const renderer = this.renderer;
 		const canvas = this.canvas;
-		if (!context || !canvas || this.disposed) return;
+		if (!renderer || !canvas || this.disposed) return;
 		const resolved = resolveFrame(this.project, this.clock.time);
 		const projectClipIds = new Set(
 			this.project.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
@@ -418,11 +431,11 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		for (const clipId of this.lastGoodFrames.keys()) {
 			if (!projectClipIds.has(clipId)) this.lastGoodFrames.delete(clipId);
 		}
+		renderer.releaseUnused(projectClipIds);
 		const missing = new Set([...resolved.missing, ...this.runtimeMissing]);
 		const layers = resolved.videoLayers.filter((layer) => !missing.has(layer.assetId));
 		let loading = false;
-		renderFrame(
-			context,
+		renderer.render(
 			{ width: this.project.settings.width, height: this.project.settings.height },
 			layers,
 			(layer: ActiveLayer): FrameSource | null => {

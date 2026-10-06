@@ -8,7 +8,9 @@ import {
 } from 'mediabunny';
 import type { AssetId, Project } from '../../core';
 import { resolveFrame } from '../../core';
-import { renderFrame, type LastGoodFrames } from '../playback/compositor';
+import type { LastGoodFrames } from '../playback/compositor';
+import { createFrameRenderer, type FrameRenderer, type RendererKind } from '../render';
+import { projectNeedsGpu } from '../../core/gpuFeatures';
 import { getMediaFile } from '../storage/opfs';
 import { audioSchedulesForChunk, decodeAudioAssets, mixAudioChunk } from './audioMix';
 import { ExportFrameProvider } from './frameProvider';
@@ -19,7 +21,9 @@ import type { StreamingSaveTarget } from '../storage/fileAccess';
 import type { ExportWorkerRequest, ExportWorkerResponse } from './workerProtocol';
 import { WorkerAudioMixer } from './workerAudioMix';
 import {
+	forcedExportRenderer,
 	recordExportPath,
+	recordExportRenderer,
 	recordExportPlan,
 	recordExportProgress,
 	recordWorkerTermination
@@ -71,12 +75,15 @@ export interface ExportRunOptions {
 	forceMainThread?: boolean;
 	workerFactory?: () => Worker;
 	onFallback?: (reason: string) => void;
+	/** Overrides the automatic renderer choice (WebGL2 only for projects that need it). */
+	renderer?: RendererKind;
 }
 
 export interface ExportResult {
 	blob: Blob | null;
 	plan: ExportPlan;
 	path?: Exclude<ExportPath, 'compatibility'>;
+	renderer?: RendererKind;
 }
 
 function emitProgress(
@@ -137,6 +144,7 @@ async function exportTimelineMain(
 	let audioSource: AudioSampleSource | null = null;
 	let audioBuffers: Map<AssetId, AudioBuffer> | null = null;
 	let workerAudioMixer: WorkerAudioMixer | null = null;
+	let renderer: FrameRenderer | null = null;
 	const lastGoodFrames: LastGoodFrames = new Map();
 	const startedAt = performance.now();
 	let outputStarted = false;
@@ -147,8 +155,14 @@ async function exportTimelineMain(
 			throw new ExportError('UNSUPPORTED_CODEC', 'OffscreenCanvas is unavailable in this browser.');
 		}
 		const canvas = new OffscreenCanvas(plan.width, plan.height);
-		const context = canvas.getContext('2d');
-		if (!context) throw new ExportError('UNSUPPORTED_CODEC', 'Canvas rendering is unavailable.');
+		renderer = createFrameRenderer(canvas, {
+			forceCanvas2d:
+				(options.renderer ??
+					forcedExportRenderer() ??
+					(projectNeedsGpu(snapshot) ? 'webgl2' : 'canvas2d')) === 'canvas2d',
+			preserveDrawingBuffer: true
+		});
+		if (!renderer) throw new ExportError('UNSUPPORTED_CODEC', 'Canvas rendering is unavailable.');
 		const format = settings.format === 'mp4' ? new Mp4OutputFormat() : new WebMOutputFormat();
 		output = new Output({ format, target: sink.target });
 		const videoCodec =
@@ -215,8 +229,7 @@ async function exportTimelineMain(
 			const timestamp = plan.timestamp(frame);
 			const resolved = resolveFrame(snapshot, timestamp);
 			await frameProvider.prepare(resolved.videoLayers, options.signal);
-			renderFrame(
-				context,
+			renderer.render(
 				{ width: plan.width, height: plan.height },
 				resolved.videoLayers,
 				(layer) => frameProvider.getFrame(layer),
@@ -298,7 +311,8 @@ async function exportTimelineMain(
 			etaMs: 0,
 			phase: 'complete'
 		});
-		return { blob, plan };
+		recordExportRenderer(renderer.kind);
+		return { blob, plan, renderer: renderer.kind };
 	} catch (error) {
 		if (outputStarted && output && output.state !== 'finalized' && output.state !== 'canceled') {
 			await output.cancel();
@@ -317,6 +331,7 @@ async function exportTimelineMain(
 			{ cause: error }
 		);
 	} finally {
+		renderer?.dispose();
 		await frameProvider.dispose();
 		await workerAudioMixer?.dispose();
 		if (audioContext && audioContext.state !== 'closed') await audioContext.close();
@@ -484,7 +499,13 @@ async function tryWorkerExport(
 						fps: lastReportedFps,
 						etaMs: 0
 					});
-					await finish(undefined, { blob, plan, path: 'worker-webcodecs' });
+					if (message.renderer) recordExportRenderer(message.renderer);
+					await finish(undefined, {
+						blob,
+						plan,
+						path: 'worker-webcodecs',
+						...(message.renderer ? { renderer: message.renderer } : {})
+					});
 				} catch (error) {
 					await finish(
 						error instanceof Error ? error : new Error('Could not finalize the export file.')
@@ -554,6 +575,7 @@ async function tryWorkerExport(
 			});
 		}
 		const jobId = crypto.randomUUID();
+		const effectiveRenderer = options.renderer ?? forcedExportRenderer();
 		const message: ExportWorkerRequest = {
 			type: 'start',
 			jobId,
@@ -561,7 +583,8 @@ async function tryWorkerExport(
 			settings,
 			files,
 			...(options.videoCodec ? { videoCodec: options.videoCodec } : {}),
-			...(options.audioCodec ? { audioCodec: options.audioCodec } : {})
+			...(options.audioCodec ? { audioCodec: options.audioCodec } : {}),
+			...(effectiveRenderer ? { renderer: effectiveRenderer } : {})
 		};
 		started = true;
 		recordExportPath('worker-webcodecs');

@@ -36,12 +36,94 @@ export interface Asset {
 	videoCodec?: string;
 	opfsPath: string;
 	offline?: boolean;
+	proxy?: ProxyInfo;
 }
 
-export interface Effect {
+export type Interpolation = 'linear' | 'hold' | 'bezier';
+
+/** Cubic-bezier control point in normalized segment space; x must stay within [0, 1]. */
+export interface BezierHandle {
+	x: number;
+	y: number;
+}
+
+export interface Keyframe<T> {
+	/** Clip-local time in microseconds, measured from the clip's timeline start. */
+	time: Time;
+	value: T;
+	interpolation: Interpolation;
+	easeOut?: BezierHandle;
+	easeIn?: BezierHandle;
+}
+
+export type AngleMode = 'unwrapped' | 'shortest';
+
+export type AnimatedValue<T> = { value: T } | { keyframes: Keyframe<T>[]; angleMode?: AngleMode };
+
+export type PropertyId = string;
+export type SequenceId = Brand<string, 'SequenceId'>;
+
+export type JsonValue =
+	string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+export interface EffectInstance {
 	id: string;
 	type: string;
-	params: Record<string, string | number | boolean>;
+	version?: number;
+	enabled?: boolean;
+	params: Record<string, string | number | boolean | AnimatedValue<unknown>>;
+}
+
+/** Phase 1 name, kept so existing imports continue to compile. */
+export type Effect = EffectInstance;
+
+export type BlendMode = 'normal' | 'add' | 'multiply' | 'screen';
+
+export type ClipSource =
+	| { type: 'asset' }
+	| { type: 'text'; text: string }
+	| { type: 'sequence'; sequenceId: SequenceId }
+	| { type: 'solid'; color: { r: number; g: number; b: number; a: number } }
+	| { type: 'adjustment' };
+
+export interface Mask {
+	id: string;
+	type: 'rect' | 'ellipse' | 'path';
+	mode: 'add' | 'subtract' | 'intersect';
+	inverted: boolean;
+	feather: number;
+	expansion: number;
+	opacity: number;
+	points?: Array<{ x: number; y: number }>;
+	properties?: Record<PropertyId, AnimatedValue<unknown>>;
+}
+
+export type TransitionEdge =
+	| { kind: 'cut'; fromClipId: ClipId; toClipId: ClipId }
+	| { kind: 'head'; clipId: ClipId }
+	| { kind: 'tail'; clipId: ClipId };
+
+export interface Transition {
+	id: string;
+	type: string;
+	duration: Time;
+	alignment: 'center' | 'start' | 'end';
+	edge: TransitionEdge;
+	params: Record<string, JsonValue>;
+}
+
+export interface Sequence {
+	id: SequenceId;
+	name: string;
+	settings?: ProjectSettings;
+	tracks: Track[];
+}
+
+export interface ProxyInfo {
+	opfsPath: string;
+	width: number;
+	height: number;
+	status: 'pending' | 'ready' | 'failed';
 }
 
 export interface ClipTransform {
@@ -63,9 +145,15 @@ export interface Clip {
 	speed: number;
 	volume: number;
 	linkId?: string;
-	effects?: Effect[];
+	effects?: EffectInstance[];
 	transform?: ClipTransform;
 	text?: string;
+	source?: ClipSource;
+	properties?: Record<PropertyId, AnimatedValue<unknown>>;
+	masks?: Mask[];
+	blendMode?: BlendMode;
+	/** Speed curve over clip-local time; 1 is normal, negative reverses, 0 freezes. */
+	timeRemap?: AnimatedValue<number>;
 }
 
 export interface Track {
@@ -76,6 +164,7 @@ export interface Track {
 	locked: boolean;
 	hidden: boolean;
 	clips: Clip[];
+	transitions?: Transition[];
 }
 
 export interface Marker {
@@ -95,6 +184,7 @@ export interface Project {
 	assets: Record<AssetId, Asset>;
 	tracks: Track[];
 	markers: Marker[];
+	sequences?: Record<SequenceId, Sequence>;
 }
 
 export interface ProjectSummary {

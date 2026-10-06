@@ -41,7 +41,7 @@ describe('project schema and migrations', () => {
 	});
 
 	it('explains when the project was made by a newer editor', () => {
-		const project = { ...createEmptyProject({ name: 'Future' }), schemaVersion: 2 };
+		const project = { ...createEmptyProject({ name: 'Future' }), schemaVersion: 3 };
 		expect(() => migrate(project)).toThrow(/newer than this editor supports/);
 	});
 

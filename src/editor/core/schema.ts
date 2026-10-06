@@ -1,7 +1,18 @@
 import { z } from 'zod';
-import type { AssetId, ClipId, MarkerId, Project, ProjectId, TrackId } from './types';
+import type {
+	AnimatedValue,
+	AssetId,
+	ClipId,
+	ClipSource,
+	JsonValue,
+	MarkerId,
+	Project,
+	ProjectId,
+	SequenceId,
+	TrackId
+} from './types';
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export const projectIdSchema = z.custom<ProjectId>(
 	(value) => typeof value === 'string' && value.length > 0
@@ -27,10 +38,97 @@ export const projectSettingsSchema = z.object({
 	sampleRate: z.number().int().positive()
 });
 
+const bezierHandleSchema = z.object({ x: z.number().finite(), y: z.number().finite() });
+
+const keyframeSchema = z.object({
+	time: timeSchema,
+	value: z.unknown().refine((value) => value !== undefined, 'Keyframe value is required.'),
+	interpolation: z.enum(['linear', 'hold', 'bezier']),
+	easeOut: bezierHandleSchema.optional(),
+	easeIn: bezierHandleSchema.optional()
+});
+
+export const animatedValueSchema = z.union([
+	z.object({
+		keyframes: z
+			.array(keyframeSchema)
+			.min(1)
+			.refine(
+				(frames) =>
+					frames.every((frame, index) => index === 0 || frame.time > frames[index - 1]!.time),
+				'Keyframes must be sorted by strictly increasing time.'
+			),
+		angleMode: z.enum(['unwrapped', 'shortest']).optional()
+	}),
+	z.object({ value: z.unknown().refine((value) => value !== undefined, 'Value is required.') })
+]) as unknown as z.ZodType<AnimatedValue<unknown>>;
+
+const propertiesSchema = z.record(z.string().min(1), animatedValueSchema);
+
 export const effectSchema = z.object({
 	id: z.string().min(1),
 	type: z.string().min(1),
-	params: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+	version: z.number().int().nonnegative().optional(),
+	enabled: z.boolean().optional(),
+	params: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), animatedValueSchema]))
+});
+
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+	z.union([
+		z.string(),
+		z.number(),
+		z.boolean(),
+		z.null(),
+		z.array(jsonValueSchema),
+		z.record(z.string(), jsonValueSchema)
+	])
+);
+
+const colorSchema = z.object({
+	r: z.number(),
+	g: z.number(),
+	b: z.number(),
+	a: z.number()
+});
+
+export const clipSourceSchema = z.discriminatedUnion('type', [
+	z.object({ type: z.literal('asset') }),
+	z.object({ type: z.literal('text'), text: z.string() }),
+	z.object({ type: z.literal('sequence'), sequenceId: z.string().min(1) }),
+	z.object({ type: z.literal('solid'), color: colorSchema }),
+	z.object({ type: z.literal('adjustment') })
+]) as unknown as z.ZodType<ClipSource>;
+
+export const maskSchema = z.object({
+	id: z.string().min(1),
+	type: z.enum(['rect', 'ellipse', 'path']),
+	mode: z.enum(['add', 'subtract', 'intersect']),
+	inverted: z.boolean(),
+	feather: z.number(),
+	expansion: z.number(),
+	opacity: z.number().min(0).max(1),
+	points: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
+	properties: propertiesSchema.optional()
+});
+
+export const transitionSchema = z.object({
+	id: z.string().min(1),
+	type: z.string().min(1),
+	duration: timeSchema,
+	alignment: z.enum(['center', 'start', 'end']),
+	edge: z.discriminatedUnion('kind', [
+		z.object({ kind: z.literal('cut'), fromClipId: clipIdSchema, toClipId: clipIdSchema }),
+		z.object({ kind: z.literal('head'), clipId: clipIdSchema }),
+		z.object({ kind: z.literal('tail'), clipId: clipIdSchema })
+	]),
+	params: z.record(z.string(), jsonValueSchema)
+});
+
+export const proxyInfoSchema = z.object({
+	opfsPath: z.string(),
+	width: z.number().int().positive(),
+	height: z.number().int().positive(),
+	status: z.enum(['pending', 'ready', 'failed'])
 });
 
 export const clipTransformSchema = z.object({
@@ -54,7 +152,20 @@ export const clipSchema = z.object({
 	linkId: z.string().min(1).optional(),
 	effects: z.array(effectSchema).optional(),
 	transform: clipTransformSchema.optional(),
-	text: z.string().optional()
+	text: z.string().optional(),
+	source: clipSourceSchema.optional(),
+	properties: propertiesSchema.optional(),
+	masks: z.array(maskSchema).optional(),
+	blendMode: z.enum(['normal', 'add', 'multiply', 'screen']).optional(),
+	timeRemap: (animatedValueSchema as unknown as z.ZodType<AnimatedValue<number>>)
+		.refine(
+			(curve) =>
+				'keyframes' in curve
+					? curve.keyframes.every((frame) => Number.isFinite(frame.value))
+					: Number.isFinite(curve.value),
+			'Time remap values must be finite numbers.'
+		)
+		.optional()
 });
 
 export const assetSchema = z.object({
@@ -75,7 +186,8 @@ export const assetSchema = z.object({
 	videoDecodable: z.boolean().optional(),
 	videoCodec: z.string().min(1).optional(),
 	opfsPath: z.string(),
-	offline: z.boolean().optional()
+	offline: z.boolean().optional(),
+	proxy: proxyInfoSchema.optional()
 });
 
 export const trackSchema = z.object({
@@ -85,7 +197,8 @@ export const trackSchema = z.object({
 	muted: z.boolean(),
 	locked: z.boolean(),
 	hidden: z.boolean(),
-	clips: z.array(clipSchema)
+	clips: z.array(clipSchema),
+	transitions: z.array(transitionSchema).optional()
 });
 
 export const markerSchema = z.object({
@@ -93,6 +206,13 @@ export const markerSchema = z.object({
 	time: timeSchema,
 	label: z.string(),
 	color: z.string().optional()
+});
+
+export const sequenceSchema = z.object({
+	id: z.custom<SequenceId>((value) => typeof value === 'string' && value.length > 0),
+	name: z.string().min(1),
+	settings: projectSettingsSchema.optional(),
+	tracks: z.array(trackSchema)
 });
 
 export const projectSchema = z
@@ -105,7 +225,13 @@ export const projectSchema = z
 		settings: projectSettingsSchema,
 		assets: z.record(assetIdSchema, assetSchema),
 		tracks: z.array(trackSchema),
-		markers: z.array(markerSchema)
+		markers: z.array(markerSchema),
+		sequences: z
+			.record(
+				z.custom<SequenceId>((value) => typeof value === 'string' && value.length > 0),
+				sequenceSchema
+			)
+			.optional()
 	})
 	.superRefine((project, context) => {
 		const ids = new Set<string>([project.id]);
@@ -127,50 +253,100 @@ export const projectSchema = z
 			ids.add(asset.id);
 		}
 
-		for (const [trackIndex, track] of project.tracks.entries()) {
-			if (ids.has(track.id)) {
-				context.addIssue({
-					code: 'custom',
-					path: ['tracks', trackIndex, 'id'],
-					message: 'Project entity ids must be unique.'
-				});
-			}
-			ids.add(track.id);
-
-			for (const [clipIndex, clip] of track.clips.entries()) {
-				if (ids.has(clip.id)) {
+		const checkTracks = (tracks: typeof project.tracks, base: Array<string | number>) => {
+			const clipIds = new Set<string>();
+			for (const [trackIndex, track] of tracks.entries()) {
+				const trackPath = [...base, trackIndex];
+				if (ids.has(track.id)) {
 					context.addIssue({
 						code: 'custom',
-						path: ['tracks', trackIndex, 'clips', clipIndex, 'id'],
+						path: [...trackPath, 'id'],
 						message: 'Project entity ids must be unique.'
 					});
 				}
-				ids.add(clip.id);
-				if (!project.assets[clip.assetId]) {
-					context.addIssue({
-						code: 'custom',
-						path: ['tracks', trackIndex, 'clips', clipIndex, 'assetId'],
-						message: 'Clip must reference an asset in this project.'
-					});
-				}
-				for (const [effectIndex, effect] of (clip.effects ?? []).entries()) {
-					if (ids.has(effect.id)) {
+				ids.add(track.id);
+				for (const [clipIndex, clip] of track.clips.entries()) {
+					const clipPath = [...trackPath, 'clips', clipIndex];
+					if (ids.has(clip.id)) {
 						context.addIssue({
 							code: 'custom',
-							path: ['tracks', trackIndex, 'clips', clipIndex, 'effects', effectIndex, 'id'],
+							path: [...clipPath, 'id'],
 							message: 'Project entity ids must be unique.'
 						});
 					}
-					ids.add(effect.id);
-				}
-				if (clip.sourceOut <= clip.sourceIn) {
-					context.addIssue({
-						code: 'custom',
-						path: ['tracks', trackIndex, 'clips', clipIndex, 'sourceOut'],
-						message: 'Clip sourceOut must be greater than sourceIn.'
-					});
+					ids.add(clip.id);
+					clipIds.add(clip.id);
+					if (!project.assets[clip.assetId]) {
+						context.addIssue({
+							code: 'custom',
+							path: [...clipPath, 'assetId'],
+							message: 'Clip must reference an asset in this project.'
+						});
+					}
+					const nested = [
+						...(clip.effects ?? []).map((effect) => ['effects', effect.id] as const),
+						...(clip.masks ?? []).map((mask) => ['masks', mask.id] as const)
+					];
+					for (const [kind, id] of nested) {
+						if (ids.has(id)) {
+							context.addIssue({
+								code: 'custom',
+								path: [...clipPath, kind],
+								message: 'Project entity ids must be unique.'
+							});
+						}
+						ids.add(id);
+					}
+					if (clip.sourceOut <= clip.sourceIn) {
+						context.addIssue({
+							code: 'custom',
+							path: [...clipPath, 'sourceOut'],
+							message: 'Clip sourceOut must be greater than sourceIn.'
+						});
+					}
 				}
 			}
+			for (const [trackIndex, track] of tracks.entries()) {
+				for (const [transitionIndex, transition] of (track.transitions ?? []).entries()) {
+					const path = [...base, trackIndex, 'transitions', transitionIndex];
+					if (ids.has(transition.id)) {
+						context.addIssue({
+							code: 'custom',
+							path: [...path, 'id'],
+							message: 'Project entity ids must be unique.'
+						});
+					}
+					ids.add(transition.id);
+					const edge = transition.edge;
+					const referenced = edge.kind === 'cut' ? [edge.fromClipId, edge.toClipId] : [edge.clipId];
+					if (referenced.some((id) => !clipIds.has(id))) {
+						context.addIssue({
+							code: 'custom',
+							path: [...path, 'edge'],
+							message: 'Transition must reference clips in this project.'
+						});
+					}
+				}
+			}
+		};
+		checkTracks(project.tracks, ['tracks']);
+		for (const [sequenceKey, sequence] of Object.entries(project.sequences ?? {})) {
+			if (sequenceKey !== sequence.id) {
+				context.addIssue({
+					code: 'custom',
+					path: ['sequences', sequenceKey, 'id'],
+					message: 'Sequence id must match its record key.'
+				});
+			}
+			if (ids.has(sequence.id)) {
+				context.addIssue({
+					code: 'custom',
+					path: ['sequences', sequenceKey, 'id'],
+					message: 'Project entity ids must be unique.'
+				});
+			}
+			ids.add(sequence.id);
+			checkTracks(sequence.tracks, ['sequences', sequenceKey, 'tracks']);
 		}
 
 		for (const [markerIndex, marker] of project.markers.entries()) {
@@ -206,6 +382,11 @@ export function migrate(raw: unknown): Project {
 		throw new ProjectMigrationError(
 			`This project uses schema version ${versionResult.data.schemaVersion}, which is newer than this editor supports (version ${CURRENT_SCHEMA_VERSION}). Update the editor to open it.`
 		);
+	}
+
+	if (versionResult.data.schemaVersion === 1) {
+		// v1 → v2 only adds optional fields, so existing data is valid unchanged.
+		return projectSchema.parse({ ...(raw as object), schemaVersion: CURRENT_SCHEMA_VERSION });
 	}
 
 	if (versionResult.data.schemaVersion !== CURRENT_SCHEMA_VERSION) {

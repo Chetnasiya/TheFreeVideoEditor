@@ -73,3 +73,12 @@ limitations are intentional at this stage:
   a minimal real sample with one sequence, one video clip, and one audio clip,
   saved from the exact target Premiere Pro version/build. Use xmeml or EDL for
   Premiere interchange.
+
+## Gate H (rendering and animation)
+
+- WebGL2 was only verified on ANGLE/SwiftShader; real-GPU behaviour and speed are untested. On SwiftShader
+  the WebGL2 export is ~4x slower than Canvas2D, so only projects that need GPU features use it.
+- Rotated and fractional-fit edges differ slightly between WebGL2 and Canvas2D (anti-aliasing and filtering).
+- Crop is not implemented; masks, effects and transitions are schema-only until later gates.
+- `timeRemap` is not re-based on a head trim (Gate M).
+

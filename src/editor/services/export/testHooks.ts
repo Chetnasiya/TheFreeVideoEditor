@@ -2,6 +2,8 @@ export type ExportPath = 'worker-webcodecs' | 'main-webcodecs' | 'compatibility'
 
 export interface ExportTestHooks {
 	lastExportPath?: ExportPath;
+	lastRenderer?: 'webgl2' | 'canvas2d';
+	forceRenderer?: 'webgl2' | 'canvas2d';
 	workerTerminations?: number;
 	capabilities?: { video: boolean; audio: boolean; codec?: string };
 	hideFirstVideoTrack?: (hidden: boolean) => boolean;
@@ -23,6 +25,13 @@ export function recordExportPath(path: ExportPath): void {
 	if (typeof window !== 'undefined' && import.meta.env.DEV) {
 		window.__TFVE_EXPORT_TEST_HOOKS__ ??= {};
 		window.__TFVE_EXPORT_TEST_HOOKS__.lastExportPath = path;
+	}
+}
+
+export function recordExportRenderer(renderer: 'webgl2' | 'canvas2d'): void {
+	if (typeof window !== 'undefined' && import.meta.env.DEV) {
+		window.__TFVE_EXPORT_TEST_HOOKS__ ??= {};
+		window.__TFVE_EXPORT_TEST_HOOKS__.lastRenderer = renderer;
 	}
 }
 
@@ -66,4 +75,10 @@ export function recordExportPlan(plan: {
 		window.__TFVE_EXPORT_TEST_HOOKS__ ??= {};
 		window.__TFVE_EXPORT_TEST_HOOKS__.lastPlan = plan;
 	}
+}
+
+/** Dev-only override so tests can drive the export through a specific renderer. */
+export function forcedExportRenderer(): 'webgl2' | 'canvas2d' | undefined {
+	if (typeof window === 'undefined' || !import.meta.env.DEV) return undefined;
+	return window.__TFVE_EXPORT_TEST_HOOKS__?.forceRenderer;
 }

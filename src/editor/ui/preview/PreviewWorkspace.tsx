@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Project } from '../../core';
 import { createPlaybackEngine, type PlaybackEngine } from '../../services/playback/engine';
+import { selectRenderer } from '../../services/render';
 import { attachPlaybackTestHooks } from '../../services/playback/testHooks';
 import { useEditorStoreApi } from '../../state/EditorProvider';
 import PreviewPlayer from './PreviewPlayer';
@@ -24,6 +25,12 @@ export default function PreviewWorkspace({
 	const engineChange = useRef(onEngineChange);
 	const [engine, setEngine] = useState<PlaybackEngine | null>(null);
 	const [zoom, setZoom] = useState('fit');
+	// Chosen once per opened project: a canvas can only ever hold one context type.
+	const renderer = useMemo(
+		() => selectRenderer(currentProject.current),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[project?.id]
+	);
 	currentProject.current = project;
 	engineChange.current = onEngineChange;
 
@@ -36,7 +43,7 @@ export default function PreviewWorkspace({
 			return;
 		}
 		const playback = createPlaybackEngine(store, initialProject);
-		playback.attach(canvas);
+		playback.attach(canvas, renderer);
 		const detachTestHooks = attachPlaybackTestHooks(playback);
 		setEngine(playback);
 		engineChange.current(playback);
@@ -45,7 +52,7 @@ export default function PreviewWorkspace({
 			detachTestHooks();
 			playback.dispose();
 		};
-	}, [project?.id, store]);
+	}, [project?.id, renderer, store]);
 
 	useEffect(() => {
 		if (project && engine?.projectId === project.id) engine.setProject(project);
@@ -53,7 +60,13 @@ export default function PreviewWorkspace({
 
 	return (
 		<div className="preview-panel-content">
-			<PreviewPlayer project={project} engine={engine} zoom={zoom} canvasRef={canvasRef} />
+			<PreviewPlayer
+				project={project}
+				engine={engine}
+				zoom={zoom}
+				canvasRef={canvasRef}
+				renderer={renderer}
+			/>
 			{project && (
 				<TransportBar
 					engine={engine?.projectId === project.id ? engine : null}

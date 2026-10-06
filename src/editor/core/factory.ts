@@ -1,12 +1,15 @@
 import { CURRENT_SCHEMA_VERSION } from './schema';
 import { rebaseMediaPath } from './ids';
 import type {
+	Asset,
 	AssetId,
 	ClipId,
 	MarkerId,
 	Project,
 	ProjectId,
 	ProjectSettings,
+	Sequence,
+	SequenceId,
 	Track,
 	TrackId
 } from './types';
@@ -70,12 +73,20 @@ export function duplicateProject(project: Project): Project {
 	const linkIdMap = new Map<string, string>();
 
 	for (const asset of Object.values(project.assets)) assetIdMap.set(asset.id, randomId());
-	for (const track of project.tracks) {
+	const sequenceIdMap = new Map<string, string>();
+	const allTracks = [
+		...project.tracks,
+		...Object.values(project.sequences ?? {}).flatMap((sequence) => sequence.tracks)
+	];
+	for (const sequence of Object.values(project.sequences ?? {})) {
+		sequenceIdMap.set(sequence.id, randomId());
+	}
+	for (const track of allTracks) {
 		trackIdMap.set(track.id, randomId());
 		for (const clip of track.clips) clipIdMap.set(clip.id, randomId());
 	}
 	for (const marker of project.markers) markerIdMap.set(marker.id, randomId());
-	for (const track of project.tracks) {
+	for (const track of allTracks) {
 		for (const clip of track.clips) {
 			if (clip.linkId && !linkIdMap.has(clip.linkId)) {
 				linkIdMap.set(clip.linkId, randomId());
@@ -87,17 +98,57 @@ export function duplicateProject(project: Project): Project {
 	const assets = Object.fromEntries(
 		Object.values(project.assets).map((asset) => {
 			const id = assetIdMap.get(asset.id) as AssetId;
-			return [
+			const copy: Asset = {
+				...asset,
 				id,
-				{
-					...asset,
-					id,
-					opfsPath: rebaseMediaPath(nextId, id, asset.opfsPath),
-					offline: true
-				}
-			];
+				opfsPath: rebaseMediaPath(nextId, id, asset.opfsPath),
+				offline: true
+			};
+			// Proxies are derived data and are regenerated once the media is relinked.
+			delete copy.proxy;
+			return [id, copy];
 		})
 	) as Project['assets'];
+
+	const remapTrack = (track: Track): Track => ({
+		...track,
+		id: trackIdMap.get(track.id) as TrackId,
+		clips: track.clips.map((clip) => ({
+			...clip,
+			id: clipIdMap.get(clip.id) as ClipId,
+			assetId: assetIdMap.get(clip.assetId) as AssetId,
+			...(clip.linkId ? { linkId: linkIdMap.get(clip.linkId) } : {}),
+			effects: clip.effects?.map((effect) => ({ ...effect, id: randomId() })),
+			...(clip.masks ? { masks: clip.masks.map((mask) => ({ ...mask, id: randomId() })) } : {}),
+			...(clip.source?.type === 'sequence'
+				? {
+						source: {
+							...clip.source,
+							sequenceId: sequenceIdMap.get(clip.source.sequenceId) as SequenceId
+						}
+					}
+				: {})
+		})),
+		...(track.transitions
+			? {
+					transitions: track.transitions.map((transition) => ({
+						...transition,
+						id: randomId(),
+						edge:
+							transition.edge.kind === 'cut'
+								? {
+										kind: 'cut' as const,
+										fromClipId: clipIdMap.get(transition.edge.fromClipId) as ClipId,
+										toClipId: clipIdMap.get(transition.edge.toClipId) as ClipId
+									}
+								: {
+										kind: transition.edge.kind,
+										clipId: clipIdMap.get(transition.edge.clipId) as ClipId
+									}
+					}))
+				}
+			: {})
+	});
 
 	return {
 		...project,
@@ -106,17 +157,17 @@ export function duplicateProject(project: Project): Project {
 		createdAt: now,
 		updatedAt: now,
 		assets,
-		tracks: project.tracks.map((track) => ({
-			...track,
-			id: trackIdMap.get(track.id) as TrackId,
-			clips: track.clips.map((clip) => ({
-				...clip,
-				id: clipIdMap.get(clip.id) as ClipId,
-				assetId: assetIdMap.get(clip.assetId) as AssetId,
-				...(clip.linkId ? { linkId: linkIdMap.get(clip.linkId) } : {}),
-				effects: clip.effects?.map((effect) => ({ ...effect, id: randomId() }))
-			}))
-		})),
+		tracks: project.tracks.map(remapTrack),
+		...(project.sequences
+			? {
+					sequences: Object.fromEntries(
+						Object.values(project.sequences).map((sequence) => {
+							const id = sequenceIdMap.get(sequence.id) as SequenceId;
+							return [id, { ...sequence, id, tracks: sequence.tracks.map(remapTrack) }];
+						})
+					) as Record<SequenceId, Sequence>
+				}
+			: {}),
 		markers: project.markers.map((marker) => ({
 			...marker,
 			id: markerIdMap.get(marker.id) as MarkerId

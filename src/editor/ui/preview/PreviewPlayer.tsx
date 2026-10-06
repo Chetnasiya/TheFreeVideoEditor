@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { resolveFrame } from '../../core';
 import type { Project } from '../../core';
 import type { PlaybackEngine, PlaybackSnapshot } from '../../services/playback/engine';
+import type { RendererKind } from '../../services/render';
 import { observePreviewScale } from '../../services/playback/previewLayout';
 
 interface PreviewPlayerProps {
@@ -9,6 +10,7 @@ interface PreviewPlayerProps {
 	engine: PlaybackEngine | null;
 	zoom: string;
 	canvasRef: RefObject<HTMLCanvasElement | null>;
+	renderer: RendererKind;
 }
 
 interface PreviewState {
@@ -20,7 +22,13 @@ interface PreviewState {
 	unsupported: string;
 }
 
-export default function PreviewPlayer({ project, engine, zoom, canvasRef }: PreviewPlayerProps) {
+export default function PreviewPlayer({
+	project,
+	engine,
+	zoom,
+	canvasRef,
+	renderer
+}: PreviewPlayerProps) {
 	const viewportRef = useRef<HTMLDivElement>(null);
 	const [fitScale, setFitScale] = useState(0);
 	const scale = Number(zoom) || 1;
@@ -49,6 +57,7 @@ export default function PreviewPlayer({ project, engine, zoom, canvasRef }: Prev
 						style={{ width: renderedWidth, height: renderedHeight }}
 					>
 						<canvas
+							key={`${project.id}:${renderer}`}
 							ref={canvasRef}
 							className="preview-canvas"
 							width={project.settings.width}
