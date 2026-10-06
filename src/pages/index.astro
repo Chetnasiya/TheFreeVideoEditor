@@ -1,11 +1,88 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
 ---
 
-<Layout>
-	<Welcome />
+<Layout
+	title="The Free Video Editor — edit videos in your browser"
+	description="Edit videos in your browser for free. Your files stay on your device."
+>
+	<main class="home-page">
+		<div class="home-content">
+			<p class="home-eyebrow">FREE · PRIVATE · IN YOUR BROWSER</p>
+			<h1>The Free Video Editor</h1>
+			<p class="home-description">
+				Edit videos in your browser. Free to use, with your files staying on your device.
+			</p>
+			<a class="home-cta" href="/editor">
+				Open the editor
+			</a>
+			<p class="home-note">No upload. No account. Your files stay on this device.</p>
+		</div>
+	</main>
 </Layout>
+
+<style>
+	.home-page {
+		display: grid;
+		min-height: 100vh;
+		min-height: 100dvh;
+		place-items: center;
+		background: var(--color-canvas);
+		padding: var(--spacing-lg);
+		color: var(--color-ink);
+	}
+
+	.home-content {
+		width: min(100%, 52rem);
+		text-align: center;
+	}
+
+	.home-eyebrow {
+		color: var(--color-mute);
+		font-family: var(--font-mono);
+		font-size: var(--text-mono-eyebrow);
+		letter-spacing: 0.08em;
+	}
+
+	h1 {
+		margin: var(--spacing-md) 0;
+		font-size: clamp(2.5rem, 8vw, 5rem);
+		font-weight: var(--font-weight-medium);
+		letter-spacing: var(--tracking-display-xl);
+		line-height: 1;
+		text-wrap: balance;
+	}
+
+	.home-description {
+		max-width: 38rem;
+		margin: 0 auto var(--spacing-lg);
+		color: var(--color-body);
+		font-size: var(--text-heading-md);
+		line-height: 1.5;
+		text-wrap: pretty;
+	}
+
+	.home-cta {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-sm);
+		background: var(--color-primary);
+		padding: 0 var(--spacing-lg);
+		color: var(--color-on-primary);
+		font-size: var(--text-button-lg);
+		font-weight: var(--font-weight-medium);
+		text-decoration: none;
+	}
+
+	.home-cta:hover {
+		opacity: 0.88;
+	}
+
+	.home-note {
+		margin-top: var(--spacing-md);
+		color: var(--color-mute);
+		font-size: var(--text-body-sm);
+	}
+</style>

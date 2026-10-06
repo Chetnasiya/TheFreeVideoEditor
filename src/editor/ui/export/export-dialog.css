@@ -1,0 +1,123 @@
+.export-dialog {
+	width: min(100% - 2rem, 34rem);
+	overscroll-behavior: contain;
+}
+
+.export-dialog .dialog-content {
+	gap: var(--spacing-md);
+}
+
+.export-tabs {
+	display: flex;
+	gap: var(--spacing-xs);
+	border-bottom: 1px solid var(--color-hairline);
+}
+
+.export-tabs button {
+	border: 0;
+	border-bottom: 2px solid transparent;
+	background: transparent;
+	padding: var(--spacing-xs) var(--spacing-sm);
+	color: var(--color-body);
+	font: inherit;
+	cursor: pointer;
+}
+
+.export-tabs button[aria-selected='true'] {
+	border-bottom-color: var(--color-ink);
+	color: var(--color-ink);
+}
+
+.export-tabs button:focus-visible,
+.export-checkbox input:focus-visible {
+	outline: 2px solid var(--color-link);
+	outline-offset: 2px;
+}
+
+.export-form {
+	display: grid;
+	gap: var(--spacing-sm);
+}
+
+.export-checkbox {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--spacing-xs);
+	color: var(--color-body);
+	font-size: var(--text-body-sm);
+}
+
+.export-checkbox input {
+	margin: 0.2rem 0 0;
+	accent-color: var(--color-primary);
+}
+
+.export-capability,
+.export-estimate,
+.export-notice {
+	margin: 0;
+	color: var(--color-mute);
+	font-size: var(--text-body-sm);
+}
+
+.export-warning {
+	border: 1px solid var(--color-warning);
+	border-radius: var(--radius-sm);
+	background: var(--color-canvas);
+	padding: var(--spacing-sm);
+	color: var(--color-body);
+	font-size: var(--text-body-sm);
+}
+
+.export-warning p {
+	margin: 0 0 var(--spacing-xs);
+}
+
+.export-warning p:last-child {
+	margin-bottom: 0;
+}
+
+.export-progress {
+	display: grid;
+	gap: var(--spacing-xs);
+}
+
+.export-progress-label {
+	display: flex;
+	justify-content: space-between;
+	color: var(--color-body);
+	font-size: var(--text-body-sm);
+}
+
+.export-progress progress {
+	width: 100%;
+	height: 0.5rem;
+	accent-color: var(--color-primary);
+}
+
+.export-progress p {
+	margin: 0;
+	color: var(--color-mute);
+	font-size: var(--text-body-sm);
+}
+
+.export-close-dialog,
+.export-confirm-dialog {
+	width: min(100% - 2rem, 28rem);
+	overscroll-behavior: contain;
+}
+
+.export-close-dialog .dialog-content,
+.export-confirm-dialog .dialog-content {
+	gap: var(--spacing-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.export-dialog *,
+	.export-close-dialog *,
+	.export-confirm-dialog * {
+		scroll-behavior: auto !important;
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

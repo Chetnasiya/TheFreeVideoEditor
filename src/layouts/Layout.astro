@@ -1,3 +1,17 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title?: string;
+	description?: string;
+}
+
+const {
+	title = 'The Free Video Editor',
+	description = 'A free, private video editor that runs in your browser.'
+} = Astro.props;
+---
+
 <!doctype html>
 <html lang="en">
 	<head>
@@ -6,18 +20,11 @@
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
+		<meta name="description" content={description} />
+		<meta name="theme-color" content="" />
+		<title>{title}</title>
 	</head>
 	<body>
 		<slot />
 	</body>
 </html>
-
-<style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-	}
-</style>

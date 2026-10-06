@@ -1,0 +1,1266 @@
+import {
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type DragEvent,
+	type KeyboardEvent,
+	type PointerEvent,
+	type MouseEvent,
+	type CSSProperties
+} from 'react';
+import {
+	clientXToTimelineTime,
+	collectSnapPoints,
+	framesToTicks,
+	intersectsPixelRange,
+	groupOf,
+	snapTime,
+	ticksToTimecode,
+	timeToPixels,
+	timelineDuration
+} from '../../core';
+import type {
+	AssetId,
+	Clip,
+	ClipId,
+	DragPosition,
+	DragSession,
+	Project,
+	Time,
+	Track,
+	TrackId
+} from '../../core';
+import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import ClipView from './ClipView';
+import Playhead from './Playhead';
+import TimelineRuler from './TimelineRuler';
+import TimelineToolbar from './TimelineToolbar';
+import './timeline.css';
+
+const HEADER_WIDTH = 176;
+const TAIL_SECONDS = 12;
+
+interface ContextPosition {
+	x: number;
+	y: number;
+	clip: Clip;
+}
+
+function ConnectedToolbar({
+	project,
+	clipCount,
+	onSplit,
+	onDelete,
+	onRippleDelete,
+	onToggleSnap,
+	onZoom,
+	onFit,
+	onAddTrack,
+	pixelsPerSecond,
+	snapEnabled
+}: {
+	project: Project;
+	clipCount: number;
+	onSplit: () => void;
+	onDelete: () => void;
+	onRippleDelete: () => void;
+	onToggleSnap: () => void;
+	onZoom: (value: number) => void;
+	onFit: () => void;
+	onAddTrack: (kind: Track['kind']) => void;
+	pixelsPerSecond: number;
+	snapEnabled: boolean;
+}) {
+	const playhead = useEditorStore((state) => state.timeline.playhead);
+	const duration = timelineDuration(project);
+	return (
+		<TimelineToolbar
+			playheadLabel={ticksToTimecode(playhead, project.settings.fps)}
+			durationLabel={ticksToTimecode(duration, project.settings.fps)}
+			clipCount={clipCount}
+			snapEnabled={snapEnabled}
+			pixelsPerSecond={pixelsPerSecond}
+			onSplit={onSplit}
+			onDelete={onDelete}
+			onRippleDelete={onRippleDelete}
+			onToggleSnap={onToggleSnap}
+			onZoom={onZoom}
+			onFit={onFit}
+			onAddTrack={onAddTrack}
+		/>
+	);
+}
+
+function ConnectedPlayhead({
+	pixelsPerSecond,
+	offset
+}: {
+	pixelsPerSecond: number;
+	offset: number;
+}) {
+	const playhead = useEditorStore((state) => state.timeline.playhead);
+	return <Playhead time={playhead} pixelsPerSecond={pixelsPerSecond} offset={offset} />;
+}
+
+function TrackHeader({
+	track,
+	index,
+	onRename,
+	onRemove,
+	onFlag,
+	onReorder
+}: {
+	track: Track;
+	index: number;
+	onRename: (trackId: TrackId, name: string) => void;
+	onRemove: (track: Track) => void;
+	onFlag: (trackId: TrackId, flags: Partial<Pick<Track, 'muted' | 'locked' | 'hidden'>>) => void;
+	onReorder: (trackId: TrackId, targetIndex: number) => void;
+}) {
+	const [editing, setEditing] = useState(false);
+	const [name, setName] = useState(track.name);
+	const nameInputRef = useRef<HTMLInputElement>(null);
+	useEffect(() => setName(track.name), [track.name]);
+	useEffect(() => {
+		if (editing) nameInputRef.current?.focus();
+	}, [editing]);
+	return (
+		<div
+			className={`timeline-track-header track-${track.kind}`}
+			draggable
+			role="group"
+			tabIndex={0}
+			aria-label={`${track.name} track controls. Use Alt+Arrow Up or Alt+Arrow Down to reorder.`}
+			data-track-header-id={track.id}
+			onDragStart={(event) => {
+				event.dataTransfer.setData('application/x-tfve-track', track.id);
+				event.dataTransfer.effectAllowed = 'move';
+			}}
+			onDragOver={(event) => {
+				if (event.dataTransfer.types.includes('application/x-tfve-track')) event.preventDefault();
+			}}
+			onDrop={(event) => {
+				const draggedId = event.dataTransfer.getData('application/x-tfve-track') as TrackId;
+				if (!draggedId) return;
+				event.preventDefault();
+				onReorder(draggedId, index);
+			}}
+			onKeyDown={(event) => {
+				if (!event.altKey) return;
+				if (event.key === 'ArrowUp') {
+					event.preventDefault();
+					event.stopPropagation();
+					onReorder(track.id, index - 1);
+				} else if (event.key === 'ArrowDown') {
+					event.preventDefault();
+					event.stopPropagation();
+					onReorder(track.id, index + 1);
+				}
+			}}
+		>
+			<span className="track-kind" aria-hidden="true">
+				{track.kind === 'video' ? 'V' : 'A'}
+			</span>
+			{editing ? (
+				<input
+					ref={nameInputRef}
+					className="timeline-track-name-input"
+					name={`track-name-${track.id}`}
+					autoComplete="off"
+					value={name}
+					aria-label={`Rename ${track.name}`}
+					onChange={(event) => setName(event.currentTarget.value)}
+					onBlur={() => {
+						onRename(track.id, name);
+						setEditing(false);
+					}}
+					onKeyDown={(event) => {
+						if (event.key === 'Enter') {
+							event.preventDefault();
+							onRename(track.id, name);
+							setEditing(false);
+						} else if (event.key === 'Escape') {
+							setName(track.name);
+							setEditing(false);
+						}
+					}}
+				/>
+			) : (
+				<button
+					className="timeline-track-name"
+					type="button"
+					title="Double-click or press Enter to rename. Alt+↑/↓ reorders tracks."
+					onDoubleClick={() => setEditing(true)}
+					onKeyDown={(event) => {
+						if (event.key === 'Enter' && event.detail === 0) setEditing(true);
+					}}
+				>
+					{track.name}
+				</button>
+			)}
+			<div className="timeline-track-controls" role="group" aria-label={`${track.name} settings`}>
+				{track.kind === 'audio' && (
+					<button
+						type="button"
+						aria-label={`${track.muted ? 'Unmute' : 'Mute'} ${track.name}`}
+						aria-pressed={track.muted}
+						title={track.muted ? 'Unmute track' : 'Mute track'}
+						onClick={() => onFlag(track.id, { muted: !track.muted })}
+					>
+						M
+					</button>
+				)}
+				<button
+					type="button"
+					aria-label={`${track.locked ? 'Unlock' : 'Lock'} ${track.name}`}
+					aria-pressed={track.locked}
+					title={track.locked ? 'Unlock track' : 'Lock track'}
+					onClick={() => onFlag(track.id, { locked: !track.locked })}
+				>
+					{track.locked ? 'L' : 'U'}
+				</button>
+				{track.kind === 'video' && (
+					<button
+						type="button"
+						aria-label={`${track.hidden ? 'Show' : 'Hide'} ${track.name}`}
+						aria-pressed={track.hidden}
+						title={track.hidden ? 'Show track' : 'Hide track'}
+						onClick={() => onFlag(track.id, { hidden: !track.hidden })}
+					>
+						{track.hidden ? 'H' : 'V'}
+					</button>
+				)}
+				<button
+					type="button"
+					className="timeline-track-remove"
+					aria-label={`Remove ${track.name}`}
+					title={track.locked ? 'Unlock this track before removing it.' : 'Remove track'}
+					disabled={track.locked}
+					onClick={() => onRemove(track)}
+				>
+					×
+				</button>
+			</div>
+		</div>
+	);
+}
+
+function makePosition(project: Project, clipIds: readonly ClipId[]): DragPosition[] {
+	const ids = new Set(clipIds);
+	return project.tracks.flatMap((track) =>
+		track.clips
+			.filter((clip) => ids.has(clip.id))
+			.map((clip) => ({
+				clipId: clip.id,
+				trackId: track.id,
+				start: clip.start,
+				duration: clip.duration,
+				sourceIn: clip.sourceIn,
+				sourceOut: clip.sourceOut
+			}))
+	);
+}
+
+export default function Timeline() {
+	const project = useEditorStore((state) => state.project);
+
+	if (!project) {
+		return (
+			<div className="timeline-empty">
+				<p>No project open</p>
+				<span>Open or create a project to view its timeline.</span>
+			</div>
+		);
+	}
+
+	return <ActiveTimeline project={project} />;
+}
+
+function ActiveTimeline({ project }: { project: Project }) {
+	const store = useEditorStoreApi();
+	const pixelsPerSecond = useEditorStore((state) => state.timeline.pixelsPerSecond);
+	const scrollLeft = useEditorStore((state) => state.timeline.scrollLeft);
+	const scrollTop = useEditorStore((state) => state.timeline.scrollTop);
+	const selection = useEditorStore((state) => state.timeline.selection);
+	const drag = useEditorStore((state) => state.timeline.drag);
+	const snapEnabled = useEditorStore((state) => state.timeline.snapEnabled);
+	const message = useEditorStore((state) => state.timeline.message);
+	const setZoom = useEditorStore((state) => state.setZoom);
+	const zoomToFit = useEditorStore((state) => state.zoomToFit);
+	const setScroll = useEditorStore((state) => state.setScroll);
+	const setTimelineFollowing = useEditorStore((state) => state.setTimelineFollowing);
+	const setPlayhead = useEditorStore((state) => state.setPlayhead);
+	const selectClips = useEditorStore((state) => state.selectClips);
+	const clearSelection = useEditorStore((state) => state.clearSelection);
+	const toggleSnap = useEditorStore((state) => state.toggleSnap);
+	const beginTimelineDrag = useEditorStore((state) => state.beginTimelineDrag);
+	const updateTimelineDrag = useEditorStore((state) => state.updateTimelineDrag);
+	const cancelTimelineDrag = useEditorStore((state) => state.cancelTimelineDrag);
+	const commitTimelineDrag = useEditorStore((state) => state.commitTimelineDrag);
+	const addAssetToTimeline = useEditorStore((state) => state.addAssetToTimeline);
+	const addAssetOnNewTrack = useEditorStore((state) => state.addAssetOnNewTrack);
+	const trimTimelineClip = useEditorStore((state) => state.trimClip);
+	const splitAtPlayhead = useEditorStore((state) => state.splitAtPlayhead);
+	const deleteSelection = useEditorStore((state) => state.deleteSelection);
+	const rippleDeleteSelection = useEditorStore((state) => state.rippleDeleteSelection);
+	const duplicateSelection = useEditorStore((state) => state.duplicateSelection);
+	const addTimelineTrack = useEditorStore((state) => state.addTimelineTrack);
+	const removeTimelineTrack = useEditorStore((state) => state.removeTimelineTrack);
+	const reorderTimelineTrack = useEditorStore((state) => state.reorderTimelineTrack);
+	const renameTimelineTrack = useEditorStore((state) => state.renameTimelineTrack);
+	const setTimelineTrackFlags = useEditorStore((state) => state.setTimelineTrackFlags);
+	const linkSelection = useEditorStore((state) => state.linkSelection);
+	const unlinkSelection = useEditorStore((state) => state.unlinkSelection);
+	const setTimelineMessage = useEditorStore((state) => state.setTimelineMessage);
+	const scrollerRef = useRef<HTMLDivElement>(null);
+	const dragPointer = useRef<number | null>(null);
+	const rulerPointer = useRef<number | null>(null);
+	const programmaticScrollLeft = useRef<number | null>(null);
+	const dragFrame = useRef<number | null>(null);
+	const pendingDragPreview = useRef<{
+		session: DragSession;
+		time: Time;
+		targetTrackId?: TrackId;
+		altKey: boolean;
+		commandKey: boolean;
+	} | null>(null);
+	const marqueeStart = useRef<{ x: number; y: number; clientX: number; clientY: number } | null>(
+		null
+	);
+	const [marquee, setMarquee] = useState<{
+		left: number;
+		top: number;
+		width: number;
+		height: number;
+	} | null>(null);
+	const [context, setContext] = useState<ContextPosition | null>(null);
+	const [viewportWidth, setViewportWidth] = useState(1_000);
+	const [removePending, setRemovePending] = useState<Track | null>(null);
+	const [newTrackDropKind, setNewTrackDropKind] = useState<Track['kind'] | null>(null);
+	const removeDialogRef = useRef<HTMLDialogElement>(null);
+	const contextMenuRef = useRef<HTMLDivElement>(null);
+	const contextTriggerRef = useRef<HTMLElement | null>(null);
+	const clips = useMemo(() => project.tracks.flatMap((track) => track.clips), [project]);
+	const firstTabStopClipId = selection.clipIds.at(-1) ?? clips[0]?.id;
+	const duration = timelineDuration(project);
+	const visibleDuration = Math.max(duration + TAIL_SECONDS * 1_000_000, 60_000_000);
+	const laneWidth = Math.max(760, timeToPixels(visibleDuration, pixelsPerSecond));
+	const worldWidth = HEADER_WIDTH + laneWidth;
+	const snapTolerance = Math.round((8 / pixelsPerSecond) * 1_000_000);
+	const clipOverscan = 600;
+	const visibleClipRange = {
+		start: Math.max(0, scrollLeft - HEADER_WIDTH - clipOverscan),
+		end: scrollLeft + viewportWidth - HEADER_WIDTH + clipOverscan
+	};
+
+	useEffect(() => {
+		const scroller = scrollerRef.current;
+		if (!scroller) return;
+		if (Math.abs(scroller.scrollLeft - scrollLeft) > 1) scroller.scrollLeft = scrollLeft;
+		if (Math.abs(scroller.scrollTop - scrollTop) > 1) scroller.scrollTop = scrollTop;
+	}, [scrollLeft, scrollTop]);
+
+	useEffect(() => {
+		const scroller = scrollerRef.current;
+		if (!scroller) return;
+		const updateWidth = () => setViewportWidth(scroller.clientWidth);
+		updateWidth();
+		const observer = new ResizeObserver(updateWidth);
+		observer.observe(scroller);
+		return () => observer.disconnect();
+	}, []);
+
+	useEffect(() => {
+		let previousPlayhead = store.getState().timeline.playhead;
+		return store.subscribe((state) => {
+			const nextPlayhead = state.timeline.playhead;
+			if (nextPlayhead === previousPlayhead) return;
+			previousPlayhead = nextPlayhead;
+			if (!state.timeline.followPlayhead) return;
+			const scroller = scrollerRef.current;
+			if (!scroller) return;
+			const x = HEADER_WIDTH + timeToPixels(nextPlayhead, pixelsPerSecond);
+			const rightEdge = scroller.scrollLeft + scroller.clientWidth;
+			let nextScrollLeft = scroller.scrollLeft;
+			if (x > rightEdge - 72) nextScrollLeft = x - scroller.clientWidth + 72;
+			else if (x < scroller.scrollLeft + HEADER_WIDTH + 40) {
+				nextScrollLeft = x - HEADER_WIDTH - 40;
+			}
+			nextScrollLeft = Math.max(0, nextScrollLeft);
+			if (Math.abs(nextScrollLeft - scroller.scrollLeft) < 1) return;
+			programmaticScrollLeft.current = nextScrollLeft;
+			scroller.scrollLeft = nextScrollLeft;
+			setScroll(nextScrollLeft, scroller.scrollTop);
+		});
+	}, [pixelsPerSecond, setScroll, store]);
+
+	useEffect(() => {
+		const dialog = removeDialogRef.current;
+		if (!dialog) return;
+		if (removePending && !dialog.open) dialog.showModal();
+		if (!removePending && dialog.open) dialog.close();
+	}, [removePending]);
+
+	useEffect(
+		() => () => {
+			if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
+		},
+		[]
+	);
+
+	useEffect(() => {
+		if (!context) return;
+		contextMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+		const dismiss = (event: globalThis.PointerEvent) => {
+			if (event.target instanceof HTMLElement && !event.target.closest('.timeline-context-menu')) {
+				setContext(null);
+			}
+		};
+		window.addEventListener('pointerdown', dismiss);
+		return () => window.removeEventListener('pointerdown', dismiss);
+	}, [context]);
+
+	const activeProject = project;
+
+	function pointerTime(clientX: number): Time {
+		const scroller = scrollerRef.current;
+		if (!scroller) return 0;
+		const rect = scroller.getBoundingClientRect();
+		return clientXToTimelineTime(
+			clientX,
+			rect.left,
+			scroller.scrollLeft,
+			HEADER_WIDTH,
+			pixelsPerSecond,
+			activeProject.settings.fps
+		);
+	}
+
+	function setSnappedDragTime(
+		session: DragSession,
+		rawTime: Time,
+		targetTrackId?: TrackId,
+		altKey = false,
+		commandKey = false
+	) {
+		if (!snapEnabled || commandKey || (session.kind === 'asset' && !session.assetId)) {
+			updateTimelineDrag(rawTime, { targetTrackId, unlink: altKey });
+			return;
+		}
+		const excluded = session.clipIds.flatMap((id) =>
+			session.unlink || altKey ? [id] : groupOf(activeProject, id).map((clip) => clip.id)
+		);
+		const points = collectSnapPoints(activeProject, {
+			excludeClipIds: excluded,
+			playhead: getPlayhead(),
+			includeMarkers: true
+		});
+		const primary = session.original[0];
+		const referenceStart =
+			session.kind === 'move' && primary
+				? primary.start + rawTime - session.pointerStartTime
+				: session.kind === 'trim-start' && primary
+					? primary.start + rawTime - session.pointerStartTime
+					: session.kind === 'trim-end' && primary
+						? primary.start + primary.duration + rawTime - session.pointerStartTime
+						: rawTime;
+		const candidates = [referenceStart];
+		if (session.kind === 'move' && primary) candidates.push(referenceStart + primary.duration);
+		const snappedCandidates = candidates
+			.map((candidate) => snapTime(candidate, points, snapTolerance))
+			.filter((result) => result.snappedTo !== undefined)
+			.toSorted(
+				(first, second) =>
+					Math.abs(first.time - candidates[0]!) - Math.abs(second.time - candidates[0]!)
+			);
+		const snappedTo = snappedCandidates[0]?.snappedTo;
+		if (snappedTo === undefined) {
+			updateTimelineDrag(rawTime, { targetTrackId, unlink: altKey });
+			return;
+		}
+		const delta = snappedTo - referenceStart;
+		updateTimelineDrag(rawTime + delta, { targetTrackId, unlink: altKey, snappedTo });
+	}
+
+	function scheduleDragPreview(
+		session: DragSession,
+		time: Time,
+		targetTrackId: TrackId | undefined,
+		altKey: boolean,
+		commandKey: boolean
+	): void {
+		pendingDragPreview.current = { session, time, targetTrackId, altKey, commandKey };
+		if (dragFrame.current !== null) return;
+		dragFrame.current = requestAnimationFrame(() => {
+			dragFrame.current = null;
+			const pending = pendingDragPreview.current;
+			pendingDragPreview.current = null;
+			if (pending) {
+				setSnappedDragTime(
+					pending.session,
+					pending.time,
+					pending.targetTrackId,
+					pending.altKey,
+					pending.commandKey
+				);
+			}
+		});
+	}
+
+	function getPlayhead(): Time {
+		return store.getState().timeline.playhead;
+	}
+
+	function beginClipDrag(
+		event: PointerEvent<HTMLElement>,
+		clip: Clip,
+		edge?: 'start' | 'end'
+	): void {
+		if (event.button !== 0) return;
+		event.preventDefault();
+		const scroller = scrollerRef.current;
+		if (!scroller) return;
+		scroller.setPointerCapture(event.pointerId);
+		scroller.focus({ preventScroll: true });
+		dragPointer.current = event.pointerId;
+		const selectedIds = selection.clipIds.includes(clip.id) ? selection.clipIds : [clip.id];
+		const withGroups = [
+			...new Set(selectedIds.flatMap((id) => groupOf(activeProject, id).map((item) => item.id)))
+		];
+		const primaryGroup = groupOf(activeProject, clip.id);
+		const allPositions = makePosition(activeProject, [
+			...new Set([...withGroups, ...primaryGroup.map((item) => item.id)])
+		]);
+		const original = [
+			...allPositions.filter((item) => item.clipId === clip.id),
+			...allPositions.filter((item) => item.clipId !== clip.id)
+		];
+		const time = pointerTime(event.clientX);
+		const session: DragSession = {
+			kind: edge ? (edge === 'start' ? 'trim-start' : 'trim-end') : 'move',
+			clipIds: edge ? [clip.id] : selectedIds,
+			original,
+			preview: original,
+			pointerStartTime: time,
+			pointerTime: time,
+			allowed: true,
+			unlink: event.altKey
+		};
+		beginTimelineDrag(session);
+	}
+
+	function handleClipSelect(
+		clipId: ClipId,
+		modifiers: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }
+	): void {
+		const mode = modifiers.shiftKey
+			? 'add'
+			: modifiers.ctrlKey || modifiers.metaKey
+				? 'toggle'
+				: 'replace';
+		selectClips([clipId], mode);
+	}
+
+	function handleKeyboardTrim(clip: Clip, edge: 'start' | 'end', frameDelta: number): void {
+		const delta = framesToTicks(Math.abs(frameDelta), project.settings.fps) * Math.sign(frameDelta);
+		const requestedTime =
+			edge === 'start' ? clip.start + delta : clip.start + clip.duration + delta;
+		trimTimelineClip(clip.id, edge, Math.max(0, requestedTime));
+	}
+
+	function openClipMenu(
+		event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>,
+		clip: Clip
+	): void {
+		event.preventDefault();
+		if (!selection.clipIds.includes(clip.id)) selectClips([clip.id]);
+		contextTriggerRef.current = event.currentTarget;
+		const mouseEvent = 'clientX' in event;
+		setContext({
+			x: mouseEvent ? event.clientX : 220,
+			y: mouseEvent ? event.clientY : 140,
+			clip
+		});
+	}
+
+	function closeContextMenu(restoreFocus = true): void {
+		setContext(null);
+		if (restoreFocus) contextTriggerRef.current?.focus();
+		contextTriggerRef.current = null;
+	}
+
+	function scrubRuler(event: PointerEvent<HTMLDivElement>): void {
+		rulerPointer.current = event.pointerId;
+		setTimelineFollowing(false);
+		setPlayhead(pointerTime(event.clientX));
+	}
+
+	function endRulerScrub(): void {
+		rulerPointer.current = null;
+	}
+
+	function rulerKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+		const frame = Math.round(1_000_000 / activeProject.settings.fps);
+		if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+			event.preventDefault();
+			event.stopPropagation();
+			store
+				.getState()
+				.setPlayhead(
+					Math.max(
+						0,
+						store.getState().timeline.playhead + (event.key === 'ArrowLeft' ? -frame : frame)
+					)
+				);
+		}
+	}
+
+	function handleScroll(): void {
+		const scroller = scrollerRef.current;
+		if (!scroller) return;
+		const programmatic = programmaticScrollLeft.current === scroller.scrollLeft;
+		programmaticScrollLeft.current = null;
+		if (!programmatic) setTimelineFollowing(false);
+		setScroll(scroller.scrollLeft, scroller.scrollTop);
+	}
+
+	function zoomAt(value: number, clientX?: number): void {
+		setTimelineFollowing(false);
+		const scroller = scrollerRef.current;
+		if (!scroller) {
+			setZoom(value);
+			return;
+		}
+		const rect = scroller.getBoundingClientRect();
+		const anchorX = clientX ?? rect.left + HEADER_WIDTH + 100;
+		const time = pointerTime(anchorX);
+		setZoom(value, { time, pixel: anchorX - rect.left - HEADER_WIDTH });
+	}
+
+	function handleWheel(event: React.WheelEvent<HTMLDivElement>): void {
+		const scroller = scrollerRef.current;
+		if (!scroller) return;
+		setTimelineFollowing(false);
+		if (event.ctrlKey || event.metaKey) {
+			event.preventDefault();
+			zoomAt(pixelsPerSecond * (event.deltaY < 0 ? 1.1 : 0.9), event.clientX);
+		} else if (event.shiftKey && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+			scroller.scrollLeft += event.deltaY;
+			setScroll(scroller.scrollLeft, scroller.scrollTop);
+		}
+	}
+
+	function assetFromData(dataTransfer: DataTransfer): AssetId | null {
+		const assetId = dataTransfer.getData('application/x-tfve-asset');
+		if (assetId) return assetId as AssetId;
+		const session = store.getState().timeline.drag;
+		return session?.kind === 'asset' ? (session.assetId ?? null) : null;
+	}
+
+	function beginAssetPreview(
+		event: DragEvent<HTMLElement>,
+		targetTrackId: TrackId
+	): AssetId | null {
+		const assetId = assetFromData(event.dataTransfer);
+		const asset = assetId ? activeProject.assets[assetId] : undefined;
+		const track = activeProject.tracks.find((item) => item.id === targetTrackId);
+		if (!asset || !track) return null;
+		const compatible =
+			track.kind === 'video'
+				? asset.kind === 'video' || asset.kind === 'image'
+				: asset.kind === 'audio';
+		if (!compatible) {
+			event.dataTransfer.dropEffect = 'none';
+			return assetId;
+		}
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+		const time = pointerTime(event.clientX);
+		if (drag?.assetId !== assetId) {
+			beginTimelineDrag({
+				kind: 'asset',
+				clipIds: [],
+				original: [],
+				preview: [],
+				pointerStartTime: 0,
+				pointerTime: time,
+				targetTrackId,
+				assetId: asset.id,
+				allowed: true,
+				unlink: false
+			});
+		}
+		const activeDrag = store.getState().timeline.drag;
+		if (activeDrag) setSnappedDragTime(activeDrag, time, targetTrackId);
+		return assetId;
+	}
+
+	function handleTrackDragOver(event: DragEvent<HTMLDivElement>, track: Track): void {
+		if (!assetFromData(event.dataTransfer)) {
+			if (event.dataTransfer.types.includes('application/x-tfve-asset')) {
+				event.preventDefault();
+				event.dataTransfer.dropEffect = 'copy';
+			}
+			return;
+		}
+		beginAssetPreview(event, track.id);
+	}
+
+	function handleTrackDrop(event: DragEvent<HTMLDivElement>, track: Track): void {
+		const assetId = assetFromData(event.dataTransfer);
+		if (!assetId) return;
+		event.preventDefault();
+		const asset = activeProject.assets[assetId];
+		if (!asset) return;
+		const compatible =
+			track.kind === 'video'
+				? asset.kind === 'video' || asset.kind === 'image'
+				: asset.kind === 'audio';
+		if (!compatible) {
+			cancelTimelineDrag();
+			setTimelineMessage('This media type is not allowed on this track.');
+			return;
+		}
+		const time = pointerTime(event.clientX);
+		const session = store.getState().timeline.drag;
+		if (session?.assetId === assetId) {
+			const activeDrag = store.getState().timeline.drag;
+			if (activeDrag) setSnappedDragTime(activeDrag, time, track.id);
+			commitTimelineDrag();
+		} else addAssetToTimeline(assetId, track.id, time);
+	}
+
+	function beginEmptyTrackDrop(event: DragEvent<HTMLDivElement>): void {
+		const assetId = assetFromData(event.dataTransfer);
+		const asset = assetId ? activeProject.assets[assetId] : undefined;
+		if (!asset) return;
+		event.preventDefault();
+		setNewTrackDropKind(asset.kind === 'audio' ? 'audio' : 'video');
+		event.dataTransfer.dropEffect = 'copy';
+	}
+
+	function dropOnNewTrack(event: DragEvent<HTMLDivElement>): void {
+		const assetId = assetFromData(event.dataTransfer);
+		const asset = assetId ? activeProject.assets[assetId] : undefined;
+		if (!asset) return;
+		event.preventDefault();
+		addAssetOnNewTrack(
+			asset.id,
+			asset.kind === 'audio' ? 'audio' : 'video',
+			pointerTime(event.clientX)
+		);
+		setNewTrackDropKind(null);
+	}
+
+	function beginMarquee(event: PointerEvent<HTMLDivElement>): void {
+		if (event.button !== 0) return;
+		const target = event.target;
+		if (!(target instanceof HTMLElement)) return;
+		if (
+			target.closest(
+				'.timeline-clip, .timeline-track-header, .timeline-ruler, .timeline-track-controls, .timeline-context-menu'
+			)
+		)
+			return;
+		const scroller = scrollerRef.current;
+		if (!scroller) return;
+		const rect = scroller.getBoundingClientRect();
+		const x = event.clientX - rect.left + scroller.scrollLeft;
+		const y = event.clientY - rect.top + scroller.scrollTop;
+		marqueeStart.current = { x, y, clientX: event.clientX, clientY: event.clientY };
+		scroller.setPointerCapture(event.pointerId);
+		scroller.focus({ preventScroll: true });
+		setMarquee({ left: x, top: y, width: 0, height: 0 });
+	}
+
+	function updateMarquee(event: PointerEvent<HTMLDivElement>): void {
+		const scroller = scrollerRef.current;
+		const start = marqueeStart.current;
+		if (!scroller || !start || !scroller.hasPointerCapture(event.pointerId)) return;
+		const rect = scroller.getBoundingClientRect();
+		const x = event.clientX - rect.left + scroller.scrollLeft;
+		const y = event.clientY - rect.top + scroller.scrollTop;
+		setMarquee({
+			left: Math.min(start.x, x),
+			top: Math.min(start.y, y),
+			width: Math.abs(x - start.x),
+			height: Math.abs(y - start.y)
+		});
+	}
+
+	function endMarquee(event: PointerEvent<HTMLDivElement>): void {
+		const scroller = scrollerRef.current;
+		const start = marqueeStart.current;
+		if (!scroller || !start) return;
+		const rect = scroller.getBoundingClientRect();
+		const endX = event.clientX - rect.left + scroller.scrollLeft;
+		const endY = event.clientY - rect.top + scroller.scrollTop;
+		if (Math.abs(endX - start.x) > 4 || Math.abs(endY - start.y) > 4) {
+			const left = Math.min(start.clientX, event.clientX);
+			const right = Math.max(start.clientX, event.clientX);
+			const top = Math.min(start.clientY, event.clientY);
+			const bottom = Math.max(start.clientY, event.clientY);
+			const hitIds = Array.from(scroller.querySelectorAll<HTMLElement>('[data-clip-id]'))
+				.filter((element) => {
+					const box = element.getBoundingClientRect();
+					return box.left < right && box.right > left && box.top < bottom && box.bottom > top;
+				})
+				.map((element) => element.dataset.clipId as ClipId);
+			selectClips(hitIds, event.shiftKey ? 'add' : 'replace');
+		} else if (!event.shiftKey) clearSelection();
+		marqueeStart.current = null;
+		setMarquee(null);
+	}
+
+	function handlePointerMove(event: PointerEvent<HTMLDivElement>): void {
+		if (marqueeStart.current) {
+			updateMarquee(event);
+			return;
+		}
+		const session = store.getState().timeline.drag;
+		if (!session || dragPointer.current !== event.pointerId) return;
+		const scroller = scrollerRef.current;
+		if (!scroller) return;
+		const target = document.elementFromPoint(event.clientX, event.clientY);
+		const targetTrackId = target?.closest<HTMLElement>('[data-track-lane]')?.dataset.trackLane as
+			TrackId | undefined;
+		const time = pointerTime(event.clientX);
+		scheduleDragPreview(session, time, targetTrackId, event.altKey, event.ctrlKey || event.metaKey);
+		const rect = scroller.getBoundingClientRect();
+		if (event.clientX > rect.right - 28) scroller.scrollLeft += 14;
+		else if (event.clientX < rect.left + HEADER_WIDTH + 28)
+			scroller.scrollLeft = Math.max(0, scroller.scrollLeft - 14);
+		setScroll(scroller.scrollLeft, scroller.scrollTop);
+	}
+
+	function handlePointerUp(event: PointerEvent<HTMLDivElement>): void {
+		if (marqueeStart.current) {
+			endMarquee(event);
+			return;
+		}
+		if (dragPointer.current !== event.pointerId) return;
+		dragPointer.current = null;
+		if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
+		dragFrame.current = null;
+		pendingDragPreview.current = null;
+		const session = store.getState().timeline.drag;
+		if (session) {
+			const target = document.elementFromPoint(event.clientX, event.clientY);
+			const targetTrackId = target?.closest<HTMLElement>('[data-track-lane]')?.dataset.trackLane as
+				TrackId | undefined;
+			setSnappedDragTime(
+				session,
+				pointerTime(event.clientX),
+				targetTrackId,
+				event.altKey,
+				event.ctrlKey || event.metaKey
+			);
+		}
+		commitTimelineDrag();
+	}
+
+	function cancelTimelineInteraction(): void {
+		if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
+		dragFrame.current = null;
+		pendingDragPreview.current = null;
+		if (dragPointer.current !== null) {
+			const pointerId = dragPointer.current;
+			dragPointer.current = null;
+			if (scrollerRef.current?.hasPointerCapture(pointerId)) {
+				scrollerRef.current.releasePointerCapture(pointerId);
+			}
+			cancelTimelineDrag();
+		}
+		if (rulerPointer.current !== null) {
+			rulerPointer.current = null;
+		}
+		marqueeStart.current = null;
+		setMarquee(null);
+	}
+
+	function handleLaneKeyDown(event: KeyboardEvent<HTMLDivElement>, track: Track): void {
+		if (event.key !== 'Enter') return;
+		const assetId = store.getState().media.selectedAssetIds[0];
+		if (!assetId) return;
+		event.preventDefault();
+		addAssetToTimeline(assetId, track.id, store.getState().timeline.playhead);
+	}
+
+	function handleTrackRemoval(track: Track): void {
+		const result = removeTimelineTrack(track.id);
+		if (!result.removed && result.clipCount > 0) setRemovePending(track);
+	}
+
+	function handleZoomFit(): void {
+		setTimelineFollowing(false);
+		zoomToFit(scrollerRef.current?.clientWidth ?? 800);
+	}
+
+	function handleWheelEvent(event: React.WheelEvent<HTMLDivElement>): void {
+		handleWheel(event);
+	}
+
+	const dragPositionsByTrack = new Map<TrackId, DragPosition[]>();
+	for (const position of drag?.preview ?? []) {
+		const positions = dragPositionsByTrack.get(position.trackId) ?? [];
+		positions.push(position);
+		dragPositionsByTrack.set(position.trackId, positions);
+	}
+
+	return (
+		<div
+			className="timeline-editor"
+			style={{ '--timeline-world-width': `${worldWidth}px` } as CSSProperties}
+		>
+			<div className="timeline-topbar">
+				<div className="timeline-tabs" role="group" aria-label="Timeline sequences">
+					<span className="panel-tab is-active" aria-current="page">
+						Sequence 01
+					</span>
+				</div>
+				<ConnectedToolbar
+					project={activeProject}
+					clipCount={clips.length}
+					onSplit={() => splitAtPlayhead()}
+					onDelete={() => deleteSelection()}
+					onRippleDelete={() => rippleDeleteSelection()}
+					onToggleSnap={toggleSnap}
+					onZoom={(value) => zoomAt(value)}
+					onFit={handleZoomFit}
+					onAddTrack={addTimelineTrack}
+					pixelsPerSecond={pixelsPerSecond}
+					snapEnabled={snapEnabled}
+				/>
+			</div>
+			<div
+				className="timeline-scroll"
+				ref={scrollerRef}
+				tabIndex={0}
+				onScroll={handleScroll}
+				onWheel={handleWheelEvent}
+				onPointerDown={beginMarquee}
+				onPointerMove={handlePointerMove}
+				onPointerUp={handlePointerUp}
+				onPointerCancel={() => {
+					cancelTimelineInteraction();
+				}}
+				onKeyDown={(event) => {
+					if (event.key !== 'Escape') return;
+					cancelTimelineInteraction();
+				}}
+				onClick={(event) => {
+					const target = event.target;
+					if (
+						target instanceof HTMLElement &&
+						target.closest('.timeline-track-lane') &&
+						!target.closest('.timeline-clip')
+					) {
+						setPlayhead(pointerTime(event.clientX));
+					}
+				}}
+				aria-label="Timeline tracks and clips"
+			>
+				<div className="timeline-world" style={{ width: worldWidth }}>
+					<TimelineRuler
+						project={activeProject}
+						duration={visibleDuration}
+						playhead={getPlayhead()}
+						pixelsPerSecond={pixelsPerSecond}
+						headerWidth={HEADER_WIDTH}
+						onScrub={scrubRuler}
+						onScrubEnd={endRulerScrub}
+						onRulerKeyDown={rulerKeyDown}
+					/>
+					<div className="timeline-track-rows" role="grid" aria-label="Project timeline tracks">
+						{activeProject.tracks.map((track, index) => {
+							const previewPositions = dragPositionsByTrack.get(track.id) ?? [];
+							return (
+								<div className={`timeline-track-row track-${track.kind}`} role="row" key={track.id}>
+									<TrackHeader
+										track={track}
+										index={index}
+										onRename={renameTimelineTrack}
+										onRemove={handleTrackRemoval}
+										onFlag={setTimelineTrackFlags}
+										onReorder={reorderTimelineTrack}
+									/>
+									<div
+										className={`timeline-track-lane ${drag?.targetTrackId === track.id && !drag.allowed ? 'is-invalid-drop' : ''}`}
+										data-track-lane={track.id}
+										role="gridcell"
+										aria-label={`${track.name} track lane`}
+										tabIndex={0}
+										onKeyDown={(event) => handleLaneKeyDown(event, track)}
+										onDragOver={(event) => handleTrackDragOver(event, track)}
+										onDragLeave={(event) => {
+											if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+												if (drag?.kind === 'asset') cancelTimelineDrag();
+											}
+										}}
+										onDrop={(event) => handleTrackDrop(event, track)}
+										onDragEnd={() => cancelTimelineDrag()}
+									>
+										{track.clips.length === 0 && (
+											<span className="timeline-empty-track">
+												Drop compatible media or press Enter to add selection
+											</span>
+										)}
+										{track.clips.map((clip) => {
+											const asset = activeProject.assets[clip.assetId];
+											if (!asset) return null;
+											const position = drag?.preview.find((item) => item.clipId === clip.id);
+											if (position && position.trackId !== track.id) return null;
+											const clipStart = position?.start ?? clip.start;
+											const clipDuration = position?.duration ?? clip.duration;
+											if (
+												!intersectsPixelRange(
+													timeToPixels(clipStart, pixelsPerSecond),
+													timeToPixels(clipDuration, pixelsPerSecond),
+													visibleClipRange
+												)
+											) {
+												return null;
+											}
+											const isSelected = selection.clipIds.includes(clip.id);
+											const displayedClip = position
+												? {
+														...clip,
+														start: position.start,
+														duration: position.duration,
+														sourceIn: position.sourceIn,
+														sourceOut: position.sourceOut
+													}
+												: clip;
+											return (
+												<ClipView
+													key={clip.id}
+													clip={displayedClip}
+													asset={asset}
+													track={track}
+													project={activeProject}
+													pixelsPerSecond={pixelsPerSecond}
+													selected={isSelected}
+													tabIndex={clip.id === firstTabStopClipId ? 0 : -1}
+													onPointerDown={beginClipDrag}
+													onKeyboardTrim={handleKeyboardTrim}
+													onSelect={handleClipSelect}
+													onContextMenu={openClipMenu}
+												/>
+											);
+										})}
+										{previewPositions.map((position) => {
+											const assetId =
+												drag?.assetId ??
+												activeProject.tracks
+													.flatMap((row) => row.clips)
+													.find((clip) => clip.id === position.clipId)?.assetId;
+											const asset = assetId ? activeProject.assets[assetId] : undefined;
+											const sourceTrack = activeProject.tracks.find((row) =>
+												row.clips.some((clip) => clip.id === position.clipId)
+											);
+											if (!asset || sourceTrack?.id === position.trackId) {
+												return null;
+											}
+											const ghostClip: Clip = {
+												id: position.clipId,
+												assetId: asset.id,
+												start: position.start,
+												duration: position.duration,
+												sourceIn: position.sourceIn,
+												sourceOut: position.sourceOut,
+												speed: 1,
+												volume: 1
+											};
+											return (
+												<ClipView
+													key={`ghost-${position.clipId}`}
+													clip={ghostClip}
+													asset={asset}
+													track={track}
+													project={activeProject}
+													pixelsPerSecond={pixelsPerSecond}
+													selected={false}
+													tabIndex={-1}
+													ghost
+													onPointerDown={() => undefined}
+													onKeyboardTrim={() => undefined}
+													onSelect={() => undefined}
+													onContextMenu={() => undefined}
+												/>
+											);
+										})}
+									</div>
+								</div>
+							);
+						})}
+						<div
+							className={`timeline-new-track-drop ${newTrackDropKind ? 'is-active' : ''}`}
+							role="group"
+							aria-label="Drop below the tracks to create a new track"
+							onDragOver={beginEmptyTrackDrop}
+							onDragLeave={() => setNewTrackDropKind(null)}
+							onDrop={dropOnNewTrack}
+							onDragEnd={() => setNewTrackDropKind(null)}
+						>
+							{newTrackDropKind
+								? `Drop to add a ${newTrackDropKind} track`
+								: 'Drop media here to create a new track'}
+						</div>
+						<ConnectedPlayhead pixelsPerSecond={pixelsPerSecond} offset={HEADER_WIDTH} />
+						{drag?.snappedTo !== undefined && (
+							<div
+								className="timeline-snap-guide"
+								style={{ left: HEADER_WIDTH + timeToPixels(drag.snappedTo, pixelsPerSecond) }}
+								aria-hidden="true"
+							/>
+						)}
+						{marquee && (
+							<div
+								className="timeline-marquee"
+								style={{
+									left: marquee.left,
+									top: marquee.top,
+									width: marquee.width,
+									height: marquee.height
+								}}
+								aria-hidden="true"
+							/>
+						)}
+					</div>
+				</div>
+			</div>
+			<div className="timeline-status-row" role="status" aria-live="polite">
+				{drag && !drag.allowed ? 'No space or incompatible media for this drop.' : message}
+				{drag?.kind === 'move' && drag.allowed && drag.preview[0] && (
+					<span>
+						{' '}
+						{ticksToTimecode(
+							Math.abs(drag.preview[0].start - (drag.original[0]?.start ?? drag.preview[0].start)),
+							activeProject.settings.fps
+						)}
+						{drag.preview[0].start >= (drag.original[0]?.start ?? 0) ? ' later' : ' earlier'}
+					</span>
+				)}
+				<span className="timeline-shortcut-hint">
+					N Snap · S Split · Alt+←/→ Nudge · Ctrl/⌘+wheel Zoom
+				</span>
+			</div>
+			{context && (
+				<div
+					ref={contextMenuRef}
+					className="timeline-context-menu"
+					role="group"
+					aria-label={`Actions for ${activeProject.assets[context.clip.assetId]?.name ?? 'clip'}`}
+					style={{ left: context.x, top: context.y }}
+					onKeyDown={(event) => {
+						if (event.key === 'Escape') {
+							event.preventDefault();
+							closeContextMenu();
+						}
+					}}
+				>
+					<button
+						type="button"
+						onClick={() => {
+							splitAtPlayhead();
+							closeContextMenu();
+						}}
+					>
+						Split at playhead
+					</button>
+					<button
+						type="button"
+						onClick={() => {
+							deleteSelection();
+							closeContextMenu();
+						}}
+					>
+						Delete
+					</button>
+					<button
+						type="button"
+						onClick={() => {
+							rippleDeleteSelection();
+							closeContextMenu();
+						}}
+					>
+						Ripple delete
+					</button>
+					<button
+						type="button"
+						onClick={() => {
+							duplicateSelection();
+							closeContextMenu();
+						}}
+					>
+						Duplicate
+					</button>
+					<hr />
+					{context.clip.linkId ? (
+						<button
+							type="button"
+							onClick={() => {
+								unlinkSelection();
+								closeContextMenu();
+							}}
+						>
+							Unlink clips
+						</button>
+					) : (
+						<button
+							type="button"
+							onClick={() => {
+								linkSelection();
+								closeContextMenu();
+							}}
+						>
+							Link selected clips
+						</button>
+					)}
+				</div>
+			)}
+			{message && <span className="sr-only">{message}</span>}
+			<dialog
+				ref={removeDialogRef}
+				className="editor-dialog timeline-remove-dialog"
+				aria-labelledby="timeline-remove-title"
+				onCancel={(event) => {
+					event.preventDefault();
+					setRemovePending(null);
+				}}
+			>
+				{removePending && (
+					<div className="dialog-content">
+						<h2 id="timeline-remove-title">Remove {removePending.name}?</h2>
+						<p>
+							This track contains {removePending.clips.length} clips. Removing it also removes
+							linked partner clips.
+						</p>
+						<div className="dialog-actions">
+							<button
+								className="secondary-button"
+								type="button"
+								onClick={() => setRemovePending(null)}
+							>
+								Cancel
+							</button>
+							<button
+								className="danger-button"
+								type="button"
+								onClick={() => {
+									removeTimelineTrack(removePending.id, { force: true });
+									setRemovePending(null);
+								}}
+							>
+								Remove track
+							</button>
+						</div>
+					</div>
+				)}
+			</dialog>
+		</div>
+	);
+}
+
+export type { AssetId };

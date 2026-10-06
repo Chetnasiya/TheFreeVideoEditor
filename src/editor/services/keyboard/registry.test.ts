@@ -1,0 +1,124 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+	buildCheatSheet,
+	createEditorShortcutRegistry,
+	findShortcutConflicts,
+	matchesShortcut,
+	registerShortcutListener,
+	shouldSuppressShortcut,
+	type ShortcutEntry
+} from './registry';
+
+function entry(id: string, keys: string, scope = 'editor'): ShortcutEntry {
+	return {
+		id,
+		keys: { mac: keys, other: keys },
+		label: id,
+		group: 'Test',
+		scope,
+		handler: () => {},
+		preventDefault: true
+	};
+}
+
+function keyEvent(key: string, modifiers: Partial<KeyboardEventInit> = {}): KeyboardEvent {
+	const event = new Event('keydown', { cancelable: true }) as KeyboardEvent;
+	for (const [name, value] of Object.entries({
+		key,
+		altKey: false,
+		shiftKey: false,
+		ctrlKey: false,
+		metaKey: false,
+		isComposing: false,
+		...modifiers
+	})) {
+		Object.defineProperty(event, name, { configurable: true, value });
+	}
+	return event;
+}
+
+describe('keyboard shortcut registry', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('contains no overlapping key combinations', () => {
+		const registry = createEditorShortcutRegistry({});
+		expect(findShortcutConflicts(registry, 'mac')).toEqual([]);
+		expect(findShortcutConflicts(registry, 'other')).toEqual([]);
+		expect(
+			findShortcutConflicts([entry('first', 'mod+z'), entry('second', 'mod+z')], 'mac')
+		).toEqual([{ first: 'first', second: 'second', key: 'mod+z' }]);
+	});
+
+	it('maps platform modifiers and Ctrl+Y redo correctly', () => {
+		expect(matchesShortcut(keyEvent('z', { metaKey: true }), 'mod+z')).toBe(true);
+		expect(matchesShortcut(keyEvent('z', { ctrlKey: true }), 'mod+z')).toBe(true);
+		expect(matchesShortcut(keyEvent('y', { ctrlKey: true }), 'ctrl+y')).toBe(true);
+		expect(matchesShortcut(keyEvent('y', { metaKey: true }), 'ctrl+y')).toBe(false);
+	});
+
+	it('ignores unrelated modifier combinations and honors scoped duplicates', () => {
+		expect(matchesShortcut(keyEvent('arrowleft', { altKey: true }), 'arrowleft')).toBe(false);
+		expect(
+			findShortcutConflicts(
+				[entry('preview', 'arrowleft', 'preview'), entry('clip', 'arrowleft', 'clip')],
+				'other'
+			)
+		).toEqual([]);
+	});
+
+	it('suppresses composing, already-handled, text-target, and modal events', () => {
+		const event = keyEvent('z');
+		expect(shouldSuppressShortcut(keyEvent('z', { isComposing: true }))).toBe(true);
+		event.preventDefault();
+		expect(shouldSuppressShortcut(event)).toBe(true);
+		expect(shouldSuppressShortcut(keyEvent('z'), null, true)).toBe(true);
+
+		class FakeHTMLElement extends EventTarget {
+			isContentEditable = false;
+			closest(selector: string): Element | null {
+				return selector.includes('input') ? ({} as Element) : null;
+			}
+		}
+		vi.stubGlobal('HTMLElement', FakeHTMLElement);
+		expect(shouldSuppressShortcut(keyEvent('z'), new FakeHTMLElement(), false)).toBe(true);
+	});
+
+	it('generates grouped platform-specific cheat-sheet entries from the registry', () => {
+		const registry = createEditorShortcutRegistry({});
+		const mac = buildCheatSheet(registry, 'mac');
+		const other = buildCheatSheet(registry, 'other');
+		expect(mac.find((item) => item.id === 'undo')?.keys).toBe('⌘Z');
+		expect(other.find((item) => item.id === 'redo')?.keys).toBe('Ctrl+Shift+Z / Ctrl+Y');
+		expect(mac.some((item) => item.id === 'export-dialog')).toBe(false);
+	});
+
+	it('runs timeline-only nudge shortcuts only when the timeline owns focus', () => {
+		class FakeHTMLElement extends EventTarget {
+			isContentEditable = false;
+
+			constructor(private readonly timeline: boolean) {
+				super();
+			}
+
+			closest(selector: string): Element | null {
+				return this.timeline && selector.includes('.timeline-scroll') ? ({} as Element) : null;
+			}
+		}
+		vi.stubGlobal('HTMLElement', FakeHTMLElement);
+		const nudge = vi.fn();
+		const entries = createEditorShortcutRegistry({ 'nudge-frame-back': nudge }).filter(
+			(item) => item.id === 'nudge-frame-back'
+		);
+		const timeline = new FakeHTMLElement(true);
+		const preview = new FakeHTMLElement(false);
+		registerShortcutListener(entries, { target: timeline as unknown as Window, platform: 'other' });
+		timeline.dispatchEvent(keyEvent('arrowleft', { altKey: true }));
+		expect(nudge).toHaveBeenCalledOnce();
+
+		registerShortcutListener(entries, { target: preview as unknown as Window, platform: 'other' });
+		preview.dispatchEvent(keyEvent('arrowleft', { altKey: true }));
+		expect(nudge).toHaveBeenCalledOnce();
+	});
+});

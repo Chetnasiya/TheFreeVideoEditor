@@ -1,0 +1,138 @@
+import { ALL_FORMATS, BlobSource, Input, VideoSampleSink } from 'mediabunny';
+import type { ActiveLayer, Project } from '../../core';
+import type { AssetId, ClipId } from '../../core';
+import { getMediaFile } from '../storage/opfs';
+
+interface VideoDecoderEntry {
+	input: Input;
+	sink: VideoSampleSink;
+	lastUsed: number;
+}
+
+const MAX_OPEN_INPUTS = 4;
+
+export class FrameProviderError extends Error {
+	readonly assetId: AssetId;
+
+	constructor(assetId: AssetId, assetName: string, cause: unknown) {
+		super(`Could not decode “${assetName}” for export. Check that its codec is supported.`, {
+			cause
+		});
+		this.name = 'FrameProviderError';
+		this.assetId = assetId;
+	}
+}
+
+export class ExportFrameProvider {
+	private readonly decoders = new Map<AssetId, VideoDecoderEntry>();
+	private readonly images = new Map<AssetId, ImageBitmap>();
+	private readonly canvases = new Map<AssetId, OffscreenCanvas>();
+	private readonly prepared = new Map<ClipId, CanvasImageSource>();
+	private clock = 0;
+	private disposed = false;
+
+	constructor(
+		private readonly project: Project,
+		private readonly getFile: typeof getMediaFile = getMediaFile
+	) {}
+
+	async prepare(layers: readonly ActiveLayer[], signal?: AbortSignal): Promise<void> {
+		this.prepared.clear();
+		for (const layer of layers) {
+			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
+			const asset = this.project.assets[layer.assetId];
+			if (!asset || asset.offline) continue;
+			try {
+				if (asset.kind === 'image') {
+					let image = this.images.get(asset.id);
+					if (!image) {
+						image = await createImageBitmap(await this.getFile(this.project.id, asset));
+						this.images.set(asset.id, image);
+					}
+					this.prepared.set(layer.clipId, image);
+					continue;
+				}
+				const decoder = await this.getDecoder(asset.id, asset.name);
+				let sample = await decoder.sink.getSample(layer.sourceTime / 1_000_000);
+				if (!sample && layer.sourceTime > 0 && asset.duration > 0) {
+					sample = await decoder.sink.getSample(
+						Math.max(0, asset.duration - Math.max(1, Math.round(1_000_000 / (asset.fps ?? 30)))) /
+							1_000_000
+					);
+				}
+				if (!sample) continue;
+				let canvas = this.canvases.get(asset.id);
+				if (
+					!canvas ||
+					canvas.width !== sample.displayWidth ||
+					canvas.height !== sample.displayHeight
+				) {
+					canvas = new OffscreenCanvas(sample.displayWidth, sample.displayHeight);
+					this.canvases.set(asset.id, canvas);
+				}
+				const context = canvas.getContext('2d');
+				if (!context) throw new Error('Offscreen canvas 2D rendering is unavailable.');
+				try {
+					sample.draw(context, 0, 0, canvas.width, canvas.height);
+					this.prepared.set(layer.clipId, canvas);
+				} finally {
+					sample.close();
+				}
+			} catch (error) {
+				if (error instanceof DOMException && error.name === 'AbortError') throw error;
+				throw new FrameProviderError(layer.assetId, asset.name, error);
+			}
+		}
+	}
+
+	getFrame(layer: ActiveLayer): CanvasImageSource | null {
+		return this.prepared.get(layer.clipId) ?? null;
+	}
+
+	async dispose(): Promise<void> {
+		if (this.disposed) return;
+		this.disposed = true;
+		for (const decoder of this.decoders.values()) decoder.input.dispose();
+		this.decoders.clear();
+		for (const image of this.images.values()) image.close();
+		this.images.clear();
+		this.canvases.clear();
+		this.prepared.clear();
+	}
+
+	private async getDecoder(assetId: AssetId, assetName: string): Promise<VideoDecoderEntry> {
+		const existing = this.decoders.get(assetId);
+		if (existing) {
+			existing.lastUsed = ++this.clock;
+			return existing;
+		}
+		const asset = this.project.assets[assetId];
+		if (!asset) throw new Error(`Project asset “${assetId}” is missing.`);
+		const file = await this.getFile(this.project.id, asset);
+		const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+		try {
+			const videoTrack = await input.getPrimaryVideoTrack();
+			if (!videoTrack) throw new Error('The asset has no decodable video track.');
+			const entry = {
+				input,
+				sink: new VideoSampleSink(videoTrack),
+				lastUsed: ++this.clock
+			};
+			if (this.decoders.size >= MAX_OPEN_INPUTS) {
+				const oldest = [...this.decoders.entries()].toSorted(
+					(first, second) => first[1].lastUsed - second[1].lastUsed
+				)[0];
+				if (oldest) {
+					oldest[1].input.dispose();
+					this.decoders.delete(oldest[0]);
+					this.canvases.delete(oldest[0]);
+				}
+			}
+			this.decoders.set(assetId, entry);
+			return entry;
+		} catch (error) {
+			input.dispose();
+			throw new FrameProviderError(assetId, assetName, error);
+		}
+	}
+}

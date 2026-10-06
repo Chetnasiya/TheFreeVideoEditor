@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+@import './tokens.css';
+
+@source not '../../.agents';
+
+html {
+	min-width: 320px;
+	min-height: 100%;
+	background: var(--color-canvas);
+	color: var(--color-ink);
+	font-family: var(--font-sans);
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body {
+	min-width: 320px;
+	min-height: 100vh;
+	margin: 0;
+	background: var(--color-canvas);
+	color: var(--color-ink);
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+}
+
+button {
+	color: inherit;
+}
+
+:focus-visible {
+	outline: 2px solid var(--color-link);
+	outline-offset: 2px;
+}
+
+::selection {
+	background: var(--color-link-soft);
+	color: var(--color-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
