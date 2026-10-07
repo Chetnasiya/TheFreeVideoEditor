@@ -1,11 +1,13 @@
 import { useState, useMemo, type DragEvent } from 'react';
 import { EFFECT_DEFINITIONS } from '../../core/effects/registry';
+import { TRANSITION_DEFINITIONS, type TransitionDefinition } from '../../core/transitionsRegistry';
 import type { EffectCategory, EffectDefinition } from '../../core/effects/types';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import './effects.css';
 
-const CATEGORIES: Array<{ id: 'all' | EffectCategory; label: string }> = [
+const CATEGORIES: Array<{ id: 'all' | EffectCategory | 'transitions'; label: string }> = [
 	{ id: 'all', label: 'All' },
+	{ id: 'transitions', label: 'Transitions' },
 	{ id: 'blur', label: 'Blur' },
 	{ id: 'color', label: 'Color' },
 	{ id: 'stylize', label: 'Stylize' },
@@ -17,12 +19,28 @@ export default function EffectsLibrary() {
 	const store = useEditorStoreApi();
 	const query = useEditorStore((state) => state.effectsUi.libraryQuery);
 	const selectedClipIds = useEditorStore((state) => state.timeline.selection.clipIds);
-	const [activeCategory, setActiveCategory] = useState<'all' | EffectCategory>('all');
+	const [activeCategory, setActiveCategory] = useState<'all' | EffectCategory | 'transitions'>(
+		'all'
+	);
 	const [announcement, setAnnouncement] = useState('');
 
 	const allEffects = useMemo(() => Object.values(EFFECT_DEFINITIONS), []);
+	const allTransitions = useMemo(() => Object.values(TRANSITION_DEFINITIONS), []);
+
+	const filteredTransitions = useMemo(() => {
+		if (activeCategory !== 'all' && activeCategory !== 'transitions') return [];
+		const lowerQuery = query.toLowerCase().trim();
+		return allTransitions.filter((def) => {
+			if (!lowerQuery) return true;
+			return (
+				def.name.toLowerCase().includes(lowerQuery) ||
+				def.description.toLowerCase().includes(lowerQuery)
+			);
+		});
+	}, [allTransitions, query, activeCategory]);
 
 	const filteredEffects = useMemo(() => {
+		if (activeCategory === 'transitions') return [];
 		const lowerQuery = query.toLowerCase().trim();
 		return allEffects.filter((def) => {
 			if (activeCategory !== 'all' && def.category !== activeCategory) {
@@ -36,6 +54,15 @@ export default function EffectsLibrary() {
 			);
 		});
 	}, [allEffects, query, activeCategory]);
+
+	const handleAddTransition = (def: TransitionDefinition) => {
+		const applied = store.getState().applyDefaultTransition();
+		if (applied) {
+			setAnnouncement(`Applied ${def.name} transition.`);
+		} else {
+			setAnnouncement(`Select adjacent clips or a clip cut to apply ${def.name}.`);
+		}
+	};
 
 	const handleAddEffect = (def: EffectDefinition) => {
 		if (selectedClipIds.length === 0) {
@@ -81,8 +108,44 @@ export default function EffectsLibrary() {
 			</div>
 
 			<div className="effects-list" role="list">
-				{filteredEffects.length === 0 ? (
-					<div className="effects-empty">No effects found matching “{query}”.</div>
+				{filteredTransitions.map((def) => (
+					<div
+						key={`trans-${def.id}`}
+						className="effect-card"
+						draggable
+						onDragStart={(e) => {
+							e.dataTransfer.setData('application/x-tfve-transition', def.id);
+							e.dataTransfer.setData('text/plain', def.id);
+							e.dataTransfer.effectAllowed = 'copy';
+						}}
+						onDoubleClick={() => handleAddTransition(def)}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter') handleAddTransition(def);
+						}}
+						tabIndex={0}
+						role="listitem"
+						aria-label={`${def.name} transition, ${def.category}`}
+					>
+						<div className="effect-card-header">
+							<span className="effect-card-title">{def.name}</span>
+							<span className="effect-card-badge">transition</span>
+						</div>
+						<p className="effect-card-desc">{def.description}</p>
+						<button
+							type="button"
+							className="effect-card-add-btn"
+							onClick={(e) => {
+								e.stopPropagation();
+								handleAddTransition(def);
+							}}
+						>
+							Apply Transition
+						</button>
+					</div>
+				))}
+
+				{filteredEffects.length === 0 && filteredTransitions.length === 0 ? (
+					<div className="effects-empty">No effects or transitions found matching “{query}”.</div>
 				) : (
 					filteredEffects.map((def) => (
 						<div

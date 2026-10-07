@@ -33,6 +33,7 @@ import type {
 } from '../../core';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import ClipView from './ClipView';
+import { TransitionBlock } from './TransitionBlock';
 import Playhead from './Playhead';
 import TimelineRuler from './TimelineRuler';
 import TimelineToolbar from './TimelineToolbar';
@@ -1078,6 +1079,16 @@ function ActiveTimeline({ project }: { project: Project }) {
 												/>
 											);
 										})}
+										{(track.transitions ?? []).map((tr) => (
+											<TransitionBlock
+												key={tr.id}
+												transition={tr}
+												track={track}
+												pixelsPerSecond={pixelsPerSecond}
+												selected={selection.transitionId === tr.id}
+												onSelect={(id) => store.getState().selectTransition(id)}
+											/>
+										))}
 										{previewPositions.map((position) => {
 											const assetId =
 												drag?.assetId ??

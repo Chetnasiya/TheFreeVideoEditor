@@ -83,6 +83,27 @@ export function renderFrame(
 	context.fillRect(0, 0, size.width, size.height);
 
 	for (const layer of layers) {
+		if (layer.transition) {
+			const tr = layer.transition;
+			// Render fromLayer with alpha (1 - progress) and toLayer with alpha progress
+			const renderSubLayer = (sub: ActiveLayer, alphaMultiplier: number) => {
+				const src = frameProvider(sub) ?? lastGoodFrames.get(sub.clipId) ?? null;
+				if (!src) return;
+				const dims = sourceDimensions(src);
+				if (dims.width <= 0 || dims.height <= 0) return;
+				lastGoodFrames.set(sub.clipId, src);
+				const r = fitRect(dims.width, dims.height, size.width, size.height);
+				context.save();
+				context.globalAlpha = (sub.transform?.opacity ?? 1) * alphaMultiplier;
+				context.drawImage(src, r.x, r.y, r.width, r.height);
+				context.restore();
+			};
+
+			renderSubLayer(tr.fromLayer, 1 - tr.progress);
+			renderSubLayer(tr.toLayer, tr.progress);
+			continue;
+		}
+
 		if (layer.kind === 'solid') {
 			const c = layer.solidColor ?? { r: 0, g: 0, b: 0, a: 1 };
 			context.save();

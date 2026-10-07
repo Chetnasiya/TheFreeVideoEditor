@@ -158,6 +158,7 @@ export class GlCompositor implements FrameRenderer {
 			this.scopesEnabled ||
 			layers.some(
 				(layer) =>
+					Boolean(layer.transition) ||
 					layer.kind === 'adjustment' ||
 					layer.kind === 'solid' ||
 					(layer.effects && layer.effects.some((e) => !e.isNeutral))
@@ -259,6 +260,67 @@ export class GlCompositor implements FrameRenderer {
 					accumFbo = lastFbo;
 				}
 				for (const f of fbosToRelease) this.fboPool.release(f);
+				continue;
+			}
+
+			if (layer.transition) {
+				const tr = layer.transition;
+				// Render fromLayer to FBO
+				const fromFbo = this.fboPool.acquire(size.width, size.height);
+				gl.bindFramebuffer(gl.FRAMEBUFFER, fromFbo.framebuffer);
+				gl.viewport(0, 0, size.width, size.height);
+				gl.clearColor(0, 0, 0, 0);
+				gl.clear(gl.COLOR_BUFFER_BIT);
+
+				// Render fromLayer into fromFbo
+				this.renderSingleLayer(tr.fromLayer, fromFbo, size, frameProvider, lastGoodFrames);
+
+				// Render toLayer to FBO
+				const toFbo = this.fboPool.acquire(size.width, size.height);
+				gl.bindFramebuffer(gl.FRAMEBUFFER, toFbo.framebuffer);
+				gl.viewport(0, 0, size.width, size.height);
+				gl.clearColor(0, 0, 0, 0);
+				gl.clear(gl.COLOR_BUFFER_BIT);
+
+				this.renderSingleLayer(tr.toLayer, toFbo, size, frameProvider, lastGoodFrames);
+
+				// Transition shader pass: blends fromFbo and toFbo into transitionFbo
+				const transitionFbo = this.fboPool.acquire(size.width, size.height);
+				this.passManager.applyTransition(
+					tr.type,
+					fromFbo.texture,
+					toFbo.texture,
+					tr.progress,
+					tr.params,
+					transitionFbo.framebuffer,
+					size.width,
+					size.height
+				);
+
+				this.fboPool.release(fromFbo);
+				this.fboPool.release(toFbo);
+
+				// Composite transition result onto accumFbo
+				gl.bindFramebuffer(gl.FRAMEBUFFER, accumFbo.framebuffer);
+				gl.viewport(0, 0, size.width, size.height);
+				gl.useProgram(program.program);
+				gl.bindVertexArray(this.vao);
+				gl.uniform2f(program.size, size.width, size.height);
+				gl.uniform1i(program.texture, 0);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, transitionFbo.texture);
+
+				// Identity full-screen affine for the transitioned result
+				gl.uniformMatrix3fv(program.affine, false, [1, 0, 0, 0, 1, 0, 0, 0, 1]);
+				gl.uniform4f(program.crop, 0, 0, 0, 0);
+				gl.uniform1f(program.opacity, 1.0);
+				blendFunction(gl, 'normal');
+				gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+				stats.drawCalls += 1;
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, null);
+
+				this.fboPool.release(transitionFbo);
 				continue;
 			}
 
@@ -501,6 +563,144 @@ export class GlCompositor implements FrameRenderer {
 		for (const [clipId, entry] of this.textures) {
 			if (!liveClipIds.has(clipId)) this.deleteEntry(clipId, entry);
 		}
+	}
+
+	private renderSingleLayer(
+		layer: ActiveLayer,
+		targetFbo: PooledFbo,
+		size: CompositionSize,
+		frameProvider: FrameProvider,
+		lastGoodFrames: LastGoodFrames
+	): void {
+		const { gl, program, stats } = this.context;
+		if (!program || !this.vao) return;
+
+		if (layer.kind === 'solid') {
+			const color = layer.solidColor ?? { r: 0, g: 0, b: 0, a: 1 };
+			const solidTex = this.getSolidTexture(color);
+			let currentTex = solidTex;
+			const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
+			const fbosToRelease: PooledFbo[] = [];
+
+			if (activeEffects.length > 0) {
+				let currFbo: PooledFbo | null = null;
+				for (const eff of activeEffects) {
+					const nextFbo = this.passManager.applyEffect(
+						eff,
+						currFbo ? currFbo.texture : solidTex,
+						this.fboPool,
+						size.width,
+						size.height,
+						layer.sourceTime,
+						this.lutProvider ?? undefined
+					);
+					if (currFbo) fbosToRelease.push(currFbo);
+					currFbo = nextFbo;
+				}
+				if (currFbo) {
+					currentTex = currFbo.texture;
+					fbosToRelease.push(currFbo);
+				}
+			}
+
+			gl.bindFramebuffer(gl.FRAMEBUFFER, targetFbo.framebuffer);
+			gl.viewport(0, 0, size.width, size.height);
+			gl.useProgram(program.program);
+			gl.bindVertexArray(this.vao);
+			gl.uniform2f(program.size, size.width, size.height);
+			gl.uniform1i(program.texture, 0);
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, currentTex);
+
+			const affine = layerAffine(layer, 1, 1, size.width, size.height);
+			gl.uniformMatrix3fv(program.affine, false, [
+				affine.a,
+				affine.b,
+				0,
+				affine.c,
+				affine.d,
+				0,
+				affine.e,
+				affine.f,
+				1
+			]);
+			const crop = layer.crop ?? [0, 0, 0, 0];
+			gl.uniform4f(program.crop, crop[0], crop[1], crop[2], crop[3]);
+			gl.uniform1f(program.opacity, layer.transform?.opacity ?? 1);
+			blendFunction(gl, layer.blendMode ?? 'normal');
+			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+			stats.drawCalls += 1;
+
+			for (const f of fbosToRelease) this.fboPool.release(f);
+			return;
+		}
+
+		const source = frameProvider(layer) ?? lastGoodFrames.get(layer.clipId) ?? null;
+		if (!source || !isUploadable(source)) return;
+		const { width, height } = dimensions(source);
+		if (width <= 0 || height <= 0) return;
+		lastGoodFrames.set(layer.clipId, source);
+		const entry = this.upload(layer, source, width, height);
+		if (!entry) return;
+
+		let layerTex = entry.texture;
+		const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
+		const fbosToRelease: PooledFbo[] = [];
+
+		if (activeEffects.length > 0) {
+			const effW = Math.min(width, size.width * 2);
+			const effH = Math.min(height, size.height * 2);
+			let currFbo: PooledFbo | null = null;
+			for (const eff of activeEffects) {
+				const nextFbo = this.passManager.applyEffect(
+					eff,
+					currFbo ? currFbo.texture : entry.texture,
+					this.fboPool,
+					effW,
+					effH,
+					layer.sourceTime,
+					this.lutProvider ?? undefined
+				);
+				if (currFbo) fbosToRelease.push(currFbo);
+				currFbo = nextFbo;
+			}
+			if (currFbo) {
+				layerTex = currFbo.texture;
+				fbosToRelease.push(currFbo);
+			}
+		}
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, targetFbo.framebuffer);
+		gl.viewport(0, 0, size.width, size.height);
+		gl.useProgram(program.program);
+		gl.bindVertexArray(this.vao);
+		gl.uniform2f(program.size, size.width, size.height);
+		gl.uniform1i(program.texture, 0);
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, layerTex);
+
+		const affine = layerAffine(layer, width, height, size.width, size.height);
+		gl.uniformMatrix3fv(program.affine, false, [
+			affine.a,
+			affine.b,
+			0,
+			affine.c,
+			affine.d,
+			0,
+			affine.e,
+			affine.f,
+			1
+		]);
+		const crop = layer.crop ?? [0, 0, 0, 0];
+		gl.uniform4f(program.crop, crop[0], crop[1], crop[2], crop[3]);
+		gl.uniform1f(program.opacity, layer.transform?.opacity ?? 1);
+		blendFunction(gl, layer.blendMode ?? 'normal');
+		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+		stats.drawCalls += 1;
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+
+		for (const f of fbosToRelease) this.fboPool.release(f);
 	}
 
 	dispose(): void {

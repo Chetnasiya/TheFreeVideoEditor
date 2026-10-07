@@ -83,6 +83,7 @@ export interface ExportRunOptions {
 export interface ExportResult {
 	blob: Blob | null;
 	plan: ExportPlan;
+	bytes?: number;
 	path?: Exclude<ExportPath, 'compatibility'>;
 	renderer?: RendererKind;
 }
@@ -509,6 +510,7 @@ async function tryWorkerExport(
 					await finish(undefined, {
 						blob,
 						plan,
+						bytes,
 						path: 'worker-webcodecs',
 						...(message.renderer ? { renderer: message.renderer } : {})
 					});

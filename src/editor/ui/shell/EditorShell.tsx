@@ -98,12 +98,36 @@ function EditorShell() {
 	const fileMenuButtonRef = useRef<HTMLButtonElement>(null);
 	const editMenuButtonRef = useRef<HTMLButtonElement>(null);
 	const helpMenuButtonRef = useRef<HTMLButtonElement>(null);
+	const menuBarRef = useRef<HTMLElement>(null);
 	const projectNameButtonRef = useRef<HTMLButtonElement>(null);
 	const projectNameInputRef = useRef<HTMLInputElement>(null);
 	const playbackRef = useRef<PlaybackEngine | null>(null);
 	const onPlaybackEngineChange = useCallback((engine: PlaybackEngine | null) => {
 		playbackRef.current = engine;
 	}, []);
+
+	const closeAllMenus = useCallback(() => {
+		closeFileMenu();
+		setIsEditMenuOpen(false);
+		setIsHelpMenuOpen(false);
+	}, [closeFileMenu]);
+
+	useEffect(() => {
+		if (!isFileMenuOpen && !isEditMenuOpen && !isHelpMenuOpen) return;
+
+		const handlePointerDown = (event: PointerEvent) => {
+			const target = event.target;
+			if (target instanceof Node && menuBarRef.current?.contains(target)) {
+				return;
+			}
+			closeAllMenus();
+		};
+
+		window.addEventListener('pointerdown', handlePointerDown);
+		return () => {
+			window.removeEventListener('pointerdown', handlePointerDown);
+		};
+	}, [isFileMenuOpen, isEditMenuOpen, isHelpMenuOpen, closeAllMenus]);
 
 	useEffect(() => {
 		if (isRenaming && projectMessage) projectNameInputRef.current?.focus();
@@ -425,7 +449,7 @@ function EditorShell() {
 							V
 						</span>
 					</a>
-					<nav className="menu-bar" aria-label="Application menu">
+					<nav ref={menuBarRef} className="menu-bar" aria-label="Application menu">
 						<div className="file-menu">
 							<button
 								ref={fileMenuButtonRef}
@@ -433,7 +457,11 @@ function EditorShell() {
 								type="button"
 								aria-haspopup="menu"
 								aria-expanded={isFileMenuOpen}
-								onClick={toggleFileMenu}
+								onClick={() => {
+									setIsEditMenuOpen(false);
+									setIsHelpMenuOpen(false);
+									toggleFileMenu();
+								}}
 								onKeyDown={(event) => {
 									if (event.key === 'Escape') closeFileMenu();
 								}}
@@ -544,7 +572,11 @@ function EditorShell() {
 								type="button"
 								aria-haspopup="menu"
 								aria-expanded={isEditMenuOpen}
-								onClick={() => setIsEditMenuOpen((open) => !open)}
+								onClick={() => {
+									closeFileMenu();
+									setIsHelpMenuOpen(false);
+									setIsEditMenuOpen((open) => !open);
+								}}
 							>
 								Edit
 							</button>
@@ -789,7 +821,11 @@ function EditorShell() {
 								type="button"
 								aria-haspopup="menu"
 								aria-expanded={isHelpMenuOpen}
-								onClick={() => setIsHelpMenuOpen((open) => !open)}
+								onClick={() => {
+									closeFileMenu();
+									setIsEditMenuOpen(false);
+									setIsHelpMenuOpen((open) => !open);
+								}}
 							>
 								Help
 							</button>

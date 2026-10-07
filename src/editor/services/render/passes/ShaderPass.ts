@@ -18,6 +18,17 @@ import {
 	SOLID_FRAG,
 	VIGNETTE_FRAG
 } from './effectsShaders';
+import {
+	CROSS_DISSOLVE_FRAG,
+	DIP_TO_BLACK_FRAG,
+	DIP_TO_WHITE_FRAG,
+	FADE_FRAG,
+	IRIS_FRAG,
+	PUSH_FRAG,
+	SLIDE_FRAG,
+	WIPE_FRAG,
+	ZOOM_DISSOLVE_FRAG
+} from './transitionShaders';
 import { generateCompositeCurvesLut, type CurvePoint } from '../../../core/curves';
 import type { ParsedLut3D } from '../../../core/lut';
 import { ShaderCompileError } from '../RenderContext';
@@ -171,6 +182,103 @@ export class ShaderPassManager {
 		const program = this.getProgram('solid', SOLID_FRAG);
 		gl.useProgram(program);
 		gl.uniform4f(gl.getUniformLocation(program, 'u_color'), color.r, color.g, color.b, color.a);
+		this.renderQuad(program, targetFbo, width, height);
+	}
+
+	/**
+	 * Blends fromTexture and toTexture with a transition of type and params at progress (0 to 1).
+	 * Renders directly into targetFbo.
+	 */
+	applyTransition(
+		type: string,
+		fromTexture: WebGLTexture,
+		toTexture: WebGLTexture,
+		progress: number,
+		params: Record<string, unknown>,
+		targetFbo: WebGLFramebuffer | null,
+		width: number,
+		height: number
+	): void {
+		const gl = this.gl;
+		const p = Math.max(0, Math.min(1, progress));
+
+		let fsSource = CROSS_DISSOLVE_FRAG;
+		let programName = 'trans_crossDissolve';
+
+		switch (type) {
+			case 'dipToBlack':
+				fsSource = DIP_TO_BLACK_FRAG;
+				programName = 'trans_dipToBlack';
+				break;
+			case 'dipToWhite':
+				fsSource = DIP_TO_WHITE_FRAG;
+				programName = 'trans_dipToWhite';
+				break;
+			case 'fade':
+				fsSource = FADE_FRAG;
+				programName = 'trans_fade';
+				break;
+			case 'wipe':
+				fsSource = WIPE_FRAG;
+				programName = 'trans_wipe';
+				break;
+			case 'slide':
+				fsSource = SLIDE_FRAG;
+				programName = 'trans_slide';
+				break;
+			case 'push':
+				fsSource = PUSH_FRAG;
+				programName = 'trans_push';
+				break;
+			case 'zoomDissolve':
+				fsSource = ZOOM_DISSOLVE_FRAG;
+				programName = 'trans_zoomDissolve';
+				break;
+			case 'iris':
+				fsSource = IRIS_FRAG;
+				programName = 'trans_iris';
+				break;
+			case 'crossDissolve':
+			default:
+				fsSource = CROSS_DISSOLVE_FRAG;
+				programName = 'trans_crossDissolve';
+				break;
+		}
+
+		const program = this.getProgram(programName, fsSource);
+		gl.useProgram(program);
+
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, fromTexture);
+		gl.uniform1i(gl.getUniformLocation(program, 'u_fromTexture'), 0);
+
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, toTexture);
+		gl.uniform1i(gl.getUniformLocation(program, 'u_toTexture'), 1);
+
+		gl.uniform1f(gl.getUniformLocation(program, 'u_progress'), p);
+
+		if (type === 'wipe') {
+			const angle = typeof params.angle === 'number' ? params.angle : 0;
+			const softness = typeof params.softness === 'number' ? params.softness : 0.05;
+			const reverse = params.reverse ? 1 : 0;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_angle'), angle);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_softness'), softness);
+			gl.uniform1i(gl.getUniformLocation(program, 'u_reverse'), reverse);
+		} else if (type === 'slide' || type === 'push') {
+			const dir = params.direction ?? 'left';
+			const dirCode = dir === 'right' ? 1 : dir === 'up' ? 2 : dir === 'down' ? 3 : 0;
+			gl.uniform1i(gl.getUniformLocation(program, 'u_direction'), dirCode);
+		} else if (type === 'zoomDissolve') {
+			const scale = typeof params.scale === 'number' ? params.scale : 1.5;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_scale'), scale);
+		} else if (type === 'iris') {
+			const softness = typeof params.softness === 'number' ? params.softness : 0.05;
+			const reverse = params.reverse ? 1 : 0;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_softness'), softness);
+			gl.uniform1i(gl.getUniformLocation(program, 'u_reverse'), reverse);
+		}
+
 		this.renderQuad(program, targetFbo, width, height);
 	}
 

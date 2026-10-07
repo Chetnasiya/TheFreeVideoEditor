@@ -12,6 +12,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		if (import.meta.env.DEV) {
+			(window as unknown as { __TFVE_STORE__?: EditorStore }).__TFVE_STORE__ = store;
 			window.__TFVE_EXPORT_TEST_HOOKS__ ??= {};
 			window.__TFVE_EXPORT_TEST_HOOKS__.hideFirstVideoTrack = (hidden) => {
 				const state = store.getState();
@@ -104,12 +105,15 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 		return () => {
 			store.getState().setAutosaveFlush(null);
 			autosave.dispose();
-			if (import.meta.env.DEV && window.__TFVE_EXPORT_TEST_HOOKS__) {
-				delete window.__TFVE_EXPORT_TEST_HOOKS__.hideFirstVideoTrack;
-				delete window.__TFVE_EXPORT_TEST_HOOKS__.addSecondClipAfterGap;
-				delete window.__TFVE_EXPORT_TEST_HOOKS__.addSampleOverlay;
-				delete window.__TFVE_EXPORT_TEST_HOOKS__.hideTopVideoTrack;
-				delete window.__TFVE_EXPORT_TEST_HOOKS__.createUiAuditFixture;
+			if (import.meta.env.DEV) {
+				delete (window as unknown as { __TFVE_STORE__?: EditorStore }).__TFVE_STORE__;
+				if (window.__TFVE_EXPORT_TEST_HOOKS__) {
+					delete window.__TFVE_EXPORT_TEST_HOOKS__.hideFirstVideoTrack;
+					delete window.__TFVE_EXPORT_TEST_HOOKS__.addSecondClipAfterGap;
+					delete window.__TFVE_EXPORT_TEST_HOOKS__.addSampleOverlay;
+					delete window.__TFVE_EXPORT_TEST_HOOKS__.hideTopVideoTrack;
+					delete window.__TFVE_EXPORT_TEST_HOOKS__.createUiAuditFixture;
+				}
 			}
 		};
 	}, [store]);

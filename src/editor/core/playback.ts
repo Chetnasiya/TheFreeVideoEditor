@@ -4,12 +4,14 @@ import { evaluateOr } from './animation';
 import { clampCrop, isCrop, isDefaultCrop, type Crop } from './crop';
 import { evaluateEffect } from './effects/instance';
 import type { EvaluatedEffect } from './effects/types';
+import { transitionWindow, transitionProgress, transitionGain } from './transitions';
 import type {
 	AnimatedValue,
 	AssetId,
 	BlendMode,
 	Clip,
 	ClipTransform,
+	JsonValue,
 	Project,
 	Time,
 	TrackId
@@ -95,6 +97,14 @@ export interface ActiveLayer {
 	crop?: Crop;
 	solidColor?: { r: number; g: number; b: number; a: number };
 	effects?: EvaluatedEffect[];
+	/** Transition details when this layer represents a transition blend between two layers */
+	transition?: {
+		type: string;
+		progress: number;
+		fromLayer: ActiveLayer;
+		toLayer: ActiveLayer;
+		params: Record<string, JsonValue>;
+	};
 }
 
 export interface ActiveAudio {
@@ -122,11 +132,189 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 	const audioSources: ActiveAudio[] = [];
 	const missing = new Set<AssetId>();
 
+	// Build clip lookup map per track
 	for (const [trackOrder, track] of project.tracks.entries()) {
 		if ((track.kind === 'video' && track.hidden) || (track.kind === 'audio' && track.muted)) {
 			continue;
 		}
 
+		// Helper to build ActiveLayer for a clip at a timeline time t (even if outside clip.start..clipEnd for handles)
+		const makeClipLayer = (clip: Clip, t: Time): ActiveLayer | null => {
+			const localTime = t - clip.start;
+			const evaluatedEffects =
+				clip.effects && clip.effects.length > 0
+					? clip.effects.map((eff) => evaluateEffect(eff, localTime))
+					: undefined;
+
+			if (clip.source?.type === 'adjustment') {
+				if (track.kind !== 'video') return null;
+				return {
+					clipId: clip.id,
+					trackId: track.id,
+					trackOrder,
+					sourceTime: localTime,
+					kind: 'adjustment',
+					opacity: 1,
+					effects: evaluatedEffects,
+					...evaluateLayerProperties(clip, localTime)
+				};
+			}
+
+			if (clip.source?.type === 'solid') {
+				if (track.kind !== 'video') return null;
+				return {
+					clipId: clip.id,
+					trackId: track.id,
+					trackOrder,
+					sourceTime: localTime,
+					kind: 'solid',
+					solidColor: clip.source.color,
+					opacity: 1,
+					effects: evaluatedEffects,
+					...evaluateLayerProperties(clip, localTime)
+				};
+			}
+
+			if (!clip.assetId) return null;
+			const asset = project.assets[clip.assetId];
+			if (!asset) return null;
+			if (asset.offline) {
+				missing.add(asset.id);
+				return null;
+			}
+
+			const sourceTime = timelineToSource(clip, t);
+			if (track.kind === 'video' && (asset.kind === 'video' || asset.kind === 'image')) {
+				return {
+					clipId: clip.id,
+					assetId: asset.id,
+					trackId: track.id,
+					trackOrder,
+					sourceTime,
+					kind: asset.kind,
+					opacity: 1,
+					effects: evaluatedEffects,
+					...evaluateLayerProperties(clip, localTime)
+				};
+			}
+			return null;
+		};
+
+		// Check active transitions on this track at current time
+		const activeTransitions = (track.transitions ?? []).filter((tr) => {
+			let cutTime = 0;
+			if (tr.edge.kind === 'cut') {
+				const edge = tr.edge;
+				const cA = track.clips.find((c) => c.id === edge.fromClipId);
+				if (!cA) return false;
+				cutTime = clipEnd(cA);
+			} else if (tr.edge.kind === 'head') {
+				const edge = tr.edge;
+				const c = track.clips.find((c) => c.id === edge.clipId);
+				if (!c) return false;
+				cutTime = c.start;
+			} else {
+				const edge = tr.edge;
+				const c = track.clips.find((c) => c.id === edge.clipId);
+				if (!c) return false;
+				cutTime = clipEnd(c);
+			}
+			const win = transitionWindow(cutTime, tr.duration, tr.alignment);
+			return time >= win.start && time < win.end;
+		});
+
+		if (activeTransitions.length > 0) {
+			const tr = activeTransitions[0];
+			let cutTime = 0;
+			let clipA: Clip | undefined;
+			let clipB: Clip | undefined;
+
+			if (tr.edge.kind === 'cut') {
+				const edge = tr.edge;
+				clipA = track.clips.find((c) => c.id === edge.fromClipId);
+				clipB = track.clips.find((c) => c.id === edge.toClipId);
+				if (clipA) cutTime = clipEnd(clipA);
+			} else if (tr.edge.kind === 'head') {
+				const edge = tr.edge;
+				clipB = track.clips.find((c) => c.id === edge.clipId);
+				if (clipB) cutTime = clipB.start;
+			} else {
+				const edge = tr.edge;
+				clipA = track.clips.find((c) => c.id === edge.clipId);
+				if (clipA) cutTime = clipEnd(clipA);
+			}
+
+			const win = transitionWindow(cutTime, tr.duration, tr.alignment);
+			const progress = transitionProgress(time, win, 'linear');
+
+			if (track.kind === 'video') {
+				const layerA = clipA ? makeClipLayer(clipA, time) : null;
+				const layerB = clipB ? makeClipLayer(clipB, time) : null;
+
+				if (layerA && layerB) {
+					// Both clips present (cut transition): emit composite transition layer
+					videoLayers.push({
+						clipId: layerA.clipId,
+						trackId: track.id,
+						trackOrder,
+						sourceTime: layerA.sourceTime,
+						kind: layerA.kind,
+						opacity: 1,
+						transition: {
+							type: tr.type,
+							progress,
+							fromLayer: layerA,
+							toLayer: layerB,
+							params: tr.params
+						}
+					});
+				} else if (layerA && !layerB) {
+					// Tail fade (fade to black or transparency)
+					videoLayers.push({
+						...layerA,
+						opacity: layerA.opacity * (1 - progress)
+					});
+				} else if (!layerA && layerB) {
+					// Head fade (fade in from black or transparency)
+					videoLayers.push({
+						...layerB,
+						opacity: layerB.opacity * progress
+					});
+				}
+				continue;
+			} else if (track.kind === 'audio') {
+				const { gainA, gainB } = transitionGain(time, win, 'equalPower');
+				if (clipA && clipA.assetId) {
+					const assetA = project.assets[clipA.assetId];
+					if (assetA?.hasAudio && !assetA.offline) {
+						audioSources.push({
+							clipId: clipA.id,
+							assetId: assetA.id,
+							trackId: track.id,
+							trackOrder,
+							sourceTime: timelineToSource(clipA, time),
+							volume: clipA.volume * gainA
+						});
+					}
+				}
+				if (clipB && clipB.assetId) {
+					const assetB = project.assets[clipB.assetId];
+					if (assetB?.hasAudio && !assetB.offline) {
+						audioSources.push({
+							clipId: clipB.id,
+							assetId: assetB.id,
+							trackId: track.id,
+							trackOrder,
+							sourceTime: timelineToSource(clipB, time),
+							volume: clipB.volume * gainB
+						});
+					}
+				}
+				continue;
+			}
+		}
+
+		// Standard non-transition clip loop (fast path bit-identical to Phase 1 / Gate H/I/J)
 		for (const clip of track.clips) {
 			if (time < clip.start || time >= clipEnd(clip)) continue;
 			const localTime = time - clip.start;

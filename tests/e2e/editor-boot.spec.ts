@@ -67,3 +67,52 @@ test('editor hydrates, creates and renames a project, and changes theme without 
 
 	expect(browserProblems).toEqual([]);
 });
+
+test('top application menus (File, Edit, Help) close on outside click and close each other when opened', async ({
+	page
+}) => {
+	await page.addInitScript(() => {
+		if (sessionStorage.getItem('tfve:e2e-initialized') === 'true') return;
+		localStorage.removeItem('tfve:project-name');
+		localStorage.removeItem('tfve:theme');
+		sessionStorage.setItem('tfve:e2e-initialized', 'true');
+	});
+	await page.goto('/editor');
+	await page.getByRole('button', { name: 'New project' }).click();
+	await page
+		.getByRole('dialog', { name: 'Create a Project' })
+		.getByRole('button', { name: 'Create project' })
+		.click();
+
+	const fileBtn = page.getByRole('button', { name: 'File', exact: true });
+	const editBtn = page.getByRole('button', { name: 'Edit', exact: true });
+	const helpBtn = page.getByRole('button', { name: 'Help', exact: true });
+
+	const fileMenu = page.getByRole('menu', { name: 'File actions' });
+	const editMenu = page.getByRole('menu', { name: 'Edit actions' });
+	const helpMenu = page.getByRole('menu', { name: 'Help actions' });
+
+	// Open File menu
+	await fileBtn.click();
+	await expect(fileMenu).toBeVisible();
+	await expect(editMenu).not.toBeVisible();
+	await expect(helpMenu).not.toBeVisible();
+
+	// Clicking Edit closes File and opens Edit
+	await editBtn.click();
+	await expect(fileMenu).not.toBeVisible();
+	await expect(editMenu).toBeVisible();
+	await expect(helpMenu).not.toBeVisible();
+
+	// Clicking Help closes Edit and opens Help
+	await helpBtn.click();
+	await expect(fileMenu).not.toBeVisible();
+	await expect(editMenu).not.toBeVisible();
+	await expect(helpMenu).toBeVisible();
+
+	// Clicking outside (on the main workspace or viewport) dismisses open menus
+	await page.mouse.click(500, 300);
+	await expect(fileMenu).not.toBeVisible();
+	await expect(editMenu).not.toBeVisible();
+	await expect(helpMenu).not.toBeVisible();
+});

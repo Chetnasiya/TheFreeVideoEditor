@@ -111,6 +111,21 @@ export class MediaPool {
 			prewarm?: boolean;
 		}> = [];
 		for (const layer of resolved.videoLayers) {
+			if (layer.transition) {
+				const fromL = layer.transition.fromLayer;
+				const toL = layer.transition.toLayer;
+				if (fromL.assetId) {
+					const clip = findClip(this.project, fromL.clipId);
+					const asset = this.project.assets[fromL.assetId];
+					if (clip && asset) desired.push({ clip, asset, kind: 'video' });
+				}
+				if (toL.assetId) {
+					const clip = findClip(this.project, toL.clipId);
+					const asset = this.project.assets[toL.assetId];
+					if (clip && asset) desired.push({ clip, asset, kind: 'video' });
+				}
+				continue;
+			}
 			if (!layer.assetId) continue;
 			const clip = findClip(this.project, layer.clipId);
 			const asset = this.project.assets[layer.assetId];

@@ -23,6 +23,7 @@ import {
 	type Time
 } from '../../core';
 import EffectsSection from './EffectsSection';
+import { TransitionInspector } from './TransitionInspector';
 import './inspector.css';
 
 export interface ConfirmDisableState {
@@ -35,9 +36,25 @@ export default function Inspector() {
 	const project = useEditorStore((state) => state.project);
 	const playhead = useEditorStore((state) => state.timeline.playhead);
 	const selectedClipIds = useEditorStore((state) => state.timeline.selection.clipIds);
+	const selectedTransitionId = useEditorStore((state) => state.timeline.selection.transitionId);
 	const inspector = useEditorStore((state) => state.inspector);
 
 	const [confirmDisable, setConfirmDisable] = useState<ConfirmDisableState | null>(null);
+
+	// Find selected transition if any
+	let selectedTransition: {
+		transition: import('../../core/types').Transition;
+		track: import('../../core/types').Track;
+	} | null = null;
+	if (project && selectedTransitionId) {
+		for (const track of project.tracks) {
+			const tr = (track.transitions ?? []).find((t) => t.id === selectedTransitionId);
+			if (tr) {
+				selectedTransition = { transition: tr, track };
+				break;
+			}
+		}
+	}
 
 	// Find the single selected clip
 	const selectedClip: Clip | null =
@@ -52,6 +69,16 @@ export default function Inspector() {
 					<p className="inspector-hint">Open a project to view its properties.</p>
 				</div>
 			</div>
+		);
+	}
+
+	if (selectedTransition) {
+		return (
+			<TransitionInspector
+				transition={selectedTransition.transition}
+				track={selectedTransition.track}
+				project={project}
+			/>
 		);
 	}
 

@@ -23,3 +23,5 @@ export * from './colorMath';
 export * from './curves';
 export * from './lut';
 export * from './adjustment';
+export * from './transitions';
+export * from './transitionsRegistry';

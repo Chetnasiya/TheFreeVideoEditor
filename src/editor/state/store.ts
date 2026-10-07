@@ -60,9 +60,14 @@ import {
 	pasteClipEffects as pasteClipEffectsCore,
 	getEffectDefinition,
 	parseCubeLut,
+	normalizeProjectTransitions,
+	getTransitionDefinition,
 	type ColorRgba,
 	type EffectInstance,
 	type EffectType,
+	type Transition,
+	type TransitionType,
+	type TransitionAlignment,
 	type Asset,
 	type AssetId,
 	type BezierHandle,
@@ -174,6 +179,7 @@ export interface RelinkAssetResult {
 export interface TimelineSelection {
 	clipIds: ClipId[];
 	trackId?: TrackId;
+	transitionId?: string;
 }
 
 export interface TimelineState {
@@ -521,6 +527,22 @@ export interface EditorState {
 		duration?: Time
 	) => ClipId | null;
 	importLut: (name: string, cubeText: string) => Promise<AssetId | null>;
+	// Transition actions
+	addTransition: (
+		trackId: TrackId,
+		type: TransitionType,
+		edge: Transition['edge'],
+		duration?: Time,
+		alignment?: TransitionAlignment,
+		params?: Record<string, JsonValue>
+	) => string | null;
+	updateTransition: (
+		transitionId: string,
+		updates: Partial<Pick<Transition, 'type' | 'duration' | 'alignment' | 'params'>>
+	) => boolean;
+	removeTransition: (transitionId: string) => boolean;
+	selectTransition: (transitionId: string | null) => void;
+	applyDefaultTransition: () => boolean;
 }
 
 function errorMessage(error: unknown): string {
@@ -604,9 +626,10 @@ export function createEditorStore() {
 				}
 				const selectionBefore = [...get().timeline.selection.clipIds];
 				const keyframeSelectionBefore = [...get().keyframes.selection];
-				const [updated, patches, inversePatches] = produceWithPatches(current, () =>
-					recipe(current)
-				);
+				const [updated, patches, inversePatches] = produceWithPatches(current, () => {
+					const res = recipe(current);
+					return normalizeProjectTransitions(res);
+				});
 				const dirty = options.dirty ?? true;
 				const shouldActivate = options.activate ?? get().project?.id === current.id;
 				if (shouldActivate) {
@@ -3294,6 +3317,168 @@ export function createEditorStore() {
 						});
 						return null;
 					}
+				},
+
+				addTransition(trackId, type, edge, duration, alignment = 'center', params = {}) {
+					const project = get().project;
+					if (!project) return null;
+					const track = project.tracks.find((t) => t.id === trackId);
+					if (!track) return null;
+
+					const def = getTransitionDefinition(type);
+					const effectiveDur = duration ?? def?.defaultDurationUs ?? 1_000_000;
+					const id = `tr_${crypto.randomUUID().slice(0, 8)}`;
+
+					const newTransition: Transition = {
+						id,
+						type,
+						duration: effectiveDur,
+						alignment,
+						edge,
+						params
+					};
+
+					mutateProject(
+						`Add Transition (${def?.name ?? type})`,
+						(proj) => ({
+							...proj,
+							tracks: proj.tracks.map((t) =>
+								t.id === trackId
+									? {
+											...t,
+											transitions: [...(t.transitions ?? []), newTransition]
+										}
+									: t
+							)
+						}),
+						{ history: 'record' }
+					);
+
+					set((state) => {
+						state.timeline.selection.transitionId = id;
+						state.timeline.message = `Added ${def?.name ?? type} transition.`;
+					});
+
+					return id;
+				},
+
+				updateTransition(transitionId, updates) {
+					const project = get().project;
+					if (!project) return false;
+
+					let found = false;
+					mutateProject(
+						'Edit Transition',
+						(proj) => ({
+							...proj,
+							tracks: proj.tracks.map((t) => ({
+								...t,
+								transitions: (t.transitions ?? []).map((tr) => {
+									if (tr.id === transitionId) {
+										found = true;
+										return {
+											...tr,
+											...updates,
+											params: {
+												...tr.params,
+												...(updates.params ?? {})
+											}
+										};
+									}
+									return tr;
+								})
+							}))
+						}),
+						{ history: 'record', mergeKey: `transition:${transitionId}` }
+					);
+
+					return found;
+				},
+
+				removeTransition(transitionId) {
+					const project = get().project;
+					if (!project) return false;
+
+					let removed = false;
+					mutateProject(
+						'Remove Transition',
+						(proj) => ({
+							...proj,
+							tracks: proj.tracks.map((t) => ({
+								...t,
+								transitions: (t.transitions ?? []).filter((tr) => {
+									if (tr.id === transitionId) {
+										removed = true;
+										return false;
+									}
+									return true;
+								})
+							}))
+						}),
+						{ history: 'record' }
+					);
+
+					if (removed) {
+						set((state) => {
+							if (state.timeline.selection.transitionId === transitionId) {
+								delete state.timeline.selection.transitionId;
+							}
+						});
+					}
+
+					return removed;
+				},
+
+				selectTransition(transitionId) {
+					set((state) => {
+						if (transitionId) {
+							state.timeline.selection.transitionId = transitionId;
+							state.timeline.selection.clipIds = [];
+						} else {
+							delete state.timeline.selection.transitionId;
+						}
+					});
+				},
+
+				applyDefaultTransition() {
+					const state = get();
+					const project = state.project;
+					if (!project) return false;
+
+					// If two adjacent clips are selected, or a single cut point is selected:
+					const selectedIds = state.timeline.selection.clipIds;
+					if (selectedIds.length === 2) {
+						// Look for track containing both
+						for (const track of project.tracks) {
+							const cA = track.clips.find((c) => c.id === selectedIds[0]);
+							const cB = track.clips.find((c) => c.id === selectedIds[1]);
+							if (cA && cB) {
+								const [first, second] = cA.start < cB.start ? [cA, cB] : [cB, cA];
+								if (first.start + first.duration === second.start) {
+									state.addTransition(track.id, 'crossDissolve', {
+										kind: 'cut',
+										fromClipId: first.id,
+										toClipId: second.id
+									});
+									return true;
+								}
+							}
+						}
+					} else if (selectedIds.length === 1) {
+						// Head or tail fade
+						const clipId = selectedIds[0];
+						for (const track of project.tracks) {
+							const c = track.clips.find((clip) => clip.id === clipId);
+							if (c) {
+								state.addTransition(track.id, 'crossDissolve', {
+									kind: 'tail',
+									clipId: c.id
+								});
+								return true;
+							}
+						}
+					}
+					return false;
 				}
 			};
 		})

@@ -2,6 +2,7 @@ import type { Clip, Project, Time } from '../../core';
 import { clipEnd } from '../../core';
 import type { AssetId } from '../../core';
 import { getMediaFile } from '../storage/opfs';
+import { transitionWindow, transitionGain } from '../../core/transitions';
 
 export interface AudioClipSchedule {
 	clipId: Clip['id'];
@@ -46,6 +47,50 @@ export function audioSchedulesForChunk(
 				Math.max(0, clip.sourceOut - sourceOffset)
 			);
 			if (sourceDuration <= 0) continue;
+			let effectiveVolume = clip.volume;
+			const midPoint = overlapStart + Math.floor(timelineDuration / 2);
+			const activeTrans = (track.transitions ?? []).find((tr) => {
+				let cutTime = 0;
+				const edge = tr.edge;
+				if (edge.kind === 'cut') {
+					const cA = track.clips.find((c) => c.id === edge.fromClipId);
+					if (cA) cutTime = clipEnd(cA);
+				} else if (edge.kind === 'head') {
+					const c = track.clips.find((c) => c.id === edge.clipId);
+					if (c) cutTime = c.start;
+				} else {
+					const c = track.clips.find((c) => c.id === edge.clipId);
+					if (c) cutTime = clipEnd(c);
+				}
+				const win = transitionWindow(cutTime, tr.duration, tr.alignment);
+				return midPoint >= win.start && midPoint < win.end;
+			});
+
+			if (activeTrans) {
+				let cutTime = 0;
+				let isClipA = false;
+				let isClipB = false;
+				const edge = activeTrans.edge;
+				if (edge.kind === 'cut') {
+					if (clip.id === edge.fromClipId) isClipA = true;
+					if (clip.id === edge.toClipId) isClipB = true;
+					const cA = track.clips.find((c) => c.id === edge.fromClipId);
+					if (cA) cutTime = clipEnd(cA);
+				} else if (edge.kind === 'head' && clip.id === edge.clipId) {
+					isClipB = true;
+					cutTime = clip.start;
+				} else if (edge.kind === 'tail' && clip.id === edge.clipId) {
+					isClipA = true;
+					cutTime = clipEnd(clip);
+				}
+
+				if (isClipA || isClipB) {
+					const win = transitionWindow(cutTime, activeTrans.duration, activeTrans.alignment);
+					const { gainA, gainB } = transitionGain(midPoint, win, 'equalPower');
+					effectiveVolume = clip.volume * (isClipA ? gainA : gainB);
+				}
+			}
+
 			result.push({
 				clipId: clip.id,
 				assetId: asset.id,
@@ -53,7 +98,7 @@ export function audioSchedulesForChunk(
 				sourceOffsetSeconds: sourceOffset / 1_000_000,
 				sourceDurationSeconds: sourceDuration / 1_000_000,
 				playbackRate: clip.speed,
-				volume: clip.volume
+				volume: effectiveVolume
 			});
 		}
 	}
