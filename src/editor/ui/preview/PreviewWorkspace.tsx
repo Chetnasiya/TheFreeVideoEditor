@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { projectNeedsGpu, type Project } from '../../core';
+import type { Project } from '../../core';
 import { createPlaybackEngine, type PlaybackEngine } from '../../services/playback/engine';
 import { selectRenderer } from '../../services/render';
 import { attachPlaybackTestHooks } from '../../services/playback/testHooks';
@@ -27,8 +27,7 @@ export default function PreviewWorkspace({
 	const engineChange = useRef(onEngineChange);
 	const [engine, setEngine] = useState<PlaybackEngine | null>(null);
 	const [zoom, setZoom] = useState('fit');
-	const needsGpu = Boolean(project && projectNeedsGpu(project));
-	const renderer = useMemo(() => selectRenderer(project), [project?.id, needsGpu]);
+	const renderer = useMemo(() => selectRenderer(project), [project]);
 	currentProject.current = project;
 	engineChange.current = onEngineChange;
 

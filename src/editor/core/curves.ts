@@ -127,7 +127,6 @@ export function generateCompositeCurvesLut(
 		const offset = i * 4;
 		lut[offset] = finalR;
 		lut[offset + 1] = finalG;
-		lut[offset + 2] = finalG ? finalB : finalB;
 		lut[offset + 2] = finalB;
 		lut[offset + 3] = 1.0;
 	}

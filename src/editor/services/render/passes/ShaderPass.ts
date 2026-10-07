@@ -18,28 +18,29 @@ import {
 	SOLID_FRAG,
 	VIGNETTE_FRAG
 } from './effectsShaders';
-import { generateCompositeCurvesLut } from '../../../core/curves';
+import { generateCompositeCurvesLut, type CurvePoint } from '../../../core/curves';
 import type { ParsedLut3D } from '../../../core/lut';
+import { ShaderCompileError } from '../RenderContext';
 
-function createShader(
+export function createShader(
 	gl: WebGL2RenderingContext,
 	type: number,
 	source: string,
 	name: string
 ): WebGLShader {
 	const shader = gl.createShader(type);
-	if (!shader) throw new Error(`Could not create shader ${name}`);
+	if (!shader) throw new ShaderCompileError(name, 'Could not create shader');
 	gl.shaderSource(shader, source);
 	gl.compileShader(shader);
 	if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
 		const log = gl.getShaderInfoLog(shader) ?? '';
 		gl.deleteShader(shader);
-		throw new Error(`Shader ${name} compile error: ${log}`);
+		throw new ShaderCompileError(name, log);
 	}
 	return shader;
 }
 
-function createProgram(
+export function createProgram(
 	gl: WebGL2RenderingContext,
 	vsSource: string,
 	fsSource: string,
@@ -48,7 +49,7 @@ function createProgram(
 	const vs = createShader(gl, gl.VERTEX_SHADER, vsSource, `${name}_VS`);
 	const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource, `${name}_FS`);
 	const program = gl.createProgram();
-	if (!program) throw new Error(`Could not create program ${name}`);
+	if (!program) throw new ShaderCompileError(name, 'Could not create program');
 	gl.attachShader(program, vs);
 	gl.attachShader(program, fs);
 	gl.linkProgram(program);
@@ -57,7 +58,7 @@ function createProgram(
 	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
 		const log = gl.getProgramInfoLog(program) ?? '';
 		gl.deleteProgram(program);
-		throw new Error(`Program ${name} link error: ${log}`);
+		throw new ShaderCompileError(name, log);
 	}
 	return program;
 }
@@ -70,6 +71,14 @@ export class ShaderPassManager {
 
 	constructor(private readonly gl: WebGL2RenderingContext) {
 		this.quadVao = gl.createVertexArray();
+	}
+
+	get liveProgramsCount(): number {
+		return this.programs.size;
+	}
+
+	get liveTexturesCount(): number {
+		return this.curveTextures.size + this.lut3dTextures.size;
 	}
 
 	private getProgram(name: string, fsSource: string): WebGLProgram {
@@ -126,7 +135,7 @@ export class ShaderPassManager {
 		gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
 		gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
 		gl.uniform1f(gl.getUniformLocation(program, 'u_opacity'), opacity);
-		this.renderQuad(program, targetFbo, width, height);
+		this.renderQuad(program, targetFbo, width, height, sourceTexture);
 	}
 
 	/** Mixes two textures together by mix amount into target. */
@@ -213,20 +222,18 @@ export class ShaderPassManager {
 				// Horizontal blur pass
 				const hFbo = fboPool.acquire(blurW, blurH);
 				gl.useProgram(program);
-				gl.bindTexture(gl.TEXTURE_2D, srcTex);
 				gl.uniform2f(gl.getUniformLocation(program, 'u_direction'), 1.0 / blurW, 0.0);
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), 1.0); // full mix for intermediate
-				this.renderQuad(program, hFbo.framebuffer, blurW, blurH);
+				this.renderQuad(program, hFbo.framebuffer, blurW, blurH, srcTex);
 
 				if (downFbo) fboPool.release(downFbo);
 
 				// Vertical blur pass
 				const outFbo = fboPool.acquire(width, height);
 				gl.useProgram(program);
-				gl.bindTexture(gl.TEXTURE_2D, hFbo.texture);
 				gl.uniform2f(gl.getUniformLocation(program, 'u_direction'), 0.0, 1.0 / blurH);
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, hFbo.texture);
 
 				fboPool.release(hFbo);
 				return outFbo;
@@ -246,7 +253,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 
@@ -272,7 +279,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 
@@ -288,7 +295,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 
@@ -307,7 +314,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 
@@ -322,7 +329,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 
@@ -341,7 +348,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 
@@ -363,7 +370,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 
@@ -399,7 +406,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 
@@ -473,10 +480,10 @@ export class ShaderPassManager {
 
 			case 'curves': {
 				const curveLutData = generateCompositeCurvesLut(
-					effect.params.rgb as any,
-					effect.params.red as any,
-					effect.params.green as any,
-					effect.params.blue as any
+					effect.params.rgb as CurvePoint[] | undefined,
+					effect.params.red as CurvePoint[] | undefined,
+					effect.params.green as CurvePoint[] | undefined,
+					effect.params.blue as CurvePoint[] | undefined
 				);
 				let curveTex = this.curveTextures.get(effect.id);
 				if (!curveTex) {
@@ -508,7 +515,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 
@@ -560,7 +567,7 @@ export class ShaderPassManager {
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
 
 				const outFbo = fboPool.acquire(width, height);
-				this.renderQuad(program, outFbo.framebuffer, width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
 				return outFbo;
 			}
 

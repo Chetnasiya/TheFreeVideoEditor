@@ -263,11 +263,7 @@ test.describe('Gate I Evidence Gaps', () => {
 
 		// Benchmark 1,000 keyframes timeline performance in page context
 		const perfReport = await page.evaluate(async () => {
-			const storePath = '/src/editor/state/store.ts';
 			const animPath = '/src/editor/core/animation.ts';
-			const storeModule = (await import(
-				/* @vite-ignore */ storePath
-			)) as unknown as typeof import('../../src/editor/state/store');
 			const animation = (await import(
 				/* @vite-ignore */ animPath
 			)) as unknown as typeof import('../../src/editor/core/animation');

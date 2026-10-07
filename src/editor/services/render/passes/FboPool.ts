@@ -8,9 +8,14 @@ export interface PooledFbo {
 export class FboPool {
 	private readonly pool = new Map<string, PooledFbo[]>();
 	private inUse = new Set<PooledFbo>();
-	private totalCreated = 0;
-
+	public totalCreated = 0;
 	constructor(private readonly gl: WebGL2RenderingContext) {}
+
+	get totalLive(): number {
+		let pooledCount = 0;
+		for (const list of this.pool.values()) pooledCount += list.length;
+		return this.inUse.size + pooledCount;
+	}
 
 	acquire(width: number, height: number): PooledFbo {
 		const gl = this.gl;

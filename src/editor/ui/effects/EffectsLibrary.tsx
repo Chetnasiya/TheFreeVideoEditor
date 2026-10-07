@@ -43,7 +43,7 @@ export default function EffectsLibrary() {
 			return;
 		}
 		const clipId = selectedClipIds[0]!;
-		store.getState().addEffect(clipId, def.id as any);
+		store.getState().addEffect(clipId, def.id);
 		setAnnouncement(`Added ${def.name} to selected clip.`);
 	};
 

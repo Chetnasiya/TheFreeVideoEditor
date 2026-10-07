@@ -122,4 +122,61 @@ describe('colorMath', () => {
 		expect(mid[1]).toBeCloseTo(0.5, 4);
 		expect(mid[2]).toBeCloseTo(0.5, 4);
 	});
+
+	it('clamps values with clamp01', () => {
+		expect(clamp01(-0.5)).toBe(0);
+		expect(clamp01(0)).toBe(0);
+		expect(clamp01(0.75)).toBe(0.75);
+		expect(clamp01(1)).toBe(1);
+		expect(clamp01(1.5)).toBe(1);
+	});
+
+	it('adjusts temperature and tint', () => {
+		const [warmR, , warmB] = applyTemperatureTint(0.5, 0.5, 0.5, 0.5, 0);
+		expect(warmR).toBeGreaterThan(0.5);
+		expect(warmB).toBeLessThan(0.5);
+
+		const [, tintG] = applyTemperatureTint(0.5, 0.5, 0.5, 0, 0.5);
+		expect(tintG).toBeLessThan(0.5);
+	});
+
+	it('adjusts tone (highlights, shadows, whites, blacks)', () => {
+		const [rShadow] = applyTone(0.2, 0.2, 0.2, 0, 0.5, 0, 0);
+		expect(rShadow).toBeGreaterThan(0.2);
+
+		const [rHighlight] = applyTone(0.8, 0.8, 0.8, 0.5, 0, 0, 0);
+		expect(rHighlight).toBeGreaterThan(0.8);
+	});
+
+	it('adjusts vibrance selectively', () => {
+		// Low-saturation color gets boosted more than high-saturation color
+		const [lr, lg, lb] = applyVibrance(0.5, 0.45, 0.48, 0.5);
+		const lDiff = Math.max(lr, lg, lb) - Math.min(lr, lg, lb);
+		expect(lDiff).toBeGreaterThan(0.05);
+	});
+
+	it('applies lift/gamma/gain/offset model', () => {
+		// Lift raises blacks
+		const [rLift] = applyLiftGammaGain(0, 0, 0, [0.1, 0, 0]);
+		expect(rLift).toBeCloseTo(0.1, 2);
+
+		// Gain scales whites
+		const [rGain] = applyLiftGammaGain(0.5, 0.5, 0.5, [0, 0, 0], [1, 1, 1], [1.5, 1, 1]);
+		expect(rGain).toBeCloseTo(0.75, 2);
+
+		// Gamma curves midtones
+		const [rGamma] = applyLiftGammaGain(0.5, 0.5, 0.5, [0, 0, 0], [0.5, 1, 1]);
+		expect(rGamma).toBeCloseTo(0.25, 2);
+	});
+
+	it('combines full color correction with mix blending', () => {
+		const full = applyColorCorrection(0.5, 0.5, 0.5, {
+			exposure: 1, // doubles to 1.0
+			mix: 0.5
+		});
+		// Halfway between 0.5 and 1.0 = 0.75
+		expect(full[0]).toBeCloseTo(0.75, 2);
+		expect(full[1]).toBeCloseTo(0.75, 2);
+		expect(full[2]).toBeCloseTo(0.75, 2);
+	});
 });

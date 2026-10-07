@@ -1,5 +1,4 @@
-import type { Clip, ClipId, Time, TrackId } from './types';
-import type { ColorRgba } from './effects/types';
+import type { Clip, ClipId, Time } from './types';
 
 function randomId(): string {
 	const cryptoApi = typeof globalThis.crypto === 'undefined' ? undefined : globalThis.crypto;

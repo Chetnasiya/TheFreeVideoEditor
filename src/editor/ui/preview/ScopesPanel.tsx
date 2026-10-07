@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { PlaybackEngine } from '../../services/playback/engine';
 import type { ScopeFrameData } from '../../services/render/passes/scopes';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';

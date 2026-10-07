@@ -58,7 +58,6 @@ import {
 	duplicateEffectInClip,
 	copyClipEffects as copyClipEffectsCore,
 	pasteClipEffects as pasteClipEffectsCore,
-	setEffectParamInClip,
 	getEffectDefinition,
 	parseCubeLut,
 	type ColorRgba,
@@ -72,6 +71,7 @@ import {
 	type DragPosition,
 	type DragSession,
 	type InterpolationPreset,
+	type JsonValue,
 	type KeyframeClipboard,
 	type KeyframeRef,
 	type Project,
@@ -3039,7 +3039,7 @@ export function createEditorStore() {
 													...eff,
 													params: {
 														...eff.params,
-														[paramName]: value as any
+														[paramName]: value as JsonValue
 													}
 												};
 											})

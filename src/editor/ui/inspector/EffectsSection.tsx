@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef, type ChangeEvent, type DragEvent } from 'react';
+import { useState, useEffect, type DragEvent as ReactDragEvent } from 'react';
 import { EFFECT_DEFINITIONS } from '../../core/effects/registry';
-import type { EffectCategory, EffectDefinition } from '../../core/effects/types';
 import type { Clip, EffectInstance, Time } from '../../core';
 import { useEditorStoreApi, useEditorStore } from '../../state/EditorProvider';
 import { PropertyRow, type ConfirmDisableState } from './Inspector';
@@ -84,12 +83,12 @@ export default function EffectsSection({
 	};
 
 	const handleAddEffect = (effectType: string) => {
-		store.getState().addEffect(clip.id, effectType as any);
+		store.getState().addEffect(clip.id, effectType);
 		setShowAddMenu(false);
 	};
 
 	const handleApplyPreset = (preset: EffectPreset) => {
-		store.getState().addEffect(clip.id, preset.effect.type as any, preset.effect.params);
+		store.getState().addEffect(clip.id, preset.effect.type, preset.effect.params);
 		setShowPresetMenu(false);
 	};
 
@@ -106,12 +105,12 @@ export default function EffectsSection({
 		setUserPresets(await listUserPresets());
 	};
 
-	const handleDrop = (e: DragEvent) => {
+	const handleDrop = (e: ReactDragEvent<HTMLDivElement>) => {
 		e.preventDefault();
 		setIsDropTarget(false);
-		const effectType = e.dataTransfer.getData('application/x-tfve-effect');
+		const effectType = e.dataTransfer?.getData('application/x-tfve-effect');
 		if (effectType && EFFECT_DEFINITIONS[effectType]) {
-			store.getState().addEffect(clip.id, effectType as any);
+			store.getState().addEffect(clip.id, effectType);
 		}
 	};
 
@@ -370,14 +369,21 @@ export default function EffectsSection({
 																	}
 																	className="effect-color-text"
 																/>
-																{typeof (window as any).EyeDropper !== 'undefined' && (
+																{'EyeDropper' in window && (
 																	<button
 																		type="button"
 																		className="effects-eyedropper-btn"
 																		title="Pick color from screen"
 																		onClick={async () => {
 																			try {
-																				const dropper = new (window as any).EyeDropper();
+																				const EyeDropperCtor = (
+																					window as unknown as {
+																						EyeDropper: new () => {
+																							open: () => Promise<{ sRGBHex: string }>;
+																						};
+																					}
+																				).EyeDropper;
+																				const dropper = new EyeDropperCtor();
 																				const res = await dropper.open();
 																				if (res?.sRGBHex) {
 																					store

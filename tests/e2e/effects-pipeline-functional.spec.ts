@@ -372,4 +372,161 @@ test.describe('Gate J — Functional Pipeline Verification', () => {
 		// 7. Neutral effect: bit-identical fast path
 		expect(results.neutralBypassGray).toEqual(results.baselineGray);
 	});
+
+	test('verifies Film Grain determinism, universal mix parameter, and Vignette falloff', async ({
+		page
+	}) => {
+		await page.goto('/editor');
+
+		const results = await page.evaluate(async () => {
+			const renderPath = '/src/editor/services/render/index.ts';
+			const render = (await import(
+				/* @vite-ignore */ renderPath
+			)) as unknown as typeof import('../../src/editor/services/render/index');
+			type Layer = import('../../src/editor/core/playback').ActiveLayer;
+
+			const W = 128;
+			const H = 128;
+
+			const makeSource = (r: number, g: number, b: number): OffscreenCanvas => {
+				const canvas = new OffscreenCanvas(W, H);
+				const ctx = canvas.getContext('2d')!;
+				ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+				ctx.fillRect(0, 0, W, H);
+				return canvas;
+			};
+
+			const sources: Record<string, OffscreenCanvas> = {
+				white: makeSource(255, 255, 255),
+				gray: makeSource(128, 128, 128)
+			};
+
+			const canvas = document.createElement('canvas');
+			canvas.width = W;
+			canvas.height = H;
+
+			const renderer = render.createFrameRenderer(canvas, {
+				preserveDrawingBuffer: true
+			}) as import('../../src/editor/services/render').FrameRenderer;
+
+			const provider = (layer: Layer) => (layer.assetId ? sources[layer.assetId] ?? null : null);
+			const size = { width: W, height: H };
+
+			const readPixel = (x: number, y: number): number[] => {
+				const copy = document.createElement('canvas');
+				copy.width = W;
+				copy.height = H;
+				const ctx = copy.getContext('2d', { willReadFrequently: true })!;
+				ctx.drawImage(canvas, 0, 0);
+				return Array.from(ctx.getImageData(x, y, 1, 1).data);
+			};
+
+			// 1. Film grain determinism: render twice at sourceTime = 1000
+			const renderGrain = (sourceTime: number) => {
+				renderer.render(size, [
+					{
+						clipId: 'c_grain' as any,
+						assetId: 'gray' as any,
+						trackId: 't1' as any,
+						trackOrder: 0,
+						sourceTime,
+						kind: 'image',
+						opacity: 1,
+						transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+						effects: [
+							{
+								id: 'e_grain',
+								type: 'filmGrain',
+								enabled: true,
+								params: { amount: 0.5, speed: 1.0, colored: false, mix: 1 },
+								isNeutral: false
+							}
+						]
+					}
+				], provider);
+			};
+
+			renderGrain(1000);
+			const grainT1000_run1 = readPixel(W / 2, H / 2);
+			renderGrain(1000);
+			const grainT1000_run2 = readPixel(W / 2, H / 2);
+			renderGrain(500000);
+			const grainT500000 = readPixel(W / 2, H / 2);
+
+			// 2. Universal mix = 0.5 on Invert (White inverted = Black; mix 0.5 = 128)
+			renderer.render(size, [
+				{
+					clipId: 'c_mix' as any,
+					assetId: 'white' as any,
+					trackId: 't1' as any,
+					trackOrder: 0,
+					sourceTime: 0,
+					kind: 'image',
+					opacity: 1,
+					transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+					effects: [
+						{
+							id: 'e_inv_mix',
+							type: 'invert',
+							enabled: true,
+							params: { amount: 1, mix: 0.5 },
+							isNeutral: false
+						}
+					]
+				}
+			], provider);
+			const mixHalfPixel = readPixel(W / 2, H / 2);
+
+			// 3. Vignette: center should be brighter than corners
+			renderer.render(size, [
+				{
+					clipId: 'c_vig' as any,
+					assetId: 'white' as any,
+					trackId: 't1' as any,
+					trackOrder: 0,
+					sourceTime: 0,
+					kind: 'image',
+					opacity: 1,
+					transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+					effects: [
+						{
+							id: 'e_vig',
+							type: 'vignette',
+							enabled: true,
+							params: { amount: 0.8, radius: 0.4, softness: 0.5, roundness: 1, mix: 1 },
+							isNeutral: false
+						}
+					]
+				}
+			], provider);
+			const vigCenter = readPixel(W / 2, H / 2);
+			const vigCorner = readPixel(2, 2);
+
+			renderer.dispose();
+
+			return {
+				grainT1000_run1,
+				grainT1000_run2,
+				grainT500000,
+				mixHalfPixel,
+				vigCenter,
+				vigCorner
+			};
+		});
+
+		console.log('ORACLE_RESULTS:', JSON.stringify(results));
+
+		// 1. Film grain determinism: identical at same timestamp
+		expect(results.grainT1000_run1).toEqual(results.grainT1000_run2);
+		// But different at later timestamp
+		expect(results.grainT1000_run1).not.toEqual(results.grainT500000);
+
+		// 2. Mix = 0.5 blend oracle: [255] inverted with mix 0.5 equals [128 +/- 3]
+		expect(results.mixHalfPixel[0]).toBeGreaterThanOrEqual(125);
+		expect(results.mixHalfPixel[0]).toBeLessThanOrEqual(131);
+
+		// 3. Vignette: center is white [255], corner is darkened significantly (< 180)
+		expect(results.vigCenter[0]).toBeGreaterThan(240);
+		expect(results.vigCorner[0]).toBeLessThan(180);
+	});
 });

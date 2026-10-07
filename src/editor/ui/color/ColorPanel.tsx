@@ -1,11 +1,4 @@
-import {
-	useState,
-	useRef,
-	useMemo,
-	type DragEvent,
-	type ChangeEvent,
-	type MouseEvent as ReactMouseEvent
-} from 'react';
+import { useState, useRef, useMemo } from 'react';
 import type { Clip, EffectInstance } from '../../core';
 import type { CurvePoint } from '../../core/curves';
 import { evaluateSpline } from '../../core/curves';
@@ -28,41 +21,9 @@ export default function ColorPanel() {
 			? (project.tracks.flatMap((t) => t.clips).find((c) => c.id === selectedClipIds[0]) ?? null)
 			: null;
 
-	if (!project || !selectedClip) {
-		return (
-			<div className="color-panel">
-				<div className="effects-empty">Select a single clip in the timeline to grade color.</div>
-			</div>
-		);
-	}
-
-	const ccEffect = (selectedClip.effects ?? []).find((e) => e.type === 'colorCorrection');
-	const curvesEffect = (selectedClip.effects ?? []).find((e) => e.type === 'curves');
-	const lutEffect = (selectedClip.effects ?? []).find((e) => e.type === 'lut3d');
-
-	// Helper to set a param on the active colorCorrection effect
-	const setCcParam = (paramName: string, value: number) => {
-		const eff = ccEffect ?? store.getState().ensureColorCorrection(selectedClip.id);
-		if (!eff) return;
-		store.getState().setEffectParam(selectedClip.id, eff.id, paramName, value, { autoKey: true });
-	};
-
-	// Helper to get raw param value
-	const getCcParam = (paramName: string, fallback: number): number => {
-		if (!ccEffect) return fallback;
-		const raw = ccEffect.params[paramName];
-		if (typeof raw === 'number') return raw;
-		if (typeof raw === 'object' && raw !== null && 'value' in (raw as any)) {
-			return Number((raw as any).value);
-		}
-		return fallback;
-	};
-
-	// Curves helpers
-	const ensureCurvesEffect = (): EffectInstance | null => {
-		if (curvesEffect) return curvesEffect;
-		return store.getState().addEffect(selectedClip.id, 'curves');
-	};
+	const ccEffect = (selectedClip?.effects ?? []).find((e) => e.type === 'colorCorrection');
+	const curvesEffect = (selectedClip?.effects ?? []).find((e) => e.type === 'curves');
+	const lutEffect = (selectedClip?.effects ?? []).find((e) => e.type === 'lut3d');
 
 	const paramKeyForCurve = {
 		master: 'rgb',
@@ -79,6 +40,38 @@ export default function ColorPanel() {
 			{ x: 1, y: 1 }
 		];
 	}, [curvesEffect, paramKeyForCurve]);
+
+	if (!project || !selectedClip) {
+		return (
+			<div className="color-panel">
+				<div className="effects-empty">Select a single clip in the timeline to grade color.</div>
+			</div>
+		);
+	}
+
+	// Helper to set a param on the active colorCorrection effect
+	const setCcParam = (paramName: string, value: number) => {
+		const eff = ccEffect ?? store.getState().ensureColorCorrection(selectedClip.id);
+		if (!eff) return;
+		store.getState().setEffectParam(selectedClip.id, eff.id, paramName, value, { autoKey: true });
+	};
+
+	// Helper to get raw param value
+	const getCcParam = (paramName: string, fallback: number): number => {
+		if (!ccEffect) return fallback;
+		const raw = ccEffect.params[paramName];
+		if (typeof raw === 'number') return raw;
+		if (typeof raw === 'object' && raw !== null && 'value' in raw) {
+			return Number((raw as { value: unknown }).value);
+		}
+		return fallback;
+	};
+
+	// Curves helpers
+	const ensureCurvesEffect = (): EffectInstance | null => {
+		if (curvesEffect) return curvesEffect;
+		return store.getState().addEffect(selectedClip.id, 'curves');
+	};
 
 	const updateCurvePoints = (newPoints: CurvePoint[]) => {
 		const eff = ensureCurvesEffect();
@@ -99,8 +92,8 @@ export default function ColorPanel() {
 					store.getState().setEffectParam(selectedClip.id, eff.id, 'lutAssetId', assetId);
 				}
 			}
-		} catch (err: any) {
-			setLutError(err?.message || 'Could not parse LUT file.');
+		} catch (err: unknown) {
+			setLutError(err instanceof Error ? err.message : 'Could not parse LUT file.');
 		}
 	};
 

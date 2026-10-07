@@ -1,7 +1,7 @@
 import { strToU8, strFromU8, unzipSync, Zip, ZipPassThrough } from 'fflate';
 import { z } from 'zod';
 import { duplicateProject, migrate, projectSchema } from '../../core';
-import type { Asset, AssetId, Project } from '../../core';
+import type { Asset, Project } from '../../core';
 import { getProject } from '../storage/projectDb';
 import {
 	getProjectMediaFileHandles,

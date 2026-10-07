@@ -520,8 +520,6 @@ describe('editor store', () => {
 	it('manages clip effects, color correction, adjustment and solid layers', async () => {
 		const store = createEditorStore();
 		await store.getState().createProject({ name: 'Effects Test' });
-		const project = store.getState().project!;
-		const videoTrack = project.tracks.find((t) => t.kind === 'video')!;
 
 		// 1. Add Adjustment layer
 		store.getState().setPlayhead(1_000_000);
@@ -570,19 +568,17 @@ describe('editor store', () => {
 
 		// 6. Toggle and reset effect
 		store.getState().toggleEffect(adjClipId!, blur!.id, false);
-		let updatedClip = store
-			.getState()
-			.project?.tracks.flatMap((t) => t.clips)
-			.find((c) => c.id === adjClipId)!;
-		expect(updatedClip.effects?.[0]?.enabled).toBe(false);
+		const clipAfterToggle = (store.getState().project?.tracks.flatMap((t) => t.clips) ?? []).find(
+			(c) => c.id === adjClipId
+		);
+		expect(clipAfterToggle?.effects?.[0]?.enabled).toBe(false);
 
 		store.getState().resetEffect(adjClipId!, blur!.id);
-		updatedClip = store
-			.getState()
-			.project?.tracks.flatMap((t) => t.clips)
-			.find((c) => c.id === adjClipId)!;
+		const clipAfterReset = (store.getState().project?.tracks.flatMap((t) => t.clips) ?? []).find(
+			(c) => c.id === adjClipId
+		);
 		// Default radius for gaussianBlur is 0
-		expect(updatedClip.effects?.[0]?.params.radius).toBe(0);
+		expect(clipAfterReset?.effects?.[0]?.params.radius).toBe(0);
 
 		// 7. Copy and paste effects to solid clip
 		store.getState().copyClipEffects(adjClipId!);

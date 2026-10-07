@@ -1,5 +1,3 @@
-import type { AnimatedValue, Time } from '../types';
-
 export type EffectParamType =
 	'number' | 'boolean' | 'enum' | 'color' | 'point' | 'angle' | 'curve' | 'lut';
 

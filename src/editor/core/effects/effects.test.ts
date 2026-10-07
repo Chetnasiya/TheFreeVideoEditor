@@ -11,7 +11,7 @@ import {
 	pasteClipEffects,
 	setEffectParamInClip
 } from './instance';
-import { EFFECT_DEFINITIONS, getEffectDefinition, listEffectDefinitions } from './registry';
+import { getEffectDefinition, listEffectDefinitions } from './registry';
 import { descriptorFor, propertyCurve, readProperty } from '../properties';
 import { enableAnimation, setPropertyAtTime } from '../keyframeEdit';
 import type { Clip, ClipId } from '../types';
