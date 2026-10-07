@@ -72,18 +72,46 @@ export default function GraphEditor() {
 		return project.tracks.flatMap((t) => t.clips).find((c) => c.id === selectedClipIds[0]) ?? null;
 	}, [project, selectedClipIds]);
 
+	// Filter properties available for this clip
+	const availableFilterProperties: PropertyId[] = useMemo(() => {
+		const props: PropertyId[] = [...FILTER_PROPERTIES];
+		if (selectedClip?.masks) {
+			for (const mask of selectedClip.masks) {
+				props.push(`mask:${mask.id}:feather` as PropertyId);
+				props.push(`mask:${mask.id}:expansion` as PropertyId);
+				props.push(`mask:${mask.id}:opacity` as PropertyId);
+			}
+		}
+		return props;
+	}, [selectedClip]);
+
 	// Extract curves for animated channels on this clip
 	const curves: GraphEditorCurve[] = useMemo(() => {
 		if (!selectedClip) return [];
 		const result: GraphEditorCurve[] = [];
-		for (const propId of visibleProperties) {
+		const activeProps = [...visibleProperties];
+		if (selectedClip.masks) {
+			for (const mask of selectedClip.masks) {
+				const featherId = `mask:${mask.id}:feather` as PropertyId;
+				const expId = `mask:${mask.id}:expansion` as PropertyId;
+				const opId = `mask:${mask.id}:opacity` as PropertyId;
+				if (
+					visibleProperties.includes(featherId) ||
+					visibleProperties.includes(expId) ||
+					visibleProperties.includes(opId)
+				) {
+					// already included or selectable
+				}
+			}
+		}
+		for (const propId of activeProps) {
 			const curve = propertyCurve(selectedClip, propId);
 			if (!curve || !isAnimated(curve) || curve.keyframes.length === 0) continue;
 			const desc = descriptorFor(propId);
 			if (!desc) continue;
 
 			if (desc.shape === 'number') {
-				const color = PROPERTY_COLORS[propId] ?? '#3b82f6';
+				const color = PROPERTY_COLORS[propId] ?? '#8b5cf6';
 				result.push({
 					id: propId,
 					propertyId: propId,
@@ -238,7 +266,7 @@ export default function GraphEditor() {
 		<div className="graph-editor-panel" ref={containerRef}>
 			<div className="graph-editor-toolbar">
 				<div className="graph-editor-filters">
-					{FILTER_PROPERTIES.map((propId) => {
+					{availableFilterProperties.map((propId) => {
 						const desc = descriptorFor(propId);
 						if (!desc) return null;
 						const isActive = visibleProperties.includes(propId);

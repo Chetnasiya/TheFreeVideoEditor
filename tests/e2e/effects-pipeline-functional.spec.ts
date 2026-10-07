@@ -536,8 +536,8 @@ test.describe('Gate J — Functional Pipeline Verification', () => {
 		await page.goto('/editor');
 
 		const results = await page.evaluate(async () => {
-			const render = await import('/src/editor/services/render/index.ts');
-			type Layer = import('/src/editor/core/playback').ActiveLayer;
+			const render = await (new Function('return import("/src/editor/services/render/index.ts")')());
+			type Layer = any;
 
 			const W = 200;
 			const H = 200;

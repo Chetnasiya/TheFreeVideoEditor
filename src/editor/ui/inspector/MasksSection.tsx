@@ -1,14 +1,35 @@
 import { useState, type ChangeEvent } from 'react';
-import type { Clip, Mask } from '../../core';
+import {
+	hasKeyframeAt,
+	isAnimated,
+	nextKeyframeTime,
+	prevKeyframeTime,
+	propertyCurve,
+	snapLocalTime,
+	type Clip,
+	type Mask,
+	type PropertyId
+} from '../../core';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import { PropertyRow, type ConfirmDisableState } from './Inspector';
 
 interface MasksSectionProps {
 	clip: Clip;
 	localTime: number;
 	fps: number;
+	confirmDisable?: ConfirmDisableState | null;
+	onStartDisableConfirm?: (state: ConfirmDisableState) => void;
+	onCancelDisableConfirm?: () => void;
 }
 
-export default function MasksSection({ clip }: MasksSectionProps) {
+export default function MasksSection({
+	clip,
+	localTime,
+	fps,
+	confirmDisable = null,
+	onStartDisableConfirm = () => {},
+	onCancelDisableConfirm = () => {}
+}: MasksSectionProps) {
 	const store = useEditorStoreApi();
 	const selectedMaskId = useEditorStore((state) => state.maskTool.selectedMaskId);
 	const selectedPointIndex = useEditorStore((state) => state.maskTool.selectedPointIndex);
@@ -52,10 +73,6 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 	const handleEffectLinkChange = (mask: Mask, e: ChangeEvent<HTMLSelectElement>) => {
 		const effectId = e.target.value ? e.target.value : undefined;
 		store.getState().updateMask(clip.id, mask.id, { effectId });
-	};
-
-	const handleParamChange = (mask: Mask, param: string, value: number, coalesce = false) => {
-		store.getState().setMaskParam(clip.id, mask.id, param, value, { coalesce });
 	};
 
 	const handleReorder = (fromIdx: number, toIdx: number) => {
@@ -309,101 +326,164 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 											</div>
 										)}
 
-										{/* Feather */}
-										<div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-											<div
-												style={{
-													display: 'flex',
-													justifyContent: 'space-between',
-													fontSize: '0.75rem'
-												}}
-											>
-												<span>Feather</span>
-												<span>{Math.round(mask.feather)} px</span>
-											</div>
-											<input
-												type="range"
-												min={0}
-												max={200}
-												step={1}
-												value={mask.feather}
-												onChange={(e) =>
-													handleParamChange(mask, 'feather', Number(e.target.value), true)
-												}
-												onPointerUp={(e) =>
-													handleParamChange(
-														mask,
-														'feather',
-														Number((e.target as HTMLInputElement).value),
-														false
-													)
-												}
-											/>
-										</div>
+										{/* Shape Keyframing Row */}
+										{(() => {
+											const shapePropId = `mask:${mask.id}:shape` as PropertyId;
+											const shapeCurve = propertyCurve(clip, shapePropId);
+											const isShapeAnimated = Boolean(shapeCurve && isAnimated(shapeCurve));
+											const snappedTime = snapLocalTime(clip, localTime, fps);
+											const hasShapeKey = hasKeyframeAt(clip, shapePropId, snappedTime);
+											const prevShapeKey = isShapeAnimated
+												? prevKeyframeTime(clip, [shapePropId], localTime)
+												: null;
+											const nextShapeKey = isShapeAnimated
+												? nextKeyframeTime(clip, [shapePropId], localTime)
+												: null;
 
-										{/* Expansion */}
-										<div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-											<div
-												style={{
-													display: 'flex',
-													justifyContent: 'space-between',
-													fontSize: '0.75rem'
-												}}
-											>
-												<span>Expansion</span>
-												<span>{Math.round(mask.expansion)} px</span>
-											</div>
-											<input
-												type="range"
-												min={-100}
-												max={100}
-												step={1}
-												value={mask.expansion}
-												onChange={(e) =>
-													handleParamChange(mask, 'expansion', Number(e.target.value), true)
+											const handleToggleShapeAnimation = () => {
+												if (!isShapeAnimated) {
+													// Initialize shape keyframe from current mask shape/points
+													let coords: number[] = [];
+													if (mask.points && mask.points.length > 0) {
+														for (const pt of mask.points) {
+															coords.push(
+																pt.x,
+																pt.y,
+																pt.inHandle?.x ?? pt.x,
+																pt.inHandle?.y ?? pt.y,
+																pt.outHandle?.x ?? pt.x,
+																pt.outHandle?.y ?? pt.y
+															);
+														}
+													} else if (mask.shape) {
+														coords = [...mask.shape];
+													}
+													store.getState().enableAnimation(clip.id, shapePropId);
+													store
+														.getState()
+														.setProperty(clip.id, shapePropId, coords, { autoKey: true });
+												} else {
+													store
+														.getState()
+														.disableAnimation(clip.id, shapePropId, 'flatten-current');
 												}
-												onPointerUp={(e) =>
-													handleParamChange(
-														mask,
-														'expansion',
-														Number((e.target as HTMLInputElement).value),
-														false
-													)
-												}
-											/>
-										</div>
+											};
 
-										{/* Opacity */}
-										<div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-											<div
-												style={{
-													display: 'flex',
-													justifyContent: 'space-between',
-													fontSize: '0.75rem'
-												}}
-											>
-												<span>Opacity</span>
-												<span>{Math.round(mask.opacity * 100)}%</span>
-											</div>
-											<input
-												type="range"
-												min={0}
-												max={1}
-												step={0.01}
-												value={mask.opacity}
-												onChange={(e) =>
-													handleParamChange(mask, 'opacity', Number(e.target.value), true)
-												}
-												onPointerUp={(e) =>
-													handleParamChange(
-														mask,
-														'opacity',
-														Number((e.target as HTMLInputElement).value),
-														false
-													)
-												}
-											/>
-										</div>
+											return (
+												<div className="property-row">
+													<div className="property-header">
+														<div className="property-meta">
+															<button
+																type="button"
+																className={`property-stopwatch ${isShapeAnimated ? 'is-active' : ''}`}
+																onClick={handleToggleShapeAnimation}
+																title={
+																	isShapeAnimated
+																		? 'Disable shape animation'
+																		: 'Enable shape animation'
+																}
+																aria-label={`${isShapeAnimated ? 'Disable' : 'Enable'} shape animation`}
+															>
+																<svg
+																	width="12"
+																	height="12"
+																	viewBox="0 0 24 24"
+																	fill="none"
+																	stroke="currentColor"
+																	strokeWidth="2"
+																	strokeLinecap="round"
+																	strokeLinejoin="round"
+																>
+																	<circle cx="12" cy="14" r="8" />
+																	<line x1="12" y1="2" x2="12" y2="6" />
+																	<line x1="12" y1="14" x2="15" y2="11" />
+																</svg>
+															</button>
+															<span className="property-label">Mask Shape</span>
+														</div>
+
+														<div className="property-controls">
+															{isShapeAnimated && (
+																<div className="keyframe-nav">
+																	<button
+																		type="button"
+																		className="keyframe-nav-btn"
+																		disabled={prevShapeKey === null}
+																		onClick={() => {
+																			if (prevShapeKey !== null)
+																				store.getState().setPlayhead(clip.start + prevShapeKey);
+																		}}
+																		title="Previous shape keyframe"
+																		aria-label="Previous shape keyframe"
+																	>
+																		◀
+																	</button>
+																	<button
+																		type="button"
+																		className="keyframe-diamond-btn"
+																		onClick={() => {
+																			store.getState().toggleKeyframe(clip.id, shapePropId);
+																		}}
+																		title={
+																			hasShapeKey
+																				? 'Remove shape keyframe at playhead'
+																				: 'Add shape keyframe at playhead'
+																		}
+																		aria-label={
+																			hasShapeKey ? 'Remove shape keyframe' : 'Add shape keyframe'
+																		}
+																	>
+																		{hasShapeKey ? '◆' : '◇'}
+																	</button>
+																	<button
+																		type="button"
+																		className="keyframe-nav-btn"
+																		disabled={nextShapeKey === null}
+																		onClick={() => {
+																			if (nextShapeKey !== null)
+																				store.getState().setPlayhead(clip.start + nextShapeKey);
+																		}}
+																		title="Next shape keyframe"
+																		aria-label="Next shape keyframe"
+																	>
+																		▶
+																	</button>
+																</div>
+															)}
+														</div>
+													</div>
+												</div>
+											);
+										})()}
+
+										{/* Feather, Expansion, Opacity PropertyRows */}
+										<PropertyRow
+											clip={clip}
+											propertyId={`mask:${mask.id}:feather` as PropertyId}
+											localTime={localTime}
+											fps={fps}
+											confirmDisable={confirmDisable}
+											onStartDisableConfirm={onStartDisableConfirm}
+											onCancelDisableConfirm={onCancelDisableConfirm}
+										/>
+										<PropertyRow
+											clip={clip}
+											propertyId={`mask:${mask.id}:expansion` as PropertyId}
+											localTime={localTime}
+											fps={fps}
+											confirmDisable={confirmDisable}
+											onStartDisableConfirm={onStartDisableConfirm}
+											onCancelDisableConfirm={onCancelDisableConfirm}
+										/>
+										<PropertyRow
+											clip={clip}
+											propertyId={`mask:${mask.id}:opacity` as PropertyId}
+											localTime={localTime}
+											fps={fps}
+											confirmDisable={confirmDisable}
+											onStartDisableConfirm={onStartDisableConfirm}
+											onCancelDisableConfirm={onCancelDisableConfirm}
+										/>
 
 										{/* Shape specific readouts / buttons */}
 										{mask.type === 'path' && (

@@ -148,7 +148,16 @@ export default function ClipView({
 
 	const animatedProps: PropertyId[] = useMemo(() => {
 		if (!shouldShowKeyframes) return [];
-		return ANIMATABLE_PROPERTY_IDS.filter((propId) => {
+		const propList: PropertyId[] = [...ANIMATABLE_PROPERTY_IDS];
+		if (clip.masks) {
+			for (const mask of clip.masks) {
+				propList.push(`mask:${mask.id}:shape` as PropertyId);
+				propList.push(`mask:${mask.id}:feather` as PropertyId);
+				propList.push(`mask:${mask.id}:expansion` as PropertyId);
+				propList.push(`mask:${mask.id}:opacity` as PropertyId);
+			}
+		}
+		return propList.filter((propId) => {
 			const curve = propertyCurve(clip, propId);
 			return curve && isAnimated(curve) && curve.keyframes.length > 0;
 		});

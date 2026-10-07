@@ -132,3 +132,13 @@ Because standard interchange formats (EDL, Final Cut Pro XML, Apple FCPXML, Open
 - When exporting to any interchange format, the Export Dialog computes all clips containing effects, adjustment layers, or solid color layers.
 - A prominent amber warning banner informs the user:
   > _"Effects, Adjustment Layers, and Solid Colors are not included in project files; use Video export to render them."_
+
+---
+
+## 7. Effect-Linked Masks (Gate L)
+
+Individual effects can be isolated to a geometric region via effect masks:
+
+- **Data Linking**: When a mask has `mask.effectId` set to an `EffectInstance.id`, the mask matte bypasses clip alpha clipping. Instead, it modulates that specific effect's `u_mix` parameter in `ShaderPass.ts`.
+- **UI Affordance**: Each effect card in the Inspector includes a "Mask this effect" button that generates a new rectangle mask linked directly to that effect.
+- **Universal Mix Processing**: The effect is rendered within the mask's boundary and blended smoothly according to the mask's feather and opacity, while leaving areas outside the mask completely unaffected.

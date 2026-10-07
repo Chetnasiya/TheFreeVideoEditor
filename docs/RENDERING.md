@@ -92,3 +92,17 @@ This runs Playwright under the `chrome-gpu` project using locally installed Goog
 - `export-gl.spec.ts`: worker export runs WebGL2 and reproduces expected pixels.
 - `render-parity.spec.ts`: strict and transformed scenes match Canvas2D reference.
 - `effects.spec.ts`: all 5 Gate J UI and rendering tests passing.
+
+## Masks Pipeline & Rendering (Gate L)
+
+Masks are evaluated in layer space before downstream effects and composition:
+
+- **Mid-Session Renderer Switch**: When a project without GPU features opens on Canvas2D and the user subsequently adds the first effect, mask, or adjustment layer, `PreviewWorkspace` recomputes `renderer = selectRenderer(project)`, re-attaching the playback engine and migrating contexts without requiring a reload.
+- **Feather Multi-Scale Separable Gaussian Blur**:
+  - Small feathers ($\sigma \le 10$ px) use direct 9-tap separable Gaussian blur passes.
+  - Medium feathers ($\sigma \in (10, 24]$ px) perform a $2\times$ downscale before blurring, then bilinearly upsample back to layer resolution.
+  - Large feathers ($\sigma > 24$ px) perform a $4\times$ downscale before blurring, providing smooth, high-quality falloff up to 200 px feather without truncation artifacts.
+- **Path Expansion**: Path masks support positive and negative expansion in composition pixels via signed distance to path segments.
+- **Premultiplied Alpha & FboPool**: Mask mattes are accumulated into FBOs from `FboPool` and premultiplied with source RGBA:
+  $$\text{RGBA}_{\text{out}} = \text{RGBA}_{\text{src}} \times M$$
+- **Parity & Neutral Skip**: When all masks on a clip are disabled or evaluated to identity, mask passes are completely bypassed. Worker export and Canvas2D export paths share identical masking logic.

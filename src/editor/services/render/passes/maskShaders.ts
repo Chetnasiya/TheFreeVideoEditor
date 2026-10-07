@@ -136,7 +136,7 @@ void main() {
     }
     float twoSigmaSq = 2.0 * u_sigma * u_sigma;
     int radius = int(ceil(u_sigma * 3.0));
-    radius = min(radius, 32);
+    radius = min(radius, 48);
 
     float totalWeight = 0.0;
     float acc = 0.0;

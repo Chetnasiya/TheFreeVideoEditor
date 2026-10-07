@@ -3,7 +3,7 @@ import { clampCrop, type Crop } from './crop';
 import { getEffectDefinition } from './effects/registry';
 import type { AnimatedValue, Clip, ClipTransform, PropertyId, Time } from './types';
 
-export type PropertyShape = 'number' | 'vec2' | 'vec4';
+export type PropertyShape = 'number' | 'vec2' | 'vec4' | 'numberArray';
 export type PropertyValue = number | number[];
 
 export interface PropertyDescriptor {
@@ -172,12 +172,24 @@ export function descriptorFor(id: PropertyId): PropertyDescriptor | undefined {
 				step: 1
 			};
 		}
+		if (paramName === 'shape') {
+			return {
+				id,
+				label: 'Mask Shape',
+				shape: 'numberArray',
+				channels: ['Shape'],
+				defaultValue: [0.5, 0.5, 0.4, 0.4, 0, 0],
+				unit: '',
+				displayFactor: 1,
+				step: 0.01
+			};
+		}
 	}
 	return undefined;
 }
 
 export function shapeLength(shape: PropertyShape): number {
-	return shape === 'number' ? 1 : shape === 'vec2' ? 2 : 4;
+	return shape === 'number' ? 1 : shape === 'vec2' ? 2 : shape === 'vec4' ? 4 : 0;
 }
 
 export function matchesShape(
@@ -185,6 +197,13 @@ export function matchesShape(
 	value: unknown
 ): value is PropertyValue {
 	if (descriptor.shape === 'number') return typeof value === 'number' && Number.isFinite(value);
+	if (descriptor.shape === 'numberArray') {
+		return (
+			Array.isArray(value) &&
+			value.length > 0 &&
+			value.every((item) => typeof item === 'number' && Number.isFinite(item))
+		);
+	}
 	return (
 		Array.isArray(value) &&
 		value.length === shapeLength(descriptor.shape) &&
@@ -198,6 +217,9 @@ export function clampPropertyValue(
 	value: PropertyValue,
 	editedChannel?: number
 ): PropertyValue {
+	if (descriptor.shape === 'numberArray' && Array.isArray(value)) {
+		return [...value];
+	}
 	const bound = (item: number): number =>
 		Math.min(descriptor.max ?? Infinity, Math.max(descriptor.min ?? -Infinity, item));
 	if (descriptor.id === 'crop' && Array.isArray(value)) {

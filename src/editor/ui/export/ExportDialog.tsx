@@ -165,10 +165,18 @@ export default function ExportDialog() {
 		let effectsCount = 0;
 		let adjustmentsCount = 0;
 		let solidsCount = 0;
+		let masksCount = 0;
+		let transitionsCount = 0;
 		for (const track of project.tracks) {
+			if (track.transitions) {
+				transitionsCount += track.transitions.length;
+			}
 			for (const clip of track.clips) {
 				if (clip.effects && clip.effects.length > 0) {
 					effectsCount += clip.effects.length;
+				}
+				if (clip.masks && clip.masks.length > 0) {
+					masksCount += clip.masks.length;
 				}
 				if (clip.source?.type === 'adjustment') {
 					adjustmentsCount += 1;
@@ -178,10 +186,23 @@ export default function ExportDialog() {
 				}
 			}
 		}
-		if (effectsCount === 0 && adjustmentsCount === 0 && solidsCount === 0) return null;
+		if (
+			effectsCount === 0 &&
+			adjustmentsCount === 0 &&
+			solidsCount === 0 &&
+			masksCount === 0 &&
+			transitionsCount === 0
+		)
+			return null;
 		const parts: string[] = [];
+		if (masksCount > 0) {
+			parts.push(`${masksCount} mask${masksCount === 1 ? '' : 's'}`);
+		}
 		if (effectsCount > 0) {
 			parts.push(`${effectsCount} effect${effectsCount === 1 ? '' : 's'}`);
+		}
+		if (transitionsCount > 0) {
+			parts.push(`${transitionsCount} transition${transitionsCount === 1 ? '' : 's'}`);
 		}
 		if (adjustmentsCount > 0) {
 			parts.push(`${adjustmentsCount} adjustment layer${adjustmentsCount === 1 ? '' : 's'}`);

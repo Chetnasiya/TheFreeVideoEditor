@@ -311,7 +311,7 @@ export class ShaderPassManager {
 	): WebGLTexture | null {
 		const points = mask.points;
 		if (!points || points.length === 0) return null;
-		const hash = `${mask.id}:${mask.shape.join(',')}:${width}:${height}`;
+		const hash = `${mask.id}:${mask.shape.join(',')}:${mask.expansion}:${width}:${height}`;
 		let tex = this.pathTextures.get(hash);
 		if (tex) return tex;
 
@@ -349,6 +349,13 @@ export class ShaderPassManager {
 		}
 
 		ctx.fillStyle = '#ffffff';
+		if (mask.expansion > 0) {
+			ctx.lineWidth = mask.expansion * 2;
+			ctx.strokeStyle = '#ffffff';
+			ctx.lineJoin = 'round';
+			ctx.lineCap = 'round';
+			ctx.stroke(path);
+		}
 		ctx.fill(path);
 
 		const gl = this.gl;
@@ -432,27 +439,55 @@ export class ShaderPassManager {
 
 		if (mask.feather > 0) {
 			const sigma = mask.feather / 2;
+			let downscale = 1;
+			if (sigma > 24 && width > 8 && height > 8) {
+				downscale = 4;
+			} else if (sigma > 10 && width > 4 && height > 4) {
+				downscale = 2;
+			}
+
+			const blurW = Math.max(2, Math.floor(width / downscale));
+			const blurH = Math.max(2, Math.floor(height / downscale));
+			const effSigma = sigma / downscale;
+
+			let srcTex = rawMatteFbo.texture;
+			let downFbo: PooledFbo | null = null;
+			if (downscale > 1) {
+				downFbo = fboPool.acquire(blurW, blurH);
+				this.blit(rawMatteFbo.texture, downFbo.framebuffer, blurW, blurH);
+				srcTex = downFbo.texture;
+			}
+
 			const blurProg = this.getProgram('featherBlur', FEATHER_BLUR_FRAG);
 
-			const hPassFbo = fboPool.acquire(width, height);
+			const hPassFbo = fboPool.acquire(blurW, blurH);
 			gl.useProgram(blurProg);
 			gl.activeTexture(gl.TEXTURE0);
-			gl.bindTexture(gl.TEXTURE_2D, rawMatteFbo.texture);
+			gl.bindTexture(gl.TEXTURE_2D, srcTex);
 			gl.uniform1i(gl.getUniformLocation(blurProg, 'u_texture'), 0);
-			gl.uniform2f(gl.getUniformLocation(blurProg, 'u_direction'), 1.0 / width, 0.0);
-			gl.uniform1f(gl.getUniformLocation(blurProg, 'u_sigma'), sigma);
-			this.renderQuad(blurProg, hPassFbo.framebuffer, width, height, rawMatteFbo.texture);
+			gl.uniform2f(gl.getUniformLocation(blurProg, 'u_direction'), 1.0 / blurW, 0.0);
+			gl.uniform1f(gl.getUniformLocation(blurProg, 'u_sigma'), effSigma);
+			this.renderQuad(blurProg, hPassFbo.framebuffer, blurW, blurH, srcTex);
+
+			if (downFbo) fboPool.release(downFbo);
 			fboPool.release(rawMatteFbo);
 
-			const vPassFbo = fboPool.acquire(width, height);
+			const vPassFbo = fboPool.acquire(blurW, blurH);
 			gl.useProgram(blurProg);
 			gl.activeTexture(gl.TEXTURE0);
 			gl.bindTexture(gl.TEXTURE_2D, hPassFbo.texture);
 			gl.uniform1i(gl.getUniformLocation(blurProg, 'u_texture'), 0);
-			gl.uniform2f(gl.getUniformLocation(blurProg, 'u_direction'), 0.0, 1.0 / height);
-			gl.uniform1f(gl.getUniformLocation(blurProg, 'u_sigma'), sigma);
-			this.renderQuad(blurProg, vPassFbo.framebuffer, width, height, hPassFbo.texture);
+			gl.uniform2f(gl.getUniformLocation(blurProg, 'u_direction'), 0.0, 1.0 / blurH);
+			gl.uniform1f(gl.getUniformLocation(blurProg, 'u_sigma'), effSigma);
+			this.renderQuad(blurProg, vPassFbo.framebuffer, blurW, blurH, hPassFbo.texture);
 			fboPool.release(hPassFbo);
+
+			if (downscale > 1) {
+				const finalFbo = fboPool.acquire(width, height);
+				this.blit(vPassFbo.texture, finalFbo.framebuffer, width, height);
+				fboPool.release(vPassFbo);
+				return finalFbo;
+			}
 
 			return vPassFbo;
 		}

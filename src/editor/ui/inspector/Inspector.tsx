@@ -258,7 +258,14 @@ export default function Inspector() {
 				</button>
 				{isMasksExpanded && (
 					<div className="inspector-section-content">
-						<MasksSection clip={selectedClip} localTime={localTime} fps={project.settings.fps} />
+						<MasksSection
+							clip={selectedClip}
+							localTime={localTime}
+							fps={project.settings.fps}
+							confirmDisable={confirmDisable}
+							onStartDisableConfirm={setConfirmDisable}
+							onCancelDisableConfirm={() => setConfirmDisable(null)}
+						/>
 					</div>
 				)}
 			</section>

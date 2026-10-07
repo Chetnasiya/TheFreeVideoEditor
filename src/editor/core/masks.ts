@@ -2,6 +2,7 @@ import { evaluate } from './animation';
 import {
 	DEFAULT_ELLIPSE_SHAPE,
 	DEFAULT_RECT_SHAPE,
+	distanceToSegment,
 	isPointInEllipse,
 	isPointInRect,
 	pathShapeToPoints,
@@ -185,6 +186,25 @@ export function evaluateMatteCpu(
 					inside = isPointInEllipse(px, py, shape as EllipseShape, expNorm, aspect);
 				} else if (mask.type === 'path' && mask.points && mask.points.length >= 3) {
 					inside = pointInPolygon(px, py, mask.points);
+					if (expNorm > 0 && !inside) {
+						for (let s = 0; s < mask.points.length; s++) {
+							const pA = mask.points[s]!;
+							const pB = mask.points[(s + 1) % mask.points.length]!;
+							if (distanceToSegment({ x: px, y: py }, pA, pB) <= expNorm) {
+								inside = true;
+								break;
+							}
+						}
+					} else if (expNorm < 0 && inside) {
+						for (let s = 0; s < mask.points.length; s++) {
+							const pA = mask.points[s]!;
+							const pB = mask.points[(s + 1) % mask.points.length]!;
+							if (distanceToSegment({ x: px, y: py }, pA, pB) <= Math.abs(expNorm)) {
+								inside = false;
+								break;
+							}
+						}
+					}
 				}
 
 				let val = inside ? 1.0 : 0.0;

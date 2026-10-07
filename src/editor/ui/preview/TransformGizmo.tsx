@@ -40,6 +40,7 @@ export default function TransformGizmo({
 	const store = useEditorStoreApi();
 	const selectedClipIds = useEditorStore((state) => state.timeline.selection.clipIds);
 	const playhead = useEditorStore((state) => state.timeline.playhead);
+	const maskTool = useEditorStore((state) => state.maskTool);
 
 	const [activeGuides, setActiveGuides] = useState<Guide[]>([]);
 
@@ -263,6 +264,12 @@ export default function TransformGizmo({
 	};
 
 	if (!selectedClip) return null;
+
+	const maskActive =
+		maskTool.showOverlay &&
+		((selectedClip.masks && selectedClip.masks.length > 0 && maskTool.selectedMaskId !== null) ||
+			maskTool.activeTool !== 'select');
+	if (maskActive) return null;
 
 	const polygonPoints = svgCorners.map((pt) => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(' ');
 

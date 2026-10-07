@@ -556,12 +556,17 @@ export interface EditorState {
 		activeTool: 'select' | 'pen' | 'rect' | 'ellipse';
 		selectedMaskId: string | null;
 		selectedPointIndex: number | null;
+		selectedPoints: number[];
 		showOverlay: boolean;
+		blockedMessage: string | null;
 	};
 	setMaskTool: (tool: 'select' | 'pen' | 'rect' | 'ellipse') => void;
 	selectMask: (maskId: string | null) => void;
 	selectMaskPoint: (index: number | null) => void;
+	selectMaskPoints: (indices: number[]) => void;
+	toggleMaskPoint: (index: number, multiSelect?: boolean) => void;
 	setMaskOverlayVisible: (visible: boolean) => void;
+	setMaskBlockedMessage: (message: string | null) => void;
 	addMask: (
 		clipId: ClipId,
 		type: 'rect' | 'ellipse' | 'path',
@@ -961,7 +966,9 @@ export function createEditorStore() {
 					activeTool: 'select',
 					selectedMaskId: null,
 					selectedPointIndex: null,
-					showOverlay: true
+					selectedPoints: [],
+					showOverlay: true,
+					blockedMessage: null
 				},
 				effectsClipboard: null,
 				async initialize() {
@@ -3579,6 +3586,40 @@ export function createEditorStore() {
 				selectMaskPoint(index) {
 					set((state) => {
 						state.maskTool.selectedPointIndex = index;
+						state.maskTool.selectedPoints = index !== null ? [index] : [];
+					});
+				},
+
+				selectMaskPoints(indices) {
+					set((state) => {
+						state.maskTool.selectedPoints = [...indices];
+						state.maskTool.selectedPointIndex = indices.length > 0 ? indices[0] : null;
+					});
+				},
+
+				toggleMaskPoint(index, multiSelect) {
+					set((state) => {
+						if (!multiSelect) {
+							state.maskTool.selectedPoints = [index];
+							state.maskTool.selectedPointIndex = index;
+							return;
+						}
+						const exists = state.maskTool.selectedPoints.includes(index);
+						if (exists) {
+							state.maskTool.selectedPoints = state.maskTool.selectedPoints.filter(
+								(i) => i !== index
+							);
+							state.maskTool.selectedPointIndex = state.maskTool.selectedPoints[0] ?? null;
+						} else {
+							state.maskTool.selectedPoints = [...state.maskTool.selectedPoints, index];
+							state.maskTool.selectedPointIndex = index;
+						}
+					});
+				},
+
+				setMaskBlockedMessage(message) {
+					set((state) => {
+						state.maskTool.blockedMessage = message;
 					});
 				},
 
@@ -3611,6 +3652,8 @@ export function createEditorStore() {
 							set((state) => {
 								state.maskTool.selectedMaskId = mask.id;
 								state.maskTool.selectedPointIndex = null;
+								state.maskTool.selectedPoints = [];
+								state.maskTool.blockedMessage = null;
 							});
 							return mask.id;
 						}
@@ -3646,6 +3689,8 @@ export function createEditorStore() {
 								if (state.maskTool.selectedMaskId === maskId) {
 									state.maskTool.selectedMaskId = null;
 									state.maskTool.selectedPointIndex = null;
+									state.maskTool.selectedPoints = [];
+									state.maskTool.blockedMessage = null;
 								}
 							});
 						}
@@ -3659,6 +3704,41 @@ export function createEditorStore() {
 				},
 
 				updateMask(clipId, maskId, patch, options) {
+					const project = get().project;
+					if (project) {
+						const clip = project.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
+						const mask = clip?.masks?.find((m) => m.id === maskId);
+						if (clip && mask) {
+							const shapePropId = `mask:${maskId}:shape` as PropertyId;
+							const shapeCurve = propertyCurve(clip, shapePropId);
+							const shapeAnimated = shapeCurve && isAnimated(shapeCurve);
+
+							// If shape is updated and it is animated, check point count enforcement or auto-key
+							if (patch.points && shapeAnimated) {
+								const currentPoints = mask.points ?? [];
+								if (patch.points.length !== currentPoints.length) {
+									get().setMaskBlockedMessage(
+										'Cannot add or remove points while mask shape is animated.'
+									);
+									return false;
+								}
+								// Same point count: auto-key shape property
+								const coords: number[] = [];
+								for (const pt of patch.points) {
+									coords.push(
+										pt.x,
+										pt.y,
+										pt.inHandle?.x ?? pt.x,
+										pt.inHandle?.y ?? pt.y,
+										pt.outHandle?.x ?? pt.x,
+										pt.outHandle?.y ?? pt.y
+									);
+								}
+								get().setProperty(clipId, shapePropId, coords, { autoKey: true });
+							}
+						}
+					}
+
 					const coalesceKey = options?.coalesce ? `mask-update:${clipId}:${maskId}` : undefined;
 					try {
 						mutateProject(

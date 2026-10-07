@@ -471,8 +471,11 @@ export default function EffectsSection({
 												return null;
 											})}
 
-										{/* Save preset inline dialog */}
-										<div className="effect-preset-save-bar">
+										{/* Save preset inline dialog and Mask this effect */}
+										<div
+											className="effect-preset-save-bar"
+											style={{ display: 'flex', gap: 6, alignItems: 'center' }}
+										>
 											{savingPresetForEffectId === eff.id ? (
 												<div className="effect-save-preset-form">
 													<input
@@ -501,16 +504,35 @@ export default function EffectsSection({
 													</button>
 												</div>
 											) : (
-												<button
-													type="button"
-													className="effect-save-preset-trigger"
-													onClick={() => {
-														setSavingPresetForEffectId(eff.id);
-														setPresetNameInput(`${def?.name ?? eff.type} Preset`);
-													}}
-												>
-													Save as Preset…
-												</button>
+												<>
+													<button
+														type="button"
+														className="effect-save-preset-trigger"
+														onClick={() => {
+															setSavingPresetForEffectId(eff.id);
+															setPresetNameInput(`${def?.name ?? eff.type} Preset`);
+														}}
+													>
+														Save as Preset…
+													</button>
+													<button
+														type="button"
+														className="effect-save-preset-trigger"
+														title="Create a shape mask targeting only this effect"
+														onClick={() => {
+															const maskId = store.getState().addMask(clip.id, 'rect', {
+																name: `Mask (${def?.name ?? eff.type})`,
+																effectId: eff.id
+															});
+															if (maskId) {
+																store.getState().setInspectorExpanded('masks', true);
+																store.getState().selectMask(maskId);
+															}
+														}}
+													>
+														Mask this effect
+													</button>
+												</>
 											)}
 										</div>
 									</div>

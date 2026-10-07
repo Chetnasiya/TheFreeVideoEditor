@@ -78,3 +78,26 @@ effect:<type>:<instanceId>:<paramName>
   - Graph Editor cubic bezier visual manipulation (`shift+g`) and Easy Ease (`f9`).
 - **Splitting & Retiming**:
   - `splitAnimatedValue` and `retimeAnimatedValue` cleanly subdivide and shift effect parameter keyframes when clips are trimmed or split on the timeline.
+
+## Gate L: Mask Parameter & Shape Keyframing
+
+Mask parameters use dynamic property IDs adhering to the pattern:
+
+```
+mask:<maskId>:<property>
+```
+
+- **Supported Properties**:
+  - `mask:<id>:shape`: Animatible flat numeric representation of the geometry (6 numbers for `rect`, 5 for `ellipse`, $6 \times N$ for `path`).
+  - `mask:<id>:feather`: Animatible scalar feather in composition pixels (0–200 px).
+  - `mask:<id>:expansion`: Animatible scalar expansion in composition pixels (-100–100 px).
+  - `mask:<id>:opacity`: Animatible scalar opacity (0–1).
+- **Universal Contract**:
+  - `descriptorFor(propertyId)` dynamically provides descriptors and clamps for mask properties.
+  - Scalar properties (`feather`, `expansion`, `opacity`) integrate into the Graph Editor (`shift+g`) with full cubic bezier curve control.
+  - `mask:<id>:shape` uses numeric array component-wise keyframing with auto-key on on-canvas shape edits.
+- **Same-Point-Count Invariant**:
+  - Keyframing a path shape requires all keyframes to maintain the same point count. Inserting or deleting vertices on an animated mask is blocked with an explanatory error notice unless animation is flattened or disabled first.
+- **Timeline & Inspector Integration**:
+  - Timeline lanes (`ClipView.tsx`) display keyframe diamonds for active mask properties.
+  - Inspector Masks section provides stopwatch toggles, keyframe steppers (prev/next), and diamond toggle buttons for shape and scalar properties.

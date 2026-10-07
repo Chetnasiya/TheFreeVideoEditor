@@ -168,10 +168,12 @@ test.describe('Masks Architecture & Pipeline (Gate L)', () => {
 		const overlay = page.locator('.mask-canvas-overlay');
 		await expect(overlay).toBeVisible();
 
-		// Click near the top-center edge of the path to insert a 4th point
+		// Click along the path edge (at 0.4, 0.5) to insert a 4th point
 		const box = await overlay.boundingBox();
 		expect(box).not.toBeNull();
-		await page.mouse.click(box!.x + box!.width * 0.5, box!.y + box!.height * 0.3);
+		const clickX = box!.x + box!.width * 0.4;
+		const clickY = box!.y + box!.height * 0.5;
+		await page.mouse.click(clickX, clickY);
 
 		await page.waitForTimeout(300);
 
@@ -184,11 +186,9 @@ test.describe('Masks Architecture & Pipeline (Gate L)', () => {
 		expect(updatedCount).toBe(4);
 
 		// Drag the newly created point down by 50px
-		const startX = box!.x + box!.width * 0.5;
-		const startY = box!.y + box!.height * 0.3;
-		await page.mouse.move(startX, startY);
+		await page.mouse.move(clickX, clickY);
 		await page.mouse.down();
-		await page.mouse.move(startX, startY + 50, { steps: 5 });
+		await page.mouse.move(clickX, clickY + 50, { steps: 5 });
 		await page.mouse.up();
 
 		await page.waitForTimeout(300);
@@ -200,7 +200,7 @@ test.describe('Masks Architecture & Pipeline (Gate L)', () => {
 			const selectedIdx = store.getState().maskTool.selectedPointIndex;
 			return clip.masks[0].points[selectedIdx ?? 2].y;
 		});
-		expect(movedY).toBeGreaterThan(0.35);
-		expect(movedY).toBeLessThan(0.85);
+		expect(movedY).toBeGreaterThan(0.5);
+		expect(movedY).toBeLessThan(0.95);
 	});
 });
