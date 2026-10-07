@@ -23,7 +23,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 				const project = state.project;
 				const videoTrack = state.project?.tracks.find((track) => track.kind === 'video');
 				const clip = videoTrack?.clips[0];
-				return project && videoTrack && clip
+				return project && videoTrack && clip && clip.assetId
 					? state.addAssetToTimeline(
 							clip.assetId,
 							videoTrack.id,

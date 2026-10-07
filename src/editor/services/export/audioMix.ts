@@ -33,6 +33,7 @@ export function audioSchedulesForChunk(
 	for (const track of project.tracks) {
 		if (track.kind !== 'audio' || track.muted) continue;
 		for (const clip of track.clips) {
+			if (!clip.assetId) continue;
 			const asset = project.assets[clip.assetId];
 			if (!asset?.hasAudio || asset.offline) continue;
 			const overlapStart = Math.max(chunkStart, clip.start);
@@ -69,7 +70,7 @@ export async function decodeAudioAssets(
 	const scheduledAssetIds = new Set(
 		project.tracks
 			.filter((track) => track.kind === 'audio' && !track.muted)
-			.flatMap((track) => track.clips.map((clip) => clip.assetId))
+			.flatMap((track) => track.clips.flatMap((clip) => (clip.assetId ? [clip.assetId] : [])))
 	);
 	for (const asset of Object.values(project.assets)) {
 		if (

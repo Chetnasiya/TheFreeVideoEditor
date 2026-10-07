@@ -116,7 +116,7 @@ export function duplicateProject(project: Project): Project {
 		clips: track.clips.map((clip) => ({
 			...clip,
 			id: clipIdMap.get(clip.id) as ClipId,
-			assetId: assetIdMap.get(clip.assetId) as AssetId,
+			...(clip.assetId ? { assetId: assetIdMap.get(clip.assetId) as AssetId } : {}),
 			...(clip.linkId ? { linkId: linkIdMap.get(clip.linkId) } : {}),
 			effects: clip.effects?.map((effect) => ({ ...effect, id: randomId() })),
 			...(clip.masks ? { masks: clip.masks.map((mask) => ({ ...mask, id: randomId() })) } : {}),

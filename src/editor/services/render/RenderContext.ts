@@ -85,6 +85,7 @@ export class RenderContext {
 		});
 		if (!gl) throw new Error('WebGL2 is unavailable.');
 		this.gl = gl as WebGL2RenderingContext;
+		this.gl.getExtension('OES_texture_float_linear');
 		const debugInfo = this.gl.getExtension('WEBGL_debug_renderer_info');
 		this.stats.gpuRenderer = debugInfo
 			? String(this.gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))

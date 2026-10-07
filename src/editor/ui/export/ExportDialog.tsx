@@ -125,7 +125,7 @@ export default function ExportDialog() {
 		const scheduledAssets = new Set(
 			project.tracks
 				.filter((track) => track.kind === 'audio' && !track.muted)
-				.flatMap((track) => track.clips.map((clip) => clip.assetId))
+				.flatMap((track) => track.clips.flatMap((clip) => (clip.assetId ? [clip.assetId] : [])))
 		);
 		return Object.values(project.assets).filter(
 			(asset) => asset.hasAudio && asset.audioDecodable === false && scheduledAssets.has(asset.id)
@@ -159,6 +159,38 @@ export default function ExportDialog() {
 		: 0;
 	const warnAboutMemoryFallback =
 		!supportsStreamingSave() && estimatedSize >= LARGE_IN_MEMORY_EXPORT_BYTES;
+
+	const interchangeOmissionWarning = useMemo(() => {
+		if (!project) return null;
+		let effectsCount = 0;
+		let adjustmentsCount = 0;
+		let solidsCount = 0;
+		for (const track of project.tracks) {
+			for (const clip of track.clips) {
+				if (clip.effects && clip.effects.length > 0) {
+					effectsCount += clip.effects.length;
+				}
+				if (clip.source?.type === 'adjustment') {
+					adjustmentsCount += 1;
+				}
+				if (clip.source?.type === 'solid') {
+					solidsCount += 1;
+				}
+			}
+		}
+		if (effectsCount === 0 && adjustmentsCount === 0 && solidsCount === 0) return null;
+		const parts: string[] = [];
+		if (effectsCount > 0) {
+			parts.push(`${effectsCount} effect${effectsCount === 1 ? '' : 's'}`);
+		}
+		if (adjustmentsCount > 0) {
+			parts.push(`${adjustmentsCount} adjustment layer${adjustmentsCount === 1 ? '' : 's'}`);
+		}
+		if (solidsCount > 0) {
+			parts.push(`${solidsCount} solid color layer${solidsCount === 1 ? '' : 's'}`);
+		}
+		return `${parts.join(', ')} are not included in project files; use Video export to render them.`;
+	}, [project]);
 	const canExport = Boolean(
 		project &&
 		settings &&
@@ -750,6 +782,11 @@ export default function ExportDialog() {
 								<p className="export-warning" role="alert">
 									Cannot package {offlineAssets.length} offline media asset(s). Relink them or turn
 									off media packaging.
+								</p>
+							)}
+							{interchangeOmissionWarning && (
+								<p className="export-warning" role="note">
+									{interchangeOmissionWarning}
 								</p>
 							)}
 						</div>

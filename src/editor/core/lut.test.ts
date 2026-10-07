@@ -1,0 +1,64 @@
+import { describe, expect, it } from 'vitest';
+import { generateIdentityCubeText, parseCubeLut, LutParseError } from './lut';
+
+describe('3D LUT .cube parser', () => {
+	it('parses a valid 3D LUT .cube file', () => {
+		const cubeText = generateIdentityCubeText(2, 'Test 2x2x2');
+		const parsed = parseCubeLut(cubeText);
+		expect(parsed.size).toBe(2);
+		expect(parsed.title).toBe('Test 2x2x2');
+		expect(parsed.data.length).toBe(2 * 2 * 2 * 4); // RGBA packed
+		expect(parsed.rawRgbData.length).toBe(2 * 2 * 2 * 3); // RGB packed
+
+		// Corner 0,0,0
+		expect(parsed.data[0]).toBeCloseTo(0, 4);
+		expect(parsed.data[1]).toBeCloseTo(0, 4);
+		expect(parsed.data[2]).toBeCloseTo(0, 4);
+		expect(parsed.data[3]).toBe(1.0);
+
+		// Corner 1,1,1
+		const lastIdx = (2 * 2 * 2 - 1) * 4;
+		expect(parsed.data[lastIdx]).toBeCloseTo(1, 4);
+		expect(parsed.data[lastIdx + 1]).toBeCloseTo(1, 4);
+		expect(parsed.data[lastIdx + 2]).toBeCloseTo(1, 4);
+		expect(parsed.data[lastIdx + 3]).toBe(1.0);
+	});
+
+	it('ignores comments and empty lines', () => {
+		const text = `
+# This is a comment
+TITLE "Comment Test"
+
+# Another comment
+LUT_3D_SIZE 2
+# Data follows
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+1.0 0.0 1.0
+0.0 1.0 1.0
+1.0 1.0 1.0
+`;
+		const parsed = parseCubeLut(text);
+		expect(parsed.size).toBe(2);
+		expect(parsed.title).toBe('Comment Test');
+	});
+
+	it('throws LutParseError with line number on invalid syntax or size', () => {
+		// Missing header
+		expect(() => parseCubeLut('0.0 0.0 0.0')).toThrow(LutParseError);
+
+		// Invalid size
+		expect(() => parseCubeLut('LUT_3D_SIZE 100\n0 0 0')).toThrow(LutParseError);
+
+		// Non-number in data
+		const badData = 'LUT_3D_SIZE 2\n0.0 0.0 0.0\nnot_a_number 0.0 0.0';
+		expect(() => parseCubeLut(badData)).toThrow(LutParseError);
+
+		// Incomplete data
+		const incomplete = 'LUT_3D_SIZE 2\n0 0 0\n1 1 1';
+		expect(() => parseCubeLut(incomplete)).toThrow(LutParseError);
+	});
+});

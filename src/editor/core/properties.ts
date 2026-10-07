@@ -1,9 +1,10 @@
-import { evaluate } from './animation';
+import { evaluate, isAnimatedValue } from './animation';
 import { clampCrop, type Crop } from './crop';
+import { getEffectDefinition } from './effects/registry';
 import type { AnimatedValue, Clip, ClipTransform, PropertyId, Time } from './types';
 
 export type PropertyShape = 'number' | 'vec2' | 'vec4';
-export type PropertyValue = number | readonly number[];
+export type PropertyValue = number | number[];
 
 export interface PropertyDescriptor {
 	id: PropertyId;
@@ -16,7 +17,7 @@ export interface PropertyDescriptor {
 	min?: number;
 	max?: number;
 	/** Display unit and the factor from stored value to displayed value (scale is stored as 1 = 100%). */
-	unit: 'px' | '%' | '°';
+	unit: 'px' | '%' | '°' | 'EV' | '';
 	displayFactor: number;
 	/** Arrow-key step in display units. */
 	step: number;
@@ -94,7 +95,39 @@ export const PROPERTY_DESCRIPTORS: Readonly<Record<string, PropertyDescriptor>> 
 export const ANIMATABLE_PROPERTY_IDS = Object.keys(PROPERTY_DESCRIPTORS);
 
 export function descriptorFor(id: PropertyId): PropertyDescriptor | undefined {
-	return PROPERTY_DESCRIPTORS[id];
+	if (PROPERTY_DESCRIPTORS[id]) return PROPERTY_DESCRIPTORS[id];
+	if (id.startsWith('effect:')) {
+		const parts = id.split(':');
+		if (parts.length >= 4) {
+			const [, effectType, , paramName] = parts;
+			const def = getEffectDefinition(effectType!);
+			const param = def?.params[paramName!];
+			if (param) {
+				const isPoint = param.type === 'point';
+				const unit =
+					(param.unit as 'px' | '%' | '°' | 'EV' | '') ?? (param.type === 'angle' ? '°' : '');
+				const displayFactor =
+					param.unit === 'px' || param.unit === 'EV' || param.unit === '°'
+						? 1
+						: param.min !== undefined && param.min < 0
+							? 1
+							: 100;
+				return {
+					id,
+					label: `${def!.name} ${param.label}`,
+					shape: isPoint ? 'vec2' : 'number',
+					channels: isPoint ? ['X', 'Y'] : [param.label],
+					defaultValue: param.defaultValue as PropertyValue,
+					min: param.min,
+					max: param.max,
+					step: param.step ?? (isPoint ? 0.01 : 1),
+					unit,
+					displayFactor
+				};
+			}
+		}
+	}
+	return undefined;
 }
 
 export function shapeLength(shape: PropertyShape): number {
@@ -156,6 +189,18 @@ export function propertyCurve(
 	clip: Clip,
 	id: PropertyId
 ): AnimatedValue<PropertyValue> | undefined {
+	if (id.startsWith('effect:')) {
+		const parts = id.split(':');
+		if (parts.length >= 4) {
+			const [, , effectId, paramName] = parts;
+			const effect = clip.effects?.find((e) => e.id === effectId);
+			if (effect && paramName! in effect.params) {
+				const raw = effect.params[paramName!];
+				if (isAnimatedValue(raw)) return raw as AnimatedValue<PropertyValue>;
+				return { value: raw as PropertyValue };
+			}
+		}
+	}
 	return clip.properties?.[id] as AnimatedValue<PropertyValue> | undefined;
 }
 

@@ -65,14 +65,6 @@ export const animatedValueSchema = z.union([
 
 const propertiesSchema = z.record(z.string().min(1), animatedValueSchema);
 
-export const effectSchema = z.object({
-	id: z.string().min(1),
-	type: z.string().min(1),
-	version: z.number().int().nonnegative().optional(),
-	enabled: z.boolean().optional(),
-	params: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), animatedValueSchema]))
-});
-
 const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
 	z.union([
 		z.string(),
@@ -83,6 +75,14 @@ const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
 		z.record(z.string(), jsonValueSchema)
 	])
 );
+
+export const effectSchema = z.object({
+	id: z.string().min(1),
+	type: z.string().min(1),
+	version: z.number().int().nonnegative().optional(),
+	enabled: z.boolean().optional(),
+	params: z.record(z.string(), z.union([jsonValueSchema, animatedValueSchema]))
+});
 
 const colorSchema = z.object({
 	r: z.number(),
@@ -142,7 +142,7 @@ export const clipTransformSchema = z.object({
 
 export const clipSchema = z.object({
 	id: clipIdSchema,
-	assetId: assetIdSchema,
+	assetId: assetIdSchema.optional(),
 	start: timeSchema,
 	duration: timeSchema.positive(),
 	sourceIn: timeSchema,
@@ -170,7 +170,7 @@ export const clipSchema = z.object({
 
 export const assetSchema = z.object({
 	id: assetIdSchema,
-	kind: z.enum(['video', 'audio', 'image']),
+	kind: z.enum(['video', 'audio', 'image', 'lut']),
 	name: z.string().min(1),
 	mimeType: z.string().min(1),
 	size: z.number().int().nonnegative(),
@@ -276,12 +276,14 @@ export const projectSchema = z
 					}
 					ids.add(clip.id);
 					clipIds.add(clip.id);
-					if (!project.assets[clip.assetId]) {
-						context.addIssue({
-							code: 'custom',
-							path: [...clipPath, 'assetId'],
-							message: 'Clip must reference an asset in this project.'
-						});
+					if (!clip.source || clip.source.type === 'asset') {
+						if (!clip.assetId || !project.assets[clip.assetId]) {
+							context.addIssue({
+								code: 'custom',
+								path: [...clipPath, 'assetId'],
+								message: 'Clip must reference an asset in this project.'
+							});
+						}
 					}
 					const nested = [
 						...(clip.effects ?? []).map((effect) => ['effects', effect.id] as const),

@@ -27,6 +27,7 @@ function trackChildren(project: Project, track: Track, options: InteropOptions) 
 	const children: Record<string, unknown>[] = [];
 	let position = 0;
 	for (const clip of clips) {
+		if (!clip.assetId) continue;
 		const start = frames(clip.start, project);
 		const duration = Math.max(1, frames(clip.duration, project));
 		if (start > position) {

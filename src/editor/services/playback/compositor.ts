@@ -83,6 +83,15 @@ export function renderFrame(
 	context.fillRect(0, 0, size.width, size.height);
 
 	for (const layer of layers) {
+		if (layer.kind === 'solid') {
+			const c = layer.solidColor ?? { r: 0, g: 0, b: 0, a: 1 };
+			context.save();
+			context.globalAlpha = layer.transform?.opacity ?? 1;
+			context.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`;
+			context.fillRect(0, 0, size.width, size.height);
+			context.restore();
+			continue;
+		}
 		const source = frameProvider(layer) ?? lastGoodFrames.get(layer.clipId) ?? null;
 		if (!source) continue;
 		const dimensions = sourceDimensions(source);

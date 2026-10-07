@@ -24,11 +24,11 @@ export function exportEdlTrack(
 	track: Track,
 	options: InteropOptions = {}
 ): string {
-	if (track.kind !== 'video') throw new Error('CMX3600 EDL supports video tracks only.');
 	const events = track.clips
+		.filter((clip) => Boolean(clip.assetId))
 		.toSorted((first, second) => first.start - second.start)
 		.map((clip, index) => {
-			const asset = trackAsset(project, clip.assetId);
+			const asset = trackAsset(project, clip.assetId!);
 			const sourceIn = frames(clip.sourceIn, project);
 			const sourceOutExclusive = Math.max(sourceIn + 1, frames(clip.sourceOut, project));
 			const recordIn = frames(clip.start, project);

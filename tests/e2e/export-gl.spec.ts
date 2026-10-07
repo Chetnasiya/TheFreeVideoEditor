@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import type { VerifiedExportFile } from './verifyExport';
 
 declare global {
 	interface Window {

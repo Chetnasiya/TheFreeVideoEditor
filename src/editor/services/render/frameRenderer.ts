@@ -33,7 +33,8 @@ export function createFrameRenderer(
 			console.warn('WebGL2 compositor unavailable, using Canvas2D.', error);
 		}
 	}
-	const context = canvas.getContext('2d');
+	const context = (canvas as OffscreenCanvas).getContext('2d') as
+		CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
 	if (!context) return null;
 	return new Canvas2DRenderer(context, createRenderStats('canvas2d'));
 }

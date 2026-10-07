@@ -40,6 +40,7 @@ export class ExportFrameProvider {
 		this.prepared.clear();
 		for (const layer of layers) {
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
+			if (!layer.assetId) continue;
 			const asset = this.project.assets[layer.assetId];
 			if (!asset || asset.offline) continue;
 			try {

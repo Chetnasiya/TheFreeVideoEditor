@@ -15,7 +15,7 @@ export interface ProjectSettings {
 	sampleRate: number;
 }
 
-export type AssetKind = 'video' | 'audio' | 'image';
+export type AssetKind = 'video' | 'audio' | 'image' | 'lut';
 
 export interface Asset {
 	id: AssetId;
@@ -71,7 +71,7 @@ export interface EffectInstance {
 	type: string;
 	version?: number;
 	enabled?: boolean;
-	params: Record<string, string | number | boolean | AnimatedValue<unknown>>;
+	params: Record<string, JsonValue | AnimatedValue<unknown>>;
 }
 
 /** Phase 1 name, kept so existing imports continue to compile. */
@@ -137,7 +137,7 @@ export interface ClipTransform {
 
 export interface Clip {
 	id: ClipId;
-	assetId: AssetId;
+	assetId?: AssetId;
 	start: Time;
 	duration: Time;
 	sourceIn: Time;

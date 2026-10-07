@@ -431,4 +431,216 @@ describe('editor store', () => {
 		expect(store.getState().isExportClosePromptOpen).toBe(false);
 		expect(store.getState().project?.id).toBe(nextProject.id);
 	});
+
+	it('manages keyframes, undo/redo restores keyframe selection, and handles copy/paste', async () => {
+		const store = createEditorStore();
+		await store.getState().createProject({ name: 'Keyframe project' });
+		const project = store.getState().project;
+		if (!project) throw new Error('Project was not created.');
+		const clipId = 'clip-kf-1' as ClipId;
+		const assetId = 'asset-kf-1' as AssetId;
+		const projectWithClip = {
+			...project,
+			assets: {
+				[assetId]: {
+					id: assetId,
+					kind: 'video' as const,
+					name: 'video.mp4',
+					mimeType: 'video/mp4',
+					size: 100,
+					duration: 2_000_000,
+					hasAudio: false,
+					opfsPath: `projects/${project.id}/media/${assetId}.mp4`
+				}
+			},
+			tracks: project.tracks.map((track) =>
+				track.kind === 'video'
+					? {
+							...track,
+							clips: [
+								{
+									id: clipId,
+									assetId,
+									start: 0,
+									duration: 2_000_000,
+									sourceIn: 0,
+									sourceOut: 2_000_000,
+									speed: 1,
+									volume: 1,
+									properties: {}
+								}
+							]
+						}
+					: track
+			)
+		};
+		const ok = await store.getState().replaceProject(projectWithClip);
+		expect(ok).toBe(true);
+		store.getState().selectClips([clipId]);
+
+		// Enable animation on opacity
+		store.getState().setPlayhead(500_000);
+		store.getState().enableAnimation(clipId, 'opacity');
+		expect(store.getState().keyframes.selection).toEqual([
+			{ clipId, propertyId: 'opacity', time: 500_000 }
+		]);
+
+		// Set property with autokey at 1_000_000
+		store.getState().setPlayhead(1_000_000);
+		store.getState().setProperty(clipId, 'opacity', 0.5, { autoKey: true });
+
+		// Check next / prev keyframe navigation
+		store.getState().setPlayhead(0);
+		store.getState().nextKeyframe();
+		expect(store.getState().timeline.playhead).toBe(500_000);
+		store.getState().nextKeyframe();
+		expect(store.getState().timeline.playhead).toBe(1_000_000);
+		store.getState().prevKeyframe();
+		expect(store.getState().timeline.playhead).toBe(500_000);
+
+		// Select keyframe, copy and paste
+		store.getState().selectKeyframe({ clipId, propertyId: 'opacity', time: 500_000 });
+		store.getState().copySelectedKeyframes();
+		expect(store.getState().keyframes.clipboard?.entries.length).toBe(1);
+
+		store.getState().setPlayhead(1_500_000);
+		store.getState().pasteKeyframes();
+		expect(store.getState().keyframes.selection).toEqual([
+			{ clipId, propertyId: 'opacity', time: 1_500_000 }
+		]);
+
+		// Easy ease
+		store.getState().easyEase();
+
+		// Undo restores keyframe selection
+		expect(store.getState().undo()).toBe(true);
+		expect(store.getState().redo()).toBe(true);
+	});
+
+	it('manages clip effects, color correction, adjustment and solid layers', async () => {
+		const store = createEditorStore();
+		await store.getState().createProject({ name: 'Effects Test' });
+		const project = store.getState().project!;
+		const videoTrack = project.tracks.find((t) => t.kind === 'video')!;
+
+		// 1. Add Adjustment layer
+		store.getState().setPlayhead(1_000_000);
+		const adjClipId = store.getState().addAdjustmentLayer();
+		expect(adjClipId).toBeTruthy();
+		const adjClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === adjClipId);
+		expect(adjClip?.source?.type).toBe('adjustment');
+		expect(adjClip?.duration).toBe(5_000_000);
+
+		// 2. Add Solid layer
+		const solidClipId = store.getState().addSolidLayer('#ff0000');
+		expect(solidClipId).toBeTruthy();
+		const solidClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === solidClipId);
+		expect(solidClip?.source?.type).toBe('solid');
+
+		// 3. Add effect to adjustment layer
+		const blur = store.getState().addEffect(adjClipId!, 'gaussianBlur', { radius: 10 });
+		expect(blur).toBeTruthy();
+		expect(blur?.type).toBe('gaussianBlur');
+		expect(store.getState().effectsUi.selectedEffectId).toBe(blur!.id);
+
+		// 4. Set effect parameter
+		store.getState().setEffectParam(adjClipId!, blur!.id, 'radius', 25);
+		const clipWithBlur = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === adjClipId);
+		expect(clipWithBlur?.effects?.[0]?.params.radius).toEqual({ value: 25 });
+
+		// 5. Duplicate effect
+		const duplicated = store.getState().duplicateEffect(adjClipId!, blur!.id);
+		expect(duplicated).toBeTruthy();
+		expect(duplicated?.id).not.toBe(blur!.id);
+		expect(
+			store
+				.getState()
+				.project?.tracks.flatMap((t) => t.clips)
+				.find((c) => c.id === adjClipId)?.effects?.length
+		).toBe(2);
+
+		// 6. Toggle and reset effect
+		store.getState().toggleEffect(adjClipId!, blur!.id, false);
+		let updatedClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === adjClipId)!;
+		expect(updatedClip.effects?.[0]?.enabled).toBe(false);
+
+		store.getState().resetEffect(adjClipId!, blur!.id);
+		updatedClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === adjClipId)!;
+		// Default radius for gaussianBlur is 0
+		expect(updatedClip.effects?.[0]?.params.radius).toBe(0);
+
+		// 7. Copy and paste effects to solid clip
+		store.getState().copyClipEffects(adjClipId!);
+		expect(store.getState().effectsClipboard?.length).toBe(2);
+		store.getState().pasteClipEffects(solidClipId!);
+		const solidWithEffects = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === solidClipId);
+		expect(solidWithEffects?.effects?.length).toBe(2);
+
+		// 8. Ensure color correction
+		const cc = store.getState().ensureColorCorrection(solidClipId!);
+		expect(cc?.type).toBe('colorCorrection');
+		const existingCc = store.getState().ensureColorCorrection(solidClipId!);
+		expect(existingCc?.id).toBe(cc?.id);
+
+		// 9. Remove effect
+		store.getState().removeEffect(adjClipId!, blur!.id);
+		expect(
+			store
+				.getState()
+				.project?.tracks.flatMap((t) => t.clips)
+				.find((c) => c.id === adjClipId)?.effects?.length
+		).toBe(1);
+
+		// 10. Undo restores removed effect
+		expect(store.getState().undo()).toBe(true);
+		expect(
+			store
+				.getState()
+				.project?.tracks.flatMap((t) => t.clips)
+				.find((c) => c.id === adjClipId)?.effects?.length
+		).toBe(2);
+
+		// 11. Scopes & Color UI state
+		store.getState().setScopesOpen(true);
+		expect(store.getState().scopes.open).toBe(true);
+		store.getState().setScopesMode('vectorscope');
+		expect(store.getState().scopes.mode).toBe('vectorscope');
+		store.getState().setColorTab('wheels');
+		expect(store.getState().colorUi.activeTab).toBe('wheels');
+
+		// 12. Import LUT
+		const cubeContent = `
+TITLE "Test"
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+1.0 1.0 0.0
+0.0 0.0 1.0
+1.0 0.0 1.0
+0.0 1.0 1.0
+1.0 1.0 1.0
+`;
+		const lutAssetId = await store.getState().importLut('TestLut', cubeContent);
+		expect(lutAssetId).toBeTruthy();
+		expect(store.getState().project?.assets[lutAssetId!]?.kind).toBe('lut');
+	});
 });

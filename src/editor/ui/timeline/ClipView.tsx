@@ -1,18 +1,35 @@
 import {
+	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 	type PointerEvent,
 	type KeyboardEvent,
 	type MouseEvent
 } from 'react';
-import { ticksToTimecode, timeToPixels } from '../../core';
-import type { Asset, Clip, ClipId, Project, Track } from '../../core';
+import {
+	ANIMATABLE_PROPERTY_IDS,
+	descriptorFor,
+	isAnimated,
+	propertyCurve,
+	ticksToTimecode,
+	timeToPixels,
+	type Asset,
+	type Clip,
+	type ClipId,
+	type InterpolationPreset,
+	type Project,
+	type PropertyId,
+	type Time,
+	type Track
+} from '../../core';
 import { getDerived, type DerivedData } from '../../services/storage/mediaCache';
+import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 
 interface ClipViewProps {
 	clip: Clip;
-	asset: Asset;
+	asset?: Asset;
 	track: Track;
 	project: Project;
 	pixelsPerSecond: number;
@@ -26,6 +43,13 @@ interface ClipViewProps {
 		modifiers: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }
 	) => void;
 	onContextMenu: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, clip: Clip) => void;
+}
+
+interface KeyframeContextMenuState {
+	x: number;
+	y: number;
+	propertyId: PropertyId;
+	time?: Time;
 }
 
 function ClipArtwork({ project, asset, track }: { project: Project; asset: Asset; track: Track }) {
@@ -89,12 +113,20 @@ export default function ClipView({
 	onSelect,
 	onContextMenu
 }: ClipViewProps) {
+	const store = useEditorStoreApi();
+	const showLanes = useEditorStore((state) => state.keyframes.showLanes);
+	const selectedKeyframeRefs = useEditorStore((state) => state.keyframes.selection);
+
+	const [lanesExpanded, setLanesExpanded] = useState(false);
+	const [kfMenu, setKfMenu] = useState<KeyframeContextMenuState | null>(null);
+
 	const start = timeToPixels(clip.start, pixelsPerSecond);
 	const width = Math.max(12, timeToPixels(clip.duration, pixelsPerSecond));
 	const startLabel = ticksToTimecode(clip.start, project.settings.fps);
 	const durationLabel = ticksToTimecode(clip.duration, project.settings.fps);
 	const clipRef = useRef<HTMLDivElement>(null);
 	const [visible, setVisible] = useState(false);
+
 	useEffect(() => {
 		const element = clipRef.current;
 		if (!element || ghost) return;
@@ -109,15 +141,132 @@ export default function ClipView({
 		observer.observe(element);
 		return () => observer.disconnect();
 	}, [ghost]);
+
+	// Animated properties for this clip
+	const shouldShowKeyframes =
+		!ghost && (showLanes === 'all' || (showLanes === 'selected' && selected));
+
+	const animatedProps: PropertyId[] = useMemo(() => {
+		if (!shouldShowKeyframes) return [];
+		return ANIMATABLE_PROPERTY_IDS.filter((propId) => {
+			const curve = propertyCurve(clip, propId);
+			return curve && isAnimated(curve) && curve.keyframes.length > 0;
+		});
+	}, [clip, shouldShowKeyframes]);
+
+	const summaryKeyframes = useMemo(() => {
+		if (animatedProps.length === 0) return [];
+		const keys: { propertyId: PropertyId; time: Time }[] = [];
+		for (const propId of animatedProps) {
+			const curve = propertyCurve(clip, propId);
+			if (curve && isAnimated(curve)) {
+				for (const k of curve.keyframes) {
+					keys.push({ propertyId: propId, time: k.time });
+				}
+			}
+		}
+		return keys;
+	}, [clip, animatedProps]);
+
+	// Keyframe diamond dragging
+	const dragRef = useRef<{
+		propertyId: PropertyId;
+		keyTime: Time;
+		startX: number;
+		altKey: boolean;
+	} | null>(null);
+
+	const handleDiamondPointerDown = useCallback(
+		(e: PointerEvent<HTMLDivElement>, propId: PropertyId, keyTime: Time) => {
+			if (e.button !== 0) return;
+			e.stopPropagation();
+			store
+				.getState()
+				.selectKeyframe(
+					{ clipId: clip.id, propertyId: propId, time: keyTime },
+					e.shiftKey ? 'toggle' : 'set'
+				);
+
+			dragRef.current = {
+				propertyId: propId,
+				keyTime,
+				startX: e.clientX,
+				altKey: e.altKey
+			};
+			e.currentTarget.setPointerCapture(e.pointerId);
+		},
+		[clip.id, store]
+	);
+
+	const handleDiamondPointerMove = useCallback(
+		(e: PointerEvent<HTMLDivElement>) => {
+			if (!dragRef.current) return;
+			const deltaPx = e.clientX - dragRef.current.startX;
+			const deltaSeconds = deltaPx / pixelsPerSecond;
+			const deltaTime = Math.round(deltaSeconds * 1_000_000);
+			if (deltaTime !== 0) {
+				store.getState().moveSelectedKeyframes(deltaTime, false);
+				dragRef.current.startX = e.clientX;
+			}
+		},
+		[pixelsPerSecond, store]
+	);
+
+	const handleDiamondPointerUp = useCallback(
+		(e: PointerEvent<HTMLDivElement>) => {
+			if (!dragRef.current) return;
+			const wasAlt = dragRef.current.altKey || e.altKey;
+			dragRef.current = null;
+			try {
+				e.currentTarget.releasePointerCapture(e.pointerId);
+			} catch {}
+
+			if (wasAlt) {
+				store.getState().copySelectedKeyframes();
+				store.getState().pasteKeyframes();
+			} else {
+				store.getState().moveSelectedKeyframes(0, true);
+			}
+		},
+		[store]
+	);
+
+	const openDiamondContextMenu = (
+		e: MouseEvent<HTMLElement>,
+		propertyId: PropertyId,
+		time?: Time
+	) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setKfMenu({ x: e.clientX, y: e.clientY, propertyId, time });
+	};
+
+	const applyInterpolation = (preset: Exclude<InterpolationPreset, 'bezier'>) => {
+		store.getState().setKeyframeInterpolation(preset);
+		setKfMenu(null);
+	};
+
+	const isAdjustment = clip.source?.type === 'adjustment';
+	const isSolid = clip.source?.type === 'solid';
+	const clipName = asset?.name ?? (isAdjustment ? 'Adjustment Layer' : isSolid ? 'Solid' : 'Clip');
+	const kindClass =
+		track.kind === 'audio'
+			? 'is-audio'
+			: isAdjustment
+				? 'is-adjustment'
+				: isSolid
+					? 'is-solid'
+					: 'is-video';
+
 	return (
 		<div
 			ref={clipRef}
-			className={`timeline-clip ${track.kind === 'audio' ? 'is-audio' : 'is-video'} ${selected ? 'is-selected' : ''} ${asset.offline ? 'is-offline' : ''} ${ghost ? 'is-ghost' : ''}`}
+			className={`timeline-clip ${kindClass} ${selected ? 'is-selected' : ''} ${asset?.offline ? 'is-offline' : ''} ${ghost ? 'is-ghost' : ''}`}
 			data-clip-id={clip.id}
 			data-track-id={track.id}
 			role="group"
 			tabIndex={ghost ? -1 : tabIndex}
-			aria-label={`Clip: ${asset.name}, ${track.name}, starts ${startLabel}, duration ${durationLabel}${clip.linkId ? ', linked' : ''}${asset.offline ? ', offline' : ''}${selected ? ', selected' : ''}`}
+			aria-label={`Clip: ${clipName}, ${track.name}, starts ${startLabel}, duration ${durationLabel}${clip.linkId ? ', linked' : ''}${asset?.offline ? ', offline' : ''}${selected ? ', selected' : ''}`}
 			draggable={false}
 			style={{ left: start, width }}
 			onPointerDown={(event) => {
@@ -140,14 +289,30 @@ export default function ClipView({
 					event.preventDefault();
 					onContextMenu(event, clip);
 				}
+				if (event.key === 'Delete' || event.key === 'Backspace') {
+					if (selectedKeyframeRefs.some((r) => r.clipId === clip.id)) {
+						event.preventDefault();
+						event.stopPropagation();
+						store.getState().deleteSelectedKeyframes();
+					}
+				}
+				if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+					if (selectedKeyframeRefs.some((r) => r.clipId === clip.id)) {
+						event.preventDefault();
+						event.stopPropagation();
+						const frames = (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 10 : 1);
+						const delta = Math.round((frames / project.settings.fps) * 1_000_000);
+						store.getState().moveSelectedKeyframes(delta, true);
+					}
+				}
 			}}
 		>
 			{!ghost && (
 				<>
 					<button
 						type="button"
-						className="clip-trim-handle clip-trim-start"
-						aria-label={`Trim start of ${asset.name}`}
+						className="clip-trim-start clip-trim-handle"
+						aria-label={`Trim start of ${clipName}`}
 						title="Use Left/Right Arrow to trim by 1 frame; Shift for 10 frames."
 						onPointerDown={(event) => {
 							event.stopPropagation();
@@ -164,7 +329,7 @@ export default function ClipView({
 					<button
 						type="button"
 						className="clip-trim-handle clip-trim-end"
-						aria-label={`Trim end of ${asset.name}`}
+						aria-label={`Trim end of ${clipName}`}
 						title="Use Left/Right Arrow to trim by 1 frame; Shift for 10 frames."
 						onPointerDown={(event) => {
 							event.stopPropagation();
@@ -180,10 +345,10 @@ export default function ClipView({
 					/>
 				</>
 			)}
-			{visible && <ClipArtwork project={project} asset={asset} track={track} />}
+			{visible && asset && <ClipArtwork project={project} asset={asset} track={track} />}
 			<span className="timeline-clip-name">
-				{asset.offline && <b>Offline · </b>}
-				{asset.name}
+				{asset?.offline && <b>Offline · </b>}
+				{clipName}
 			</span>
 			{clip.linkId && (
 				<span className="clip-link-mark" aria-label="Linked clip">
@@ -191,6 +356,166 @@ export default function ClipView({
 				</span>
 			)}
 			<span className="timeline-clip-duration">{durationLabel}</span>
+
+			{/* Keyframe summary lane */}
+			{summaryKeyframes.length > 0 && (
+				<div className="clip-keyframe-summary" onClick={(e) => e.stopPropagation()}>
+					<button
+						type="button"
+						className="clip-keyframe-expand-btn"
+						onClick={(e) => {
+							e.stopPropagation();
+							setLanesExpanded(!lanesExpanded);
+						}}
+						title={lanesExpanded ? 'Collapse keyframe lanes' : 'Expand keyframe lanes'}
+						aria-label={lanesExpanded ? 'Collapse keyframe lanes' : 'Expand keyframe lanes'}
+					>
+						{lanesExpanded ? '▾' : '▸'}
+					</button>
+					<div className="clip-keyframe-track">
+						{summaryKeyframes.map((k) => {
+							const kx = timeToPixels(k.time, pixelsPerSecond);
+							const isSelected = selectedKeyframeRefs.some(
+								(ref) =>
+									ref.clipId === clip.id && ref.propertyId === k.propertyId && ref.time === k.time
+							);
+							return (
+								<div
+									key={`${k.propertyId}:${k.time}`}
+									className={`clip-keyframe-diamond ${isSelected ? 'is-selected' : ''}`}
+									style={{ left: `${kx}px` }}
+									title={`${k.propertyId} @ ${ticksToTimecode(k.time, project.settings.fps)}`}
+									onPointerDown={(e) => handleDiamondPointerDown(e, k.propertyId, k.time)}
+									onPointerMove={handleDiamondPointerMove}
+									onPointerUp={handleDiamondPointerUp}
+									onContextMenu={(e) => openDiamondContextMenu(e, k.propertyId, k.time)}
+								/>
+							);
+						})}
+					</div>
+				</div>
+			)}
+
+			{/* Expandable property lanes */}
+			{lanesExpanded && animatedProps.length > 0 && (
+				<div className="clip-keyframe-lanes" onClick={(e) => e.stopPropagation()}>
+					{animatedProps.map((propId) => {
+						const curve = propertyCurve(clip, propId);
+						if (!curve || !isAnimated(curve)) return null;
+						const desc = descriptorFor(propId);
+						return (
+							<div
+								key={propId}
+								className="clip-keyframe-lane-row"
+								onContextMenu={(e) => openDiamondContextMenu(e, propId)}
+							>
+								<span className="clip-lane-label" title={desc?.label ?? propId}>
+									{desc?.label ?? propId}
+								</span>
+								<div className="clip-keyframe-track">
+									{curve.keyframes.map((k) => {
+										const kx = timeToPixels(k.time, pixelsPerSecond);
+										const isSelected = selectedKeyframeRefs.some(
+											(ref) =>
+												ref.clipId === clip.id && ref.propertyId === propId && ref.time === k.time
+										);
+										return (
+											<div
+												key={k.time}
+												className={`clip-keyframe-diamond ${isSelected ? 'is-selected' : ''}`}
+												style={{ left: `${kx}px` }}
+												title={`${desc?.label ?? propId} @ ${ticksToTimecode(k.time, project.settings.fps)}`}
+												onPointerDown={(e) => handleDiamondPointerDown(e, propId, k.time)}
+												onPointerMove={handleDiamondPointerMove}
+												onPointerUp={handleDiamondPointerUp}
+												onContextMenu={(e) => openDiamondContextMenu(e, propId, k.time)}
+											/>
+										);
+									})}
+								</div>
+							</div>
+						);
+					})}
+				</div>
+			)}
+
+			{/* Keyframe Context Menu */}
+			{kfMenu && (
+				<div
+					className="timeline-context-menu"
+					style={{
+						position: 'fixed',
+						left: kfMenu.x,
+						top: kfMenu.y,
+						zIndex: 100
+					}}
+					onClick={(e) => e.stopPropagation()}
+				>
+					{kfMenu.time !== undefined ? (
+						<>
+							<button type="button" onClick={() => applyInterpolation('linear')}>
+								Linear
+							</button>
+							<button type="button" onClick={() => applyInterpolation('hold')}>
+								Hold
+							</button>
+							<button type="button" onClick={() => applyInterpolation('ease-in')}>
+								Ease In
+							</button>
+							<button type="button" onClick={() => applyInterpolation('ease-out')}>
+								Ease Out
+							</button>
+							<button type="button" onClick={() => applyInterpolation('ease-in-out')}>
+								Ease In-Out
+							</button>
+							<hr />
+							<button
+								type="button"
+								onClick={() => {
+									store.getState().copySelectedKeyframes();
+									setKfMenu(null);
+								}}
+							>
+								Copy Keyframe
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									store.getState().deleteSelectedKeyframes();
+									setKfMenu(null);
+								}}
+							>
+								Delete Keyframe
+							</button>
+						</>
+					) : (
+						<>
+							<button
+								type="button"
+								onClick={() => {
+									store.getState().toggleKeyframe(clip.id, kfMenu.propertyId);
+									setKfMenu(null);
+								}}
+							>
+								Add Keyframe at Playhead
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									store.getState().pasteKeyframes(clip.id, kfMenu.propertyId);
+									setKfMenu(null);
+								}}
+							>
+								Paste Keyframes
+							</button>
+						</>
+					)}
+					<hr />
+					<button type="button" onClick={() => setKfMenu(null)}>
+						Close
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }

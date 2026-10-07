@@ -1,8 +1,14 @@
 import { applyPatches, type Patch } from 'immer';
-import type { ClipId, Project } from '../core';
+import type { ClipId, Project, PropertyId, Time } from '../core';
 
 export const DEFAULT_HISTORY_LIMIT = 200;
 export const DEFAULT_COALESCE_WINDOW_MS = 500;
+
+export interface HistoryKeyframeRef {
+	clipId: ClipId;
+	propertyId: PropertyId;
+	time: Time;
+}
 
 export interface HistoryEntry {
 	id: string;
@@ -13,6 +19,8 @@ export interface HistoryEntry {
 	inversePatches: Patch[];
 	selectionBefore: ClipId[];
 	selectionAfter: ClipId[];
+	keyframeSelectionBefore?: HistoryKeyframeRef[];
+	keyframeSelectionAfter?: HistoryKeyframeRef[];
 }
 
 export interface HistorySnapshot {
@@ -88,7 +96,8 @@ export function createHistory(options: HistoryOptions = {}): ProjectHistory {
 				id: previous.id,
 				patches: [...previous.patches, ...entry.patches],
 				inversePatches: [...entry.inversePatches, ...previous.inversePatches],
-				selectionBefore: previous.selectionBefore
+				selectionBefore: previous.selectionBefore,
+				keyframeSelectionBefore: previous.keyframeSelectionBefore ?? entry.keyframeSelectionBefore
 			};
 		} else {
 			undoStack.push(entry);

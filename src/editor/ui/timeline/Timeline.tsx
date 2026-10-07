@@ -36,6 +36,7 @@ import ClipView from './ClipView';
 import Playhead from './Playhead';
 import TimelineRuler from './TimelineRuler';
 import TimelineToolbar from './TimelineToolbar';
+import GraphEditor from '../graph/GraphEditor';
 import './timeline.css';
 
 const HEADER_WIDTH = 176;
@@ -73,6 +74,9 @@ function ConnectedToolbar({
 	snapEnabled: boolean;
 }) {
 	const playhead = useEditorStore((state) => state.timeline.playhead);
+	const showLanes = useEditorStore((state) => state.keyframes.showLanes);
+	const graphOpen = useEditorStore((state) => state.keyframes.graph.open);
+	const store = useEditorStoreApi();
 	const duration = timelineDuration(project);
 	return (
 		<TimelineToolbar
@@ -81,6 +85,10 @@ function ConnectedToolbar({
 			clipCount={clipCount}
 			snapEnabled={snapEnabled}
 			pixelsPerSecond={pixelsPerSecond}
+			showLanes={showLanes}
+			onToggleKeyframes={() => store.getState().toggleKeyframeLanes()}
+			graphOpen={graphOpen}
+			onToggleGraph={() => store.getState().toggleGraphEditor()}
 			onSplit={onSplit}
 			onDelete={onDelete}
 			onRippleDelete={onRippleDelete}
@@ -88,6 +96,8 @@ function ConnectedToolbar({
 			onZoom={onZoom}
 			onFit={onFit}
 			onAddTrack={onAddTrack}
+			onAddAdjustment={() => store.getState().addAdjustmentLayer()}
+			onAddSolid={() => store.getState().addSolidLayer()}
 		/>
 	);
 }
@@ -313,6 +323,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 	const linkSelection = useEditorStore((state) => state.linkSelection);
 	const unlinkSelection = useEditorStore((state) => state.unlinkSelection);
 	const setTimelineMessage = useEditorStore((state) => state.setTimelineMessage);
+	const graphOpen = useEditorStore((state) => state.keyframes.graph.open);
 	const scrollerRef = useRef<HTMLDivElement>(null);
 	const dragPointer = useRef<number | null>(null);
 	const rulerPointer = useRef<number | null>(null);
@@ -945,6 +956,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 					snapEnabled={snapEnabled}
 				/>
 			</div>
+			{graphOpen && <GraphEditor />}
 			<div
 				className="timeline-scroll"
 				ref={scrollerRef}
@@ -1024,8 +1036,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 											</span>
 										)}
 										{track.clips.map((clip) => {
-											const asset = activeProject.assets[clip.assetId];
-											if (!asset) return null;
+											const asset = clip.assetId ? activeProject.assets[clip.assetId] : undefined;
+											if (!asset && (!clip.source || clip.source.type === 'asset')) return null;
 											const position = drag?.preview.find((item) => item.clipId === clip.id);
 											if (position && position.trackId !== track.id) return null;
 											const clipStart = position?.start ?? clip.start;
@@ -1222,7 +1234,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 					ref={contextMenuRef}
 					className="timeline-context-menu"
 					role="group"
-					aria-label={`Actions for ${activeProject.assets[context.clip.assetId]?.name ?? 'clip'}`}
+					aria-label={`Actions for ${context.clip.assetId ? (activeProject.assets[context.clip.assetId]?.name ?? 'clip') : context.clip.source?.type === 'adjustment' ? 'adjustment layer' : 'solid'}`}
 					style={{ left: context.x, top: context.y }}
 					onKeyDown={(event) => {
 						if (event.key === 'Escape') {

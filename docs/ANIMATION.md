@@ -32,6 +32,49 @@ transitions must reference existing clips. `duplicateProject` remaps these ids a
 search. `splitClipsAt` honours it. **`trimClip` leaves `timeRemap` untouched on a head trim; this is
 deferred to Gate M.**
 
-## Not implemented in Gate H
+## Gate I: Properties, Keyframing and Transform Gizmo
 
-Crop, and any UI for keyframes. Effects and masks exist as schema/types only; transitions are shape only.
+### Clip Properties & Crop
+
+- Property IDs: `position` [x, y], `scale` [x, y], `rotation` (degrees), `opacity` (0–1), `anchor` [x, y], and `crop` [left, top, right, bottom] (0–1 fractions).
+- Crop insets are clamped such that `left + right < 1` and `top + bottom < 1`, preserving at least 1% visible content.
+
+### Legacy `clip.transform` Policy
+
+- The Inspector treats `clip.properties` as the single source of truth.
+- On the first Inspector edit of a clip containing a legacy static `clip.transform`, `migrateLegacyTransform(clip)` converts it to constant entries in `clip.properties` and removes `clip.transform` within that same single recorded history entry.
+- Reading continues to fall back to `clip.transform` transparently for Phase 1 projects that have not been modified.
+
+### Inspector Editing Semantics
+
+- Editing a constant property replaces the constant value.
+- Editing an animated property auto-keys at the playhead time (frame-snapped).
+- Scrubbing inputs coalesces into a single undo step.
+- Stopwatch toggles animation on/off: turning on creates a keyframe at the playhead; turning off flattens the property to the current value.
+
+### On-Canvas Gizmo Math & Coordinate Spaces
+
+- Coordinate transformation hierarchy:
+  1. **Monitor CSS px → Composition px**: Divide by `monitorScale` (monitor pixels per composition pixel, incorporating fit scale and user zoom).
+  2. **Composition px → Clip-Local Layer Space**: Subtract the pivot $T = (W/2 + x + ax, H/2 + y + ay)$, apply inverse rotation $R(-\theta)$, and divide by scale $(s_x, s_y)$.
+- `layerAffine` is the single source of truth for mapping the unit quad $(u, v) \in [0, 1]^2$ to composition pixels (y down).
+- **Pivot & Anchor Math**:
+  When dragging the anchor handle, the anchor point moves in composition space to the pointer location. The `position` property is simultaneously compensated via `positionForPivot` so that the layer content does not visually shift on the screen.
+- **Snapping**:
+  Bounding box features (left, center, right; top, middle, bottom) snap to composition guides (center, edges, third lines, safe areas) within a tolerance in composition pixels.
+
+## Gate J: Effect Parameter Keyframing
+
+Effect parameters use dynamic property IDs adhering to the pattern:
+
+```
+effect:<type>:<instanceId>:<paramName>
+```
+
+- **Universal Contract**: By implementing dynamic lookup in `descriptorFor(propertyId)` (`core/properties.ts`), all effect parameters inherit the full animation infrastructure:
+  - Linear, hold, and bezier ease curve evaluation via `core/animation.ts`.
+  - Inspector stopwatch toggles, keyframe diamond steppers, and auto-keying at current playhead.
+  - Timeline keyframe diamond lanes with drag-move, drag-box marquee selection, copy (`mod+c`), paste (`mod+v`), and delete (`delete`).
+  - Graph Editor cubic bezier visual manipulation (`shift+g`) and Easy Ease (`f9`).
+- **Splitting & Retiming**:
+  - `splitAnimatedValue` and `retimeAnimatedValue` cleanly subdivide and shift effect parameter keyframes when clips are trimmed or split on the timeline.

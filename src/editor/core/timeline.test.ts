@@ -402,7 +402,9 @@ describe('timeline queries and clip operations', () => {
 				for (let index = 0; index < clips.length; index += 1) {
 					const clip = clips[index]!;
 					expect(clip.sourceIn).toBeLessThan(clip.sourceOut);
-					expect(clip.sourceOut).toBeLessThanOrEqual(current.assets[clip.assetId]!.duration);
+					if (clip.assetId) {
+						expect(clip.sourceOut).toBeLessThanOrEqual(current.assets[clip.assetId]!.duration);
+					}
 					const next = clips[index + 1];
 					if (next) expect(clipEnd(clip)).toBeLessThanOrEqual(next.start);
 				}

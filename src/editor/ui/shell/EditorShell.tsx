@@ -18,6 +18,7 @@ import SaveCopyPrompt from '../project/SaveCopyPrompt';
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog';
 import MediaLibrary from '../media-library/MediaLibrary';
 import Timeline from '../timeline/Timeline';
+import Inspector from '../inspector/Inspector';
 import { importTfve } from '../../services/interop/native';
 import {
 	createEditorShortcutRegistry,
@@ -31,6 +32,8 @@ import type { ResizeHandle } from '../../state/store';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
 import SourceMonitor from '../preview/SourceMonitor';
 import ExportDialog from '../export/ExportDialog';
+import EffectsLibrary from '../effects/EffectsLibrary';
+import ColorPanel from '../color/ColorPanel';
 
 interface PanelLayoutStyle extends CSSProperties {
 	'--media-panel-width': string;
@@ -79,9 +82,15 @@ function EditorShell() {
 	const openSaveCopyPrompt = useEditorStore((state) => state.openSaveCopyPrompt);
 	const setProjectMessage = useEditorStore((state) => state.setProjectMessage);
 	const replaceProject = useEditorStore((state) => state.replaceProject);
+	const keyframeSelection = useEditorStore((state) => state.keyframes.selection);
+	const keyframeClipboard = useEditorStore((state) => state.keyframes.clipboard);
+	const effectsClipboard = useEditorStore((state) => state.effectsClipboard);
+	const selectedClipIds = useEditorStore((state) => state.timeline.selection.clipIds);
 	const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
 	const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
 	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+	const [leftTab, setLeftTab] = useState<'project' | 'effects'>('project');
+	const [inspectorTab, setInspectorTab] = useState<'properties' | 'color'>('properties');
 	const shortcutReturnFocusRef = useRef<HTMLElement | null>(null);
 	const shortcutPlatform = detectShortcutPlatform();
 	const undoShortcut = shortcutPlatform === 'mac' ? '⌘Z' : 'Ctrl+Z';
@@ -213,7 +222,14 @@ function EditorShell() {
 			'previous-edit': () => seekEdit(-1),
 			'next-edit': () => seekEdit(1),
 			split: () => state().splitAtPlayhead(),
-			delete: () => state().deleteSelection(),
+			delete: () => {
+				const current = state();
+				if (current.keyframes.selection.length > 0) {
+					current.deleteSelectedKeyframes();
+					return;
+				}
+				current.deleteSelection();
+			},
 			'ripple-delete': () => state().rippleDeleteSelection(),
 			duplicate: () => state().duplicateSelection(),
 			'select-all': () => {
@@ -267,7 +283,40 @@ function EditorShell() {
 			'import-media': () => {
 				document.querySelector<HTMLInputElement>('input[name="media-files"]')?.click();
 			},
-			'cheat-sheet': openShortcutsDialog
+			'cheat-sheet': openShortcutsDialog,
+			'toggle-keyframe': () => {
+				const current = state();
+				const clipId = current.timeline.selection.clipIds[0];
+				if (!clipId || !current.project) return;
+				const clip = current.project.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
+				if (!clip) return;
+				const animatedProps = Object.entries(clip.properties ?? {}).filter(
+					([, v]) => typeof v === 'object' && v !== null && 'keyframes' in v
+				);
+				if (animatedProps.length > 0) {
+					for (const [propId] of animatedProps) current.toggleKeyframe(clipId, propId);
+				} else {
+					current.toggleKeyframe(clipId, 'position');
+				}
+			},
+			'prev-keyframe': () => {
+				state().prevKeyframe();
+			},
+			'next-keyframe': () => {
+				state().nextKeyframe();
+			},
+			'easy-ease': () => {
+				state().easyEase();
+			},
+			'toggle-graph-editor': () => {
+				state().toggleGraphEditor();
+			},
+			'toggle-keyframe-lanes': () => {
+				state().toggleKeyframeLanes();
+			},
+			'toggle-scopes': () => {
+				state().toggleScopesOpen();
+			}
 		});
 	}, [editorStore, openShortcutsDialog]);
 
@@ -594,6 +643,142 @@ function EditorShell() {
 									>
 										Ripple Delete <span>Shift+Delete</span>
 									</button>
+									<hr />
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project || selectedClipIds.length === 0}
+										onClick={() => {
+											const current = editorStore.getState();
+											const clipId = current.timeline.selection.clipIds[0];
+											if (clipId && current.project) {
+												const clip = current.project.tracks
+													.flatMap((t) => t.clips)
+													.find((c) => c.id === clipId);
+												if (clip) {
+													const animatedProps = Object.entries(clip.properties ?? {}).filter(
+														([, v]) => typeof v === 'object' && v !== null && 'keyframes' in v
+													);
+													if (animatedProps.length > 0) {
+														for (const [propId] of animatedProps)
+															current.toggleKeyframe(clipId, propId);
+													} else {
+														current.toggleKeyframe(clipId, 'position');
+													}
+												}
+											}
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Add / Remove Keyframe <span>⌥K</span>
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project}
+										onClick={() => {
+											editorStore.getState().prevKeyframe();
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Previous Keyframe <span>⌥J</span>
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project}
+										onClick={() => {
+											editorStore.getState().nextKeyframe();
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Next Keyframe <span>⌥L</span>
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project || keyframeSelection.length === 0}
+										onClick={() => {
+											editorStore.getState().easyEase();
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Easy Ease <span>F9</span>
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project || keyframeSelection.length === 0}
+										onClick={() => {
+											editorStore.getState().copySelectedKeyframes();
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Copy Keyframes <span>⌘C</span>
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project || !keyframeClipboard || selectedClipIds.length === 0}
+										onClick={() => {
+											editorStore.getState().pasteKeyframes();
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Paste Keyframes <span>⌘V</span>
+									</button>
+									<hr />
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project}
+										onClick={() => {
+											editorStore.getState().addAdjustmentLayer();
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Add Adjustment Layer
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project}
+										onClick={() => {
+											editorStore.getState().addSolidLayer();
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Add Solid Color...
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project || selectedClipIds.length === 0}
+										onClick={() => {
+											const clipId = selectedClipIds[0];
+											if (clipId) editorStore.getState().copyClipEffects(clipId);
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Copy Clip Effects
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={
+											!project ||
+											!effectsClipboard ||
+											effectsClipboard.length === 0 ||
+											selectedClipIds.length === 0
+										}
+										onClick={() => {
+											const clipId = selectedClipIds[0];
+											if (clipId) editorStore.getState().pasteClipEffects(clipId);
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Paste Clip Effects
+									</button>
 								</div>
 							)}
 						</div>
@@ -797,12 +982,25 @@ function EditorShell() {
 					aria-labelledby="project-panel-title"
 				>
 					<div className="panel-tabs" role="group" aria-label="Project panel">
-						<span className="panel-tab is-active" id="project-panel-title" aria-current="page">
+						<button
+							type="button"
+							className={`panel-tab ${leftTab === 'project' ? 'is-active' : ''}`}
+							id="project-panel-title"
+							onClick={() => setLeftTab('project')}
+						>
 							Project
-						</span>
+						</button>
+						<button
+							type="button"
+							className={`panel-tab ${leftTab === 'effects' ? 'is-active' : ''}`}
+							id="effects-panel-title"
+							onClick={() => setLeftTab('effects')}
+						>
+							Effects
+						</button>
 					</div>
 					<div className="project-panel-content">
-						<MediaLibrary />
+						{leftTab === 'project' ? <MediaLibrary /> : <EffectsLibrary />}
 					</div>
 				</section>
 
@@ -844,41 +1042,24 @@ function EditorShell() {
 					aria-labelledby="inspector-title"
 				>
 					<div className="panel-tabs" role="group" aria-label="Utility panel">
-						<span className="panel-tab is-active" id="inspector-title" aria-current="page">
+						<button
+							type="button"
+							className={`panel-tab ${inspectorTab === 'properties' ? 'is-active' : ''}`}
+							id="inspector-title"
+							onClick={() => setInspectorTab('properties')}
+						>
 							Properties
-						</span>
+						</button>
+						<button
+							type="button"
+							className={`panel-tab ${inspectorTab === 'color' ? 'is-active' : ''}`}
+							id="color-panel-title"
+							onClick={() => setInspectorTab('color')}
+						>
+							Color
+						</button>
 					</div>
-					<div className="inspector-empty">
-						<div className="properties-section">
-							<h3>Clip Properties</h3>
-							<p>
-								{project
-									? 'Clip selection and properties editing are planned for a later phase.'
-									: 'Open a project to view its properties.'}
-							</p>
-						</div>
-						{project && (
-							<div className="properties-section">
-								<h3>Sequence</h3>
-								<dl className="sequence-details">
-									<div>
-										<dt>Frame size</dt>
-										<dd>
-											{project.settings.width} × {project.settings.height}
-										</dd>
-									</div>
-									<div>
-										<dt>Frame rate</dt>
-										<dd>{project.settings.fps} fps</dd>
-									</div>
-									<div>
-										<dt>Audio sample rate</dt>
-										<dd>{project.settings.sampleRate.toLocaleString()} Hz</dd>
-									</div>
-								</dl>
-							</div>
-						)}
-					</div>
+					{inspectorTab === 'properties' ? <Inspector /> : <ColorPanel />}
 				</aside>
 
 				{resizeHandle('timeline', 'Resize timeline height', 'horizontal')}

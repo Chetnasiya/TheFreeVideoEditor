@@ -1,0 +1,223 @@
+.color-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	background: var(--color-canvas);
+	color: var(--color-body);
+	font-family: var(--font-sans);
+	font-size: var(--text-body-sm);
+}
+
+.color-panel-tabs {
+	display: flex;
+	border-bottom: 1px solid var(--color-hairline);
+	background: var(--color-canvas);
+	padding: 0 4px;
+}
+
+.color-tab-btn {
+	padding: 6px 12px;
+	border: none;
+	background: transparent;
+	color: var(--color-mute);
+	font-size: 0.75rem;
+	font-weight: var(--font-weight-medium);
+	cursor: pointer;
+	border-bottom: 2px solid transparent;
+	transition: all 0.15s ease;
+}
+
+.color-tab-btn:hover {
+	color: var(--color-ink);
+}
+
+.color-tab-btn.is-active {
+	color: var(--color-ink);
+	border-bottom-color: var(--color-primary);
+}
+
+.color-tab-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: var(--spacing-sm);
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.color-slider-row {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.color-slider-label {
+	display: flex;
+	justify-content: space-between;
+	font-size: 0.75rem;
+	color: var(--color-mute);
+}
+
+.color-slider-val {
+	font-family: var(--font-mono);
+	color: var(--color-ink);
+}
+
+.color-range-input {
+	width: 100%;
+	height: 4px;
+	border-radius: 2px;
+	background: var(--color-hairline);
+	accent-color: var(--color-primary);
+	cursor: pointer;
+}
+
+/* Curves Editor */
+.curves-container {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.curves-channel-tabs {
+	display: flex;
+	gap: 4px;
+}
+
+.curves-channel-btn {
+	padding: 2px 8px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--color-hairline);
+	background: var(--color-canvas-elevated);
+	color: var(--color-mute);
+	font-size: 0.6875rem;
+	cursor: pointer;
+}
+
+.curves-channel-btn.is-active {
+	color: var(--color-ink);
+	font-weight: var(--font-weight-medium);
+	border-color: var(--color-primary);
+}
+
+.curves-channel-btn.is-red.is-active {
+	border-color: #ef4444;
+	color: #ef4444;
+}
+
+.curves-channel-btn.is-green.is-active {
+	border-color: #22c55e;
+	color: #22c55e;
+}
+
+.curves-channel-btn.is-blue.is-active {
+	border-color: #3b82f6;
+	color: #3b82f6;
+}
+
+.curves-svg-box {
+	width: 100%;
+	aspect-ratio: 1;
+	background: #111;
+	border: 1px solid var(--color-hairline);
+	border-radius: var(--radius-sm);
+	cursor: crosshair;
+	touch-action: none;
+}
+
+.curves-help-text {
+	font-size: 0.6875rem;
+	color: var(--color-mute);
+	text-align: center;
+}
+
+/* Color Wheels */
+.wheels-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.wheel-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding: 8px;
+	background: var(--color-canvas-elevated);
+	border: 1px solid var(--color-hairline-soft);
+	border-radius: var(--radius-sm);
+}
+
+.wheel-title {
+	font-size: 0.75rem;
+	font-weight: var(--font-weight-medium);
+	color: var(--color-ink);
+}
+
+.wheel-svg {
+	width: 130px;
+	height: 130px;
+	border-radius: 50%;
+	cursor: crosshair;
+	touch-action: none;
+}
+
+.wheel-puck {
+	fill: #fff;
+	stroke: #000;
+	stroke-width: 1.5;
+	filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.wheel-luma-slider {
+	width: 120px;
+	height: 4px;
+	accent-color: var(--color-primary);
+}
+
+/* LUT Tab */
+.lut-container {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.lut-select-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.lut-select {
+	padding: 6px 10px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--color-hairline);
+	background: var(--color-canvas-elevated);
+	color: var(--color-ink);
+	font-size: 0.75rem;
+}
+
+.lut-dropzone {
+	border: 2px dashed var(--color-hairline);
+	border-radius: var(--radius-sm);
+	padding: var(--spacing-md);
+	text-align: center;
+	cursor: pointer;
+	transition: border-color 0.15s ease;
+}
+
+.lut-dropzone:hover,
+.lut-dropzone.is-drag-over {
+	border-color: var(--color-primary);
+}
+
+.lut-error-msg {
+	padding: 6px 10px;
+	border-radius: var(--radius-sm);
+	background: rgba(239, 68, 68, 0.1);
+	border: 1px solid rgba(239, 68, 68, 0.3);
+	color: #ef4444;
+	font-size: 0.75rem;
+}

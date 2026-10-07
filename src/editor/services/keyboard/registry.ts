@@ -119,6 +119,7 @@ function platformLabel(combo: string, platform: ShortcutPlatform): string {
 		if (key === 'arrowleft') return '←';
 		if (key === 'arrowright') return '→';
 		if (key === 'escape') return 'Esc';
+		if (/^f\d+$/i.test(key)) return key.toUpperCase();
 		return part.length === 1 ? part.toUpperCase() : part;
 	});
 	return parts.join(platform === 'mac' ? '' : '+');
@@ -567,6 +568,69 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			group: 'Help',
 			scope: 'editor',
 			handler: action('cheat-sheet'),
+			preventDefault: true
+		},
+		{
+			id: 'toggle-keyframe',
+			keys: { mac: 'alt+k', other: 'alt+k' },
+			label: 'Add / Remove Keyframe',
+			group: 'Animation',
+			scope: 'editor',
+			handler: action('toggle-keyframe'),
+			preventDefault: true
+		},
+		{
+			id: 'prev-keyframe',
+			keys: { mac: 'alt+j', other: 'alt+j' },
+			label: 'Previous Keyframe',
+			group: 'Animation',
+			scope: 'editor',
+			handler: action('prev-keyframe'),
+			preventDefault: true
+		},
+		{
+			id: 'next-keyframe',
+			keys: { mac: 'alt+l', other: 'alt+l' },
+			label: 'Next Keyframe',
+			group: 'Animation',
+			scope: 'editor',
+			handler: action('next-keyframe'),
+			preventDefault: true
+		},
+		{
+			id: 'easy-ease',
+			keys: { mac: 'f9', other: 'f9' },
+			label: 'Easy Ease',
+			group: 'Animation',
+			scope: 'editor',
+			handler: action('easy-ease'),
+			preventDefault: true
+		},
+		{
+			id: 'toggle-graph-editor',
+			keys: { mac: 'shift+g', other: 'shift+g' },
+			label: 'Toggle Graph Editor',
+			group: 'Animation',
+			scope: 'editor',
+			handler: action('toggle-graph-editor'),
+			preventDefault: true
+		},
+		{
+			id: 'toggle-keyframe-lanes',
+			keys: { mac: 'u', other: 'u' },
+			label: 'Toggle Keyframe Lanes',
+			group: 'Animation',
+			scope: 'editor',
+			handler: action('toggle-keyframe-lanes'),
+			preventDefault: true
+		},
+		{
+			id: 'toggle-scopes',
+			keys: { mac: 'alt+w', other: 'alt+w' },
+			label: 'Toggle Video Scopes',
+			group: 'View',
+			scope: 'editor',
+			handler: action('toggle-scopes'),
 			preventDefault: true
 		}
 	];

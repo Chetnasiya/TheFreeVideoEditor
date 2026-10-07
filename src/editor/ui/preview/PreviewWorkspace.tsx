@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Project } from '../../core';
+import { projectNeedsGpu, type Project } from '../../core';
 import { createPlaybackEngine, type PlaybackEngine } from '../../services/playback/engine';
 import { selectRenderer } from '../../services/render';
 import { attachPlaybackTestHooks } from '../../services/playback/testHooks';
-import { useEditorStoreApi } from '../../state/EditorProvider';
+import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import PreviewPlayer from './PreviewPlayer';
+import ScopesPanel from './ScopesPanel';
 import TransportBar from './TransportBar';
 import './preview.css';
 
@@ -20,17 +21,14 @@ export default function PreviewWorkspace({
 	onEngineChange
 }: PreviewWorkspaceProps) {
 	const store = useEditorStoreApi();
+	const scopesOpen = useEditorStore((state) => state.scopes.open);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const currentProject = useRef(project);
 	const engineChange = useRef(onEngineChange);
 	const [engine, setEngine] = useState<PlaybackEngine | null>(null);
 	const [zoom, setZoom] = useState('fit');
-	// Chosen once per opened project: a canvas can only ever hold one context type.
-	const renderer = useMemo(
-		() => selectRenderer(currentProject.current),
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[project?.id]
-	);
+	const needsGpu = Boolean(project && projectNeedsGpu(project));
+	const renderer = useMemo(() => selectRenderer(project), [project?.id, needsGpu]);
 	currentProject.current = project;
 	engineChange.current = onEngineChange;
 
@@ -60,13 +58,19 @@ export default function PreviewWorkspace({
 
 	return (
 		<div className="preview-panel-content">
-			<PreviewPlayer
-				project={project}
-				engine={engine}
-				zoom={zoom}
-				canvasRef={canvasRef}
-				renderer={renderer}
-			/>
+			<div
+				className="preview-stage-row"
+				style={{ display: 'flex', flex: 1, minHeight: 0, width: '100%' }}
+			>
+				<PreviewPlayer
+					project={project}
+					engine={engine}
+					zoom={zoom}
+					canvasRef={canvasRef}
+					renderer={renderer}
+				/>
+				{scopesOpen && <ScopesPanel engine={engine} />}
+			</div>
 			{project && (
 				<TransportBar
 					engine={engine?.projectId === project.id ? engine : null}

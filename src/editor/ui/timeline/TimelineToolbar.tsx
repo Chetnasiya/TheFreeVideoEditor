@@ -4,6 +4,10 @@ interface TimelineToolbarProps {
 	clipCount: number;
 	snapEnabled: boolean;
 	pixelsPerSecond: number;
+	showLanes?: 'selected' | 'all' | 'off';
+	onToggleKeyframes?: () => void;
+	graphOpen?: boolean;
+	onToggleGraph?: () => void;
 	onSplit: () => void;
 	onDelete: () => void;
 	onRippleDelete: () => void;
@@ -11,6 +15,8 @@ interface TimelineToolbarProps {
 	onZoom: (value: number) => void;
 	onFit: () => void;
 	onAddTrack: (kind: 'video' | 'audio') => void;
+	onAddAdjustment?: () => void;
+	onAddSolid?: () => void;
 }
 
 export default function TimelineToolbar({
@@ -19,13 +25,19 @@ export default function TimelineToolbar({
 	clipCount,
 	snapEnabled,
 	pixelsPerSecond,
+	showLanes = 'selected',
+	onToggleKeyframes,
+	graphOpen = false,
+	onToggleGraph,
 	onSplit,
 	onDelete,
 	onRippleDelete,
 	onToggleSnap,
 	onZoom,
 	onFit,
-	onAddTrack
+	onAddTrack,
+	onAddAdjustment,
+	onAddSolid
 }: TimelineToolbarProps) {
 	return (
 		<div className="timeline-toolbar-row">
@@ -63,6 +75,28 @@ export default function TimelineToolbar({
 				>
 					Snap
 				</button>
+				{onToggleKeyframes && (
+					<button
+						className={`tool-button ${showLanes !== 'off' ? 'is-active' : ''}`}
+						type="button"
+						onClick={onToggleKeyframes}
+						title={`Keyframes: ${showLanes} (Cmd+K)`}
+						aria-label={`Keyframes display mode: ${showLanes}`}
+					>
+						◆ Keyframes{showLanes === 'all' ? ' (All)' : showLanes === 'off' ? ' (Off)' : ''}
+					</button>
+				)}
+				{onToggleGraph && (
+					<button
+						className={`tool-button ${graphOpen ? 'is-active' : ''}`}
+						type="button"
+						onClick={onToggleGraph}
+						title="Toggle Graph Editor (Shift+G)"
+						aria-pressed={graphOpen}
+					>
+						Graph
+					</button>
+				)}
 			</div>
 			<div className="timeline-tool-group">
 				<button type="button" className="tool-button" onClick={() => onAddTrack('video')}>
@@ -71,6 +105,26 @@ export default function TimelineToolbar({
 				<button type="button" className="tool-button" onClick={() => onAddTrack('audio')}>
 					+ Audio Track
 				</button>
+				{onAddAdjustment && (
+					<button
+						type="button"
+						className="tool-button"
+						onClick={onAddAdjustment}
+						title="Add adjustment layer across sequence"
+					>
+						+ Adjustment
+					</button>
+				)}
+				{onAddSolid && (
+					<button
+						type="button"
+						className="tool-button"
+						onClick={onAddSolid}
+						title="Add solid color layer"
+					>
+						+ Solid
+					</button>
+				)}
 			</div>
 			<div className="timeline-tool-group timeline-zoom-tools">
 				<label>

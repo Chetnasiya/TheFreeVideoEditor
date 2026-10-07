@@ -9,7 +9,7 @@ function clipXml(
 	clip: Track['clips'][number],
 	ref: string
 ): string {
-	const asset = trackAsset(project, clip.assetId);
+	const asset = trackAsset(project, clip.assetId!);
 	const start = frames(clip.start, project);
 	const duration = Math.max(1, frames(clip.duration, project));
 	const sourceIn = frames(clip.sourceIn, project);
@@ -57,7 +57,7 @@ export function exportFcpxml(project: Project, options: InteropOptions = {}): st
 					`<gap name="Gap" offset="${secondsAsRational(cursor, fps)}" duration="${secondsAsRational(start - cursor, fps)}"/>`
 				);
 			}
-			const ref = assetRefs.get(clip.assetId);
+			const ref = clip.assetId ? assetRefs.get(clip.assetId) : undefined;
 			if (ref) spineChildren.push(clipXml(project, primary, clip, ref));
 			cursor = start + Math.max(1, frames(clip.duration, project));
 		}
@@ -65,12 +65,14 @@ export function exportFcpxml(project: Project, options: InteropOptions = {}): st
 	const connected = tracks
 		.filter((track) => track !== primary)
 		.flatMap((track, index) =>
-			track.clips.map((clip) => {
-				const ref = assetRefs.get(clip.assetId);
-				if (!ref) return '';
-				const lane = index + 1;
-				return `<asset-clip lane="${lane}" name="${escapeXml(track.name)} — ${escapeXml(trackAsset(project, clip.assetId).name)}" offset="${secondsAsRational(frames(clip.start, project), fps)}" start="${secondsAsRational(frames(clip.sourceIn, project), fps)}" duration="${secondsAsRational(Math.max(1, frames(clip.duration, project)), fps)}" ref="${ref}" enabled="${track.hidden || track.muted ? '0' : '1'}"/>`;
-			})
+			track.clips
+				.filter((clip) => Boolean(clip.assetId))
+				.map((clip) => {
+					const ref = assetRefs.get(clip.assetId!);
+					if (!ref) return '';
+					const lane = index + 1;
+					return `<asset-clip lane="${lane}" name="${escapeXml(track.name)} — ${escapeXml(trackAsset(project, clip.assetId!).name)}" offset="${secondsAsRational(frames(clip.start, project), fps)}" start="${secondsAsRational(frames(clip.sourceIn, project), fps)}" duration="${secondsAsRational(Math.max(1, frames(clip.duration, project)), fps)}" ref="${ref}" enabled="${track.hidden || track.muted ? '0' : '1'}"/>`;
+				})
 		)
 		.join('');
 	const duration = Math.max(1, frames(timelineDuration(project), project));

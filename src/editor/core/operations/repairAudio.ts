@@ -18,7 +18,7 @@ export function removeOrphanedLinkedAudioClips(project: Project): OrphanedAudioR
 			.filter((track) => track.kind === 'video')
 			.flatMap((track) =>
 				track.clips.flatMap((clip) =>
-					noAudioAssetIds.has(clip.assetId) && clip.linkId ? [clip.linkId] : []
+					clip.assetId && noAudioAssetIds.has(clip.assetId) && clip.linkId ? [clip.linkId] : []
 				)
 			)
 	);
@@ -29,7 +29,7 @@ export function removeOrphanedLinkedAudioClips(project: Project): OrphanedAudioR
 	const tracks = project.tracks.map((track) => {
 		if (track.kind === 'video') {
 			const clips = track.clips.map((clip) => {
-				if (!noAudioAssetIds.has(clip.assetId) || !clip.linkId) return clip;
+				if (!clip.assetId || !noAudioAssetIds.has(clip.assetId) || !clip.linkId) return clip;
 				const next = { ...clip };
 				delete next.linkId;
 				changed = true;

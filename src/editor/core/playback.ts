@@ -2,6 +2,8 @@ import { timelineToSource } from './timeRemap';
 import { clipEnd, timelineDuration } from './timeline';
 import { evaluateOr } from './animation';
 import { clampCrop, isCrop, isDefaultCrop, type Crop } from './crop';
+import { evaluateEffect } from './effects/instance';
+import type { EvaluatedEffect } from './effects/types';
 import type {
 	AnimatedValue,
 	AssetId,
@@ -79,11 +81,11 @@ export function evaluateLayerProperties(
 
 export interface ActiveLayer {
 	clipId: Clip['id'];
-	assetId: AssetId;
+	assetId?: AssetId;
 	trackId: TrackId;
 	trackOrder: number;
 	sourceTime: Time;
-	kind: 'video' | 'image';
+	kind: 'video' | 'image' | 'solid' | 'adjustment';
 	opacity: number;
 	transform?: Clip['transform'];
 	/** Pivot offset from the layer center, in composition pixels. */
@@ -91,6 +93,8 @@ export interface ActiveLayer {
 	blendMode?: BlendMode;
 	/** Source insets [left, top, right, bottom] as fractions; the visible part keeps its position. */
 	crop?: Crop;
+	solidColor?: { r: number; g: number; b: number; a: number };
+	effects?: EvaluatedEffect[];
 }
 
 export interface ActiveAudio {
@@ -125,6 +129,46 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 
 		for (const clip of track.clips) {
 			if (time < clip.start || time >= clipEnd(clip)) continue;
+			const localTime = time - clip.start;
+			const evaluatedEffects =
+				clip.effects && clip.effects.length > 0
+					? clip.effects.map((eff) => evaluateEffect(eff, localTime))
+					: undefined;
+
+			if (clip.source?.type === 'adjustment') {
+				if (track.kind === 'video') {
+					videoLayers.push({
+						clipId: clip.id,
+						trackId: track.id,
+						trackOrder,
+						sourceTime: localTime,
+						kind: 'adjustment',
+						opacity: 1,
+						effects: evaluatedEffects,
+						...evaluateLayerProperties(clip, localTime)
+					});
+				}
+				continue;
+			}
+
+			if (clip.source?.type === 'solid') {
+				if (track.kind === 'video') {
+					videoLayers.push({
+						clipId: clip.id,
+						trackId: track.id,
+						trackOrder,
+						sourceTime: localTime,
+						kind: 'solid',
+						solidColor: clip.source.color,
+						opacity: 1,
+						effects: evaluatedEffects,
+						...evaluateLayerProperties(clip, localTime)
+					});
+				}
+				continue;
+			}
+
+			if (!clip.assetId) continue;
 			const asset = project.assets[clip.assetId];
 			if (!asset) continue;
 			if (asset.offline) {
@@ -142,7 +186,8 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 					sourceTime,
 					kind: asset.kind,
 					opacity: 1,
-					...evaluateLayerProperties(clip, time - clip.start)
+					effects: evaluatedEffects,
+					...evaluateLayerProperties(clip, localTime)
 				});
 			} else if (track.kind === 'audio' && asset.hasAudio) {
 				audioSources.push({

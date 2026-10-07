@@ -7,7 +7,7 @@ function rateXml(fps: number): string {
 
 function fileXml(
 	project: Project,
-	assetId: Track['clips'][number]['assetId'],
+	assetId: import('../../core').AssetId,
 	options: InteropOptions
 ): string {
 	const asset = trackAsset(project, assetId);
@@ -25,6 +25,7 @@ function clipItemXml(
 	trackIndex: number,
 	options: InteropOptions
 ): string {
+	if (!clip.assetId) return '';
 	const asset = trackAsset(project, clip.assetId);
 	const start = frames(clip.start, project);
 	const duration = Math.max(1, frames(clip.duration, project));
@@ -64,6 +65,7 @@ export function exportXmeml(project: Project, options: InteropOptions = {}): str
 			.map(
 				({ track, trackIndex }) =>
 					`<track><enabled>${track.hidden || track.muted ? 0 : 1}</enabled><locked>${track.locked ? 1 : 0}</locked>${track.clips
+						.filter((clip) => Boolean(clip.assetId))
 						.toSorted((a, b) => a.start - b.start)
 						.map((clip) => clipItemXml(project, track, clip, trackIndex, options))
 						.join('')}</track>`

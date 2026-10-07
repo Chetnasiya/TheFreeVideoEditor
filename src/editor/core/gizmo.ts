@@ -390,7 +390,7 @@ export function compositionGuides(width: number, height: number): Guide[] {
 	return guides;
 }
 
-export interface SnapResult {
+export interface GizmoSnapResult {
 	dx: number;
 	dy: number;
 	hits: Guide[];
@@ -404,8 +404,8 @@ export function snapToGuides(
 	box: { left: number; top: number; right: number; bottom: number },
 	guides: readonly Guide[],
 	tolerance: number
-): SnapResult {
-	const result: SnapResult = { dx: 0, dy: 0, hits: [] };
+): GizmoSnapResult {
+	const result: GizmoSnapResult = { dx: 0, dy: 0, hits: [] };
 	const features = {
 		x: [box.left, (box.left + box.right) / 2, box.right],
 		y: [box.top, (box.top + box.bottom) / 2, box.bottom]

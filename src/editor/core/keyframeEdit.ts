@@ -105,10 +105,27 @@ function curveOf(clip: Clip, id: PropertyId): AnimatedValue<PropertyValue> | und
 }
 
 function withCurve(clip: Clip, id: PropertyId, curve: AnimatedValue<PropertyValue>): Clip {
+	if (id.startsWith('effect:')) {
+		const parts = id.split(':');
+		if (parts.length >= 4) {
+			const [, , effectId, paramName] = parts;
+			const effects = (clip.effects ?? []).map((eff) => {
+				if (eff.id !== effectId) return eff;
+				return {
+					...eff,
+					params: {
+						...eff.params,
+						[paramName!]: curve as AnimatedValue<unknown>
+					}
+				};
+			});
+			return { ...clip, effects };
+		}
+	}
 	return { ...clip, properties: { ...clip.properties, [id]: curve as AnimatedValue<unknown> } };
 }
 
-function keyframesOf(curve: AnimatedValue<PropertyValue>): Keyframe<PropertyValue>[] {
+export function keyframesOf(curve: AnimatedValue<PropertyValue>): Keyframe<PropertyValue>[] {
 	return isAnimated(curve) ? curve.keyframes : [];
 }
 

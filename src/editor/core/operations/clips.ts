@@ -46,11 +46,15 @@ function fitsTrack(asset: Asset, track: Track, linkId?: string): boolean {
 		: asset.kind === 'audio' || (asset.kind === 'video' && Boolean(asset.hasAudio && linkId));
 }
 
-function insertClip(project: Project, trackId: TrackId, clip: Clip): Project {
+export function insertClip(project: Project, trackId: TrackId, clip: Clip): Project {
 	const track = findTrack(project, trackId);
 	if (track.locked) throw new TrackLockedError(track.id);
-	if (!fitsTrack(project.assets[clip.assetId]!, track, clip.linkId))
-		throw new TrackKindMismatchError();
+	if (clip.assetId) {
+		const asset = project.assets[clip.assetId];
+		if (asset && !fitsTrack(asset, track, clip.linkId)) throw new TrackKindMismatchError();
+	} else if (clip.source?.type === 'adjustment' || clip.source?.type === 'solid') {
+		if (track.kind !== 'video') throw new TrackKindMismatchError();
+	}
 	if (findFreeGap(track, clip.start, clip.duration) === null) throw new NoSpaceError();
 	return tracksWithClips(project, (current) =>
 		current.id === trackId
@@ -153,9 +157,13 @@ export function moveClips(project: Project, args: MoveClipsArgs): Project {
 				? findTrack(project, args.targetTrackId)
 				: findTrack(project, track.id);
 		if (destination.locked) throw new TrackLockedError(destination.id);
-		const asset = project.assets[clip.assetId];
-		const audioSource = track.kind === 'audio' ? (clip.linkId ?? 'detached-audio') : clip.linkId;
-		if (!asset || !fitsTrack(asset, destination, audioSource)) throw new TrackKindMismatchError();
+		if (clip.assetId) {
+			const asset = project.assets[clip.assetId];
+			const audioSource = track.kind === 'audio' ? (clip.linkId ?? 'detached-audio') : clip.linkId;
+			if (!asset || !fitsTrack(asset, destination, audioSource)) throw new TrackKindMismatchError();
+		} else if (destination.kind !== 'video') {
+			throw new TrackKindMismatchError();
+		}
 		const desiredStart = Math.max(0, clip.start + (desiredAnchor - anchor.clip.start));
 		return { clip, destination, desiredStart };
 	});
@@ -236,8 +244,9 @@ export function trimClip(
 			project.tracks.find((row) => row.clips.includes(member))!.id
 		);
 		if (memberTrack.locked) throw new TrackLockedError(memberTrack.id);
-		const asset = project.assets[member.assetId];
-		if (!asset) throw new AssetNotFoundError(member.assetId);
+		const asset = member.assetId ? project.assets[member.assetId] : null;
+		if (member.assetId && !asset) throw new AssetNotFoundError(member.assetId);
+		const isStillLike = !asset || asset.kind === 'image';
 		let start = member.start;
 		let duration = member.duration;
 		let sourceIn = member.sourceIn;
@@ -247,7 +256,7 @@ export function trimClip(
 			const minimum = Math.min(frameDuration(project), member.duration);
 			const minStart = Math.max(0, member.start - member.sourceIn / member.speed);
 			start = Math.max(minStart, Math.min(end - minimum, requestedTime));
-			if (asset.kind === 'image') {
+			if (isStillLike) {
 				duration = end - start;
 				sourceIn = Math.max(0, member.sourceIn + Math.round((start - member.start) * member.speed));
 				sourceOut = sourceIn + Math.round(duration * member.speed);
@@ -259,10 +268,9 @@ export function trimClip(
 			}
 		} else {
 			const requestedEnd = Math.max(member.start + frameDuration(project), requestedTime);
-			const maxDuration =
-				asset.kind === 'image'
-					? requestedEnd - member.start
-					: Math.max(0, (asset.duration - member.sourceIn) / member.speed);
+			const maxDuration = isStillLike
+				? requestedEnd - member.start
+				: Math.max(0, ((asset?.duration ?? 0) - member.sourceIn) / member.speed);
 			duration = Math.max(
 				Math.min(frameDuration(project), maxDuration),
 				Math.min(requestedEnd - member.start, maxDuration)

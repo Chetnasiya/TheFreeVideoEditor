@@ -12,6 +12,7 @@ import type { LastGoodFrames } from '../playback/compositor';
 import { createFrameRenderer, type FrameRenderer, type RendererKind } from '../render';
 import { projectNeedsGpu } from '../../core/gpuFeatures';
 import { getMediaFile } from '../storage/opfs';
+import { ensureLutLoaded } from '../media/lutCache';
 import { audioSchedulesForChunk, decodeAudioAssets, mixAudioChunk } from './audioMix';
 import { ExportFrameProvider } from './frameProvider';
 import { buildExportPlan, type ExportPlan, type ExportSettings } from './plan';
@@ -163,6 +164,11 @@ async function exportTimelineMain(
 			preserveDrawingBuffer: true
 		});
 		if (!renderer) throw new ExportError('UNSUPPORTED_CODEC', 'Canvas rendering is unavailable.');
+		for (const asset of Object.values(snapshot.assets)) {
+			if (asset.kind === 'lut' && !asset.offline) {
+				await ensureLutLoaded(snapshot.id, asset, options.getFile);
+			}
+		}
 		const format = settings.format === 'mp4' ? new Mp4OutputFormat() : new WebMOutputFormat();
 		output = new Output({ format, target: sink.target });
 		const videoCodec =

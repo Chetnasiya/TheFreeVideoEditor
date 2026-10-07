@@ -111,6 +111,7 @@ export class MediaPool {
 			prewarm?: boolean;
 		}> = [];
 		for (const layer of resolved.videoLayers) {
+			if (!layer.assetId) continue;
 			const clip = findClip(this.project, layer.clipId);
 			const asset = this.project.assets[layer.assetId];
 			if (clip && asset) desired.push({ clip, asset, kind: 'video' });
@@ -134,6 +135,7 @@ export class MediaPool {
 				) {
 					continue;
 				}
+				if (!clip.assetId) continue;
 				const asset = this.project.assets[clip.assetId];
 				if (!asset || asset.offline) continue;
 				if (track.kind === 'video' && (asset.kind === 'video' || asset.kind === 'image')) {
@@ -190,6 +192,7 @@ export class MediaPool {
 	}
 
 	getFrameSource(layer: ActiveLayer, playing: boolean, rate: number): FrameSource | null {
+		if (!layer.assetId) return null;
 		const asset = this.project.assets[layer.assetId];
 		const clip = findClip(this.project, layer.clipId);
 		if (!asset || !clip || asset.offline) return null;

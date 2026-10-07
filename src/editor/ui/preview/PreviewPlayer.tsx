@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { resolveFrame } from '../../core';
+import { resolveFrame, projectNeedsGpu } from '../../core';
 import type { Project } from '../../core';
 import type { PlaybackEngine, PlaybackSnapshot } from '../../services/playback/engine';
 import type { RendererKind } from '../../services/render';
 import { observePreviewScale } from '../../services/playback/previewLayout';
+import TransformGizmo from './TransformGizmo';
 
 interface PreviewPlayerProps {
 	project: Project | null;
@@ -67,7 +68,12 @@ export default function PreviewPlayer({
 							aria-label="Preview"
 							data-testid="preview-canvas"
 						/>
-						<PreviewNotice project={project} engine={engine} />
+						<TransformGizmo
+							project={project}
+							renderedWidth={renderedWidth}
+							renderedHeight={renderedHeight}
+						/>
+						<PreviewNotice project={project} engine={engine} renderer={renderer} />
 					</div>
 				) : (
 					<div className="preview-empty-state">
@@ -87,7 +93,15 @@ export default function PreviewPlayer({
 	);
 }
 
-function PreviewNotice({ project, engine }: { project: Project; engine: PlaybackEngine | null }) {
+function PreviewNotice({
+	project,
+	engine,
+	renderer
+}: {
+	project: Project;
+	engine: PlaybackEngine | null;
+	renderer: RendererKind;
+}) {
 	const [state, setState] = useState<PreviewState>({
 		hasVideo: false,
 		hasAudio: false,
@@ -103,10 +117,12 @@ function PreviewNotice({ project, engine }: { project: Project; engine: Playback
 			const resolved = resolveFrame(project, snapshot.time);
 			const names = [...new Set(snapshot.missing.map((id) => project.assets[id]?.name ?? id))];
 			const unsupportedAsset = resolved.videoLayers
-				.map((layer) => project.assets[layer.assetId])
+				.map((layer) => (layer.assetId ? project.assets[layer.assetId] : undefined))
 				.find((asset) => asset?.videoDecodable === false);
 			const nextState: PreviewState = {
-				hasVideo: resolved.videoLayers.some((layer) => !snapshot.missing.includes(layer.assetId)),
+				hasVideo: resolved.videoLayers.some(
+					(layer) => !layer.assetId || !snapshot.missing.includes(layer.assetId)
+				),
 				hasAudio: resolved.audioSources.length > 0,
 				missing: names,
 				loading: snapshot.loading,
@@ -128,6 +144,19 @@ function PreviewNotice({ project, engine }: { project: Project; engine: Playback
 		};
 		return engine.subscribe(update);
 	}, [engine, project]);
+
+	const needsGpu = projectNeedsGpu(project);
+	if (needsGpu && renderer !== 'webgl2') {
+		return (
+			<div className="preview-warning-overlay" role="alert">
+				<strong>Rendering requires WebGL2</strong>
+				<span>
+					Effects and adjustment layers require WebGL2, which is unavailable in this browser
+					session.
+				</span>
+			</div>
+		);
+	}
 
 	if (state.missing.length > 0) {
 		return (

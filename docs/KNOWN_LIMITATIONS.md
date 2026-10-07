@@ -74,11 +74,19 @@ limitations are intentional at this stage:
   saved from the exact target Premiere Pro version/build. Use xmeml or EDL for
   Premiere interchange.
 
-## Gate H (rendering and animation)
+## Gate H & I (rendering, animation and keyframes)
 
-- WebGL2 was only verified on ANGLE/SwiftShader; real-GPU behaviour and speed are untested. On SwiftShader
-  the WebGL2 export is ~4x slower than Canvas2D, so only projects that need GPU features use it.
+- WebGL2 was only verified on ANGLE/SwiftShader in CI; real-GPU behaviour and speed are verified via `npm run test:gpu`.
 - Rotated and fractional-fit edges differ slightly between WebGL2 and Canvas2D (anti-aliasing and filtering).
-- Crop is not implemented; masks, effects and transitions are schema-only until later gates.
 - `timeRemap` is not re-based on a head trim (Gate M).
+- Vector properties (position, scale, anchor) share keyframe times and bezier easing handles across X and Y channels.
+- Multi-clip transform editing is disabled (single-clip editing only; multi-selection displays an explanatory notice).
+- Audio keyframes (volume and pan automation) are deferred to Gate N (audio mixer).
 
+## Gate J (Effects, Color, Curves, Scopes, Adjustment Layers)
+
+- **Color Space**: 8-bit RGBA gamma-encoded sRGB/Rec.709. Operations (EV stops, contrast, lift/gamma/gain, curves) execute in gamma space. Extreme grades or aggressive blurs may produce 8-bit quantization banding. HDR and linear-light blending are not supported.
+- **Interchange Compatibility**: EDL, FCPXML, xmeml, and OTIO cannot represent browser-based WebGL shader graphs or OPFS 3D LUT assets. When exporting to interchange formats, clips with effects, adjustment layers, and solid colors are exported without effects or skipped, and an explicit warning is displayed in the Export dialog.
+- **Transitions & Masks**: Masks on effects and track transitions are scheduled for Gates K and L and are not active in Gate J.
+- **Video Scopes Performance**: Scopes capture up to 256×144 resolution readbacks from the composition FBO. Scopes run on 2D canvases; high monitor refresh rates with all four scopes simultaneously active may increase CPU overhead on low-power devices.
+- **LUT Assets**: 3D LUTs (.cube) are parsed and uploaded as 3D textures. Very large LUTs (> 64×64×64) consume more GPU memory and are bounded by `MAX_3D_TEXTURE_SIZE`.

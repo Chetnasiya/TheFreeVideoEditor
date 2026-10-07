@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const GPU_SPECS = /(render-parity|render-gl|export-gl)\.spec\.ts$/;
+const GPU_SPECS = /(render-parity|render-gl|export-gl|gate-i-evidence|effects)\.spec\.ts$/;
 declare const process: { env: Record<string, string | undefined> };
 
 /** The GPU project only exists for `npm run test:gpu`, which first checks that Chrome is installed. */

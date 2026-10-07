@@ -10,6 +10,7 @@ import {
 	type FrameRenderer,
 	type RenderStats
 } from '../render';
+import type { ScopeFrameData } from '../render/passes/scopes';
 import { createPlaybackClock, type PlaybackRate } from './clock';
 import { MediaPool } from './mediaPool';
 
@@ -59,6 +60,9 @@ export interface PlaybackEngine {
 	setMuted(muted: boolean): void;
 	subscribe(listener: (snapshot: PlaybackSnapshot) => void): () => void;
 	getDebugStats(): PlaybackDebugStats;
+	enableScopes(enabled: boolean): void;
+	getLastScopeFrame(): ScopeFrameData | null;
+	getRenderer(): FrameRenderer | null;
 	dispose(): void;
 }
 
@@ -365,11 +369,23 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			render: this.renderer?.stats ?? null,
 			activeVideoAssets: resolveFrame(this.project, this.clock.time).videoLayers.flatMap(
 				(layer) => {
-					const asset = this.project.assets[layer.assetId];
+					const asset = layer.assetId ? this.project.assets[layer.assetId] : undefined;
 					return asset ? [{ id: asset.id, name: asset.name, trackId: layer.trackId }] : [];
 				}
 			)
 		};
+	}
+
+	enableScopes(enabled: boolean): void {
+		this.renderer?.enableScopes?.(enabled);
+	}
+
+	getLastScopeFrame(): ScopeFrameData | null {
+		return this.renderer?.getLastScopeFrame?.() ?? null;
+	}
+
+	getRenderer(): FrameRenderer | null {
+		return this.renderer;
 	}
 
 	dispose(): void {
@@ -433,8 +449,12 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		}
 		renderer.releaseUnused(projectClipIds);
 		const missing = new Set([...resolved.missing, ...this.runtimeMissing]);
-		const layers = resolved.videoLayers.filter((layer) => !missing.has(layer.assetId));
+		const layers = resolved.videoLayers.filter(
+			(layer) => !layer.assetId || !missing.has(layer.assetId)
+		);
 		let loading = false;
+		const scopesOpen = this.store.getState().scopes?.open ?? false;
+		renderer.enableScopes?.(scopesOpen);
 		renderer.render(
 			{ width: this.project.settings.width, height: this.project.settings.height },
 			layers,
@@ -443,7 +463,8 @@ class PlaybackEngineImpl implements PlaybackEngine {
 				if (!source) loading = true;
 				return source;
 			},
-			this.lastGoodFrames
+			this.lastGoodFrames,
+			{ playing: this.clock.playing }
 		);
 		canvas.setAttribute(
 			'aria-label',

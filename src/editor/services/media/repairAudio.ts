@@ -48,6 +48,7 @@ export async function repairProjectAudioMetadata(
 		for (const track of project.tracks) {
 			if (track.kind !== 'video') continue;
 			for (const clip of track.clips) {
+				if (!clip.assetId) continue;
 				const asset = updated.assets[clip.assetId];
 				if (!clip.linkId || !asset?.audioChecked || asset.hasAudio) continue;
 				const linkedClipCount = project.tracks

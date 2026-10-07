@@ -3,10 +3,10 @@
 Preview and export share one contract: `resolveFrame(project, time)` produces `ActiveLayer[]`, and a
 `FrameRenderer` draws them from a `frameProvider`. Two renderers implement it.
 
-| Renderer | File | Role |
-| --- | --- | --- |
-| Canvas2D | `services/playback/compositor.ts` (`Canvas2DRenderer`) | Reference. Pixel truth for Phase 1 projects. |
-| WebGL2 | `services/render/GlCompositor.ts` | Required by Phase 2 features; parity-tested against Canvas2D. |
+| Renderer | File                                                   | Role                                                          |
+| -------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| Canvas2D | `services/playback/compositor.ts` (`Canvas2DRenderer`) | Reference. Pixel truth for Phase 1 projects.                  |
+| WebGL2   | `services/render/GlCompositor.ts`                      | Required by Phase 2 features; parity-tested against Canvas2D. |
 
 ## Renderer selection
 
@@ -45,15 +45,50 @@ allow ≤ 0.1% bad pixels; transformed scenes ≤ 1%. Analytic quadrant probes (
 Known differences: edge anti-aliasing on rotated or fractional-fit rects (letterbox maxDiff 15, rotate
 maxDiff 135 on edge pixels only) – interiors match exactly.
 
+## Crop rendering
+
+Crop insets [left, top, right, bottom] as source fractions (0–1) are supported identically across both renderers:
+
+- **Canvas2D**: Computes source rect and destination rect in `drawImage`, displaying only the uncropped sub-rectangle without shifting its composition-space anchor or scale.
+- **WebGL2**: Passes insets as `u_crop` to `layer.vert.glsl` and offsets vertex texture coordinates, paired with `layerAffine` using `croppedFitRect` so the visible part maintains its exact on-screen geometry.
+
+## Effects & accumulation pipeline (Gate J)
+
+When frames contain effects, adjustment layers, or solid colors (`projectNeedsGpu(project)` is true):
+
+- **Accumulation FBO**: A persistent RGBA8 framebuffer composites bottom-to-top track by track.
+- **Layer-space Processing**: Effects run in a layer-space framebuffer sized to the cropped source resolution capped at 2× the composition dimensions, preserving sharpness without double resampling.
+- **Ping-Pong Passes**: Multi-pass or chained shaders (e.g., Gaussian Blur separable passes, Glow) cycle through an `FboPool`.
+- **Adjustment Layers**: Sample the current accumulation texture, process it through the adjustment layer's effect stack, and blend the result back over lower tracks.
+- **Fast Path Bit-Identical**: Frames with no active effects or adjustment layers skip accumulation passes and render directly to the canvas, preserving 100% bit parity with Phase 1 / Gate H baseline.
+
+## Video scopes readback
+
+Video scopes (`ScopesPanel`) operate on downsampled 2D canvases alongside the preview monitor:
+
+- Readbacks via `gl.readPixels` are capped at `≤ 256×144` resolution to preserve 60 fps playback.
+- Only the currently active scope mode executes analysis.
+
+## Real-GPU verification (`test:gpu`)
+
+Gate H, Gate I, and Gate J baseline tests in Playwright Chromium can be run with hardware acceleration:
+
+```bash
+npm run test:gpu
+```
+
+This runs Playwright under the `chrome-gpu` project using locally installed Google Chrome with `--enable-gpu` and `--ignore-gpu-blocklist`. It prints the unmasked GPU renderer string via `WEBGL_debug_renderer_info` and executes:
+
+- `render-parity.spec.ts`: Canvas2D vs WebGL2 bit parity on 16 test scenes.
+- `render-gl.spec.ts`: context loss/restore, leak tests, and CPU submit time.
+- `export-gl.spec.ts`: worker export parity with WebGL2.
+- `gate-i-evidence.spec.ts`: export speed benchmark and 1,000 keyframes timeline scrub latency.
+- `effects.spec.ts`: effects library, color panel (basic, curves, wheels, LUT), scopes toggle, adjustment layers, solid color layers, and interchange warnings.
+
 ## Verified
 
-- Environment: Playwright Chromium, ANGLE / SwiftShader (software). **No real GPU has been tested.**
-- `render-gl.spec.ts`: context loss and restore, textures and programs back to 0 after `dispose`, CPU
-  submit time for 4 layers at 720p far under the 8 ms budget (this measures CPU submission only; GPU
-  time is not captured).
-- `export-gl.spec.ts`: the worker export runs WebGL2 (`lastRenderer === 'webgl2'`) and reproduces the
-  expected layer pixels.
-- Export speed, 481 frames 480p synthetic project, SwiftShader: Canvas2D ≈ 837 fps, WebGL2 ≈ 188 fps.
-  WebGL2 is slower here (software GL plus `preserveDrawingBuffer` and canvas → `VideoFrame`). This misses
-  the "no more than 15% slower" target on this machine; it is mitigated by Phase 1 projects staying on
-  Canvas2D. Re-measure on a real GPU before Gate I relies on it.
+- Environment: Hardware Google Chrome on Apple Silicon (Apple M4, Metal ANGLE) & Playwright Chromium.
+- `render-gl.spec.ts`: context loss and restore, textures and programs back to 0 after `dispose`, CPU submit time under budget.
+- `export-gl.spec.ts`: worker export runs WebGL2 and reproduces expected pixels.
+- `render-parity.spec.ts`: strict and transformed scenes match Canvas2D reference.
+- `effects.spec.ts`: all 5 Gate J UI and rendering tests passing.

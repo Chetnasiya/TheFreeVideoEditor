@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ticksToTimecode } from '../../core';
 import type { PlaybackEngine, PlaybackSnapshot } from '../../services/playback/engine';
+import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 
 const ZOOM_OPTIONS = [
 	{ label: 'Fit', value: 'fit' },
@@ -21,6 +22,8 @@ interface TransportBarProps {
 }
 
 export default function TransportBar({ engine, fps, zoom, onZoomChange }: TransportBarProps) {
+	const store = useEditorStoreApi();
+	const scopesOpen = useEditorStore((state) => state.scopes.open);
 	const [snapshot, setSnapshot] = useState<PlaybackSnapshot | null>(engine?.snapshot ?? null);
 	const [playAnnouncement, setPlayAnnouncement] = useState('');
 	const previousPlaying = useRef<boolean | null>(null);
@@ -178,6 +181,16 @@ export default function TransportBar({ engine, fps, zoom, onZoomChange }: Transp
 					onClick={() => engine?.setLoop(!snapshot?.looping)}
 				>
 					Loop
+				</button>
+				<button
+					type="button"
+					aria-label="Toggle scopes"
+					aria-pressed={scopesOpen}
+					title="Video scopes"
+					className={scopesOpen ? 'is-active' : ''}
+					onClick={() => store.getState().toggleScopesOpen()}
+				>
+					Scopes
 				</button>
 				<label className="sr-only" htmlFor="preview-zoom">
 					Preview zoom

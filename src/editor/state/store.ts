@@ -31,20 +31,61 @@ import {
 	timelineDuration,
 	groupOf,
 	snapToFrame,
+	descriptorFor,
+	ANIMATABLE_PROPERTY_IDS,
+	propertyCurve,
+	isAnimated,
+	setPropertyAtTime,
+	enableAnimation as enableClipAnimation,
+	disableAnimation as disableClipAnimation,
+	toggleKeyframe as toggleClipKeyframe,
+	nextKeyframeTime,
+	prevKeyframeTime,
+	moveKeyframes as moveClipKeyframes,
+	deleteKeyframes as deleteClipKeyframes,
+	setKeyframeInterpolation as setClipKeyframeInterpolation,
+	setBezierHandles as setClipBezierHandles,
+	copyKeyframes,
+	pasteKeyframes,
+	createAdjustmentClip,
+	createSolidClip,
+	insertClip,
+	createEffectInstance,
+	addEffectToClip,
+	removeEffectFromClip,
+	reorderEffectInClip,
+	toggleEffectInClip,
+	duplicateEffectInClip,
+	copyClipEffects as copyClipEffectsCore,
+	pasteClipEffects as pasteClipEffectsCore,
+	setEffectParamInClip,
+	getEffectDefinition,
+	parseCubeLut,
+	type ColorRgba,
+	type EffectInstance,
+	type EffectType,
 	type Asset,
 	type AssetId,
+	type BezierHandle,
 	type Clip,
 	type ClipId,
 	type DragPosition,
 	type DragSession,
+	type InterpolationPreset,
+	type KeyframeClipboard,
+	type KeyframeRef,
 	type Project,
 	type ProjectId,
 	type ProjectSettings,
 	type ProjectSummary,
+	type PropertyId,
+	type PropertyValue,
 	type Time,
 	type Track,
 	type TrackId
 } from '../core';
+import { ensureLutLoaded, storeParsedLut } from '../services/media/lutCache';
+import type { ScopeFrameData } from '../services/render/passes/scopes';
 import {
 	CorruptProjectError,
 	deleteProject as deleteProjectRecord,
@@ -78,7 +119,7 @@ import { repairProjectAudioMetadata } from '../services/media/repairAudio';
 import { projectNameSchema } from '../services/project/projectName';
 import { applyTheme, initializeTheme, type ThemeMode } from '../services/theme/theme';
 import { clampPanelSize } from '../ui/shell/panelSizing';
-import { createHistory, type HistorySnapshot } from './history';
+import { createHistory, type HistorySnapshot, type HistoryKeyframeRef } from './history';
 
 enablePatches();
 
@@ -158,6 +199,93 @@ export interface TrackRemovalResult {
 	clipCount: number;
 }
 
+export interface InspectorState {
+	expanded: Record<string, boolean>;
+	linkScale: boolean;
+}
+
+export interface KeyframeSelectionRef {
+	clipId: ClipId;
+	propertyId: PropertyId;
+	time: Time;
+}
+
+export interface GraphViewport {
+	minTime: number;
+	maxTime: number;
+	minValue: number;
+	maxValue: number;
+}
+
+export interface GraphState {
+	open: boolean;
+	visibleProperties: PropertyId[];
+	viewport?: GraphViewport;
+}
+
+export interface KeyframeState {
+	selection: KeyframeSelectionRef[];
+	clipboard: KeyframeClipboard | null;
+	showLanes: 'selected' | 'all' | 'off';
+	graph: GraphState;
+}
+
+export interface EffectsUiState {
+	libraryQuery: string;
+	selectedEffectId: string | null;
+}
+
+export interface ScopesUiState {
+	open: boolean;
+	mode: 'waveform' | 'parade' | 'histogram' | 'vectorscope';
+	channel: 'luma' | 'rgb';
+	lastCapture?: ScopeFrameData | null;
+}
+
+export interface ColorUiState {
+	activeTab: 'basic' | 'curves' | 'wheels' | 'lut';
+}
+
+const INSPECTOR_STORAGE_KEY = 'tfve:inspector-prefs';
+
+function loadInspectorPrefs(): InspectorState {
+	const fallback: InspectorState = {
+		expanded: { transform: true, crop: false },
+		linkScale: true
+	};
+	if (typeof localStorage === 'undefined') return fallback;
+	try {
+		const raw = localStorage.getItem(INSPECTOR_STORAGE_KEY);
+		if (!raw) return fallback;
+		const parsed = JSON.parse(raw);
+		return {
+			expanded: { ...fallback.expanded, ...(parsed.expanded ?? {}) },
+			linkScale: typeof parsed.linkScale === 'boolean' ? parsed.linkScale : true
+		};
+	} catch {
+		return fallback;
+	}
+}
+
+function persistInspectorPrefs(prefs: InspectorState): void {
+	if (typeof localStorage === 'undefined') return;
+	try {
+		localStorage.setItem(INSPECTOR_STORAGE_KEY, JSON.stringify(prefs));
+	} catch {}
+}
+
+function createKeyframeState(): KeyframeState {
+	return {
+		selection: [],
+		clipboard: null,
+		showLanes: 'selected',
+		graph: {
+			open: false,
+			visibleProperties: ['position', 'scale', 'rotation', 'opacity', 'crop']
+		}
+	};
+}
+
 type ProjectRecipe = (project: Project) => Project;
 type HistoryPolicy = 'record' | 'skip';
 
@@ -228,6 +356,12 @@ export interface EditorState {
 	recovery: RecoveryState | null;
 	media: MediaState;
 	timeline: TimelineState;
+	inspector: InspectorState;
+	keyframes: KeyframeState;
+	effectsUi: EffectsUiState;
+	scopes: ScopesUiState;
+	colorUi: ColorUiState;
+	effectsClipboard: EffectInstance[] | null;
 	initialize: () => Promise<void>;
 	toggleTheme: () => void;
 	beginRename: () => void;
@@ -314,6 +448,79 @@ export interface EditorState {
 	linkSelection: () => boolean;
 	unlinkSelection: () => boolean;
 	setTimelineMessage: (message: string) => void;
+	setInspectorExpanded: (sectionId: string, expanded: boolean) => void;
+	setInspectorLinkScale: (link: boolean) => void;
+	setKeyframeSelection: (selection: KeyframeSelectionRef[]) => void;
+	selectKeyframe: (ref: KeyframeSelectionRef, mode?: 'set' | 'toggle' | 'extend') => void;
+	clearKeyframeSelection: () => void;
+	setShowKeyframeLanes: (mode: 'selected' | 'all' | 'off') => void;
+	toggleKeyframeLanes: () => void;
+	setGraphOpen: (open: boolean) => void;
+	toggleGraphEditor: () => void;
+	setGraphVisibleProperties: (properties: PropertyId[]) => void;
+	setGraphViewport: (viewport: GraphViewport) => void;
+	setProperty: (
+		clipId: ClipId,
+		propertyId: PropertyId,
+		value: PropertyValue,
+		options?: { autoKey?: boolean; editedChannel?: number; coalesce?: boolean }
+	) => void;
+	enableAnimation: (clipId: ClipId, propertyId: PropertyId) => void;
+	disableAnimation: (
+		clipId: ClipId,
+		propertyId: PropertyId,
+		mode?: 'flatten-current' | 'discard'
+	) => void;
+	toggleKeyframe: (clipId: ClipId, propertyId: PropertyId) => void;
+	deleteSelectedKeyframes: () => void;
+	moveSelectedKeyframes: (deltaTime: Time, commit?: boolean) => void;
+	setKeyframeInterpolation: (preset: Exclude<InterpolationPreset, 'bezier'>) => void;
+	setBezierHandles: (
+		clipId: ClipId,
+		propertyId: PropertyId,
+		time: Time,
+		handles: { easeIn?: BezierHandle; easeOut?: BezierHandle }
+	) => void;
+	copySelectedKeyframes: () => void;
+	pasteKeyframes: (targetClipId?: ClipId, targetPropertyId?: PropertyId) => void;
+	nextKeyframe: () => void;
+	prevKeyframe: () => void;
+	easyEase: () => void;
+	setEffectsLibraryQuery: (query: string) => void;
+	setSelectedEffectId: (effectId: string | null) => void;
+	setScopesOpen: (open: boolean) => void;
+	toggleScopesOpen: () => void;
+	setScopesMode: (mode: ScopesUiState['mode']) => void;
+	setScopesChannel: (channel: ScopesUiState['channel']) => void;
+	setColorTab: (tab: ColorUiState['activeTab']) => void;
+	addEffect: (
+		clipId: ClipId,
+		effectType: EffectType,
+		initialParams?: Record<string, unknown>
+	) => EffectInstance | null;
+	removeEffect: (clipId: ClipId, effectId: string) => boolean;
+	reorderEffect: (clipId: ClipId, effectId: string, toIndex: number) => boolean;
+	toggleEffect: (clipId: ClipId, effectId: string, enabled?: boolean) => boolean;
+	duplicateEffect: (clipId: ClipId, effectId: string) => EffectInstance | null;
+	resetEffect: (clipId: ClipId, effectId: string) => boolean;
+	setEffectParam: (
+		clipId: ClipId,
+		effectId: string,
+		paramName: string,
+		value: unknown,
+		options?: { autoKey?: boolean; coalesce?: boolean }
+	) => void;
+	copyClipEffects: (clipId: ClipId) => void;
+	pasteClipEffects: (clipId: ClipId) => boolean;
+	ensureColorCorrection: (clipId: ClipId) => EffectInstance | null;
+	addAdjustmentLayer: (trackId?: TrackId, start?: Time, duration?: Time) => ClipId | null;
+	addSolidLayer: (
+		color?: ColorRgba | string,
+		trackId?: TrackId,
+		start?: Time,
+		duration?: Time
+	) => ClipId | null;
+	importLut: (name: string, cubeText: string) => Promise<AssetId | null>;
 }
 
 function errorMessage(error: unknown): string {
@@ -396,6 +603,7 @@ export function createEditorStore() {
 					throw new Error('Open a project before changing project data.');
 				}
 				const selectionBefore = [...get().timeline.selection.clipIds];
+				const keyframeSelectionBefore = [...get().keyframes.selection];
 				const [updated, patches, inversePatches] = produceWithPatches(current, () =>
 					recipe(current)
 				);
@@ -410,13 +618,19 @@ export function createEditorStore() {
 						state.projectNameDraft = project.name;
 						state.revision += dirty ? 1 : 0;
 						if (dirty) state.saveStatus = 'unsaved';
-						if (switchedProject) state.timeline = createTimelineState();
-						else {
-							const clipIds = new Set(
-								project.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
-							);
+						if (switchedProject) {
+							state.timeline = createTimelineState();
+							state.keyframes = createKeyframeState();
+							state.effectsUi.selectedEffectId = null;
+						} else {
+							const clipsMap = new Map<ClipId, Clip>();
+							for (const track of project.tracks) {
+								for (const clip of track.clips) {
+									clipsMap.set(clip.id, clip);
+								}
+							}
 							state.timeline.selection.clipIds = state.timeline.selection.clipIds.filter((id) =>
-								clipIds.has(id)
+								clipsMap.has(id)
 							);
 							if (
 								state.timeline.selection.trackId &&
@@ -424,6 +638,14 @@ export function createEditorStore() {
 							) {
 								delete state.timeline.selection.trackId;
 							}
+							state.keyframes.selection = state.keyframes.selection.filter((ref) => {
+								const clip = clipsMap.get(ref.clipId);
+								if (!clip) return false;
+								const curve = propertyCurve(clip, ref.propertyId);
+								return (
+									curve && isAnimated(curve) && curve.keyframes.some((k) => k.time === ref.time)
+								);
+							});
 						}
 					});
 					if (dirty && options.history !== 'skip' && patches.length > 0) {
@@ -436,7 +658,9 @@ export function createEditorStore() {
 							patches,
 							inversePatches,
 							selectionBefore,
-							selectionAfter: [...state.timeline.selection.clipIds]
+							selectionAfter: [...state.timeline.selection.clipIds],
+							keyframeSelectionBefore,
+							keyframeSelectionAfter: [...state.keyframes.selection]
 						});
 					}
 					return get().project;
@@ -467,15 +691,30 @@ export function createEditorStore() {
 				);
 			}
 
-			function restoreHistorySelection(ids: readonly ClipId[], project: Project): void {
-				const clips = new Set(
-					project.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
-				);
+			function restoreHistorySelection(
+				ids: readonly ClipId[],
+				keyframeRefs: readonly HistoryKeyframeRef[] | undefined,
+				project: Project
+			): void {
+				const clipsMap = new Map<ClipId, Clip>();
+				for (const track of project.tracks) {
+					for (const clip of track.clips) {
+						clipsMap.set(clip.id, clip);
+					}
+				}
 				const tracks = new Set(project.tracks.map((track) => track.id));
 				set((state) => {
-					state.timeline.selection.clipIds = ids.filter((id) => clips.has(id));
+					state.timeline.selection.clipIds = ids.filter((id) => clipsMap.has(id));
 					if (state.timeline.selection.trackId && !tracks.has(state.timeline.selection.trackId)) {
 						delete state.timeline.selection.trackId;
+					}
+					if (keyframeRefs) {
+						state.keyframes.selection = keyframeRefs.filter((ref) => {
+							const clip = clipsMap.get(ref.clipId);
+							if (!clip) return false;
+							const curve = propertyCurve(clip, ref.propertyId);
+							return curve && isAnimated(curve) && curve.keyframes.some((k) => k.time === ref.time);
+						});
 					}
 					state.timeline.playhead = Math.min(state.timeline.playhead, timelineDuration(project));
 				});
@@ -575,6 +814,10 @@ export function createEditorStore() {
 
 			function scheduleDerived(projectId: ProjectId, asset: Asset): void {
 				if (asset.offline) return;
+				if (asset.kind === 'lut') {
+					void ensureLutLoaded(projectId, asset);
+					return;
+				}
 				derivedControllers.get(asset.id)?.controller.abort();
 				const controller = new AbortController();
 				derivedControllers.set(asset.id, { projectId, controller });
@@ -638,6 +881,21 @@ export function createEditorStore() {
 					selectedAssetIds: []
 				},
 				timeline: createTimelineState(),
+				inspector: loadInspectorPrefs(),
+				keyframes: createKeyframeState(),
+				effectsUi: {
+					libraryQuery: '',
+					selectedEffectId: null
+				},
+				scopes: {
+					open: false,
+					mode: 'waveform',
+					channel: 'luma'
+				},
+				colorUi: {
+					activeTab: 'basic'
+				},
+				effectsClipboard: null,
 				async initialize() {
 					if (get().isInitialized) return;
 					set((state) => {
@@ -1396,7 +1654,11 @@ export function createEditorStore() {
 					if (!result) return false;
 					const restored = { ...result.project, updatedAt: new Date().toISOString() };
 					mutateProject(`Undo ${result.entry.label}`, () => restored, { history: 'skip' });
-					restoreHistorySelection(result.entry.selectionBefore, restored);
+					restoreHistorySelection(
+						result.entry.selectionBefore,
+						result.entry.keyframeSelectionBefore,
+						restored
+					);
 					set((state) => {
 						state.historyMessage = `Undid ${result.entry.label}`;
 					});
@@ -1409,7 +1671,11 @@ export function createEditorStore() {
 					if (!result) return false;
 					const restored = { ...result.project, updatedAt: new Date().toISOString() };
 					mutateProject(`Redo ${result.entry.label}`, () => restored, { history: 'skip' });
-					restoreHistorySelection(result.entry.selectionAfter, restored);
+					restoreHistorySelection(
+						result.entry.selectionAfter,
+						result.entry.keyframeSelectionAfter,
+						restored
+					);
 					set((state) => {
 						state.historyMessage = `Redid ${result.entry.label}`;
 					});
@@ -2027,6 +2293,1006 @@ export function createEditorStore() {
 							state.timeline.message = errorMessage(error);
 						});
 						return false;
+					}
+				},
+				setInspectorExpanded(sectionId, expanded) {
+					set((state) => {
+						state.inspector.expanded[sectionId] = expanded;
+						persistInspectorPrefs(state.inspector);
+					});
+				},
+				setInspectorLinkScale(link) {
+					set((state) => {
+						state.inspector.linkScale = link;
+						persistInspectorPrefs(state.inspector);
+					});
+				},
+				setKeyframeSelection(selection) {
+					set((state) => {
+						state.keyframes.selection = [...selection];
+					});
+				},
+				selectKeyframe(ref, mode = 'set') {
+					set((state) => {
+						if (mode === 'set') {
+							state.keyframes.selection = [ref];
+						} else if (mode === 'toggle') {
+							const idx = state.keyframes.selection.findIndex(
+								(s) =>
+									s.clipId === ref.clipId && s.propertyId === ref.propertyId && s.time === ref.time
+							);
+							if (idx >= 0) {
+								state.keyframes.selection.splice(idx, 1);
+							} else {
+								state.keyframes.selection.push(ref);
+							}
+						} else if (mode === 'extend') {
+							const exists = state.keyframes.selection.some(
+								(s) =>
+									s.clipId === ref.clipId && s.propertyId === ref.propertyId && s.time === ref.time
+							);
+							if (!exists) {
+								state.keyframes.selection.push(ref);
+							}
+						}
+						if (!state.timeline.selection.clipIds.includes(ref.clipId)) {
+							state.timeline.selection.clipIds = [ref.clipId];
+						}
+					});
+				},
+				clearKeyframeSelection() {
+					set((state) => {
+						state.keyframes.selection = [];
+					});
+				},
+				setShowKeyframeLanes(mode) {
+					set((state) => {
+						state.keyframes.showLanes = mode;
+					});
+				},
+				toggleKeyframeLanes() {
+					set((state) => {
+						state.keyframes.showLanes =
+							state.keyframes.showLanes === 'off'
+								? 'selected'
+								: state.keyframes.showLanes === 'selected'
+									? 'all'
+									: 'off';
+					});
+				},
+				setGraphOpen(open) {
+					set((state) => {
+						state.keyframes.graph.open = open;
+					});
+				},
+				toggleGraphEditor() {
+					set((state) => {
+						state.keyframes.graph.open = !state.keyframes.graph.open;
+					});
+				},
+				setGraphVisibleProperties(properties) {
+					set((state) => {
+						state.keyframes.graph.visibleProperties = properties;
+					});
+				},
+				setGraphViewport(viewport) {
+					set((state) => {
+						state.keyframes.graph.viewport = viewport;
+					});
+				},
+				setProperty(clipId, propertyId, value, options) {
+					const project = get().project;
+					if (!project) return;
+					try {
+						mutateProject(
+							`Change ${descriptorFor(propertyId)?.label ?? propertyId}`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (clip.id !== clipId) return clip;
+										const localTime = get().timeline.playhead - clip.start;
+										return setPropertyAtTime(clip, propertyId, localTime, value, {
+											autoKey: options?.autoKey ?? true,
+											fps: proj.settings.fps,
+											editedChannel: options?.editedChannel
+										});
+									})
+								}))
+							}),
+							{
+								history: 'record',
+								mergeKey: options?.coalesce ? `set-prop:${clipId}:${propertyId}` : undefined
+							}
+						);
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				enableAnimation(clipId, propertyId) {
+					const project = get().project;
+					if (!project) return;
+					try {
+						let addedKeyTime: Time | null = null;
+						mutateProject(
+							`Animate ${descriptorFor(propertyId)?.label ?? propertyId}`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (clip.id !== clipId) return clip;
+										const localTime = get().timeline.playhead - clip.start;
+										const updatedClip = enableClipAnimation(
+											clip,
+											propertyId,
+											localTime,
+											proj.settings.fps
+										);
+										const curve = propertyCurve(updatedClip, propertyId);
+										if (curve && isAnimated(curve) && curve.keyframes.length > 0) {
+											addedKeyTime = curve.keyframes[0]!.time;
+										}
+										return updatedClip;
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						if (addedKeyTime !== null) {
+							set((state) => {
+								state.keyframes.selection = [{ clipId, propertyId, time: addedKeyTime! }];
+							});
+						}
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				disableAnimation(clipId, propertyId, mode = 'flatten-current') {
+					const project = get().project;
+					if (!project) return;
+					try {
+						mutateProject(
+							`Remove animation from ${descriptorFor(propertyId)?.label ?? propertyId}`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (clip.id !== clipId) return clip;
+										const localTime = get().timeline.playhead - clip.start;
+										return disableClipAnimation(clip, propertyId, localTime, mode);
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						set((state) => {
+							state.keyframes.selection = state.keyframes.selection.filter(
+								(ref) => !(ref.clipId === clipId && ref.propertyId === propertyId)
+							);
+						});
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				toggleKeyframe(clipId, propertyId) {
+					const project = get().project;
+					if (!project) return;
+					try {
+						mutateProject(
+							`Toggle ${descriptorFor(propertyId)?.label ?? propertyId} keyframe`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (clip.id !== clipId) return clip;
+										const localTime = get().timeline.playhead - clip.start;
+										return toggleClipKeyframe(clip, propertyId, localTime, proj.settings.fps);
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				deleteSelectedKeyframes() {
+					const project = get().project;
+					const selection = get().keyframes.selection;
+					if (!project || selection.length === 0) return;
+					const byClip = new Map<ClipId, KeyframeRef[]>();
+					for (const ref of selection) {
+						const list = byClip.get(ref.clipId) ?? [];
+						list.push({ propertyId: ref.propertyId, time: ref.time });
+						byClip.set(ref.clipId, list);
+					}
+					try {
+						mutateProject(
+							selection.length === 1 ? 'Delete keyframe' : `Delete ${selection.length} keyframes`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										const clipKeys = byClip.get(clip.id);
+										return clipKeys && clipKeys.length > 0
+											? deleteClipKeyframes(clip, clipKeys)
+											: clip;
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						set((state) => {
+							state.keyframes.selection = [];
+						});
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				moveSelectedKeyframes(deltaTime, commit = true) {
+					const project = get().project;
+					const selection = get().keyframes.selection;
+					if (!project || selection.length === 0 || deltaTime === 0) return;
+					const byClip = new Map<ClipId, KeyframeRef[]>();
+					for (const ref of selection) {
+						const list = byClip.get(ref.clipId) ?? [];
+						list.push({ propertyId: ref.propertyId, time: ref.time });
+						byClip.set(ref.clipId, list);
+					}
+					try {
+						let appliedDelta: Time = 0;
+						mutateProject(
+							'Move keyframes',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										const clipKeys = byClip.get(clip.id);
+										if (clipKeys && clipKeys.length > 0) {
+											const res = moveClipKeyframes(clip, clipKeys, deltaTime);
+											appliedDelta = res.appliedDelta;
+											return res.clip;
+										}
+										return clip;
+									})
+								}))
+							}),
+							{
+								history: commit ? 'record' : 'skip',
+								mergeKey: !commit ? 'move-keyframes' : undefined
+							}
+						);
+						if (appliedDelta !== 0) {
+							set((state) => {
+								state.keyframes.selection = state.keyframes.selection.map((ref) => ({
+									...ref,
+									time: ref.time + appliedDelta
+								}));
+							});
+						}
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				setKeyframeInterpolation(preset) {
+					const project = get().project;
+					const selection = get().keyframes.selection;
+					if (!project || selection.length === 0) return;
+					const byClip = new Map<ClipId, KeyframeRef[]>();
+					for (const ref of selection) {
+						const list = byClip.get(ref.clipId) ?? [];
+						list.push({ propertyId: ref.propertyId, time: ref.time });
+						byClip.set(ref.clipId, list);
+					}
+					try {
+						mutateProject(
+							`Set keyframe interpolation: ${preset}`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										const clipKeys = byClip.get(clip.id);
+										return clipKeys && clipKeys.length > 0
+											? setClipKeyframeInterpolation(clip, clipKeys, preset)
+											: clip;
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				setBezierHandles(clipId, propertyId, time, handles) {
+					const project = get().project;
+					if (!project) return;
+					try {
+						mutateProject(
+							'Adjust bezier handles',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId
+											? setClipBezierHandles(clip, propertyId, time, handles)
+											: clip
+									)
+								}))
+							}),
+							{ history: 'record', mergeKey: `bezier:${clipId}:${propertyId}:${time}` }
+						);
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				copySelectedKeyframes() {
+					const project = get().project;
+					const selection = get().keyframes.selection;
+					if (!project || selection.length === 0) return;
+					const clipId = selection[0]!.clipId;
+					let targetClip: Clip | null = null;
+					for (const track of project.tracks) {
+						const clip = track.clips.find((c) => c.id === clipId);
+						if (clip) {
+							targetClip = clip;
+							break;
+						}
+					}
+					if (!targetClip) return;
+					const clipSelection = selection
+						.filter((ref) => ref.clipId === clipId)
+						.map((ref) => ({ propertyId: ref.propertyId, time: ref.time }));
+					try {
+						const clipboard = copyKeyframes(targetClip, clipSelection);
+						set((state) => {
+							state.keyframes.clipboard = clipboard;
+						});
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				pasteKeyframes(targetClipId, targetPropertyId) {
+					const project = get().project;
+					const clipboard = get().keyframes.clipboard;
+					if (!project || !clipboard || clipboard.entries.length === 0) return;
+					const clipId = targetClipId ?? get().timeline.selection.clipIds[0];
+					if (!clipId) return;
+					try {
+						let pastedRefs: KeyframeRef[] = [];
+						mutateProject(
+							'Paste keyframes',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (clip.id !== clipId) return clip;
+										const localTime = get().timeline.playhead - clip.start;
+										const res = pasteKeyframes(clip, clipboard, localTime, targetPropertyId);
+										pastedRefs = res.pasted;
+										return res.clip;
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						if (pastedRefs.length > 0) {
+							set((state) => {
+								state.keyframes.selection = pastedRefs.map((r) => ({
+									clipId,
+									propertyId: r.propertyId,
+									time: r.time
+								}));
+							});
+						}
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				nextKeyframe() {
+					const project = get().project;
+					if (!project) return;
+					const playhead = get().timeline.playhead;
+					const selectedIds = new Set(get().timeline.selection.clipIds);
+					const targetClips = project.tracks.flatMap((track) =>
+						track.clips.filter((clip) => selectedIds.size === 0 || selectedIds.has(clip.id))
+					);
+					let nextGlobalTime: Time | null = null;
+					for (const clip of targetClips) {
+						const localTime = playhead - clip.start;
+						const nextLocal = nextKeyframeTime(clip, ANIMATABLE_PROPERTY_IDS, localTime);
+						if (nextLocal !== null) {
+							const globalTime = clip.start + nextLocal;
+							if (
+								globalTime > playhead &&
+								(nextGlobalTime === null || globalTime < nextGlobalTime)
+							) {
+								nextGlobalTime = globalTime;
+							}
+						}
+					}
+					if (nextGlobalTime !== null) {
+						set((state) => {
+							state.timeline.playhead = nextGlobalTime!;
+						});
+					}
+				},
+				prevKeyframe() {
+					const project = get().project;
+					if (!project) return;
+					const playhead = get().timeline.playhead;
+					const selectedIds = new Set(get().timeline.selection.clipIds);
+					const targetClips = project.tracks.flatMap((track) =>
+						track.clips.filter((clip) => selectedIds.size === 0 || selectedIds.has(clip.id))
+					);
+					let prevGlobalTime: Time | null = null;
+					for (const clip of targetClips) {
+						const localTime = playhead - clip.start;
+						const prevLocal = prevKeyframeTime(clip, ANIMATABLE_PROPERTY_IDS, localTime);
+						if (prevLocal !== null) {
+							const globalTime = clip.start + prevLocal;
+							if (
+								globalTime < playhead &&
+								(prevGlobalTime === null || globalTime > prevGlobalTime)
+							) {
+								prevGlobalTime = globalTime;
+							}
+						}
+					}
+					if (prevGlobalTime !== null) {
+						set((state) => {
+							state.timeline.playhead = prevGlobalTime!;
+						});
+					}
+				},
+				easyEase() {
+					get().setKeyframeInterpolation('ease-in-out');
+				},
+				setEffectsLibraryQuery(query) {
+					set((state) => {
+						state.effectsUi.libraryQuery = query;
+					});
+				},
+				setSelectedEffectId(effectId) {
+					set((state) => {
+						state.effectsUi.selectedEffectId = effectId;
+					});
+				},
+				setScopesOpen(open) {
+					set((state) => {
+						state.scopes.open = open;
+					});
+				},
+				toggleScopesOpen() {
+					set((state) => {
+						state.scopes.open = !state.scopes.open;
+					});
+				},
+				setScopesMode(mode) {
+					set((state) => {
+						state.scopes.mode = mode;
+					});
+				},
+				setScopesChannel(channel) {
+					set((state) => {
+						state.scopes.channel = channel;
+					});
+				},
+				setColorTab(tab) {
+					set((state) => {
+						state.colorUi.activeTab = tab;
+					});
+				},
+				addEffect(clipId, effectType, initialParams) {
+					const project = get().project;
+					if (!project) return null;
+					let instance: EffectInstance | null = null;
+					try {
+						instance = createEffectInstance(effectType, initialParams);
+						const created = instance;
+						mutateProject(
+							`Add ${instance.type} effect`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId ? addEffectToClip(clip, created) : clip
+									)
+								}))
+							}),
+							{ history: 'record' }
+						);
+						set((state) => {
+							state.effectsUi.selectedEffectId = created.id;
+						});
+						return created;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return null;
+					}
+				},
+				removeEffect(clipId, effectId) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Remove effect',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId ? removeEffectFromClip(clip, effectId) : clip
+									)
+								}))
+							}),
+							{ history: 'record' }
+						);
+						set((state) => {
+							if (state.effectsUi.selectedEffectId === effectId) {
+								state.effectsUi.selectedEffectId = null;
+							}
+						});
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				reorderEffect(clipId, effectId, toIndex) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Reorder effects',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId ? reorderEffectInClip(clip, effectId, toIndex) : clip
+									)
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				toggleEffect(clipId, effectId, enabled) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Toggle effect',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId ? toggleEffectInClip(clip, effectId, enabled) : clip
+									)
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				duplicateEffect(clipId, effectId) {
+					const project = get().project;
+					if (!project) return null;
+					let dup: EffectInstance | null = null;
+					try {
+						mutateProject(
+							'Duplicate effect',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (clip.id !== clipId) return clip;
+										const updated = duplicateEffectInClip(clip, effectId);
+										const idx = (clip.effects ?? []).findIndex((e) => e.id === effectId);
+										if (idx !== -1 && updated.effects?.[idx + 1]) {
+											dup = updated.effects[idx + 1]!;
+										}
+										return updated;
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						if (dup) {
+							const dupId = (dup as EffectInstance).id;
+							set((state) => {
+								state.effectsUi.selectedEffectId = dupId;
+							});
+						}
+						return dup;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return null;
+					}
+				},
+				resetEffect(clipId, effectId) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Reset effect',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (clip.id !== clipId) return clip;
+										const effects = (clip.effects ?? []).map((eff) => {
+											if (eff.id !== effectId) return eff;
+											const fresh = createEffectInstance(eff.type);
+											return {
+												...fresh,
+												id: eff.id,
+												enabled: eff.enabled
+											};
+										});
+										return { ...clip, effects };
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				setEffectParam(clipId, effectId, paramName, value, options) {
+					const project = get().project;
+					if (!project) return;
+					let targetClip: Clip | undefined;
+					let effectType: EffectType | undefined;
+					for (const track of project.tracks) {
+						const clip = track.clips.find((c) => c.id === clipId);
+						if (clip) {
+							targetClip = clip;
+							const eff = (clip.effects ?? []).find((e) => e.id === effectId);
+							if (eff) effectType = eff.type;
+							break;
+						}
+					}
+					if (!effectType || !targetClip) return;
+					const propertyId = `effect:${effectType}:${effectId}:${paramName}` as PropertyId;
+					const curve = propertyCurve(targetClip, propertyId);
+					const def = getEffectDefinition(effectType);
+					const paramDef = def?.params[paramName];
+					const isAnimatable = Boolean(
+						paramName === 'mix' || (paramDef?.animatable && paramDef.type !== 'color')
+					);
+					if ((curve && isAnimated(curve)) || isAnimatable) {
+						get().setProperty(clipId, propertyId, value as PropertyValue, options);
+						return;
+					}
+					try {
+						mutateProject(
+							`Change ${paramName}`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((c) => {
+										if (c.id !== clipId) return c;
+										return {
+											...c,
+											effects: (c.effects ?? []).map((eff) => {
+												if (eff.id !== effectId) return eff;
+												return {
+													...eff,
+													params: {
+														...eff.params,
+														[paramName]: value as any
+													}
+												};
+											})
+										};
+									})
+								}))
+							}),
+							{
+								history: 'record',
+								mergeKey: options?.coalesce
+									? `set-effect-param:${clipId}:${effectId}:${paramName}`
+									: undefined
+							}
+						);
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				copyClipEffects(clipId) {
+					const project = get().project;
+					if (!project) return;
+					for (const track of project.tracks) {
+						const clip = track.clips.find((c) => c.id === clipId);
+						if (clip) {
+							const copied = copyClipEffectsCore(clip);
+							set((state) => {
+								state.effectsClipboard = copied;
+								state.projectMessage = `Copied ${copied.length} effect(s).`;
+							});
+							return;
+						}
+					}
+				},
+				pasteClipEffects(clipId) {
+					const project = get().project;
+					const clipboard = get().effectsClipboard;
+					if (!project || !clipboard || clipboard.length === 0) return false;
+					try {
+						mutateProject(
+							`Paste ${clipboard.length} effect(s)`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId ? pasteClipEffectsCore(clip, clipboard) : clip
+									)
+								}))
+							}),
+							{ history: 'record' }
+						);
+						set((state) => {
+							state.projectMessage = `Pasted ${clipboard.length} effect(s).`;
+						});
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				ensureColorCorrection(clipId) {
+					const project = get().project;
+					if (!project) return null;
+					for (const track of project.tracks) {
+						const clip = track.clips.find((c) => c.id === clipId);
+						if (clip) {
+							const existing = (clip.effects ?? []).find((e) => e.type === 'colorCorrection');
+							if (existing) return existing;
+							break;
+						}
+					}
+					return get().addEffect(clipId, 'colorCorrection');
+				},
+				addAdjustmentLayer(trackId, start, duration) {
+					const project = get().project;
+					if (!project) return null;
+					const clipStart = snapToFrame(start ?? get().timeline.playhead, project.settings.fps);
+					const clipDuration =
+						duration ?? framesToTicks(5 * project.settings.fps, project.settings.fps);
+
+					let targetTrackId = trackId;
+					if (!targetTrackId) {
+						const selTrackId = get().timeline.selection.trackId;
+						const selTrack = project.tracks.find(
+							(t) => t.id === selTrackId && t.kind === 'video' && !t.locked
+						);
+						if (selTrack) {
+							targetTrackId = selTrack.id;
+						} else {
+							const videoTracks = project.tracks.filter((t) => t.kind === 'video' && !t.locked);
+							if (videoTracks.length > 0) {
+								targetTrackId = videoTracks[0]!.id;
+							}
+						}
+					}
+
+					let createdClipId: ClipId | null = null;
+					try {
+						mutateProject(
+							'Add adjustment layer',
+							(proj) => {
+								let currentProj = proj;
+								let trackToUse = targetTrackId
+									? currentProj.tracks.find(
+											(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
+										)
+									: undefined;
+								if (!trackToUse) {
+									const prevIds = new Set(currentProj.tracks.map((t) => t.id));
+									currentProj = addTrackOperation(currentProj, 'video');
+									trackToUse = currentProj.tracks.find(
+										(t) => !prevIds.has(t.id) && t.kind === 'video'
+									);
+								}
+								const clip = createAdjustmentClip(clipStart, clipDuration);
+								createdClipId = clip.id;
+								return insertClip(currentProj, trackToUse!.id, clip);
+							},
+							{ history: 'record' }
+						);
+						if (createdClipId) {
+							get().selectClips([createdClipId]);
+						}
+						return createdClipId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+				addSolidLayer(color = '#000000', trackId, start, duration) {
+					const project = get().project;
+					if (!project) return null;
+					const clipStart = snapToFrame(start ?? get().timeline.playhead, project.settings.fps);
+					const clipDuration =
+						duration ?? framesToTicks(5 * project.settings.fps, project.settings.fps);
+
+					let rgba: ColorRgba = { r: 0, g: 0, b: 0, a: 1 };
+					if (typeof color === 'string') {
+						const hex = color.replace('#', '');
+						if (hex.length === 6) {
+							rgba = {
+								r: parseInt(hex.slice(0, 2), 16) / 255,
+								g: parseInt(hex.slice(2, 4), 16) / 255,
+								b: parseInt(hex.slice(4, 6), 16) / 255,
+								a: 1
+							};
+						}
+					} else if (typeof color === 'object' && color !== null) {
+						rgba = color;
+					}
+
+					let targetTrackId = trackId;
+					if (!targetTrackId) {
+						const selTrackId = get().timeline.selection.trackId;
+						const selTrack = project.tracks.find(
+							(t) => t.id === selTrackId && t.kind === 'video' && !t.locked
+						);
+						if (selTrack) {
+							targetTrackId = selTrack.id;
+						} else {
+							const videoTracks = project.tracks.filter((t) => t.kind === 'video' && !t.locked);
+							if (videoTracks.length > 0) {
+								targetTrackId = videoTracks[0]!.id;
+							}
+						}
+					}
+
+					let createdClipId: ClipId | null = null;
+					try {
+						mutateProject(
+							'Add solid color',
+							(proj) => {
+								let currentProj = proj;
+								let trackToUse = targetTrackId
+									? currentProj.tracks.find(
+											(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
+										)
+									: undefined;
+								if (!trackToUse) {
+									const prevIds = new Set(currentProj.tracks.map((t) => t.id));
+									currentProj = addTrackOperation(currentProj, 'video');
+									trackToUse = currentProj.tracks.find(
+										(t) => !prevIds.has(t.id) && t.kind === 'video'
+									);
+								}
+								const clip = createSolidClip(clipStart, clipDuration, {
+									r: rgba.r,
+									g: rgba.g,
+									b: rgba.b,
+									a: rgba.a ?? 1
+								});
+								createdClipId = clip.id;
+								return insertClip(currentProj, trackToUse!.id, clip);
+							},
+							{ history: 'record' }
+						);
+						if (createdClipId) {
+							get().selectClips([createdClipId]);
+						}
+						return createdClipId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+				async importLut(name, cubeText) {
+					const project = get().project;
+					if (!project) return null;
+					try {
+						const parsed = parseCubeLut(cubeText);
+						const assetId = createAssetId();
+						storeParsedLut(assetId, parsed);
+						const cleanName = name.endsWith('.cube') ? name : `${name}.cube`;
+						const file = new File([cubeText], cleanName, { type: 'text/plain' });
+						const opfsPath = await writeMedia(project.id, assetId, file);
+						const asset: Asset = {
+							id: assetId,
+							name: cleanName,
+							kind: 'lut',
+							duration: 0,
+							size: file.size,
+							mimeType: 'text/plain',
+							hasAudio: false,
+							opfsPath
+						};
+						mutateProject(
+							'Import LUT',
+							(proj) => ({
+								...proj,
+								assets: {
+									...proj.assets,
+									[assetId]: asset
+								}
+							}),
+							{ history: 'record' }
+						);
+						set((state) => {
+							state.projectMessage = `Imported LUT "${cleanName}".`;
+						});
+						return assetId;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = `Could not import LUT: ${errorMessage(error)}`;
+						});
+						return null;
 					}
 				}
 			};
