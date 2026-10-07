@@ -1,10 +1,19 @@
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type PointerEvent as ReactPointerEvent
+} from 'react';
 import {
 	evaluateMask,
+	flattenBezier,
+	distanceToSegment,
 	layerAffine,
 	resolveFrame,
 	type Clip,
 	type EvaluatedMask,
+	type MaskPoint,
 	type Point2D,
 	type Project
 } from '../../core';
@@ -22,6 +31,79 @@ interface DraggingPoint {
 	handle?: 'in' | 'out';
 	startPos: Point2D;
 	originalShape: number[];
+	originalPoints?: MaskPoint[];
+}
+
+interface HoverPathHit {
+	maskId: string;
+	segmentIndex: number;
+	screenPoint: Point2D;
+	normPoint: Point2D;
+}
+
+/** Finds closest point on path curve in screen coordinates within given threshold (pixels). */
+function findClosestPointOnPath(
+	mask: EvaluatedMask,
+	screenPos: Point2D,
+	toMonitor: (p: Point2D) => Point2D,
+	fromMonitor: (p: Point2D) => Point2D,
+	thresholdPixels = 14
+): { segmentIndex: number; screenPoint: Point2D; normPoint: Point2D } | null {
+	const pts = mask.points;
+	if (!pts || pts.length < 2) return null;
+	const count = mask.closed ? pts.length : pts.length - 1;
+
+	let bestDist = thresholdPixels;
+	let bestHit: { segmentIndex: number; screenPoint: Point2D; normPoint: Point2D } | null = null;
+
+	for (let i = 0; i < count; i++) {
+		const p0 = pts[i]!;
+		const p1 = pts[(i + 1) % pts.length]!;
+
+		const cp0: Point2D = p0.outHandle
+			? { x: p0.x + p0.outHandle.x, y: p0.y + p0.outHandle.y }
+			: { x: p0.x, y: p0.y };
+		const cp1: Point2D = p1.inHandle
+			? { x: p1.x + p1.inHandle.x, y: p1.y + p1.inHandle.y }
+			: { x: p1.x, y: p1.y };
+
+		const mP0 = toMonitor(p0);
+		const mP1 = toMonitor(p1);
+		const mCp0 = toMonitor(cp0);
+		const mCp1 = toMonitor(cp1);
+
+		const samples = flattenBezier(mP0, mCp0, mCp1, mP1, 16);
+		for (let s = 0; s < samples.length - 1; s++) {
+			const a = samples[s]!;
+			const b = samples[s + 1]!;
+			const d = distanceToSegment(screenPos, a, b);
+			if (d < bestDist) {
+				bestDist = d;
+				const dx = b.x - a.x;
+				const dy = b.y - a.y;
+				const len2 = dx * dx + dy * dy;
+				let segT = 0;
+				if (len2 > 0) {
+					segT = Math.max(
+						0,
+						Math.min(1, ((screenPos.x - a.x) * dx + (screenPos.y - a.y) * dy) / len2)
+					);
+				}
+				const projScreen: Point2D = {
+					x: a.x + segT * dx,
+					y: a.y + segT * dy
+				};
+				const normPoint = fromMonitor(projScreen);
+				bestHit = {
+					segmentIndex: i,
+					screenPoint: projScreen,
+					normPoint
+				};
+			}
+		}
+	}
+
+	return bestHit;
 }
 
 export default function MaskOverlay({ project, renderedWidth, renderedHeight }: MaskOverlayProps) {
@@ -31,6 +113,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 	const maskTool = useEditorStore((state) => state.maskTool);
 
 	const [dragging, setDragging] = useState<DraggingPoint | null>(null);
+	const [hoverHit, setHoverHit] = useState<HoverPathHit | null>(null);
 	const svgRef = useRef<SVGSVGElement>(null);
 
 	// Find the single selected clip
@@ -44,7 +127,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		return null;
 	}, [project, selectedClipIds]);
 
-	const masks = selectedClip?.masks ?? [];
+	const masks = useMemo(() => selectedClip?.masks ?? [], [selectedClip]);
 	const showOverlay = maskTool.showOverlay && masks.length > 0;
 
 	// Compute transform matrix from normalized layer space to monitor space
@@ -74,16 +157,12 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		}
 
 		const affine = layerAffine(layer, compW, compH, compW, compH);
-		// [x_comp, y_comp] = [a*x + c*y + e, b*x + d*y + f]
-		// Then scale to monitor pixels
-
 		const toMon = (p: Point2D): Point2D => {
 			const cx = affine.a * p.x + affine.c * p.y + affine.e;
 			const cy = affine.b * p.x + affine.d * p.y + affine.f;
 			return { x: cx * scale, y: cy * scale };
 		};
 
-		// 2x2 inverse for normalized coords
 		const det = affine.a * affine.d - affine.b * affine.c;
 		const fromMon = (p: Point2D): Point2D => {
 			if (Math.abs(det) < 0.000001) return { x: 0.5, y: 0.5 };
@@ -97,13 +176,45 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		return { toMonitor: toMon, fromMonitor: fromMon };
 	}, [project, selectedClip, playhead, renderedWidth, renderedHeight]);
 
+	// Listen for Delete / Backspace key to remove selected mask point
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+			const activeEl = document.activeElement;
+			if (activeEl) {
+				const tag = activeEl.tagName.toLowerCase();
+				if (tag === 'input' || tag === 'textarea' || (activeEl as HTMLElement).isContentEditable) {
+					return;
+				}
+			}
+
+			if (maskTool.selectedMaskId && maskTool.selectedPointIndex !== null && selectedClip) {
+				const mask = masks.find((m) => m.id === maskTool.selectedMaskId);
+				if (mask?.type === 'path' && mask.points && mask.points.length > 3) {
+					e.preventDefault();
+					const pts = mask.points.filter((_, idx) => idx !== maskTool.selectedPointIndex);
+					store.getState().updateMask(selectedClip.id, mask.id, { points: pts });
+					store.getState().selectMaskPoint(null);
+				}
+			}
+		};
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [maskTool.selectedMaskId, maskTool.selectedPointIndex, selectedClip, masks, store]);
+
 	if (!showOverlay || !selectedClip) return null;
 
 	const localTime = playhead - selectedClip.start;
 	const evaluatedMasks = masks.map((m) => evaluateMask(m, localTime));
 	const activeMaskId = maskTool.selectedMaskId ?? (masks.length > 0 ? masks[0]!.id : null);
+	const activeMask = evaluatedMasks.find((m) => m.id === activeMaskId);
 
-	const handlePointerDownAnchor = (e: ReactPointerEvent, mask: EvaluatedMask, idx: number) => {
+	const handlePointerDownAnchor = (
+		e: ReactPointerEvent,
+		mask: EvaluatedMask,
+		idx: number,
+		handle?: 'in' | 'out'
+	) => {
 		e.stopPropagation();
 		e.preventDefault();
 		(e.target as SVGElement).setPointerCapture(e.pointerId);
@@ -116,52 +227,168 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		setDragging({
 			maskId: mask.id,
 			pointIndex: idx,
+			handle,
 			startPos: p,
-			originalShape: [...mask.shape]
+			originalShape: [...mask.shape],
+			originalPoints: (mask.points ?? []).map((pt) => ({
+				...pt,
+				inHandle: pt.inHandle ? { ...pt.inHandle } : undefined,
+				outHandle: pt.outHandle ? { ...pt.outHandle } : undefined
+			}))
 		});
 		store.getState().selectMask(mask.id);
 		store.getState().selectMaskPoint(idx);
 	};
 
-	const handlePointerMove = (e: ReactPointerEvent) => {
-		if (!dragging) return;
+	const handleDoubleClickAnchor = (e: React.MouseEvent, mask: EvaluatedMask, idx: number) => {
+		e.stopPropagation();
+		e.preventDefault();
+		const pts = (mask.points ?? []).map((pt) => ({
+			...pt,
+			inHandle: pt.inHandle ? { ...pt.inHandle } : undefined,
+			outHandle: pt.outHandle ? { ...pt.outHandle } : undefined
+		}));
+		const pt = pts[idx];
+		if (!pt) return;
+
+		if (pt.inHandle || pt.outHandle) {
+			// Clear handles (make it sharp corner)
+			delete pt.inHandle;
+			delete pt.outHandle;
+		} else {
+			// Add default smooth handles tangent to adjacent points
+			const prev = pts[(idx - 1 + pts.length) % pts.length]!;
+			const next = pts[(idx + 1) % pts.length]!;
+			const dx = (next.x - prev.x) * 0.15;
+			const dy = (next.y - prev.y) * 0.15;
+			pt.inHandle = { x: -dx, y: -dy };
+			pt.outHandle = { x: dx, y: dy };
+		}
+		store.getState().updateMask(selectedClip.id, mask.id, { points: pts });
+	};
+
+	const handlePathPointerDown = (e: ReactPointerEvent, mask: EvaluatedMask) => {
 		const svg = svgRef.current;
 		if (!svg) return;
 		const rect = svg.getBoundingClientRect();
-		const currentNorm = fromMonitor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+		const screenPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+		const hit = findClosestPointOnPath(mask, screenPos, toMonitor, fromMonitor, 16);
+		if (!hit) return;
 
-		const dx = currentNorm.x - dragging.startPos.x;
-		const dy = currentNorm.y - dragging.startPos.y;
+		e.stopPropagation();
+		e.preventDefault();
 
-		const currentMask = masks.find((m) => m.id === dragging.maskId);
-		if (!currentMask) return;
+		const pts: MaskPoint[] = (mask.points ?? []).map((pt) => ({
+			...pt,
+			inHandle: pt.inHandle ? { ...pt.inHandle } : undefined,
+			outHandle: pt.outHandle ? { ...pt.outHandle } : undefined
+		}));
 
-		if (currentMask.type === 'rect') {
-			const shape = [...dragging.originalShape];
-			shape[0] = Math.max(0, Math.min(1, shape[0]! + dx));
-			shape[1] = Math.max(0, Math.min(1, shape[1]! + dy));
-			store.getState().updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
-		} else if (currentMask.type === 'ellipse') {
-			const shape = [...dragging.originalShape];
-			shape[0] = Math.max(0, Math.min(1, shape[0]! + dx));
-			shape[1] = Math.max(0, Math.min(1, shape[1]! + dy));
-			store.getState().updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
-		} else if (currentMask.type === 'path') {
-			const points = (currentMask.points ?? []).map((pt) => ({ ...pt }));
-			const pt = points[dragging.pointIndex];
-			if (pt) {
-				pt.x = Math.max(0, Math.min(1, pt.x + dx));
-				pt.y = Math.max(0, Math.min(1, pt.y + dy));
+		// Insert new point at segmentIndex + 1
+		const insertIdx = hit.segmentIndex + 1;
+		const newPt: MaskPoint = {
+			x: Math.max(0, Math.min(1, hit.normPoint.x)),
+			y: Math.max(0, Math.min(1, hit.normPoint.y))
+		};
+		pts.splice(insertIdx, 0, newPt);
+
+		store.getState().updateMask(selectedClip.id, mask.id, { points: pts });
+		store.getState().selectMask(mask.id);
+		store.getState().selectMaskPoint(insertIdx);
+
+		// Immediately start dragging the newly added point
+		(e.target as SVGElement).setPointerCapture(e.pointerId);
+		setDragging({
+			maskId: mask.id,
+			pointIndex: insertIdx,
+			startPos: hit.normPoint,
+			originalShape: [...mask.shape],
+			originalPoints: pts.map((pt) => ({
+				...pt,
+				inHandle: pt.inHandle ? { ...pt.inHandle } : undefined,
+				outHandle: pt.outHandle ? { ...pt.outHandle } : undefined
+			}))
+		});
+		setHoverHit(null);
+	};
+
+	const handlePointerMove = (e: ReactPointerEvent) => {
+		const svg = svgRef.current;
+		if (!svg) return;
+		const rect = svg.getBoundingClientRect();
+		const currentScreen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+		const currentNorm = fromMonitor(currentScreen);
+
+		if (dragging) {
+			const dx = currentNorm.x - dragging.startPos.x;
+			const dy = currentNorm.y - dragging.startPos.y;
+
+			const currentMask = masks.find((m) => m.id === dragging.maskId);
+			if (!currentMask) return;
+
+			if (currentMask.type === 'rect') {
+				const shape = [...dragging.originalShape];
+				shape[0] = Math.max(0, Math.min(1, shape[0]! + dx));
+				shape[1] = Math.max(0, Math.min(1, shape[1]! + dy));
 				store
 					.getState()
-					.updateMask(selectedClip.id, dragging.maskId, { points }, { coalesce: true });
+					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+			} else if (currentMask.type === 'ellipse') {
+				const shape = [...dragging.originalShape];
+				shape[0] = Math.max(0, Math.min(1, shape[0]! + dx));
+				shape[1] = Math.max(0, Math.min(1, shape[1]! + dy));
+				store
+					.getState()
+					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+			} else if (currentMask.type === 'path' && dragging.originalPoints) {
+				const points = dragging.originalPoints.map((pt) => ({
+					...pt,
+					inHandle: pt.inHandle ? { ...pt.inHandle } : undefined,
+					outHandle: pt.outHandle ? { ...pt.outHandle } : undefined
+				}));
+				const pt = points[dragging.pointIndex];
+				if (pt) {
+					const origPt = dragging.originalPoints[dragging.pointIndex]!;
+					if (dragging.handle === 'in') {
+						const origIn = origPt.inHandle ?? { x: 0, y: 0 };
+						pt.inHandle = { x: origIn.x + dx, y: origIn.y + dy };
+					} else if (dragging.handle === 'out') {
+						const origOut = origPt.outHandle ?? { x: 0, y: 0 };
+						pt.outHandle = { x: origOut.x + dx, y: origOut.y + dy };
+					} else {
+						pt.x = Math.max(0, Math.min(1, origPt.x + dx));
+						pt.y = Math.max(0, Math.min(1, origPt.y + dy));
+					}
+					store
+						.getState()
+						.updateMask(selectedClip.id, dragging.maskId, { points }, { coalesce: true });
+				}
 			}
+			return;
+		}
+
+		// When not dragging, check for hover over active path mask to show add-point indicator
+		if (activeMask && activeMask.type === 'path') {
+			const hit = findClosestPointOnPath(activeMask, currentScreen, toMonitor, fromMonitor, 14);
+			if (hit) {
+				setHoverHit({
+					maskId: activeMask.id,
+					segmentIndex: hit.segmentIndex,
+					screenPoint: hit.screenPoint,
+					normPoint: hit.normPoint
+				});
+			} else {
+				if (hoverHit) setHoverHit(null);
+			}
+		} else {
+			if (hoverHit) setHoverHit(null);
 		}
 	};
 
 	const handlePointerUp = () => {
-		if (!dragging) return;
-		setDragging(null);
+		if (dragging) {
+			setDragging(null);
+		}
 	};
 
 	return (
@@ -176,10 +403,15 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 				left: 0,
 				pointerEvents: 'all',
 				userSelect: 'none',
-				zIndex: 20
+				zIndex: 20,
+				cursor: hoverHit ? 'crosshair' : undefined
 			}}
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
+			onPointerLeave={() => {
+				setHoverHit(null);
+				if (dragging) setDragging(null);
+			}}
 		>
 			{evaluatedMasks.map((mask) => {
 				const isSelected = mask.id === activeMaskId;
@@ -201,6 +433,8 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 								stroke={strokeColor}
 								strokeWidth={1.5}
 								strokeDasharray={isSelected ? undefined : '4 4'}
+								style={{ cursor: 'move' }}
+								onPointerDown={(e) => handlePointerDownAnchor(e, mask, 0)}
 							/>
 							{/* Center move handle */}
 							<circle
@@ -236,6 +470,8 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 								stroke={strokeColor}
 								strokeWidth={1.5}
 								strokeDasharray={isSelected ? undefined : '4 4'}
+								style={{ cursor: 'move' }}
+								onPointerDown={(e) => handlePointerDownAnchor(e, mask, 0)}
 							/>
 							<circle
 								cx={center.x}
@@ -292,6 +528,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 
 					return (
 						<g key={mask.id}>
+							{/* Visible stroke path */}
 							<path
 								d={d}
 								fill="none"
@@ -299,26 +536,140 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 								strokeWidth={1.5}
 								strokeDasharray={isSelected ? undefined : '4 4'}
 							/>
-							{/* Vertices */}
-							{screenPts.map((p, idx) => (
-								<circle
-									key={idx}
-									cx={p.x}
-									cy={p.y}
-									r={4.5}
-									fill={maskTool.selectedPointIndex === idx ? '#3b82f6' : '#ffffff'}
-									stroke="#000000"
-									strokeWidth={1.5}
-									style={{ cursor: 'pointer' }}
-									onPointerDown={(e) => handlePointerDownAnchor(e, mask, idx)}
-								/>
-							))}
+							{/* Thick invisible path for easy clicking anywhere along the edge to add points */}
+							<path
+								d={d}
+								fill="none"
+								stroke="transparent"
+								strokeWidth={20}
+								style={{ cursor: 'crosshair' }}
+								onPointerDown={(e) => handlePathPointerDown(e, mask)}
+							/>
+
+							{/* Vertices & Tangent Handles */}
+							{screenPts.map((p, idx) => {
+								const pt = pts[idx]!;
+								const isPointSelected = isSelected && maskTool.selectedPointIndex === idx;
+
+								return (
+									<g key={idx}>
+										{/* If point is selected, display tangent handles if they exist */}
+										{isPointSelected && (
+											<>
+												{pt.inHandle && (
+													<>
+														<line
+															x1={p.x}
+															y1={p.y}
+															x2={toMonitor({ x: pt.x + pt.inHandle.x, y: pt.y + pt.inHandle.y }).x}
+															y2={toMonitor({ x: pt.x + pt.inHandle.x, y: pt.y + pt.inHandle.y }).y}
+															stroke="#3b82f6"
+															strokeWidth={1.5}
+															strokeDasharray="2 2"
+														/>
+														<circle
+															cx={toMonitor({ x: pt.x + pt.inHandle.x, y: pt.y + pt.inHandle.y }).x}
+															cy={toMonitor({ x: pt.x + pt.inHandle.x, y: pt.y + pt.inHandle.y }).y}
+															r={4}
+															fill="#3b82f6"
+															stroke="#ffffff"
+															strokeWidth={1.5}
+															style={{ cursor: 'pointer' }}
+															onPointerDown={(e) => handlePointerDownAnchor(e, mask, idx, 'in')}
+														>
+															<title>Drag in-tangent handle</title>
+														</circle>
+													</>
+												)}
+												{pt.outHandle && (
+													<>
+														<line
+															x1={p.x}
+															y1={p.y}
+															x2={
+																toMonitor({ x: pt.x + pt.outHandle.x, y: pt.y + pt.outHandle.y }).x
+															}
+															y2={
+																toMonitor({ x: pt.x + pt.outHandle.x, y: pt.y + pt.outHandle.y }).y
+															}
+															stroke="#3b82f6"
+															strokeWidth={1.5}
+															strokeDasharray="2 2"
+														/>
+														<circle
+															cx={
+																toMonitor({ x: pt.x + pt.outHandle.x, y: pt.y + pt.outHandle.y }).x
+															}
+															cy={
+																toMonitor({ x: pt.x + pt.outHandle.x, y: pt.y + pt.outHandle.y }).y
+															}
+															r={4}
+															fill="#3b82f6"
+															stroke="#ffffff"
+															strokeWidth={1.5}
+															style={{ cursor: 'pointer' }}
+															onPointerDown={(e) => handlePointerDownAnchor(e, mask, idx, 'out')}
+														>
+															<title>Drag out-tangent handle</title>
+														</circle>
+													</>
+												)}
+											</>
+										)}
+
+										{/* Anchor Point Circle */}
+										<circle
+											cx={p.x}
+											cy={p.y}
+											r={isPointSelected ? 5.5 : 4.5}
+											fill={isPointSelected ? '#3b82f6' : '#ffffff'}
+											stroke="#000000"
+											strokeWidth={1.5}
+											style={{ cursor: 'pointer' }}
+											onPointerDown={(e) => handlePointerDownAnchor(e, mask, idx)}
+											onDoubleClick={(e) => handleDoubleClickAnchor(e, mask, idx)}
+										>
+											<title>Drag to move. Double-click to toggle smooth/corner.</title>
+										</circle>
+									</g>
+								);
+							})}
 						</g>
 					);
 				}
 
 				return null;
 			})}
+
+			{/* Hover indicator showing where a new point will be added upon clicking the path */}
+			{hoverHit && (
+				<g pointerEvents="none">
+					<circle
+						cx={hoverHit.screenPoint.x}
+						cy={hoverHit.screenPoint.y}
+						r={6}
+						fill="#3b82f6"
+						stroke="#ffffff"
+						strokeWidth={2}
+					/>
+					<line
+						x1={hoverHit.screenPoint.x - 3}
+						y1={hoverHit.screenPoint.y}
+						x2={hoverHit.screenPoint.x + 3}
+						y2={hoverHit.screenPoint.y}
+						stroke="#ffffff"
+						strokeWidth={1.5}
+					/>
+					<line
+						x1={hoverHit.screenPoint.x}
+						y1={hoverHit.screenPoint.y - 3}
+						x2={hoverHit.screenPoint.x}
+						y2={hoverHit.screenPoint.y + 3}
+						stroke="#ffffff"
+						strokeWidth={1.5}
+					/>
+				</g>
+			)}
 		</svg>
 	);
 }

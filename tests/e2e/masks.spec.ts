@@ -142,4 +142,65 @@ test.describe('Masks Architecture & Pipeline (Gate L)', () => {
 		expect(rightPixel[1]).toBeGreaterThan(150);
 		expect(rightPixel[2]).toBeLessThan(100);
 	});
+
+	test('allows adding points by clicking along path and precisely dragging points', async ({ page }) => {
+		await createProject(page, 'Masks Path Points');
+
+		// Add solid clip and create path mask
+		await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clipId = store.getState().addSolidLayer('#ffffff');
+			store.getState().selectClips([clipId]);
+			store.getState().addMask(clipId, 'path');
+		});
+
+		await page.waitForTimeout(300);
+
+		// Verify initial path mask has 3 points
+		const initialCount = await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			return clip.masks[0].points.length;
+		});
+		expect(initialCount).toBe(3);
+
+		// Click on the SVG overlay along the edge to insert a point
+		const overlay = page.locator('.mask-canvas-overlay');
+		await expect(overlay).toBeVisible();
+
+		// Click near the top-center edge of the path to insert a 4th point
+		const box = await overlay.boundingBox();
+		expect(box).not.toBeNull();
+		await page.mouse.click(box!.x + box!.width * 0.5, box!.y + box!.height * 0.3);
+
+		await page.waitForTimeout(300);
+
+		// Check points count increased to 4
+		const updatedCount = await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			return clip.masks[0].points.length;
+		});
+		expect(updatedCount).toBe(4);
+
+		// Drag the newly created point down by 50px
+		const startX = box!.x + box!.width * 0.5;
+		const startY = box!.y + box!.height * 0.3;
+		await page.mouse.move(startX, startY);
+		await page.mouse.down();
+		await page.mouse.move(startX, startY + 50, { steps: 5 });
+		await page.mouse.up();
+
+		await page.waitForTimeout(300);
+
+		// Verify point moved smoothly without runaway offset
+		const movedY = await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			const selectedIdx = store.getState().maskTool.selectedPointIndex;
+			return clip.masks[0].points[selectedIdx ?? 2].y;
+		});
+		expect(movedY).toBeGreaterThan(0.35);
+		expect(movedY).toBeLessThan(0.85);
+	});
 });

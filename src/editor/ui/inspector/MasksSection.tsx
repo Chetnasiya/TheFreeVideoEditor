@@ -11,6 +11,7 @@ interface MasksSectionProps {
 export default function MasksSection({ clip }: MasksSectionProps) {
 	const store = useEditorStoreApi();
 	const selectedMaskId = useEditorStore((state) => state.maskTool.selectedMaskId);
+	const selectedPointIndex = useEditorStore((state) => state.maskTool.selectedPointIndex);
 	const masks = clip.masks ?? [];
 	const [expandedMaskId, setExpandedMaskId] = useState<string | null>(
 		masks.length > 0 ? masks[0]!.id : null
@@ -376,28 +377,104 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 
 										{/* Shape specific readouts / buttons */}
 										{mask.type === 'path' && (
-											<div
-												style={{
-													display: 'flex',
-													justifyContent: 'space-between',
-													alignItems: 'center',
-													fontSize: '0.75rem'
-												}}
-											>
-												<span style={{ opacity: 0.7 }}>
-													{mask.points?.length ??
-														(mask.shape ? Math.floor(mask.shape.length / 6) : 0)}{' '}
-													points
-												</span>
-												<button
-													type="button"
-													className="btn btn-xs btn-secondary"
-													onClick={() => {
-														store.getState().updateMask(clip.id, mask.id, { closed: !mask.closed });
+											<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+												<div
+													style={{
+														display: 'flex',
+														justifyContent: 'space-between',
+														alignItems: 'center',
+														fontSize: '0.75rem'
 													}}
 												>
-													{mask.closed ? 'Open Path' : 'Close Path'}
-												</button>
+													<span style={{ opacity: 0.8 }}>
+														{mask.points?.length ??
+															(mask.shape ? Math.floor(mask.shape.length / 6) : 0)}{' '}
+														points
+													</span>
+													<button
+														type="button"
+														className="btn btn-xs btn-secondary"
+														onClick={() => {
+															store
+																.getState()
+																.updateMask(clip.id, mask.id, { closed: !mask.closed });
+														}}
+													>
+														{mask.closed ? 'Open Path' : 'Close Path'}
+													</button>
+												</div>
+
+												{/* Selected point actions */}
+												{selectedPointIndex !== null && selectedMaskId === mask.id && (
+													<div
+														style={{
+															display: 'flex',
+															alignItems: 'center',
+															justifyContent: 'space-between',
+															background: 'rgba(255, 255, 255, 0.05)',
+															padding: '4px 8px',
+															borderRadius: 4,
+															fontSize: '0.72rem'
+														}}
+													>
+														<span>Point #{selectedPointIndex + 1}</span>
+														<div style={{ display: 'flex', gap: 4 }}>
+															<button
+																type="button"
+																className="btn btn-xs btn-ghost"
+																onClick={() => {
+																	const pts = (mask.points ?? []).map((p) => ({
+																		...p,
+																		inHandle: p.inHandle ? { ...p.inHandle } : undefined,
+																		outHandle: p.outHandle ? { ...p.outHandle } : undefined
+																	}));
+																	const pt = pts[selectedPointIndex];
+																	if (!pt) return;
+																	if (pt.inHandle || pt.outHandle) {
+																		delete pt.inHandle;
+																		delete pt.outHandle;
+																	} else {
+																		const prev =
+																			pts[(selectedPointIndex - 1 + pts.length) % pts.length]!;
+																		const next = pts[(selectedPointIndex + 1) % pts.length]!;
+																		pt.inHandle = {
+																			x: -(next.x - prev.x) * 0.15,
+																			y: -(next.y - prev.y) * 0.15
+																		};
+																		pt.outHandle = {
+																			x: (next.x - prev.x) * 0.15,
+																			y: (next.y - prev.y) * 0.15
+																		};
+																	}
+																	store.getState().updateMask(clip.id, mask.id, { points: pts });
+																}}
+																title="Toggle smooth curves / sharp corner"
+															>
+																Smooth/Sharp
+															</button>
+															<button
+																type="button"
+																className="btn btn-xs btn-ghost"
+																style={{ color: '#ef4444' }}
+																disabled={(mask.points?.length ?? 0) <= 3}
+																onClick={() => {
+																	const pts = (mask.points ?? []).filter(
+																		(_, idx) => idx !== selectedPointIndex
+																	);
+																	store.getState().updateMask(clip.id, mask.id, { points: pts });
+																	store.getState().selectMaskPoint(null);
+																}}
+																title="Delete selected point"
+															>
+																Delete
+															</button>
+														</div>
+													</div>
+												)}
+
+												<p style={{ margin: 0, fontSize: '0.68rem', opacity: 0.6 }}>
+													Click path edge in preview to add points. Drag handles to curve.
+												</p>
 											</div>
 										)}
 
