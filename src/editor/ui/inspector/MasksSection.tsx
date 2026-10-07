@@ -65,33 +65,70 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 	return (
 		<div className="masks-section">
 			{/* Add mask button bar */}
-			<div className="mask-add-bar" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+			<div className="mask-add-bar">
 				<button
 					type="button"
-					className="btn btn-sm btn-secondary"
+					className="mask-type-btn"
 					onClick={() => handleAddMask('rect')}
 					title="Add rectangle mask"
 					aria-label="Add rectangle mask"
 				>
-					+ Rectangle
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
+					</svg>
+					Rectangle
 				</button>
 				<button
 					type="button"
-					className="btn btn-sm btn-secondary"
+					className="mask-type-btn"
 					onClick={() => handleAddMask('ellipse')}
 					title="Add ellipse mask"
 					aria-label="Add ellipse mask"
 				>
-					+ Ellipse
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<ellipse cx="8" cy="8" rx="5.5" ry="4.5" />
+					</svg>
+					Ellipse
 				</button>
 				<button
 					type="button"
-					className="btn btn-sm btn-secondary"
+					className="mask-type-btn"
 					onClick={() => handleAddMask('path')}
 					title="Add freeform bezier path mask"
 					aria-label="Add path mask"
 				>
-					+ Path
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<path d="M3 13L4.5 9.5L11.5 2.5C12 2 13 2 13.5 2.5C14 3 14 4 13.5 4.5L6.5 11.5L3 13Z" />
+						<circle cx="12.5" cy="3.5" r="0.5" fill="currentColor" />
+					</svg>
+					Path
 				</button>
 			</div>
 
@@ -166,20 +203,13 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 									</span>
 									<button
 										type="button"
-										className="btn-icon"
+										className="mask-btn-ghost mask-btn-danger"
 										onClick={(e) => {
 											e.stopPropagation();
 											handleDeleteMask(mask.id);
 										}}
 										title="Delete mask"
 										aria-label={`Delete mask ${mask.id}`}
-										style={{
-											background: 'none',
-											border: 'none',
-											color: 'inherit',
-											opacity: 0.6,
-											cursor: 'pointer'
-										}}
 									>
 										✕
 									</button>
@@ -393,7 +423,7 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 													</span>
 													<button
 														type="button"
-														className="btn btn-xs btn-secondary"
+														className="mask-btn-secondary"
 														onClick={() => {
 															store
 																.getState()
@@ -421,7 +451,7 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 														<div style={{ display: 'flex', gap: 4 }}>
 															<button
 																type="button"
-																className="btn btn-xs btn-ghost"
+																className="mask-btn-ghost"
 																onClick={() => {
 																	const pts = (mask.points ?? []).map((p) => ({
 																		...p,
@@ -454,8 +484,7 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 															</button>
 															<button
 																type="button"
-																className="btn btn-xs btn-ghost"
-																style={{ color: '#ef4444' }}
+																className="mask-btn-ghost mask-btn-danger"
 																disabled={(mask.points?.length ?? 0) <= 3}
 																onClick={() => {
 																	const pts = (mask.points ?? []).filter(
@@ -482,7 +511,7 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 										<div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
 											<button
 												type="button"
-												className="btn btn-xs btn-ghost"
+												className="mask-btn-ghost"
 												disabled={idx === 0}
 												onClick={() => handleReorder(idx, idx - 1)}
 												title="Move mask up"
@@ -491,7 +520,7 @@ export default function MasksSection({ clip }: MasksSectionProps) {
 											</button>
 											<button
 												type="button"
-												className="btn btn-xs btn-ghost"
+												className="mask-btn-ghost"
 												disabled={idx === masks.length - 1}
 												onClick={() => handleReorder(idx, idx + 1)}
 												title="Move mask down"
