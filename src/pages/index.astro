@@ -6,83 +6,581 @@ import Layout from '../layouts/Layout.astro';
 	title="The Free Video Editor — edit videos in your browser"
 	description="Edit videos in your browser for free. Your files stay on your device."
 >
-	<main class="home-page">
-		<div class="home-content">
-			<p class="home-eyebrow">FREE · PRIVATE · IN YOUR BROWSER</p>
-			<h1>The Free Video Editor</h1>
+	<main class="home-page" id="home-page">
+		<!-- Ambient cosmic lighting -->
+		<div class="ambient-glow ambient-glow-1" aria-hidden="true"></div>
+		<div class="ambient-glow ambient-glow-2" aria-hidden="true"></div>
+		<div class="grid-overlay" aria-hidden="true"></div>
+
+		<!-- Interactive Antigravity Canvas (upward floating physics particles) -->
+		<canvas id="antigravity-canvas" class="antigravity-canvas" aria-hidden="true"></canvas>
+
+		<!-- Hero Content with Zero-G Levitation -->
+		<div class="home-content" id="home-content">
+			<div class="home-eyebrow-badge">
+				<span class="pulsing-beacon" aria-hidden="true"></span>
+				<span class="eyebrow-text">FREE · PRIVATE · IN YOUR BROWSER</span>
+			</div>
+
+			<h1 class="hero-title">
+				The <span class="highlight-title">Free</span> Video Editor
+			</h1>
+
 			<p class="home-description">
 				Edit videos in your browser. Free to use, with your files staying on your device.
 			</p>
-			<a class="home-cta" href="/editor">
-				Open the editor
-			</a>
-			<p class="home-note">No upload. No account. Your files stay on this device.</p>
+
+			<div class="cta-wrapper">
+				<a class="home-cta" href="/editor">
+					<span>Open the editor</span>
+					<svg
+						class="cta-arrow"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2.2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-hidden="true"
+					>
+						<line x1="5" y1="12" x2="19" y2="12"></line>
+						<polyline points="12 5 19 12 12 19"></polyline>
+					</svg>
+				</a>
+			</div>
+
+			<p class="home-note">
+				<svg
+					class="shield-icon"
+					width="14"
+					height="14"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="2"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+				</svg>
+				No upload. No account. Your files stay on this device.
+			</p>
 		</div>
 	</main>
 </Layout>
 
 <style>
 	.home-page {
+		position: relative;
 		display: grid;
 		min-height: 100vh;
 		min-height: 100dvh;
 		place-items: center;
-		background: var(--color-canvas);
+		background: #070709;
 		padding: var(--spacing-lg);
 		color: var(--color-ink);
+		overflow: hidden;
+		perspective: 1000px;
 	}
 
+	/* Ambient space lighting */
+	.ambient-glow {
+		position: absolute;
+		border-radius: 50%;
+		pointer-events: none;
+		filter: blur(90px);
+		z-index: 1;
+	}
+
+	.ambient-glow-1 {
+		top: 25%;
+		left: 50%;
+		width: min(80vw, 680px);
+		height: min(50vh, 460px);
+		transform: translate(-50%, -50%);
+		background: radial-gradient(
+			circle,
+			rgba(0, 112, 243, 0.16) 0%,
+			rgba(121, 40, 202, 0.1) 45%,
+			transparent 75%
+		);
+		animation: pulse-glow 9s ease-in-out infinite alternate;
+	}
+
+	.ambient-glow-2 {
+		bottom: 10%;
+		left: 50%;
+		width: min(70vw, 560px);
+		height: min(40vh, 360px);
+		transform: translateX(-50%);
+		background: radial-gradient(
+			circle,
+			rgba(56, 189, 248, 0.1) 0%,
+			rgba(99, 102, 241, 0.06) 50%,
+			transparent 75%
+		);
+		animation: pulse-glow 11s ease-in-out infinite alternate-reverse;
+	}
+
+	@keyframes pulse-glow {
+		0% {
+			opacity: 0.7;
+			transform: translate(-50%, -50%) scale(0.95);
+		}
+		100% {
+			opacity: 1;
+			transform: translate(-50%, -50%) scale(1.08);
+		}
+	}
+
+	/* Subtle spatial grid overlay */
+	.grid-overlay {
+		position: absolute;
+		inset: 0;
+		background-image:
+			linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+		background-size: 52px 52px;
+		mask-image: radial-gradient(ellipse 65% 55% at 50% 50%, black 20%, transparent 80%);
+		-webkit-mask-image: radial-gradient(ellipse 65% 55% at 50% 50%, black 20%, transparent 80%);
+		pointer-events: none;
+		z-index: 1;
+	}
+
+	/* Antigravity physics canvas */
+	.antigravity-canvas {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 2;
+	}
+
+	/* Hero Content */
 	.home-content {
-		width: min(100%, 52rem);
+		position: relative;
+		z-index: 10;
+		width: min(100%, 54rem);
 		text-align: center;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		transform-style: preserve-3d;
+		transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+		animation: levitate-card 6s ease-in-out infinite;
 	}
 
-	.home-eyebrow {
-		color: var(--color-mute);
+	@keyframes levitate-card {
+		0%, 100% {
+			transform: translateY(0px);
+		}
+		50% {
+			transform: translateY(-8px);
+		}
+	}
+
+	/* Eyebrow badge */
+	.home-eyebrow-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 5px 14px;
+		border-radius: var(--radius-pill);
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		margin-bottom: var(--spacing-sm);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+	}
+
+	.pulsing-beacon {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #38bdf8;
+		box-shadow: 0 0 10px #38bdf8;
+		animation: pulse-beacon 2s ease-in-out infinite;
+	}
+
+	@keyframes pulse-beacon {
+		0%, 100% {
+			transform: scale(0.9);
+			opacity: 0.6;
+		}
+		50% {
+			transform: scale(1.3);
+			opacity: 1;
+			box-shadow: 0 0 14px #38bdf8;
+		}
+	}
+
+	.eyebrow-text {
+		color: #94a3b8;
 		font-family: var(--font-mono);
-		font-size: var(--text-mono-eyebrow);
-		letter-spacing: 0.08em;
+		font-size: 0.72rem;
+		letter-spacing: 0.1em;
+		font-weight: 500;
 	}
 
-	h1 {
-		margin: var(--spacing-md) 0;
-		font-size: clamp(2.5rem, 8vw, 5rem);
-		font-weight: var(--font-weight-medium);
-		letter-spacing: var(--tracking-display-xl);
-		line-height: 1;
+	/* Hero Title - Clear, Crisp, Bold with Antigravity Accent */
+	.hero-title {
+		margin: var(--spacing-sm) 0 var(--spacing-md);
+		font-size: clamp(2.75rem, 8.5vw, 5.25rem);
+		font-weight: 600;
+		letter-spacing: -0.04em;
+		line-height: 1.05;
+		color: #ffffff;
 		text-wrap: balance;
+		text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7), 0 0 45px rgba(255, 255, 255, 0.08);
+	}
+
+	.highlight-title {
+		background: linear-gradient(135deg, #ffffff 15%, #67e8f9 55%, #a855f7 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		display: inline-block;
+		filter: drop-shadow(0 0 24px rgba(56, 189, 248, 0.35));
 	}
 
 	.home-description {
 		max-width: 38rem;
 		margin: 0 auto var(--spacing-lg);
-		color: var(--color-body);
-		font-size: var(--text-heading-md);
-		line-height: 1.5;
+		color: #cbd5e1;
+		font-size: clamp(1rem, 2.5vw, 1.25rem);
+		line-height: 1.6;
 		text-wrap: pretty;
+		font-weight: 400;
+	}
+
+	.cta-wrapper {
+		position: relative;
+		display: inline-block;
 	}
 
 	.home-cta {
 		display: inline-flex;
-		min-height: 2.75rem;
+		min-height: 3rem;
 		align-items: center;
 		justify-content: center;
-		border-radius: var(--radius-sm);
-		background: var(--color-primary);
-		padding: 0 var(--spacing-lg);
-		color: var(--color-on-primary);
+		gap: 8px;
+		border-radius: var(--radius-pill);
+		background: #ededed;
+		padding: 0 1.75rem;
+		color: #090909;
 		font-size: var(--text-button-lg);
-		font-weight: var(--font-weight-medium);
+		font-weight: 500;
 		text-decoration: none;
+		border: 1px solid rgba(255, 255, 255, 0.9);
+		box-shadow: 0 0 24px rgba(255, 255, 255, 0.18), 0 4px 14px rgba(0, 0, 0, 0.4);
+		transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	.cta-arrow {
+		transition: transform 0.25s ease;
 	}
 
 	.home-cta:hover {
-		opacity: 0.88;
+		background: #ffffff;
+		transform: translateY(-2px);
+		box-shadow: 0 0 32px rgba(255, 255, 255, 0.35), 0 8px 24px rgba(0, 0, 0, 0.5);
+	}
+
+	.home-cta:hover .cta-arrow {
+		transform: translateX(4px);
+	}
+
+	.home-cta:active {
+		transform: translateY(0);
 	}
 
 	.home-note {
-		margin-top: var(--spacing-md);
-		color: var(--color-mute);
+		margin-top: var(--spacing-lg);
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		color: #64748b;
 		font-size: var(--text-body-sm);
+		font-family: var(--font-sans);
+	}
+
+	.shield-icon {
+		color: #38bdf8;
+		opacity: 0.8;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ambient-glow-1,
+		.ambient-glow-2,
+		.pulsing-beacon,
+		.home-content {
+			animation: none !important;
+		}
+		.home-content {
+			transition: none !important;
+		}
 	}
 </style>
+
+<script>
+	function setupAntigravityAnimation() {
+		const canvas = document.getElementById('antigravity-canvas') as HTMLCanvasElement | null;
+		const container = document.getElementById('home-page');
+		const content = document.getElementById('home-content');
+		if (!canvas || !container) return;
+
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+
+		const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+		let width = 0;
+		let height = 0;
+		let dpr = 1;
+
+		function resize() {
+			dpr = Math.min(window.devicePixelRatio || 1, 2);
+			width = canvas!.clientWidth;
+			height = canvas!.clientHeight;
+			canvas!.width = width * dpr;
+			canvas!.height = height * dpr;
+			ctx!.scale(dpr, dpr);
+		}
+
+		resize();
+		window.addEventListener('resize', resize, { passive: true });
+
+		// Mouse state
+		const mouse = {
+			x: -9999,
+			y: -9999,
+			smoothX: -9999,
+			smoothY: -9999,
+			isActive: false
+		};
+
+		function onPointerMove(e: PointerEvent) {
+			const rect = canvas!.getBoundingClientRect();
+			mouse.x = e.clientX - rect.left;
+			mouse.y = e.clientY - rect.top;
+			mouse.isActive = true;
+
+			// Subtle 3D parallax on the content card
+			if (content && !prefersReducedMotion) {
+				const centerX = window.innerWidth / 2;
+				const centerY = window.innerHeight / 2;
+				const offsetX = (e.clientX - centerX) / centerX;
+				const offsetY = (e.clientY - centerY) / centerY;
+				const tiltX = -offsetY * 4;
+				const tiltY = offsetX * 4;
+				const moveX = offsetX * 6;
+				const moveY = offsetY * 6;
+				content.style.transform = `perspective(1000px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) translate3d(${moveX.toFixed(1)}px, ${moveY.toFixed(1)}px, 0)`;
+			}
+		}
+
+		function onPointerLeave() {
+			mouse.isActive = false;
+			mouse.x = -9999;
+			mouse.y = -9999;
+			if (content && !prefersReducedMotion) {
+				content.style.transform = '';
+			}
+		}
+
+		window.addEventListener('pointermove', onPointerMove, { passive: true });
+		document.addEventListener('mouseleave', onPointerLeave);
+
+		// Particle System with Antigravity Physics
+		interface Particle {
+			x: number;
+			y: number;
+			vx: number;
+			vy: number;
+			baseVy: number;
+			radius: number;
+			color: string;
+			alpha: number;
+			phase: number;
+			swaySpeed: number;
+			swayAmount: number;
+		}
+
+		const count = Math.min(Math.max(Math.floor((window.innerWidth * window.innerHeight) / 16000), 50), 95);
+		const particles: Particle[] = [];
+
+		const colorPalette = [
+			'rgba(255, 255, 255, ',   // Pure starlight
+			'rgba(56, 189, 248, ',   // Antigravity cyan
+			'rgba(168, 85, 247, ',   // Deep cosmic violet
+			'rgba(99, 102, 241, ',   // Electric indigo
+			'rgba(203, 213, 225, '   // Soft silver
+		];
+
+		for (let i = 0; i < count; i++) {
+			const baseVy = -(0.35 + Math.random() * 0.65); // Antigravity: floating UPWARD
+			particles.push({
+				x: Math.random() * width,
+				y: Math.random() * height,
+				vx: (Math.random() - 0.5) * 0.3,
+				vy: baseVy,
+				baseVy,
+				radius: 1.2 + Math.random() * 1.8,
+				color: colorPalette[Math.floor(Math.random() * colorPalette.length)]!,
+				alpha: 0.2 + Math.random() * 0.65,
+				phase: Math.random() * Math.PI * 2,
+				swaySpeed: 0.015 + Math.random() * 0.02,
+				swayAmount: 0.25 + Math.random() * 0.45
+			});
+		}
+
+		let animationFrameId: number;
+		let lastTime = performance.now();
+
+		function render(now: number) {
+			const dt = Math.min((now - lastTime) / 16.666, 2.5);
+			lastTime = now;
+
+			ctx!.clearRect(0, 0, width, height);
+
+			// Smooth cursor lerp
+			if (mouse.isActive) {
+				if (mouse.smoothX === -9999) {
+					mouse.smoothX = mouse.x;
+					mouse.smoothY = mouse.y;
+				} else {
+					mouse.smoothX += (mouse.x - mouse.smoothX) * 0.15;
+					mouse.smoothY += (mouse.y - mouse.smoothY) * 0.15;
+				}
+
+				// Cursor ambient glow halo
+				const cursorGrad = ctx!.createRadialGradient(
+					mouse.smoothX,
+					mouse.smoothY,
+					0,
+					mouse.smoothX,
+					mouse.smoothY,
+					180
+				);
+				cursorGrad.addColorStop(0, 'rgba(56, 189, 248, 0.08)');
+				cursorGrad.addColorStop(0.5, 'rgba(99, 102, 241, 0.03)');
+				cursorGrad.addColorStop(1, 'transparent');
+				ctx!.fillStyle = cursorGrad;
+				ctx!.beginPath();
+				ctx!.arc(mouse.smoothX, mouse.smoothY, 180, 0, Math.PI * 2);
+				ctx!.fill();
+			} else {
+				mouse.smoothX = -9999;
+				mouse.smoothY = -9999;
+			}
+
+			// Update & draw particles
+			const repelRadius = 150;
+			const repelRadiusSq = repelRadius * repelRadius;
+
+			for (let i = 0; i < count; i++) {
+				const p = particles[i]!;
+
+				if (!prefersReducedMotion) {
+					// Natural antigravity drift
+					p.phase += p.swaySpeed * dt;
+					const sway = Math.sin(p.phase) * p.swayAmount;
+
+					// Interactive mouse repulsion (antigravity field)
+					if (mouse.isActive) {
+						const dx = p.x - mouse.smoothX;
+						const dy = p.y - mouse.smoothY;
+						const distSq = dx * dx + dy * dy;
+
+						if (distSq < repelRadiusSq && distSq > 0.01) {
+							const dist = Math.sqrt(distSq);
+							const force = (1 - dist / repelRadius) * 4.2;
+							const angle = Math.atan2(dy, dx);
+							p.vx += Math.cos(angle) * force * dt;
+							p.vy += Math.sin(angle) * force * dt;
+						}
+					}
+
+					// Return to smooth antigravity upward drift
+					p.vx *= Math.pow(0.92, dt);
+					p.vy = p.vy * Math.pow(0.92, dt) + p.baseVy * 0.08 * dt;
+
+					p.x += (p.vx + sway) * dt;
+					p.y += p.vy * dt;
+
+					// Wrap around boundaries
+					if (p.y < -20) {
+						p.y = height + 15;
+						p.x = Math.random() * width;
+						p.vx = (Math.random() - 0.5) * 0.3;
+					} else if (p.y > height + 25) {
+						p.y = -10;
+					}
+
+					if (p.x < -20) p.x = width + 10;
+					else if (p.x > width + 20) p.x = -10;
+				}
+
+				// Draw particle with gentle twinkle
+				const twinkle = prefersReducedMotion ? 1 : 0.8 + Math.sin(p.phase * 2) * 0.2;
+				const currentAlpha = Math.max(0, Math.min(1, p.alpha * twinkle));
+
+				ctx!.fillStyle = `${p.color}${currentAlpha.toFixed(2)})`;
+				ctx!.beginPath();
+				ctx!.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+				ctx!.fill();
+			}
+
+			// Constellation lines between nearby particles
+			if (!prefersReducedMotion) {
+				const maxConnectDist = 80;
+				const maxDistSq = maxConnectDist * maxConnectDist;
+
+				for (let i = 0; i < count; i++) {
+					const p1 = particles[i]!;
+					for (let j = i + 1; j < count; j++) {
+						const p2 = particles[j]!;
+						const dx = p1.x - p2.x;
+						const dy = p1.y - p2.y;
+						const dSq = dx * dx + dy * dy;
+
+						if (dSq < maxDistSq) {
+							const dist = Math.sqrt(dSq);
+							const lineAlpha = (1 - dist / maxConnectDist) * 0.14;
+							ctx!.strokeStyle = `rgba(148, 163, 184, ${lineAlpha.toFixed(3)})`;
+							ctx!.lineWidth = 0.8;
+							ctx!.beginPath();
+							ctx!.moveTo(p1.x, p1.y);
+							ctx!.lineTo(p2.x, p2.y);
+							ctx!.stroke();
+						}
+					}
+				}
+			}
+
+			animationFrameId = requestAnimationFrame(render);
+		}
+
+		animationFrameId = requestAnimationFrame(render);
+
+		// Pause animation when tab is not visible to preserve resources
+		document.addEventListener('visibilitychange', () => {
+			if (document.hidden) {
+				cancelAnimationFrame(animationFrameId);
+			} else {
+				lastTime = performance.now();
+				animationFrameId = requestAnimationFrame(render);
+			}
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', setupAntigravityAnimation);
+	} else {
+		setupAntigravityAnimation();
+	}
+</script>
