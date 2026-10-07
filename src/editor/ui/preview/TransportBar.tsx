@@ -139,6 +139,7 @@ export default function TransportBar({ engine, fps, zoom, onZoomChange }: Transp
 			>
 				<button
 					type="button"
+					className="preview-mute-button"
 					aria-label={snapshot?.muted ? 'Unmute audio' : 'Mute audio'}
 					aria-pressed={snapshot?.muted ?? false}
 					title="Mute / unmute (M)"
