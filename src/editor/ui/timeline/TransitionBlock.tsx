@@ -4,6 +4,7 @@ import {
 	timeToPixels,
 	transitionWindow,
 	getTransitionDefinition,
+	framesToTicks,
 	type Track,
 	type Transition
 } from '../../core';
@@ -51,9 +52,17 @@ export function TransitionBlock({
 				e.stopPropagation();
 				e.preventDefault();
 				store.getState().removeTransition(transition.id);
+			} else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+				e.stopPropagation();
+				e.preventDefault();
+				const fps = 30; // standard default frame rate
+				const frameTicks = Math.round(1_000_000 / fps);
+				const delta = (e.shiftKey ? 10 : 1) * frameTicks * (e.key === 'ArrowRight' ? 1 : -1);
+				const newDur = Math.max(framesToTicks(2, fps), transition.duration + delta);
+				store.getState().updateTransition(transition.id, { duration: newDur });
 			}
 		},
-		[store, transition.id]
+		[store, transition.id, transition.duration]
 	);
 
 	return (

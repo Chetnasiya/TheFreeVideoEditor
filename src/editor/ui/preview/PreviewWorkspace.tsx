@@ -31,16 +31,15 @@ export default function PreviewWorkspace({
 	currentProject.current = project;
 	engineChange.current = onEngineChange;
 
+	// Create playback engine once per project ID
 	useEffect(() => {
 		const initialProject = currentProject.current;
-		const canvas = canvasRef.current;
-		if (!initialProject || !canvas) {
+		if (!initialProject) {
 			setEngine(null);
 			engineChange.current(null);
 			return;
 		}
 		const playback = createPlaybackEngine(store, initialProject);
-		playback.attach(canvas, renderer);
 		const detachTestHooks = attachPlaybackTestHooks(playback);
 		setEngine(playback);
 		engineChange.current(playback);
@@ -49,7 +48,14 @@ export default function PreviewWorkspace({
 			detachTestHooks();
 			playback.dispose();
 		};
-	}, [project?.id, renderer, store]);
+	}, [project?.id, store]);
+
+	// Attach engine to canvas whenever engine mounts or renderer switches
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		if (!engine || !canvas) return;
+		engine.attach(canvas, renderer);
+	}, [engine, renderer]);
 
 	useEffect(() => {
 		if (project && engine?.projectId === project.id) engine.setProject(project);

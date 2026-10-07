@@ -122,6 +122,22 @@ function withCurve(clip: Clip, id: PropertyId, curve: AnimatedValue<PropertyValu
 			return { ...clip, effects };
 		}
 	}
+	if (id.startsWith('mask:')) {
+		const parts = id.split(':');
+		const paramName = parts[parts.length - 1]!;
+		const maskId = parts.length >= 4 ? parts[2]! : parts[1]!;
+		const masks = (clip.masks ?? []).map((mask) => {
+			if (mask.id !== maskId) return mask;
+			return {
+				...mask,
+				properties: {
+					...mask.properties,
+					[paramName]: curve as AnimatedValue<unknown>
+				}
+			};
+		});
+		return { ...clip, masks };
+	}
 	return { ...clip, properties: { ...clip.properties, [id]: curve as AnimatedValue<unknown> } };
 }
 

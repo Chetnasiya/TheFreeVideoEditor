@@ -127,6 +127,52 @@ export function descriptorFor(id: PropertyId): PropertyDescriptor | undefined {
 			}
 		}
 	}
+	if (id.startsWith('mask:')) {
+		const parts = id.split(':');
+		const paramName = parts[parts.length - 1];
+		if (paramName === 'feather') {
+			return {
+				id,
+				label: 'Mask Feather',
+				shape: 'number',
+				channels: ['Feather'],
+				defaultValue: 0,
+				min: 0,
+				max: 1000,
+				unit: 'px',
+				displayFactor: 1,
+				step: 1
+			};
+		}
+		if (paramName === 'expansion') {
+			return {
+				id,
+				label: 'Mask Expansion',
+				shape: 'number',
+				channels: ['Expansion'],
+				defaultValue: 0,
+				min: -500,
+				max: 500,
+				unit: 'px',
+				displayFactor: 1,
+				step: 1
+			};
+		}
+		if (paramName === 'opacity') {
+			return {
+				id,
+				label: 'Mask Opacity',
+				shape: 'number',
+				channels: ['Opacity'],
+				defaultValue: 1,
+				min: 0,
+				max: 1,
+				unit: '%',
+				displayFactor: 100,
+				step: 1
+			};
+		}
+	}
 	return undefined;
 }
 
@@ -199,6 +245,21 @@ export function propertyCurve(
 				if (isAnimatedValue(raw)) return raw as AnimatedValue<PropertyValue>;
 				return { value: raw as PropertyValue };
 			}
+		}
+	}
+	if (id.startsWith('mask:')) {
+		const parts = id.split(':');
+		const paramName = parts[parts.length - 1]!;
+		const maskId = parts.length >= 4 ? parts[2]! : parts[1]!;
+		const mask = clip.masks?.find((m) => m.id === maskId);
+		if (mask) {
+			if (mask.properties && paramName in mask.properties) {
+				const raw = mask.properties[paramName];
+				if (isAnimatedValue(raw)) return raw as AnimatedValue<PropertyValue>;
+				return { value: raw as PropertyValue };
+			}
+			const staticVal = (mask as unknown as Record<string, unknown>)[paramName];
+			if (staticVal !== undefined) return { value: staticVal as PropertyValue };
 		}
 	}
 	return clip.properties?.[id] as AnimatedValue<PropertyValue> | undefined;

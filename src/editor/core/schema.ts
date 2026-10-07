@@ -38,7 +38,7 @@ export const projectSettingsSchema = z.object({
 	sampleRate: z.number().int().positive()
 });
 
-const bezierHandleSchema = z.object({ x: z.number().finite(), y: z.number().finite() });
+const bezierHandleSchema = z.object({ x: z.number(), y: z.number() });
 
 const keyframeSchema = z.object({
 	time: timeSchema,
@@ -99,15 +99,27 @@ export const clipSourceSchema = z.discriminatedUnion('type', [
 	z.object({ type: z.literal('adjustment') })
 ]) as unknown as z.ZodType<ClipSource>;
 
+export const maskPointSchema = z.object({
+	x: z.number(),
+	y: z.number(),
+	inHandle: z.object({ x: z.number(), y: z.number() }).optional(),
+	outHandle: z.object({ x: z.number(), y: z.number() }).optional()
+});
+
 export const maskSchema = z.object({
 	id: z.string().min(1),
+	name: z.string().optional(),
 	type: z.enum(['rect', 'ellipse', 'path']),
 	mode: z.enum(['add', 'subtract', 'intersect']),
 	inverted: z.boolean(),
 	feather: z.number(),
 	expansion: z.number(),
 	opacity: z.number().min(0).max(1),
-	points: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
+	enabled: z.boolean().optional(),
+	closed: z.boolean().optional(),
+	shape: z.array(z.number()).optional(),
+	points: z.array(maskPointSchema).optional(),
+	effectId: z.string().optional(),
 	properties: propertiesSchema.optional()
 });
 

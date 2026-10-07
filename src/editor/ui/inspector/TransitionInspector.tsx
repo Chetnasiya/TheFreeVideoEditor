@@ -140,6 +140,46 @@ export function TransitionInspector({ transition, track, project }: TransitionIn
 						</select>
 					</div>
 
+					<div className="property-row">
+						<label className="property-label">Easing</label>
+						<select
+							className="property-input"
+							value={transition.easing ?? 'linear'}
+							onChange={(e) =>
+								store.getState().updateTransition(transition.id, {
+									easing: e.target.value as Transition['easing']
+								})
+							}
+						>
+							<option value="linear">Linear</option>
+							<option value="easeIn">Ease In</option>
+							<option value="easeOut">Ease Out</option>
+							<option value="easeInOut">Ease In Out</option>
+						</select>
+					</div>
+
+					{track.kind === 'video' && (
+						<div className="property-row" style={{ flexDirection: 'row', alignItems: 'center' }}>
+							<input
+								type="checkbox"
+								id="transition-audio-crossfade"
+								checked={transition.audioCrossfade !== false}
+								onChange={(e) =>
+									store
+										.getState()
+										.updateTransition(transition.id, { audioCrossfade: e.target.checked })
+								}
+							/>
+							<label
+								htmlFor="transition-audio-crossfade"
+								className="property-label"
+								style={{ cursor: 'pointer', margin: 0 }}
+							>
+								Crossfade Audio
+							</label>
+						</div>
+					)}
+
 					{/* Handles diagnostic warning */}
 					{!isSufficient && (
 						<div

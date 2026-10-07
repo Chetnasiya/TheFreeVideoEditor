@@ -62,6 +62,12 @@ import {
 	parseCubeLut,
 	normalizeProjectTransitions,
 	getTransitionDefinition,
+	createMask,
+	addMaskToClip,
+	removeMaskFromClip,
+	updateMaskInClip,
+	reorderMasksInClip,
+	type Mask,
 	type ColorRgba,
 	type EffectInstance,
 	type EffectType,
@@ -538,11 +544,44 @@ export interface EditorState {
 	) => string | null;
 	updateTransition: (
 		transitionId: string,
-		updates: Partial<Pick<Transition, 'type' | 'duration' | 'alignment' | 'params'>>
+		updates: Partial<
+			Pick<Transition, 'type' | 'duration' | 'alignment' | 'easing' | 'audioCrossfade' | 'params'>
+		>
 	) => boolean;
 	removeTransition: (transitionId: string) => boolean;
 	selectTransition: (transitionId: string | null) => void;
 	applyDefaultTransition: (type?: TransitionType) => boolean;
+	// Mask actions
+	maskTool: {
+		activeTool: 'select' | 'pen' | 'rect' | 'ellipse';
+		selectedMaskId: string | null;
+		selectedPointIndex: number | null;
+		showOverlay: boolean;
+	};
+	setMaskTool: (tool: 'select' | 'pen' | 'rect' | 'ellipse') => void;
+	selectMask: (maskId: string | null) => void;
+	selectMaskPoint: (index: number | null) => void;
+	setMaskOverlayVisible: (visible: boolean) => void;
+	addMask: (
+		clipId: ClipId,
+		type: 'rect' | 'ellipse' | 'path',
+		overrides?: Partial<Mask>
+	) => string | null;
+	removeMask: (clipId: ClipId, maskId: string) => boolean;
+	updateMask: (
+		clipId: ClipId,
+		maskId: string,
+		patch: Partial<Mask>,
+		options?: { coalesce?: boolean }
+	) => boolean;
+	reorderMask: (clipId: ClipId, fromIndex: number, toIndex: number) => boolean;
+	setMaskParam: (
+		clipId: ClipId,
+		maskId: string,
+		param: string,
+		value: unknown,
+		options?: { autoKey?: boolean; coalesce?: boolean }
+	) => void;
 }
 
 function errorMessage(error: unknown): string {
@@ -917,6 +956,12 @@ export function createEditorStore() {
 				},
 				colorUi: {
 					activeTab: 'basic'
+				},
+				maskTool: {
+					activeTool: 'select',
+					selectedMaskId: null,
+					selectedPointIndex: null,
+					showOverlay: true
 				},
 				effectsClipboard: null,
 				async initialize() {
@@ -3445,8 +3490,11 @@ export function createEditorStore() {
 					const project = state.project;
 					if (!project) return false;
 
-					// If two adjacent clips are selected, or a single cut point is selected:
+					// If two adjacent clips are selected, or playhead is near an edit point:
 					const selectedIds = state.timeline.selection.clipIds;
+					const fps = project.settings.fps || 30;
+					const tolerance = Math.round(1_000_000 / fps);
+
 					if (selectedIds.length === 2) {
 						// Look for track containing both
 						for (const track of project.tracks) {
@@ -3454,7 +3502,7 @@ export function createEditorStore() {
 							const cB = track.clips.find((c) => c.id === selectedIds[1]);
 							if (cA && cB) {
 								const [first, second] = cA.start < cB.start ? [cA, cB] : [cB, cA];
-								if (first.start + first.duration === second.start) {
+								if (Math.abs(first.start + first.duration - second.start) <= tolerance) {
 									state.addTransition(track.id, type, {
 										kind: 'cut',
 										fromClipId: first.id,
@@ -3465,20 +3513,215 @@ export function createEditorStore() {
 							}
 						}
 					} else if (selectedIds.length === 1) {
-						// Head or tail fade
+						// Head or tail fade or cut near playhead
 						const clipId = selectedIds[0];
 						for (const track of project.tracks) {
 							const c = track.clips.find((clip) => clip.id === clipId);
 							if (c) {
-								state.addTransition(track.id, type, {
-									kind: 'tail',
-									clipId: c.id
-								});
+								// Check if adjacent clip exists on same track
+								const prevClip = track.clips.find(
+									(clip) => Math.abs(clip.start + clip.duration - c.start) <= tolerance
+								);
+								const nextClip = track.clips.find(
+									(clip) => Math.abs(c.start + c.duration - clip.start) <= tolerance
+								);
+								const playhead = state.timeline.playhead;
+
+								if (prevClip && Math.abs(c.start - playhead) <= tolerance * 2) {
+									state.addTransition(track.id, type, {
+										kind: 'cut',
+										fromClipId: prevClip.id,
+										toClipId: c.id
+									});
+									return true;
+								}
+								if (nextClip && Math.abs(c.start + c.duration - playhead) <= tolerance * 2) {
+									state.addTransition(track.id, type, {
+										kind: 'cut',
+										fromClipId: c.id,
+										toClipId: nextClip.id
+									});
+									return true;
+								}
+
+								// Fallback: head fade if playhead near start, else tail fade
+								if (Math.abs(playhead - c.start) < Math.abs(playhead - (c.start + c.duration))) {
+									state.addTransition(track.id, type, {
+										kind: 'head',
+										clipId: c.id
+									});
+								} else {
+									state.addTransition(track.id, type, {
+										kind: 'tail',
+										clipId: c.id
+									});
+								}
 								return true;
 							}
 						}
 					}
 					return false;
+				},
+
+				setMaskTool(tool) {
+					set((state) => {
+						state.maskTool.activeTool = tool;
+					});
+				},
+
+				selectMask(maskId) {
+					set((state) => {
+						state.maskTool.selectedMaskId = maskId;
+						state.maskTool.selectedPointIndex = null;
+					});
+				},
+
+				selectMaskPoint(index) {
+					set((state) => {
+						state.maskTool.selectedPointIndex = index;
+					});
+				},
+
+				setMaskOverlayVisible(visible) {
+					set((state) => {
+						state.maskTool.showOverlay = visible;
+					});
+				},
+
+				addMask(clipId, type, overrides) {
+					const mask = createMask(type, overrides);
+					let added = false;
+					try {
+						mutateProject(
+							`Add ${type} mask`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId) return c;
+										added = true;
+										return addMaskToClip(c, mask);
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						if (added) {
+							set((state) => {
+								state.maskTool.selectedMaskId = mask.id;
+								state.maskTool.selectedPointIndex = null;
+							});
+							return mask.id;
+						}
+						return null;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				removeMask(clipId, maskId) {
+					let removed = false;
+					try {
+						mutateProject(
+							'Remove mask',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId) return c;
+										removed = true;
+										return removeMaskFromClip(c, maskId);
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						if (removed) {
+							set((state) => {
+								if (state.maskTool.selectedMaskId === maskId) {
+									state.maskTool.selectedMaskId = null;
+									state.maskTool.selectedPointIndex = null;
+								}
+							});
+						}
+						return removed;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+
+				updateMask(clipId, maskId, patch, options) {
+					const coalesceKey = options?.coalesce ? `mask-update:${clipId}:${maskId}` : undefined;
+					try {
+						mutateProject(
+							'Update mask',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId) return c;
+										return updateMaskInClip(c, maskId, patch);
+									})
+								}))
+							}),
+							{
+								history: 'record',
+								mergeKey: coalesceKey
+							}
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				reorderMask(clipId, fromIndex, toIndex) {
+					try {
+						mutateProject(
+							'Reorder masks',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId) return c;
+										return reorderMasksInClip(c, fromIndex, toIndex);
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setMaskParam(clipId, maskId, param, value, options) {
+					const project = get().project;
+					if (!project) return;
+					const propertyId = `mask:${maskId}:${param}` as PropertyId;
+					const clip = project.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
+					const mask = clip?.masks?.find((m) => m.id === maskId);
+					if (!clip || !mask) return;
+
+					const curve = propertyCurve(clip, propertyId);
+					const isAnimatable = param === 'feather' || param === 'expansion' || param === 'opacity';
+					if ((curve && isAnimated(curve)) || (isAnimatable && options?.autoKey)) {
+						get().setProperty(clipId, propertyId, value as PropertyValue, options);
+						return;
+					}
+
+					get().updateMask(clipId, maskId, { [param]: value } as Partial<Mask>, options);
 				}
 			};
 		})

@@ -1,3 +1,5 @@
+import { isTransitionsEnabled } from '../../core/transitions';
+
 export type ShortcutPlatform = 'mac' | 'other';
 export type ShortcutKey = string;
 export type ShortcutKeys = {
@@ -384,6 +386,16 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			group: 'Editing',
 			scope: 'editor',
 			handler: action('duplicate'),
+			preventDefault: true
+		},
+		{
+			id: 'add-default-transition',
+			keys: { mac: 'mod+shift+d', other: 'mod+shift+d' },
+			label: 'Apply Default Transition',
+			group: 'Editing',
+			scope: 'editor',
+			enabled: () => isTransitionsEnabled(),
+			handler: action('add-default-transition'),
 			preventDefault: true
 		},
 		{

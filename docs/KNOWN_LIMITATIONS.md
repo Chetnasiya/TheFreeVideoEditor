@@ -90,3 +90,14 @@ limitations are intentional at this stage:
 - **Transitions & Masks**: Masks on effects and track transitions are scheduled for Gates K and L and are not active in Gate J.
 - **Video Scopes Performance**: Scopes capture up to 256×144 resolution readbacks from the composition FBO. Scopes run on 2D canvases; high monitor refresh rates with all four scopes simultaneously active may increase CPU overhead on low-power devices.
 - **LUT Assets**: 3D LUTs (.cube) are parsed and uploaded as 3D textures. Very large LUTs (> 64×64×64) consume more GPU memory and are bounded by `MAX_3D_TEXTURE_SIZE`.
+
+## Gate K (Transitions)
+
+- **Parked Feature Flag**: Track transitions and transitions UI (Effects Library category, Edit menu entry, keyboard shortcut, timeline transition blocks) are parked behind the development flag `?labs=transitions`. Existing projects containing transitions open, retain their data through save and `.tfve` round-trips, and render without crashing.
+
+## Gate L (Masks)
+
+- **Shape Interpolation & Point Counts**: Path mask keyframe interpolation requires equal point counts across all keyframes. Adding or deleting path points while shape is animated requires flattening or disabling animation first.
+- **Mask Tracking**: Automated mask motion tracking is out of scope (manual keyframing supported).
+- **Interchange Export**: Masks cannot be represented in EDL, FCPXML, xmeml, or OTIO interchange formats and are omitted with a warning during interchange export.
+- **Compositor Requirement**: Masks require WebGL2 rendering (`projectNeedsGpu` is true for any clip with masks). Browsers without WebGL2 cannot composite masks.

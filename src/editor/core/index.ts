@@ -25,3 +25,5 @@ export * from './lut';
 export * from './adjustment';
 export * from './transitions';
 export * from './transitionsRegistry';
+export * from './maskGeometry';
+export * from './masks';

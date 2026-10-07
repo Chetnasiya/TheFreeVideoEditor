@@ -5,6 +5,7 @@ import type { PlaybackEngine, PlaybackSnapshot } from '../../services/playback/e
 import type { RendererKind } from '../../services/render';
 import { observePreviewScale } from '../../services/playback/previewLayout';
 import TransformGizmo from './TransformGizmo';
+import MaskOverlay from './MaskOverlay';
 
 interface PreviewPlayerProps {
 	project: Project | null;
@@ -69,6 +70,11 @@ export default function PreviewPlayer({
 							data-testid="preview-canvas"
 						/>
 						<TransformGizmo
+							project={project}
+							renderedWidth={renderedWidth}
+							renderedHeight={renderedHeight}
+						/>
+						<MaskOverlay
 							project={project}
 							renderedWidth={renderedWidth}
 							renderedHeight={renderedHeight}

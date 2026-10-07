@@ -4,6 +4,7 @@ import { evaluateOr } from './animation';
 import { clampCrop, isCrop, isDefaultCrop, type Crop } from './crop';
 import { evaluateEffect } from './effects/instance';
 import type { EvaluatedEffect } from './effects/types';
+import { evaluateMask, type EvaluatedMask } from './masks';
 import { transitionWindow, transitionProgress, transitionGain } from './transitions';
 import type {
 	AnimatedValue,
@@ -96,6 +97,7 @@ export interface ActiveLayer {
 	/** Source insets [left, top, right, bottom] as fractions; the visible part keeps its position. */
 	crop?: Crop;
 	solidColor?: { r: number; g: number; b: number; a: number };
+	masks?: EvaluatedMask[];
 	effects?: EvaluatedEffect[];
 	/** Transition details when this layer represents a transition blend between two layers */
 	transition?: {
@@ -145,6 +147,10 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 				clip.effects && clip.effects.length > 0
 					? clip.effects.map((eff) => evaluateEffect(eff, localTime))
 					: undefined;
+			const evaluatedMasks =
+				clip.masks && clip.masks.length > 0
+					? clip.masks.map((m) => evaluateMask(m, localTime))
+					: undefined;
 
 			if (clip.source?.type === 'adjustment') {
 				if (track.kind !== 'video') return null;
@@ -155,6 +161,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 					sourceTime: localTime,
 					kind: 'adjustment',
 					opacity: 1,
+					masks: evaluatedMasks,
 					effects: evaluatedEffects,
 					...evaluateLayerProperties(clip, localTime)
 				};
@@ -170,6 +177,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 					kind: 'solid',
 					solidColor: clip.source.color,
 					opacity: 1,
+					masks: evaluatedMasks,
 					effects: evaluatedEffects,
 					...evaluateLayerProperties(clip, localTime)
 				};
@@ -195,6 +203,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 					sourceTime,
 					kind: asset.kind,
 					opacity: 1,
+					masks: evaluatedMasks,
 					effects: evaluatedEffects,
 					...evaluateLayerProperties(clip, localTime)
 				};
@@ -248,7 +257,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 			}
 
 			const win = transitionWindow(cutTime, tr.duration, tr.alignment);
-			const progress = transitionProgress(time, win, 'linear');
+			const progress = transitionProgress(time, win, tr.easing ?? 'linear');
 
 			if (track.kind === 'video') {
 				const layerA = clipA ? makeClipLayer(clipA, time) : null;
@@ -283,6 +292,37 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 						...layerB,
 						opacity: layerB.opacity * progress
 					});
+				}
+
+				// If the video transition has audioCrossfade enabled (default true), apply audio crossfade to the audio components of clipA & clipB
+				if (tr.audioCrossfade !== false) {
+					const { gainA, gainB } = transitionGain(time, win, 'equalPower');
+					if (clipA && clipA.assetId) {
+						const assetA = project.assets[clipA.assetId];
+						if (assetA?.hasAudio && !assetA.offline) {
+							audioSources.push({
+								clipId: clipA.id,
+								assetId: assetA.id,
+								trackId: track.id,
+								trackOrder,
+								sourceTime: Math.max(0, timelineToSource(clipA, time)),
+								volume: clipA.volume * gainA
+							});
+						}
+					}
+					if (clipB && clipB.assetId) {
+						const assetB = project.assets[clipB.assetId];
+						if (assetB?.hasAudio && !assetB.offline) {
+							audioSources.push({
+								clipId: clipB.id,
+								assetId: assetB.id,
+								trackId: track.id,
+								trackOrder,
+								sourceTime: Math.max(0, timelineToSource(clipB, time)),
+								volume: clipB.volume * gainB
+							});
+						}
+					}
 				}
 				continue;
 			} else if (track.kind === 'audio') {
@@ -325,6 +365,10 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 				clip.effects && clip.effects.length > 0
 					? clip.effects.map((eff) => evaluateEffect(eff, localTime))
 					: undefined;
+			const evaluatedMasks =
+				clip.masks && clip.masks.length > 0
+					? clip.masks.map((m) => evaluateMask(m, localTime))
+					: undefined;
 
 			if (clip.source?.type === 'adjustment') {
 				if (track.kind === 'video') {
@@ -335,6 +379,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 						sourceTime: localTime,
 						kind: 'adjustment',
 						opacity: 1,
+						masks: evaluatedMasks,
 						effects: evaluatedEffects,
 						...evaluateLayerProperties(clip, localTime)
 					});
@@ -352,6 +397,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 						kind: 'solid',
 						solidColor: clip.source.color,
 						opacity: 1,
+						masks: evaluatedMasks,
 						effects: evaluatedEffects,
 						...evaluateLayerProperties(clip, localTime)
 					});
@@ -377,6 +423,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 					sourceTime,
 					kind: asset.kind,
 					opacity: 1,
+					masks: evaluatedMasks,
 					effects: evaluatedEffects,
 					...evaluateLayerProperties(clip, localTime)
 				});

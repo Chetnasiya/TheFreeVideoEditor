@@ -26,7 +26,7 @@ import {
 	registerShortcutListener
 } from '../../services/keyboard/registry';
 import { openFile } from '../../services/storage/fileAccess';
-import { clipEnd, framesToTicks, timelineDuration } from '../../core';
+import { clipEnd, framesToTicks, timelineDuration, isTransitionsEnabled } from '../../core';
 import type { PlaybackEngine } from '../../services/playback/engine';
 import type { ResizeHandle } from '../../state/store';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
@@ -256,6 +256,7 @@ function EditorShell() {
 			},
 			'ripple-delete': () => state().rippleDeleteSelection(),
 			duplicate: () => state().duplicateSelection(),
+			'add-default-transition': () => state().applyDefaultTransition(),
 			'select-all': () => {
 				const current = state();
 				current.selectClips(
@@ -653,6 +654,19 @@ function EditorShell() {
 									>
 										Duplicate <span>⌘/Ctrl+D</span>
 									</button>
+									{isTransitionsEnabled() && (
+										<button
+											type="button"
+											role="menuitem"
+											disabled={!project}
+											onClick={() => {
+												editorStore.getState().applyDefaultTransition();
+												setIsEditMenuOpen(false);
+											}}
+										>
+											Add Default Transition <span>⇧⌘/Ctrl+D</span>
+										</button>
+									)}
 									<button
 										type="button"
 										role="menuitem"

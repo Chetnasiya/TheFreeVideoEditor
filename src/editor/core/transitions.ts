@@ -6,6 +6,15 @@ export type TransitionAlignment = 'center' | 'start' | 'end';
 export type TransitionEasing = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
 export type AudioCrossfadeCurve = 'equalPower' | 'linear';
 
+/** Check whether transitions are enabled via labs flag (e.g. ?labs=transitions). */
+export function isTransitionsEnabled(search?: string): boolean {
+	const query = search ?? (typeof window !== 'undefined' ? window.location?.search : '');
+	if (!query) return false;
+	const params = new URLSearchParams(query);
+	const labs = params.get('labs');
+	return labs ? labs.split(',').includes('transitions') : false;
+}
+
 export interface TransitionWindow {
 	/** Start time on timeline (microseconds) */
 	start: Time;
@@ -269,8 +278,9 @@ export function normalizeTransitions(track: Track, fps = 30): Track {
 			const clipB = clipMap.get(trans.edge.toClipId);
 			if (!clipA || !clipB) continue; // orphaned clip
 
-			// Must be adjacent
-			if (clipEnd(clipA) !== clipB.start) continue;
+			// Must be adjacent (within 1 frame tolerance for microsecond rounding)
+			const tolerance = framesToTicks(1, fps);
+			if (Math.abs(clipEnd(clipA) - clipB.start) > tolerance) continue;
 
 			const cutKey = `${clipA.id}:${clipB.id}`;
 			if (seenCuts.has(cutKey)) continue; // duplicate transition on cut

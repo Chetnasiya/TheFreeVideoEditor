@@ -18,7 +18,8 @@ import {
 	snapTime,
 	ticksToTimecode,
 	timeToPixels,
-	timelineDuration
+	timelineDuration,
+	isTransitionsEnabled
 } from '../../core';
 import type {
 	AssetId,
@@ -1173,16 +1174,17 @@ function ActiveTimeline({ project }: { project: Project }) {
 												/>
 											);
 										})}
-										{(track.transitions ?? []).map((tr) => (
-											<TransitionBlock
-												key={tr.id}
-												transition={tr}
-												track={track}
-												pixelsPerSecond={pixelsPerSecond}
-												selected={selection.transitionId === tr.id}
-												onSelect={(id) => store.getState().selectTransition(id)}
-											/>
-										))}
+										{isTransitionsEnabled() &&
+											(track.transitions ?? []).map((tr) => (
+												<TransitionBlock
+													key={tr.id}
+													transition={tr}
+													track={track}
+													pixelsPerSecond={pixelsPerSecond}
+													selected={selection.transitionId === tr.id}
+													onSelect={(id) => store.getState().selectTransition(id)}
+												/>
+											))}
 										{previewPositions.map((position) => {
 											const assetId =
 												drag?.assetId ??

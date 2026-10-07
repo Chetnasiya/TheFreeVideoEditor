@@ -86,15 +86,27 @@ export type ClipSource =
 	| { type: 'solid'; color: { r: number; g: number; b: number; a: number } }
 	| { type: 'adjustment' };
 
+export interface MaskPoint {
+	x: number;
+	y: number;
+	inHandle?: { x: number; y: number };
+	outHandle?: { x: number; y: number };
+}
+
 export interface Mask {
 	id: string;
+	name?: string;
 	type: 'rect' | 'ellipse' | 'path';
 	mode: 'add' | 'subtract' | 'intersect';
 	inverted: boolean;
 	feather: number;
 	expansion: number;
 	opacity: number;
-	points?: Array<{ x: number; y: number }>;
+	enabled?: boolean;
+	closed?: boolean;
+	shape?: number[];
+	points?: MaskPoint[];
+	effectId?: string;
 	properties?: Record<PropertyId, AnimatedValue<unknown>>;
 }
 
@@ -108,6 +120,8 @@ export interface Transition {
 	type: string;
 	duration: Time;
 	alignment: 'center' | 'start' | 'end';
+	easing?: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
+	audioCrossfade?: boolean;
 	edge: TransitionEdge;
 	params: Record<string, JsonValue>;
 }

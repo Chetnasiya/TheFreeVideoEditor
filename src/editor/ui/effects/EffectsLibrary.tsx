@@ -1,13 +1,13 @@
 import { useState, useMemo, type DragEvent } from 'react';
 import { EFFECT_DEFINITIONS } from '../../core/effects/registry';
 import { TRANSITION_DEFINITIONS, type TransitionDefinition } from '../../core/transitionsRegistry';
+import { isTransitionsEnabled } from '../../core/transitions';
 import type { EffectCategory, EffectDefinition } from '../../core/effects/types';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import './effects.css';
 
-const CATEGORIES: Array<{ id: 'all' | EffectCategory | 'transitions'; label: string }> = [
+const BASE_CATEGORIES: Array<{ id: 'all' | EffectCategory; label: string }> = [
 	{ id: 'all', label: 'All' },
-	{ id: 'transitions', label: 'Transitions' },
 	{ id: 'blur', label: 'Blur' },
 	{ id: 'color', label: 'Color' },
 	{ id: 'stylize', label: 'Stylize' },
@@ -19,15 +19,29 @@ export default function EffectsLibrary() {
 	const store = useEditorStoreApi();
 	const query = useEditorStore((state) => state.effectsUi.libraryQuery);
 	const selectedClipIds = useEditorStore((state) => state.timeline.selection.clipIds);
+	const transitionsEnabled = useMemo(() => isTransitionsEnabled(), []);
+	const categories = useMemo(() => {
+		if (!transitionsEnabled) return BASE_CATEGORIES;
+		return [
+			{ id: 'all' as const, label: 'All' },
+			{ id: 'transitions' as const, label: 'Transitions' },
+			...BASE_CATEGORIES.slice(1)
+		];
+	}, [transitionsEnabled]);
+
 	const [activeCategory, setActiveCategory] = useState<'all' | EffectCategory | 'transitions'>(
 		'all'
 	);
 	const [announcement, setAnnouncement] = useState('');
 
 	const allEffects = useMemo(() => Object.values(EFFECT_DEFINITIONS), []);
-	const allTransitions = useMemo(() => Object.values(TRANSITION_DEFINITIONS), []);
+	const allTransitions = useMemo(
+		() => (transitionsEnabled ? Object.values(TRANSITION_DEFINITIONS) : []),
+		[transitionsEnabled]
+	);
 
 	const filteredTransitions = useMemo(() => {
+		if (!transitionsEnabled) return [];
 		if (activeCategory !== 'all' && activeCategory !== 'transitions') return [];
 		const lowerQuery = query.toLowerCase().trim();
 		return allTransitions.filter((def) => {
@@ -37,7 +51,7 @@ export default function EffectsLibrary() {
 				def.description.toLowerCase().includes(lowerQuery)
 			);
 		});
-	}, [allTransitions, query, activeCategory]);
+	}, [allTransitions, query, activeCategory, transitionsEnabled]);
 
 	const filteredEffects = useMemo(() => {
 		if (activeCategory === 'transitions') return [];
@@ -92,7 +106,7 @@ export default function EffectsLibrary() {
 					aria-label="Search effects"
 				/>
 				<div className="effects-category-tabs" role="tablist" aria-label="Effect categories">
-					{CATEGORIES.map((cat) => (
+					{categories.map((cat) => (
 						<button
 							key={cat.id}
 							type="button"

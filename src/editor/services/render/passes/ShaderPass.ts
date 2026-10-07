@@ -29,6 +29,16 @@ import {
 	WIPE_FRAG,
 	ZOOM_DISSOLVE_FRAG
 } from './transitionShaders';
+import {
+	RECT_MASK_FRAG,
+	ELLIPSE_MASK_FRAG,
+	MATTE_ACCUM_FRAG,
+	MATTE_MULTIPLY_FRAG,
+	FEATHER_BLUR_FRAG,
+	PATH_MATTE_INIT_FRAG,
+	BLIT_MASK_MIX_FRAG
+} from './maskShaders';
+import type { EvaluatedMask } from '../../../core/masks';
 import { generateCompositeCurvesLut, type CurvePoint } from '../../../core/curves';
 import type { ParsedLut3D } from '../../../core/lut';
 import { ShaderCompileError } from '../RenderContext';
@@ -79,6 +89,7 @@ export class ShaderPassManager {
 	private quadVao: WebGLVertexArrayObject | null = null;
 	private curveTextures = new Map<string, WebGLTexture>();
 	private lut3dTextures = new Map<string, WebGLTexture>();
+	private pathTextures = new Map<string, WebGLTexture>();
 
 	constructor(private readonly gl: WebGL2RenderingContext) {
 		this.quadVao = gl.createVertexArray();
@@ -89,7 +100,7 @@ export class ShaderPassManager {
 	}
 
 	get liveTexturesCount(): number {
-		return this.curveTextures.size + this.lut3dTextures.size;
+		return this.curveTextures.size + this.lut3dTextures.size + this.pathTextures.size;
 	}
 
 	private getProgram(name: string, fsSource: string): WebGLProgram {
@@ -282,11 +293,285 @@ export class ShaderPassManager {
 		this.renderQuad(program, targetFbo, width, height);
 	}
 
+	private getPathRasterTexture(
+		mask: EvaluatedMask,
+		width: number,
+		height: number
+	): WebGLTexture | null {
+		const points = mask.points;
+		if (!points || points.length === 0) return null;
+		const hash = `${mask.id}:${mask.shape.join(',')}:${width}:${height}`;
+		let tex = this.pathTextures.get(hash);
+		if (tex) return tex;
+
+		const offscreen = new OffscreenCanvas(width, height);
+		const ctx = offscreen.getContext('2d');
+		if (!ctx) return null;
+
+		ctx.clearRect(0, 0, width, height);
+		const path = new Path2D();
+		path.moveTo(points[0]!.x * width, points[0]!.y * height);
+		for (let i = 1; i < points.length; i++) {
+			const prev = points[i - 1]!;
+			const curr = points[i]!;
+			if (prev.outHandle || curr.inHandle) {
+				const cp1x = (prev.x + (prev.outHandle?.x ?? 0)) * width;
+				const cp1y = (prev.y + (prev.outHandle?.y ?? 0)) * height;
+				const cp2x = (curr.x + (curr.inHandle?.x ?? 0)) * width;
+				const cp2y = (curr.y + (curr.inHandle?.y ?? 0)) * height;
+				path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, curr.x * width, curr.y * height);
+			} else {
+				path.lineTo(curr.x * width, curr.y * height);
+			}
+		}
+		if (mask.closed && points.length >= 3) {
+			const last = points[points.length - 1]!;
+			const first = points[0]!;
+			if (last.outHandle || first.inHandle) {
+				const cp1x = (last.x + (last.outHandle?.x ?? 0)) * width;
+				const cp1y = (last.y + (last.outHandle?.y ?? 0)) * height;
+				const cp2x = (first.x + (first.inHandle?.x ?? 0)) * width;
+				const cp2y = (first.y + (first.inHandle?.y ?? 0)) * height;
+				path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, first.x * width, first.y * height);
+			}
+			path.closePath();
+		}
+
+		ctx.fillStyle = '#ffffff';
+		ctx.fill(path);
+
+		const gl = this.gl;
+		tex = gl.createTexture()!;
+		gl.bindTexture(gl.TEXTURE_2D, tex);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, offscreen);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+
+		if (this.pathTextures.size >= 64) {
+			const firstKey = this.pathTextures.keys().next().value;
+			if (firstKey) {
+				const oldTex = this.pathTextures.get(firstKey);
+				if (oldTex) gl.deleteTexture(oldTex);
+				this.pathTextures.delete(firstKey);
+			}
+		}
+
+		this.pathTextures.set(hash, tex);
+		return tex;
+	}
+
+	generateMaskMatte(
+		mask: EvaluatedMask,
+		fboPool: FboPool,
+		width: number,
+		height: number
+	): PooledFbo {
+		const gl = this.gl;
+		const rawMatteFbo = fboPool.acquire(width, height);
+
+		if (mask.type === 'rect') {
+			const program = this.getProgram('rectMask', RECT_MASK_FRAG);
+			gl.useProgram(program);
+			const [cx, cy, w, h, rotDeg, roundness] = mask.shape;
+			gl.uniform2f(gl.getUniformLocation(program, 'u_center'), cx ?? 0.5, cy ?? 0.5);
+			gl.uniform2f(gl.getUniformLocation(program, 'u_size'), w ?? 0.4, h ?? 0.4);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_rotation'), ((rotDeg ?? 0) * Math.PI) / 180);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_roundness'), roundness ?? 0);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_expansion'), mask.expansion);
+			gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), width, height);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_inverted'), mask.inverted ? 1.0 : 0.0);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_opacity'), mask.opacity);
+			this.renderQuad(program, rawMatteFbo.framebuffer, width, height);
+		} else if (mask.type === 'ellipse') {
+			const program = this.getProgram('ellipseMask', ELLIPSE_MASK_FRAG);
+			gl.useProgram(program);
+			const [cx, cy, rx, ry, rotDeg] = mask.shape;
+			gl.uniform2f(gl.getUniformLocation(program, 'u_center'), cx ?? 0.5, cy ?? 0.5);
+			gl.uniform2f(gl.getUniformLocation(program, 'u_radii'), rx ?? 0.2, ry ?? 0.2);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_rotation'), ((rotDeg ?? 0) * Math.PI) / 180);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_expansion'), mask.expansion);
+			gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), width, height);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_inverted'), mask.inverted ? 1.0 : 0.0);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_opacity'), mask.opacity);
+			this.renderQuad(program, rawMatteFbo.framebuffer, width, height);
+		} else {
+			const rasterTex = this.getPathRasterTexture(mask, width, height);
+			if (rasterTex) {
+				const program = this.getProgram('pathMatteInit', PATH_MATTE_INIT_FRAG);
+				gl.useProgram(program);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, rasterTex);
+				gl.uniform1i(gl.getUniformLocation(program, 'u_pathRaster'), 0);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_inverted'), mask.inverted ? 1.0 : 0.0);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_opacity'), mask.opacity);
+				this.renderQuad(program, rawMatteFbo.framebuffer, width, height, rasterTex);
+			} else {
+				const clearVal = mask.inverted ? mask.opacity : 0.0;
+				this.renderSolid(
+					{ r: clearVal, g: clearVal, b: clearVal, a: clearVal },
+					rawMatteFbo.framebuffer,
+					width,
+					height
+				);
+			}
+		}
+
+		if (mask.feather > 0) {
+			const sigma = mask.feather / 2;
+			const blurProg = this.getProgram('featherBlur', FEATHER_BLUR_FRAG);
+
+			const hPassFbo = fboPool.acquire(width, height);
+			gl.useProgram(blurProg);
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, rawMatteFbo.texture);
+			gl.uniform1i(gl.getUniformLocation(blurProg, 'u_texture'), 0);
+			gl.uniform2f(gl.getUniformLocation(blurProg, 'u_direction'), 1.0 / width, 0.0);
+			gl.uniform1f(gl.getUniformLocation(blurProg, 'u_sigma'), sigma);
+			this.renderQuad(blurProg, hPassFbo.framebuffer, width, height, rawMatteFbo.texture);
+			fboPool.release(rawMatteFbo);
+
+			const vPassFbo = fboPool.acquire(width, height);
+			gl.useProgram(blurProg);
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, hPassFbo.texture);
+			gl.uniform1i(gl.getUniformLocation(blurProg, 'u_texture'), 0);
+			gl.uniform2f(gl.getUniformLocation(blurProg, 'u_direction'), 0.0, 1.0 / height);
+			gl.uniform1f(gl.getUniformLocation(blurProg, 'u_sigma'), sigma);
+			this.renderQuad(blurProg, vPassFbo.framebuffer, width, height, hPassFbo.texture);
+			fboPool.release(hPassFbo);
+
+			return vPassFbo;
+		}
+
+		return rawMatteFbo;
+	}
+
+	accumulateMasks(
+		masks: readonly EvaluatedMask[],
+		fboPool: FboPool,
+		width: number,
+		height: number
+	): PooledFbo {
+		const gl = this.gl;
+		const active = masks.filter((m) => m.enabled && !m.effectId);
+		let accumFbo = fboPool.acquire(width, height);
+
+		if (active.length === 0) {
+			this.renderSolid({ r: 1, g: 1, b: 1, a: 1 }, accumFbo.framebuffer, width, height);
+			return accumFbo;
+		}
+
+		const firstMode = active[0]!.mode;
+		const initVal = firstMode === 'add' ? 0 : 1;
+		this.renderSolid(
+			{ r: initVal, g: initVal, b: initVal, a: initVal },
+			accumFbo.framebuffer,
+			width,
+			height
+		);
+
+		const accumProg = this.getProgram('matteAccum', MATTE_ACCUM_FRAG);
+
+		for (const mask of active) {
+			const maskMatteFbo = this.generateMaskMatte(mask, fboPool, width, height);
+			const nextAccumFbo = fboPool.acquire(width, height);
+
+			gl.useProgram(accumProg);
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, accumFbo.texture);
+			gl.uniform1i(gl.getUniformLocation(accumProg, 'u_accumMatte'), 0);
+
+			gl.activeTexture(gl.TEXTURE1);
+			gl.bindTexture(gl.TEXTURE_2D, maskMatteFbo.texture);
+			gl.uniform1i(gl.getUniformLocation(accumProg, 'u_maskMatte'), 1);
+
+			const modeInt = mask.mode === 'add' ? 0 : mask.mode === 'subtract' ? 1 : 2;
+			gl.uniform1i(gl.getUniformLocation(accumProg, 'u_mode'), modeInt);
+
+			this.renderQuad(accumProg, nextAccumFbo.framebuffer, width, height);
+
+			fboPool.release(accumFbo);
+			fboPool.release(maskMatteFbo);
+			accumFbo = nextAccumFbo;
+		}
+
+		return accumFbo;
+	}
+
+	applyMatteToTexture(
+		layerTexture: WebGLTexture,
+		matteTexture: WebGLTexture,
+		fboPool: FboPool,
+		width: number,
+		height: number
+	): PooledFbo {
+		const gl = this.gl;
+		const multProg = this.getProgram('matteMultiply', MATTE_MULTIPLY_FRAG);
+		const outFbo = fboPool.acquire(width, height);
+
+		gl.useProgram(multProg);
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, layerTexture);
+		gl.uniform1i(gl.getUniformLocation(multProg, 'u_layerTexture'), 0);
+
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, matteTexture);
+		gl.uniform1i(gl.getUniformLocation(multProg, 'u_matteTexture'), 1);
+
+		this.renderQuad(multProg, outFbo.framebuffer, width, height);
+		return outFbo;
+	}
+
 	/**
 	 * Applies an evaluated effect to an input texture and outputs into an acquired FBO.
 	 * Returns the new texture. The caller can release the previous intermediate FBO.
 	 */
 	applyEffect(
+		effect: EvaluatedEffect,
+		inputTexture: WebGLTexture,
+		fboPool: FboPool,
+		width: number,
+		height: number,
+		timeInTicks: number,
+		lutGetter?: (lutId: string) => ParsedLut3D | null,
+		maskTexture?: WebGLTexture | null
+	): PooledFbo {
+		const outFbo = this.runRawEffect(
+			effect,
+			inputTexture,
+			fboPool,
+			width,
+			height,
+			timeInTicks,
+			lutGetter
+		);
+		if (maskTexture) {
+			const gl = this.gl;
+			const mix = typeof effect.params.mix === 'number' ? effect.params.mix : 1;
+			const maskedFbo = fboPool.acquire(width, height);
+			const mixProg = this.getProgram('blitMaskMix', BLIT_MASK_MIX_FRAG);
+			gl.useProgram(mixProg);
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+			gl.uniform1i(gl.getUniformLocation(mixProg, 'u_original'), 0);
+			gl.activeTexture(gl.TEXTURE1);
+			gl.bindTexture(gl.TEXTURE_2D, outFbo.texture);
+			gl.uniform1i(gl.getUniformLocation(mixProg, 'u_processed'), 1);
+			gl.activeTexture(gl.TEXTURE2);
+			gl.bindTexture(gl.TEXTURE_2D, maskTexture);
+			gl.uniform1i(gl.getUniformLocation(mixProg, 'u_maskMatte'), 2);
+			gl.uniform1f(gl.getUniformLocation(mixProg, 'u_mix'), mix);
+			this.renderQuad(mixProg, maskedFbo.framebuffer, width, height);
+			fboPool.release(outFbo);
+			return maskedFbo;
+		}
+		return outFbo;
+	}
+
+	private runRawEffect(
 		effect: EvaluatedEffect,
 		inputTexture: WebGLTexture,
 		fboPool: FboPool,
@@ -695,6 +980,8 @@ export class ShaderPassManager {
 		this.curveTextures.clear();
 		for (const t of this.lut3dTextures.values()) gl.deleteTexture(t);
 		this.lut3dTextures.clear();
+		for (const t of this.pathTextures.values()) gl.deleteTexture(t);
+		this.pathTextures.clear();
 		if (this.quadVao) gl.deleteVertexArray(this.quadVao);
 		this.quadVao = null;
 	}

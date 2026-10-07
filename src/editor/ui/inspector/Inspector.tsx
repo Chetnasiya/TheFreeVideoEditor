@@ -23,6 +23,7 @@ import {
 	type Time
 } from '../../core';
 import EffectsSection from './EffectsSection';
+import MasksSection from './MasksSection';
 import { TransitionInspector } from './TransitionInspector';
 import './inspector.css';
 
@@ -130,6 +131,7 @@ export default function Inspector() {
 	const isCropExpanded = Boolean(inspector.expanded.crop);
 
 	const isAdjustment = selectedClip.source?.type === 'adjustment';
+	const isMasksExpanded = inspector.expanded.masks !== false;
 	const isEffectsExpanded = inspector.expanded.effects !== false;
 
 	return (
@@ -233,6 +235,33 @@ export default function Inspector() {
 					)}
 				</section>
 			)}
+
+			{/* Masks Section */}
+			<section className={`inspector-section ${isMasksExpanded ? 'is-open' : ''}`}>
+				<button
+					type="button"
+					className="inspector-section-header"
+					onClick={() => store.getState().setInspectorExpanded('masks', !isMasksExpanded)}
+					aria-expanded={isMasksExpanded}
+				>
+					<span className="inspector-section-title">
+						<span className="section-chevron" aria-hidden="true">
+							{isMasksExpanded ? '▼' : '▶'}
+						</span>
+						Masks
+						{selectedClip.masks && selectedClip.masks.length > 0 && (
+							<span className="section-badge" style={{ marginLeft: 6, fontSize: '0.6875rem' }}>
+								({selectedClip.masks.length})
+							</span>
+						)}
+					</span>
+				</button>
+				{isMasksExpanded && (
+					<div className="inspector-section-content">
+						<MasksSection clip={selectedClip} localTime={localTime} fps={project.settings.fps} />
+					</div>
+				)}
+			</section>
 
 			{/* Effects Section */}
 			<section className={`inspector-section ${isEffectsExpanded ? 'is-open' : ''}`}>

@@ -7,6 +7,7 @@ test.describe('Gate J Evidence Closure', () => {
 	}) => {
 		test.setTimeout(180_000);
 		await page.goto('/editor');
+		await page.waitForLoadState('domcontentloaded');
 
 		const benchmark = await page.evaluate(async () => {
 			const { exportTimeline } = await import('/src/editor/services/export/exporter.ts');

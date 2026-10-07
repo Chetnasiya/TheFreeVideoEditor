@@ -164,5 +164,8 @@ export class RenderContext {
 			this.stats.programsDeleted += 1;
 		}
 		this.program = null;
+		try {
+			this.gl.getExtension('WEBGL_lose_context')?.loseContext();
+		} catch {}
 	}
 }

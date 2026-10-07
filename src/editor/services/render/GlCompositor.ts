@@ -15,6 +15,8 @@ import { FboPool, type PooledFbo } from './passes/FboPool';
 import { ShaderPassManager } from './passes/ShaderPass';
 import { captureScopeFrame, type ScopeFrameData } from './passes/scopes';
 import { getParsedLut } from '../media/lutCache';
+import { BLIT_MASK_MIX_FRAG } from './passes/maskShaders';
+import type { EvaluatedMask } from '../../core/masks';
 
 interface CachedTexture {
 	texture: WebGLTexture;
@@ -161,7 +163,8 @@ export class GlCompositor implements FrameRenderer {
 					Boolean(layer.transition) ||
 					layer.kind === 'adjustment' ||
 					layer.kind === 'solid' ||
-					(layer.effects && layer.effects.some((e) => !e.isNeutral))
+					(layer.effects && layer.effects.some((e) => !e.isNeutral)) ||
+					(layer.masks && layer.masks.some((m) => m.enabled))
 			);
 
 		if (!hasComplexPipeline) {
@@ -242,7 +245,32 @@ export class GlCompositor implements FrameRenderer {
 					currTex = nextFbo.texture;
 				}
 				const opacity = layer.transform?.opacity ?? 1;
-				if (opacity < 1) {
+				const activeMasks = (layer.masks ?? []).filter((m) => m.enabled && !m.effectId);
+				if (activeMasks.length > 0) {
+					const matteFbo = this.passManager.accumulateMasks(
+						activeMasks,
+						this.fboPool,
+						size.width,
+						size.height
+					);
+					fbosToRelease.push(matteFbo);
+					const blendedFbo = this.fboPool.acquire(size.width, size.height);
+					const mixProg = this.passManager['getProgram']('blitMaskMix', BLIT_MASK_MIX_FRAG);
+					gl.useProgram(mixProg);
+					gl.activeTexture(gl.TEXTURE0);
+					gl.bindTexture(gl.TEXTURE_2D, origFbo.texture);
+					gl.uniform1i(gl.getUniformLocation(mixProg, 'u_original'), 0);
+					gl.activeTexture(gl.TEXTURE1);
+					gl.bindTexture(gl.TEXTURE_2D, currTex);
+					gl.uniform1i(gl.getUniformLocation(mixProg, 'u_processed'), 1);
+					gl.activeTexture(gl.TEXTURE2);
+					gl.bindTexture(gl.TEXTURE_2D, matteFbo.texture);
+					gl.uniform1i(gl.getUniformLocation(mixProg, 'u_maskMatte'), 2);
+					gl.uniform1f(gl.getUniformLocation(mixProg, 'u_mix'), opacity);
+					this.passManager.renderQuad(mixProg, blendedFbo.framebuffer, size.width, size.height);
+					this.fboPool.release(origFbo);
+					accumFbo = blendedFbo;
+				} else if (opacity < 1) {
 					const blendedFbo = this.fboPool.acquire(size.width, size.height);
 					this.passManager.blitMix(
 						origFbo.texture,
@@ -329,20 +357,58 @@ export class GlCompositor implements FrameRenderer {
 				const color = layer.solidColor ?? { r: 0, g: 0, b: 0, a: 1 };
 				const solidTex = this.getSolidTexture(color);
 				let currentTex = solidTex;
-				const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
 				const fbosToRelease: PooledFbo[] = [];
 
+				const activeMasks = (layer.masks ?? []).filter((m) => m.enabled && !m.effectId);
+				const effectMasks = new Map<string, EvaluatedMask>();
+				for (const m of layer.masks ?? []) {
+					if (m.enabled && m.effectId) effectMasks.set(m.effectId, m);
+				}
+
+				if (activeMasks.length > 0) {
+					const matteFbo = this.passManager.accumulateMasks(
+						activeMasks,
+						this.fboPool,
+						size.width,
+						size.height
+					);
+					fbosToRelease.push(matteFbo);
+					const maskedFbo = this.passManager.applyMatteToTexture(
+						currentTex,
+						matteFbo.texture,
+						this.fboPool,
+						size.width,
+						size.height
+					);
+					fbosToRelease.push(maskedFbo);
+					currentTex = maskedFbo.texture;
+				}
+
+				const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
 				if (activeEffects.length > 0) {
 					let currFbo: PooledFbo | null = null;
 					for (const eff of activeEffects) {
+						let maskTex: WebGLTexture | null = null;
+						const effMask = effectMasks.get(eff.id);
+						if (effMask) {
+							const effMatteFbo = this.passManager.generateMaskMatte(
+								effMask,
+								this.fboPool,
+								size.width,
+								size.height
+							);
+							fbosToRelease.push(effMatteFbo);
+							maskTex = effMatteFbo.texture;
+						}
 						const nextFbo = this.passManager.applyEffect(
 							eff,
-							currFbo ? currFbo.texture : solidTex,
+							currFbo ? currFbo.texture : currentTex,
 							this.fboPool,
 							size.width,
 							size.height,
 							layer.sourceTime,
-							this.lutProvider ?? undefined
+							this.lutProvider ?? undefined,
+							maskTex
 						);
 						if (currFbo) fbosToRelease.push(currFbo);
 						currFbo = nextFbo;
@@ -395,24 +461,58 @@ export class GlCompositor implements FrameRenderer {
 			const entry = this.upload(layer, source, width, height);
 			if (!entry) continue;
 
-			// Check for effects on layer
+			// Check for masks and effects on layer
 			let layerTex = entry.texture;
-			const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
 			const fbosToRelease: PooledFbo[] = [];
 
+			const activeMasks = (layer.masks ?? []).filter((m) => m.enabled && !m.effectId);
+			const effectMasks = new Map<string, EvaluatedMask>();
+			for (const m of layer.masks ?? []) {
+				if (m.enabled && m.effectId) effectMasks.set(m.effectId, m);
+			}
+
+			const effW = Math.min(width, size.width * 2);
+			const effH = Math.min(height, size.height * 2);
+
+			if (activeMasks.length > 0) {
+				const matteFbo = this.passManager.accumulateMasks(activeMasks, this.fboPool, effW, effH);
+				fbosToRelease.push(matteFbo);
+				const maskedFbo = this.passManager.applyMatteToTexture(
+					layerTex,
+					matteFbo.texture,
+					this.fboPool,
+					effW,
+					effH
+				);
+				fbosToRelease.push(maskedFbo);
+				layerTex = maskedFbo.texture;
+			}
+
+			const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
 			if (activeEffects.length > 0) {
-				const effW = Math.min(width, size.width * 2);
-				const effH = Math.min(height, size.height * 2);
 				let currFbo: PooledFbo | null = null;
 				for (const eff of activeEffects) {
+					let maskTex: WebGLTexture | null = null;
+					const effMask = effectMasks.get(eff.id);
+					if (effMask) {
+						const effMatteFbo = this.passManager.generateMaskMatte(
+							effMask,
+							this.fboPool,
+							effW,
+							effH
+						);
+						fbosToRelease.push(effMatteFbo);
+						maskTex = effMatteFbo.texture;
+					}
 					const nextFbo = this.passManager.applyEffect(
 						eff,
-						currFbo ? currFbo.texture : entry.texture,
+						currFbo ? currFbo.texture : layerTex,
 						this.fboPool,
 						effW,
 						effH,
 						layer.sourceTime,
-						this.lutProvider ?? undefined
+						this.lutProvider ?? undefined,
+						maskTex
 					);
 					if (currFbo) fbosToRelease.push(currFbo);
 					currFbo = nextFbo;
@@ -579,20 +679,58 @@ export class GlCompositor implements FrameRenderer {
 			const color = layer.solidColor ?? { r: 0, g: 0, b: 0, a: 1 };
 			const solidTex = this.getSolidTexture(color);
 			let currentTex = solidTex;
-			const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
 			const fbosToRelease: PooledFbo[] = [];
 
+			const activeMasks = (layer.masks ?? []).filter((m) => m.enabled && !m.effectId);
+			const effectMasks = new Map<string, EvaluatedMask>();
+			for (const m of layer.masks ?? []) {
+				if (m.enabled && m.effectId) effectMasks.set(m.effectId, m);
+			}
+
+			if (activeMasks.length > 0) {
+				const matteFbo = this.passManager.accumulateMasks(
+					activeMasks,
+					this.fboPool,
+					size.width,
+					size.height
+				);
+				fbosToRelease.push(matteFbo);
+				const maskedFbo = this.passManager.applyMatteToTexture(
+					currentTex,
+					matteFbo.texture,
+					this.fboPool,
+					size.width,
+					size.height
+				);
+				fbosToRelease.push(maskedFbo);
+				currentTex = maskedFbo.texture;
+			}
+
+			const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
 			if (activeEffects.length > 0) {
 				let currFbo: PooledFbo | null = null;
 				for (const eff of activeEffects) {
+					let maskTex: WebGLTexture | null = null;
+					const effMask = effectMasks.get(eff.id);
+					if (effMask) {
+						const effMatteFbo = this.passManager.generateMaskMatte(
+							effMask,
+							this.fboPool,
+							size.width,
+							size.height
+						);
+						fbosToRelease.push(effMatteFbo);
+						maskTex = effMatteFbo.texture;
+					}
 					const nextFbo = this.passManager.applyEffect(
 						eff,
-						currFbo ? currFbo.texture : solidTex,
+						currFbo ? currFbo.texture : currentTex,
 						this.fboPool,
 						size.width,
 						size.height,
 						layer.sourceTime,
-						this.lutProvider ?? undefined
+						this.lutProvider ?? undefined,
+						maskTex
 					);
 					if (currFbo) fbosToRelease.push(currFbo);
 					currFbo = nextFbo;
@@ -644,22 +782,51 @@ export class GlCompositor implements FrameRenderer {
 		if (!entry) return;
 
 		let layerTex = entry.texture;
-		const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
 		const fbosToRelease: PooledFbo[] = [];
 
+		const activeMasks = (layer.masks ?? []).filter((m) => m.enabled && !m.effectId);
+		const effectMasks = new Map<string, EvaluatedMask>();
+		for (const m of layer.masks ?? []) {
+			if (m.enabled && m.effectId) effectMasks.set(m.effectId, m);
+		}
+
+		const effW = Math.min(width, size.width * 2);
+		const effH = Math.min(height, size.height * 2);
+
+		if (activeMasks.length > 0) {
+			const matteFbo = this.passManager.accumulateMasks(activeMasks, this.fboPool, effW, effH);
+			fbosToRelease.push(matteFbo);
+			const maskedFbo = this.passManager.applyMatteToTexture(
+				layerTex,
+				matteFbo.texture,
+				this.fboPool,
+				effW,
+				effH
+			);
+			fbosToRelease.push(maskedFbo);
+			layerTex = maskedFbo.texture;
+		}
+
+		const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
 		if (activeEffects.length > 0) {
-			const effW = Math.min(width, size.width * 2);
-			const effH = Math.min(height, size.height * 2);
 			let currFbo: PooledFbo | null = null;
 			for (const eff of activeEffects) {
+				let maskTex: WebGLTexture | null = null;
+				const effMask = effectMasks.get(eff.id);
+				if (effMask) {
+					const effMatteFbo = this.passManager.generateMaskMatte(effMask, this.fboPool, effW, effH);
+					fbosToRelease.push(effMatteFbo);
+					maskTex = effMatteFbo.texture;
+				}
 				const nextFbo = this.passManager.applyEffect(
 					eff,
-					currFbo ? currFbo.texture : entry.texture,
+					currFbo ? currFbo.texture : layerTex,
 					this.fboPool,
 					effW,
 					effH,
 					layer.sourceTime,
-					this.lutProvider ?? undefined
+					this.lutProvider ?? undefined,
+					maskTex
 				);
 				if (currFbo) fbosToRelease.push(currFbo);
 				currFbo = nextFbo;
