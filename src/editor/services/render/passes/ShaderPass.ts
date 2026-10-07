@@ -90,6 +90,7 @@ export class ShaderPassManager {
 	private curveTextures = new Map<string, WebGLTexture>();
 	private lut3dTextures = new Map<string, WebGLTexture>();
 	private pathTextures = new Map<string, WebGLTexture>();
+	private readonly targetIsCanvasLocs = new Map<WebGLProgram, WebGLUniformLocation | null>();
 
 	constructor(private readonly gl: WebGL2RenderingContext) {
 		this.quadVao = gl.createVertexArray();
@@ -127,6 +128,16 @@ export class ShaderPassManager {
 		gl.viewport(0, 0, width, height);
 		gl.disable(gl.BLEND);
 		gl.useProgram(program);
+		if (typeof gl.getUniformLocation === 'function') {
+			let loc = this.targetIsCanvasLocs.get(program);
+			if (loc === undefined) {
+				loc = gl.getUniformLocation(program, 'u_targetIsCanvas');
+				this.targetIsCanvasLocs.set(program, loc);
+			}
+			if (loc !== null) {
+				gl.uniform1i(loc, targetFbo === null ? 1 : 0);
+			}
+		}
 		if (inputTexture) {
 			gl.activeTexture(gl.TEXTURE0);
 			gl.bindTexture(gl.TEXTURE_2D, inputTexture);
@@ -976,6 +987,7 @@ export class ShaderPassManager {
 		const gl = this.gl;
 		for (const p of this.programs.values()) gl.deleteProgram(p);
 		this.programs.clear();
+		this.targetIsCanvasLocs.clear();
 		for (const t of this.curveTextures.values()) gl.deleteTexture(t);
 		this.curveTextures.clear();
 		for (const t of this.lut3dTextures.values()) gl.deleteTexture(t);

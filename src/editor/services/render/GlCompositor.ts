@@ -174,6 +174,7 @@ export class GlCompositor implements FrameRenderer {
 			gl.clearColor(0, 0, 0, 1);
 			gl.clear(gl.COLOR_BUFFER_BIT);
 			gl.useProgram(program.program);
+			if (program.targetIsCanvas) gl.uniform1i(program.targetIsCanvas, 1);
 			gl.bindVertexArray(this.vao);
 			gl.uniform2f(program.size, size.width, size.height);
 			gl.uniform1i(program.texture, 0);
@@ -332,6 +333,7 @@ export class GlCompositor implements FrameRenderer {
 				gl.bindFramebuffer(gl.FRAMEBUFFER, accumFbo.framebuffer);
 				gl.viewport(0, 0, size.width, size.height);
 				gl.useProgram(program.program);
+				if (program.targetIsCanvas) gl.uniform1i(program.targetIsCanvas, 0);
 				gl.bindVertexArray(this.vao);
 				gl.uniform2f(program.size, size.width, size.height);
 				gl.uniform1i(program.texture, 0);
@@ -423,6 +425,7 @@ export class GlCompositor implements FrameRenderer {
 				gl.bindFramebuffer(gl.FRAMEBUFFER, accumFbo.framebuffer);
 				gl.viewport(0, 0, size.width, size.height);
 				gl.useProgram(program.program);
+				if (program.targetIsCanvas) gl.uniform1i(program.targetIsCanvas, 0);
 				gl.bindVertexArray(this.vao);
 				gl.uniform2f(program.size, size.width, size.height);
 				gl.uniform1i(program.texture, 0);
@@ -527,6 +530,7 @@ export class GlCompositor implements FrameRenderer {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, accumFbo.framebuffer);
 			gl.viewport(0, 0, size.width, size.height);
 			gl.useProgram(program.program);
+			if (program.targetIsCanvas) gl.uniform1i(program.targetIsCanvas, 0);
 			gl.bindVertexArray(this.vao);
 			gl.uniform2f(program.size, size.width, size.height);
 			gl.uniform1i(program.texture, 0);
@@ -744,6 +748,7 @@ export class GlCompositor implements FrameRenderer {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, targetFbo.framebuffer);
 			gl.viewport(0, 0, size.width, size.height);
 			gl.useProgram(program.program);
+			if (program.targetIsCanvas) gl.uniform1i(program.targetIsCanvas, 0);
 			gl.bindVertexArray(this.vao);
 			gl.uniform2f(program.size, size.width, size.height);
 			gl.uniform1i(program.texture, 0);
@@ -840,6 +845,7 @@ export class GlCompositor implements FrameRenderer {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, targetFbo.framebuffer);
 		gl.viewport(0, 0, size.width, size.height);
 		gl.useProgram(program.program);
+		if (program.targetIsCanvas) gl.uniform1i(program.targetIsCanvas, 0);
 		gl.bindVertexArray(this.vao);
 		gl.uniform2f(program.size, size.width, size.height);
 		gl.uniform1i(program.texture, 0);

@@ -529,4 +529,222 @@ test.describe('Gate J — Functional Pipeline Verification', () => {
 		expect(results.vigCenter[0]).toBeGreaterThan(240);
 		expect(results.vigCorner[0]).toBeLessThan(180);
 	});
+
+	test('orientation parity: filters, rotation, and color correction never flip footage/images vertically or horizontally', async ({
+		page
+	}) => {
+		await page.goto('/editor');
+
+		const results = await page.evaluate(async () => {
+			const render = await import('/src/editor/services/render/index.ts');
+			type Layer = import('/src/editor/core/playback').ActiveLayer;
+
+			const W = 200;
+			const H = 200;
+
+			// Source image: top half (y < H/2) is RED, bottom half (y >= H/2) is BLUE
+			const srcCanvas = new OffscreenCanvas(W, H);
+			const ctx = srcCanvas.getContext('2d')!;
+			ctx.fillStyle = '#ff0000';
+			ctx.fillRect(0, 0, W, H / 2);
+			ctx.fillStyle = '#0000ff';
+			ctx.fillRect(0, H / 2, W, H / 2);
+
+			const canvas = document.createElement('canvas');
+			canvas.width = W;
+			canvas.height = H;
+
+			const renderer = render.createFrameRenderer(canvas, {
+				preserveDrawingBuffer: true
+			}) as import('../../src/editor/services/render').FrameRenderer;
+
+			const provider = (_layer: Layer) => srcCanvas;
+			const size = { width: W, height: H };
+
+			const readPixel = (x: number, y: number): number[] => {
+				const copy = document.createElement('canvas');
+				copy.width = W;
+				copy.height = H;
+				const cctx = copy.getContext('2d', { willReadFrequently: true })!;
+				cctx.drawImage(canvas, 0, 0);
+				return Array.from(cctx.getImageData(x, y, 1, 1).data);
+			};
+
+			const baseLayer: Layer = {
+				clipId: 'c_test' as any,
+				assetId: 'src' as any,
+				trackId: 't1' as any,
+				trackOrder: 0,
+				sourceTime: 0,
+				kind: 'image',
+				opacity: 1,
+				transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 }
+			};
+
+			// 1. Fast path (no effects)
+			renderer.render(size, [baseLayer], provider);
+			const fastTop = readPixel(W / 2, Math.round(H * 0.25));
+			const fastBottom = readPixel(W / 2, Math.round(H * 0.75));
+
+			// 2. Color Correction (1-pass shader)
+			renderer.render(
+				size,
+				[
+					{
+						...baseLayer,
+						effects: [
+							{
+								id: 'e_cc',
+								type: 'colorCorrection',
+								enabled: true,
+								params: { exposure: 0.2, mix: 1 },
+								isNeutral: false
+							}
+						]
+					}
+				],
+				provider
+			);
+			const ccTop = readPixel(W / 2, Math.round(H * 0.25));
+			const ccBottom = readPixel(W / 2, Math.round(H * 0.75));
+
+			// 3. Gaussian Blur (2-pass shader)
+			renderer.render(
+				size,
+				[
+					{
+						...baseLayer,
+						effects: [
+							{
+								id: 'e_blur',
+								type: 'gaussianBlur',
+								enabled: true,
+								params: { radius: 4, mix: 1 },
+								isNeutral: false
+							}
+						]
+					}
+				],
+				provider
+			);
+			const blurTop = readPixel(W / 2, Math.round(H * 0.25));
+			const blurBottom = readPixel(W / 2, Math.round(H * 0.75));
+
+			// 4. Invert (Red -> Cyan, Blue -> Yellow)
+			renderer.render(
+				size,
+				[
+					{
+						...baseLayer,
+						effects: [
+							{
+								id: 'e_inv',
+								type: 'invert',
+								enabled: true,
+								params: { amount: 1, mix: 1 },
+								isNeutral: false
+							}
+						]
+					}
+				],
+				provider
+			);
+			const invTop = readPixel(W / 2, Math.round(H * 0.25));
+			const invBottom = readPixel(W / 2, Math.round(H * 0.75));
+
+			// 5. Rotation +90 deg clockwise (no effects): Top (Red) moves to Right, Bottom (Blue) moves to Left
+			renderer.render(
+				size,
+				[
+					{
+						...baseLayer,
+						transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 90, opacity: 1 }
+					}
+				],
+				provider
+			);
+			const rotLeft = readPixel(Math.round(W * 0.25), H / 2);
+			const rotRight = readPixel(Math.round(W * 0.75), H / 2);
+
+			// 6. Rotation +90 deg clockwise WITH Color Correction
+			renderer.render(
+				size,
+				[
+					{
+						...baseLayer,
+						transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 90, opacity: 1 },
+						effects: [
+							{
+								id: 'e_cc_rot',
+								type: 'colorCorrection',
+								enabled: true,
+								params: { exposure: 0.2, mix: 1 },
+								isNeutral: false
+							}
+						]
+					}
+				],
+				provider
+			);
+			const rotCcLeft = readPixel(Math.round(W * 0.25), H / 2);
+			const rotCcRight = readPixel(Math.round(W * 0.75), H / 2);
+
+			renderer.dispose();
+
+			return {
+				fastTop,
+				fastBottom,
+				ccTop,
+				ccBottom,
+				blurTop,
+				blurBottom,
+				invTop,
+				invBottom,
+				rotLeft,
+				rotRight,
+				rotCcLeft,
+				rotCcRight
+			};
+		});
+
+		console.log('ORIENTATION_RESULTS:', JSON.stringify(results));
+
+		// 1. Fast path: top is RED (r > 200, b < 20), bottom is BLUE (b > 200, r < 20)
+		expect(results.fastTop[0]).toBeGreaterThan(200);
+		expect(results.fastTop[2]).toBeLessThan(20);
+		expect(results.fastBottom[2]).toBeGreaterThan(200);
+		expect(results.fastBottom[0]).toBeLessThan(20);
+
+		// 2. Color correction: top must still be RED (r > 200, b < 20), bottom must still be BLUE (b > 200, r < 20)
+		expect(results.ccTop[0]).toBeGreaterThan(200);
+		expect(results.ccTop[2]).toBeLessThan(20);
+		expect(results.ccBottom[2]).toBeGreaterThan(200);
+		expect(results.ccBottom[0]).toBeLessThan(20);
+
+		// 3. Gaussian blur: top predominantly red, bottom predominantly blue
+		expect(results.blurTop[0]).toBeGreaterThan(150);
+		expect(results.blurTop[2]).toBeLessThan(80);
+		expect(results.blurBottom[2]).toBeGreaterThan(150);
+		expect(results.blurBottom[0]).toBeLessThan(80);
+
+		// 4. Invert: top inverted to Cyan (g,b > 200, r < 20), bottom inverted to Yellow (r,g > 200, b < 20)
+		expect(results.invTop[1]).toBeGreaterThan(200);
+		expect(results.invTop[2]).toBeGreaterThan(200);
+		expect(results.invTop[0]).toBeLessThan(20);
+		expect(results.invBottom[0]).toBeGreaterThan(200);
+		expect(results.invBottom[1]).toBeGreaterThan(200);
+		expect(results.invBottom[2]).toBeLessThan(20);
+
+		// 5. Rotation 90°: left is BLUE (b > 200, r < 20), right is RED (r > 200, b < 20)
+		expect(results.rotLeft[2]).toBeGreaterThan(200);
+		expect(results.rotLeft[0]).toBeLessThan(20);
+		expect(results.rotRight[0]).toBeGreaterThan(200);
+		expect(results.rotRight[2]).toBeLessThan(20);
+
+		// 6. Rotation 90° + Color Correction: left is BLUE (b > 200, r < 20), right is RED (r > 200, b < 20)
+		expect(results.rotCcLeft[2]).toBeGreaterThan(200);
+		expect(results.rotCcLeft[0]).toBeLessThan(20);
+		expect(results.rotRight[0]).toBeGreaterThan(200);
+		expect(results.rotRight[2]).toBeLessThan(20);
+	});
 });

@@ -21,6 +21,7 @@ export interface LayerProgram {
 	opacity: WebGLUniformLocation;
 	crop: WebGLUniformLocation;
 	texture: WebGLUniformLocation;
+	targetIsCanvas: WebGLUniformLocation | null;
 }
 
 export interface RenderContextOptions {
@@ -133,12 +134,13 @@ export class RenderContext {
 		const opacity = gl.getUniformLocation(program, 'u_opacity');
 		const crop = gl.getUniformLocation(program, 'u_crop');
 		const texture = gl.getUniformLocation(program, 'u_texture');
+		const targetIsCanvas = gl.getUniformLocation(program, 'u_targetIsCanvas');
 		if (!affine || !size || !opacity || !crop || !texture) {
 			gl.deleteProgram(program);
 			throw new ShaderCompileError('layer', 'Missing uniform location.');
 		}
 		this.stats.programsCreated += 1;
-		this.program = { program, affine, size, opacity, crop, texture };
+		this.program = { program, affine, size, opacity, crop, texture, targetIsCanvas };
 		gl.disable(gl.DEPTH_TEST);
 		gl.disable(gl.CULL_FACE);
 		gl.enable(gl.BLEND);

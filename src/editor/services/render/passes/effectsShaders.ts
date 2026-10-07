@@ -1,10 +1,12 @@
 export const PASS_VERTEX_SHADER = `#version 300 es
 precision highp float;
+uniform int u_targetIsCanvas;
 out vec2 v_uv;
 void main() {
     vec2 uv = vec2(float(gl_VertexID & 1), float((gl_VertexID >> 1) & 1));
     v_uv = uv;
-    gl_Position = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, 0.0, 1.0);
+    float y = u_targetIsCanvas == 1 ? (1.0 - uv.y * 2.0) : (uv.y * 2.0 - 1.0);
+    gl_Position = vec4(uv.x * 2.0 - 1.0, y, 0.0, 1.0);
 }
 `;
 
