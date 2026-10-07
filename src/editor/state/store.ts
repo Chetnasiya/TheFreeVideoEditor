@@ -542,7 +542,7 @@ export interface EditorState {
 	) => boolean;
 	removeTransition: (transitionId: string) => boolean;
 	selectTransition: (transitionId: string | null) => void;
-	applyDefaultTransition: () => boolean;
+	applyDefaultTransition: (type?: TransitionType) => boolean;
 }
 
 function errorMessage(error: unknown): string {
@@ -3440,7 +3440,7 @@ export function createEditorStore() {
 					});
 				},
 
-				applyDefaultTransition() {
+				applyDefaultTransition(type: TransitionType = 'crossDissolve') {
 					const state = get();
 					const project = state.project;
 					if (!project) return false;
@@ -3455,7 +3455,7 @@ export function createEditorStore() {
 							if (cA && cB) {
 								const [first, second] = cA.start < cB.start ? [cA, cB] : [cB, cA];
 								if (first.start + first.duration === second.start) {
-									state.addTransition(track.id, 'crossDissolve', {
+									state.addTransition(track.id, type, {
 										kind: 'cut',
 										fromClipId: first.id,
 										toClipId: second.id
@@ -3470,7 +3470,7 @@ export function createEditorStore() {
 						for (const track of project.tracks) {
 							const c = track.clips.find((clip) => clip.id === clipId);
 							if (c) {
-								state.addTransition(track.id, 'crossDissolve', {
+								state.addTransition(track.id, type, {
 									kind: 'tail',
 									clipId: c.id
 								});

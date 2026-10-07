@@ -183,7 +183,9 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 				return null;
 			}
 
-			const sourceTime = timelineToSource(clip, t);
+			const rawSource = timelineToSource(clip, t);
+			const maxSource = asset.duration > 0 ? asset.duration : rawSource;
+			const sourceTime = Math.max(0, Math.min(maxSource, rawSource));
 			if (track.kind === 'video' && (asset.kind === 'video' || asset.kind === 'image')) {
 				return {
 					clipId: clip.id,
@@ -206,7 +208,8 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 			if (tr.edge.kind === 'cut') {
 				const edge = tr.edge;
 				const cA = track.clips.find((c) => c.id === edge.fromClipId);
-				if (!cA) return false;
+				const cB = track.clips.find((c) => c.id === edge.toClipId);
+				if (!cA || !cB) return false;
 				cutTime = clipEnd(cA);
 			} else if (tr.edge.kind === 'head') {
 				const edge = tr.edge;
@@ -292,7 +295,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 							assetId: assetA.id,
 							trackId: track.id,
 							trackOrder,
-							sourceTime: timelineToSource(clipA, time),
+							sourceTime: Math.max(0, timelineToSource(clipA, time)),
 							volume: clipA.volume * gainA
 						});
 					}
@@ -305,7 +308,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 							assetId: assetB.id,
 							trackId: track.id,
 							trackOrder,
-							sourceTime: timelineToSource(clipB, time),
+							sourceTime: Math.max(0, timelineToSource(clipB, time)),
 							volume: clipB.volume * gainB
 						});
 					}

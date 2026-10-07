@@ -18,8 +18,22 @@ export class CompatibilityFrameProvider {
 	) {}
 
 	async prepare(layers: readonly ActiveLayer[], signal?: AbortSignal): Promise<void> {
+		for (const item of this.prepared.values()) {
+			if (item instanceof ImageBitmap) item.close();
+		}
 		this.prepared.clear();
+
+		const allLayers: ActiveLayer[] = [];
 		for (const layer of layers) {
+			if (layer.transition) {
+				allLayers.push(layer.transition.fromLayer);
+				allLayers.push(layer.transition.toLayer);
+			} else {
+				allLayers.push(layer);
+			}
+		}
+
+		for (const layer of allLayers) {
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
 			if (!layer.assetId) continue;
 			const asset = this.project.assets[layer.assetId];
@@ -35,7 +49,7 @@ export class CompatibilityFrameProvider {
 					continue;
 				}
 				const entry = await this.getVideo(asset.id);
-				const time = layer.sourceTime / 1_000_000;
+				const time = Math.max(0, layer.sourceTime / 1_000_000);
 				if (Math.abs(entry.video.currentTime - time) > 0.001) {
 					await new Promise<void>((resolve, reject) => {
 						const onSeeked = () => {
@@ -85,6 +99,9 @@ export class CompatibilityFrameProvider {
 		this.videos.clear();
 		for (const image of this.images.values()) image.close();
 		this.images.clear();
+		for (const item of this.prepared.values()) {
+			if (item instanceof ImageBitmap) item.close();
+		}
 		this.prepared.clear();
 	}
 

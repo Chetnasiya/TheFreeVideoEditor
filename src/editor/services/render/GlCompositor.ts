@@ -310,11 +310,11 @@ export class GlCompositor implements FrameRenderer {
 				gl.activeTexture(gl.TEXTURE0);
 				gl.bindTexture(gl.TEXTURE_2D, transitionFbo.texture);
 
-				// Identity full-screen affine for the transitioned result
-				gl.uniformMatrix3fv(program.affine, false, [1, 0, 0, 0, 1, 0, 0, 0, 1]);
+				// Full-screen affine for the transitioned result
+				gl.uniformMatrix3fv(program.affine, false, [size.width, 0, 0, 0, size.height, 0, 0, 0, 1]);
 				gl.uniform4f(program.crop, 0, 0, 0, 0);
-				gl.uniform1f(program.opacity, 1.0);
-				blendFunction(gl, 'normal');
+				gl.uniform1f(program.opacity, layer.transform?.opacity ?? 1.0);
+				blendFunction(gl, layer.blendMode ?? 'normal');
 				gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 				stats.drawCalls += 1;
 				gl.activeTexture(gl.TEXTURE0);
@@ -363,7 +363,7 @@ export class GlCompositor implements FrameRenderer {
 				gl.activeTexture(gl.TEXTURE0);
 				gl.bindTexture(gl.TEXTURE_2D, currentTex);
 
-				const affine = layerAffine(layer, 1, 1, size.width, size.height);
+				const affine = layerAffine(layer, size.width, size.height, size.width, size.height);
 				gl.uniformMatrix3fv(program.affine, false, [
 					affine.a,
 					affine.b,
@@ -612,7 +612,7 @@ export class GlCompositor implements FrameRenderer {
 			gl.activeTexture(gl.TEXTURE0);
 			gl.bindTexture(gl.TEXTURE_2D, currentTex);
 
-			const affine = layerAffine(layer, 1, 1, size.width, size.height);
+			const affine = layerAffine(layer, size.width, size.height, size.width, size.height);
 			gl.uniformMatrix3fv(program.affine, false, [
 				affine.a,
 				affine.b,

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test } from '@playwright/test';
 
 test.describe('Gate J Evidence Closure', () => {
@@ -77,10 +78,13 @@ test.describe('Gate J Evidence Closure', () => {
 					filename: `benchmark_${resolution}_${renderer}.webm`
 				});
 
+				const { createExportSinkForTarget } = await import('/src/editor/services/export/sink.ts');
+				const sink = createExportSinkForTarget('webm', null);
 				const t0 = performance.now();
 				const result = await exportTimeline(proj, settings, {
 					renderer,
-					videoCodec: 'vp8'
+					videoCodec: 'vp8',
+					sink
 				});
 				const durationMs = performance.now() - t0;
 				const realFps = totalFrames / (durationMs / 1000);

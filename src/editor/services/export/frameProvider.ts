@@ -26,7 +26,7 @@ export class FrameProviderError extends Error {
 export class ExportFrameProvider {
 	private readonly decoders = new Map<AssetId, VideoDecoderEntry>();
 	private readonly images = new Map<AssetId, ImageBitmap>();
-	private readonly canvases = new Map<AssetId, OffscreenCanvas>();
+	private readonly canvases = new Map<ClipId, OffscreenCanvas>();
 	private readonly prepared = new Map<ClipId, CanvasImageSource>();
 	private clock = 0;
 	private disposed = false;
@@ -38,7 +38,17 @@ export class ExportFrameProvider {
 
 	async prepare(layers: readonly ActiveLayer[], signal?: AbortSignal): Promise<void> {
 		this.prepared.clear();
+		const allLayers: ActiveLayer[] = [];
 		for (const layer of layers) {
+			if (layer.transition) {
+				allLayers.push(layer.transition.fromLayer);
+				allLayers.push(layer.transition.toLayer);
+			} else {
+				allLayers.push(layer);
+			}
+		}
+
+		for (const layer of allLayers) {
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
 			if (!layer.assetId) continue;
 			const asset = this.project.assets[layer.assetId];
@@ -54,7 +64,8 @@ export class ExportFrameProvider {
 					continue;
 				}
 				const decoder = await this.getDecoder(asset.id, asset.name);
-				let sample = await decoder.sink.getSample(layer.sourceTime / 1_000_000);
+				const timeSec = Math.max(0, layer.sourceTime / 1_000_000);
+				let sample = await decoder.sink.getSample(timeSec);
 				if (!sample && layer.sourceTime > 0 && asset.duration > 0) {
 					sample = await decoder.sink.getSample(
 						Math.max(0, asset.duration - Math.max(1, Math.round(1_000_000 / (asset.fps ?? 30)))) /
@@ -62,14 +73,14 @@ export class ExportFrameProvider {
 					);
 				}
 				if (!sample) continue;
-				let canvas = this.canvases.get(asset.id);
+				let canvas = this.canvases.get(layer.clipId);
 				if (
 					!canvas ||
 					canvas.width !== sample.displayWidth ||
 					canvas.height !== sample.displayHeight
 				) {
 					canvas = new OffscreenCanvas(sample.displayWidth, sample.displayHeight);
-					this.canvases.set(asset.id, canvas);
+					this.canvases.set(layer.clipId, canvas);
 				}
 				const context = canvas.getContext('2d');
 				if (!context) throw new Error('Offscreen canvas 2D rendering is unavailable.');
@@ -126,7 +137,6 @@ export class ExportFrameProvider {
 				if (oldest) {
 					oldest[1].input.dispose();
 					this.decoders.delete(oldest[0]);
-					this.canvases.delete(oldest[0]);
 				}
 			}
 			this.decoders.set(assetId, entry);

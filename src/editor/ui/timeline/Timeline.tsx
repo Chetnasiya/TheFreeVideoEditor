@@ -34,6 +34,7 @@ import type {
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import ClipView from './ClipView';
 import { TransitionBlock } from './TransitionBlock';
+import type { TransitionType } from '../../core/transitionsRegistry';
 import Playhead from './Playhead';
 import TimelineRuler from './TimelineRuler';
 import TimelineToolbar from './TimelineToolbar';
@@ -721,6 +722,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTrackDragOver(event: DragEvent<HTMLDivElement>, track: Track): void {
+		if (event.dataTransfer.types.includes('application/x-tfve-transition')) {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'copy';
+			return;
+		}
 		if (!assetFromData(event.dataTransfer)) {
 			if (event.dataTransfer.types.includes('application/x-tfve-asset')) {
 				event.preventDefault();
@@ -731,7 +737,95 @@ function ActiveTimeline({ project }: { project: Project }) {
 		beginAssetPreview(event, track.id);
 	}
 
+	function applyTransitionDrop(track: Track, time: Time, type: TransitionType): void {
+		if (track.clips.length === 0) {
+			setTimelineMessage('Cannot add transition: track has no clips.');
+			return;
+		}
+		const sortedClips = [...track.clips].sort((a, b) => a.start - b.start);
+		// Check for adjacent cut nearest to time
+		let bestCut: { from: Clip; to: Clip; distance: number } | null = null;
+		for (let i = 0; i < sortedClips.length - 1; i++) {
+			const c1 = sortedClips[i]!;
+			const c2 = sortedClips[i + 1]!;
+			if (c1.start + c1.duration === c2.start) {
+				const cutTime = c2.start;
+				const dist = Math.abs(time - cutTime);
+				if (!bestCut || dist < bestCut.distance) {
+					bestCut = { from: c1, to: c2, distance: dist };
+				}
+			}
+		}
+
+		let containingClip = sortedClips.find((c) => time >= c.start && time < c.start + c.duration);
+		if (!containingClip) {
+			containingClip = sortedClips.reduce((prev, curr) => {
+				const prevDist = Math.min(
+					Math.abs(time - prev.start),
+					Math.abs(time - (prev.start + prev.duration))
+				);
+				const currDist = Math.min(
+					Math.abs(time - curr.start),
+					Math.abs(time - (curr.start + curr.duration))
+				);
+				return currDist < prevDist ? curr : prev;
+			});
+		}
+
+		if (bestCut && bestCut.distance <= 1_500_000) {
+			store.getState().addTransition(track.id, type, {
+				kind: 'cut',
+				fromClipId: bestCut.from.id,
+				toClipId: bestCut.to.id
+			});
+			return;
+		}
+
+		const distToStart = Math.abs(time - containingClip.start);
+		const distToEnd = Math.abs(time - (containingClip.start + containingClip.duration));
+
+		if (distToStart < distToEnd) {
+			const prevClip = sortedClips.find((c) => c.start + c.duration === containingClip!.start);
+			if (prevClip) {
+				store.getState().addTransition(track.id, type, {
+					kind: 'cut',
+					fromClipId: prevClip.id,
+					toClipId: containingClip.id
+				});
+			} else {
+				store.getState().addTransition(track.id, type, {
+					kind: 'head',
+					clipId: containingClip.id
+				});
+			}
+		} else {
+			const nextClip = sortedClips.find(
+				(c) => c.start === containingClip!.start + containingClip!.duration
+			);
+			if (nextClip) {
+				store.getState().addTransition(track.id, type, {
+					kind: 'cut',
+					fromClipId: containingClip.id,
+					toClipId: nextClip.id
+				});
+			} else {
+				store.getState().addTransition(track.id, type, {
+					kind: 'tail',
+					clipId: containingClip.id
+				});
+			}
+		}
+	}
+
 	function handleTrackDrop(event: DragEvent<HTMLDivElement>, track: Track): void {
+		const transitionType = event.dataTransfer.getData('application/x-tfve-transition') as
+			TransitionType | '';
+		if (transitionType) {
+			event.preventDefault();
+			const time = pointerTime(event.clientX);
+			applyTransitionDrop(track, time, transitionType);
+			return;
+		}
 		const assetId = assetFromData(event.dataTransfer);
 		if (!assetId) return;
 		event.preventDefault();

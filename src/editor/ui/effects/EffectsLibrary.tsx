@@ -56,7 +56,7 @@ export default function EffectsLibrary() {
 	}, [allEffects, query, activeCategory]);
 
 	const handleAddTransition = (def: TransitionDefinition) => {
-		const applied = store.getState().applyDefaultTransition();
+		const applied = store.getState().applyDefaultTransition(def.id);
 		if (applied) {
 			setAnnouncement(`Applied ${def.name} transition.`);
 		} else {

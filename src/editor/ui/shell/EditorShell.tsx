@@ -115,7 +115,7 @@ function EditorShell() {
 	useEffect(() => {
 		if (!isFileMenuOpen && !isEditMenuOpen && !isHelpMenuOpen) return;
 
-		const handlePointerDown = (event: PointerEvent) => {
+		const handlePointerDown = (event: globalThis.PointerEvent) => {
 			const target = event.target;
 			if (target instanceof Node && menuBarRef.current?.contains(target)) {
 				return;

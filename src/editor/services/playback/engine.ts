@@ -1,6 +1,6 @@
 import { nextBoundary, resolveFrame, type ActiveLayer } from '../../core/playback';
 import { framesToTicks, ticksToTimecode, timelineDuration } from '../../core';
-import type { AssetId, ClipId, Project, Time } from '../../core';
+import type { AssetId, ClipId, Project, Time, TrackId } from '../../core';
 import type { EditorStore } from '../../state/store';
 import { AudioEngine } from './audioEngine';
 import type { FrameSource, LastGoodFrames } from './compositor';
@@ -369,6 +369,18 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			render: this.renderer?.stats ?? null,
 			activeVideoAssets: resolveFrame(this.project, this.clock.time).videoLayers.flatMap(
 				(layer) => {
+					if (layer.transition) {
+						const assets: Array<{ id: AssetId; name: string; trackId: TrackId }> = [];
+						const aA = layer.transition.fromLayer.assetId
+							? this.project.assets[layer.transition.fromLayer.assetId]
+							: undefined;
+						if (aA) assets.push({ id: aA.id, name: aA.name, trackId: layer.trackId });
+						const aB = layer.transition.toLayer.assetId
+							? this.project.assets[layer.transition.toLayer.assetId]
+							: undefined;
+						if (aB) assets.push({ id: aB.id, name: aB.name, trackId: layer.trackId });
+						return assets;
+					}
 					const asset = layer.assetId ? this.project.assets[layer.assetId] : undefined;
 					return asset ? [{ id: asset.id, name: asset.name, trackId: layer.trackId }] : [];
 				}
@@ -449,9 +461,16 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		}
 		renderer.releaseUnused(projectClipIds);
 		const missing = new Set([...resolved.missing, ...this.runtimeMissing]);
-		const layers = resolved.videoLayers.filter(
-			(layer) => !layer.assetId || !missing.has(layer.assetId)
-		);
+		const layers = resolved.videoLayers.filter((layer) => {
+			if (layer.transition) {
+				const fromId = layer.transition.fromLayer.assetId;
+				const toId = layer.transition.toLayer.assetId;
+				if (fromId && missing.has(fromId)) return false;
+				if (toId && missing.has(toId)) return false;
+				return true;
+			}
+			return !layer.assetId || !missing.has(layer.assetId);
+		});
 		let loading = false;
 		const scopesOpen = this.store.getState().scopes?.open ?? false;
 		renderer.enableScopes?.(scopesOpen);
