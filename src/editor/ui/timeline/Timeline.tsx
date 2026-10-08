@@ -1100,7 +1100,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 									className={`timeline-track-row track-${track.kind}`}
 									role="row"
 									key={track.id}
-									style={{ '--track-height': `${trackHeights[track.id] ?? 80}px` } as CSSProperties}
+									style={{ '--track-height': `${trackHeights[track.id] ?? 45}px` } as CSSProperties}
 								>
 									<TrackHeader
 										track={track}
@@ -1385,6 +1385,34 @@ function ActiveTimeline({ project }: { project: Project }) {
 						}}
 					>
 						Duplicate
+					</button>
+					<hr />
+					<button
+						type="button"
+						onClick={() => {
+							store.getState().openSpeedDialog(context.clip.id);
+							closeContextMenu();
+						}}
+					>
+						Speed / Duration…
+					</button>
+					<button
+						type="button"
+						onClick={() => {
+							store.getState().addFreezeFrame(context.clip.id);
+							closeContextMenu();
+						}}
+					>
+						Add freeze frame
+					</button>
+					<button
+						type="button"
+						onClick={() => {
+							store.getState().freezeFrameToEnd(context.clip.id);
+							closeContextMenu();
+						}}
+					>
+						Freeze frame to end of clip
 					</button>
 					<hr />
 					{context.clip.linkId ? (

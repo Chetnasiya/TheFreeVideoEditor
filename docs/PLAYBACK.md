@@ -45,5 +45,7 @@ Playback tests can inspect development-only engine statistics through
 - Safari and Firefox may use different OPFS, codec, and media readiness behavior
   from Chromium. Active-media buffering pauses the clock, but browser-specific
   seeking behavior may still vary.
-- Audio is muted for reverse and non-1× playback rates; advanced mixing,
-  transitions, and export are not part of this playback implementation.
+- In Gate M, constant forward speeds ([0.25×, 4.0×]) preserve pitch via
+  `HTMLMediaElement.preservesPitch` and `playbackRate`. Reverse playback, freeze
+  frames, and non-linear speed ramps operate in seek mode with an active preview hint;
+  audio export preserves pitch across arbitrary curves via WSOLA.

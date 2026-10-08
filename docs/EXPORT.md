@@ -47,8 +47,19 @@ switched, or deleted during export without first confirming cancellation.
 Worker export avoids running the render loop on the UI thread, but the yielding
 main-thread fallback can still reduce responsiveness. Codec support and decode
 performance also depend on the browser, operating system, and media file. In
-browsers without a streaming file picker, the download fallback buffers encoded
-output in memory and warns when the estimated output is at least 512 MiB.
+
+### Gate M: Speed, Time Remapping, and WSOLA Audio Mixdown
+
+Export pipelines fully support constant speed changes, reverse playback, freeze frames,
+and arbitrary non-linear time remapping curves:
+
+- **Audio Mixdown**: `audioMix.ts` integrates with in-house WSOLA time-stretching (`renderRemappedAudio.ts`).
+  Pitch is preserved across accelerated, decelerated, and curve-remapped audio chunks when `clip.maintainPitch` is true.
+  Reverse playback and hold frames mute audio cleanly.
+- **Video Frames & LRU Cache**: `frameProvider.ts` includes a 64-frame LRU `ImageBitmap` cache to
+  avoid repeated decodes when evaluating backward seeking, reverse clips, and freeze frames.
+- **Interchange Export**: EDL, FCPXML, OTIO, and XMEML exporters evaluate `sourceExtent(clip)` to accurately
+  compute source time boundaries under speed adjustments and reversal.
 
 ## Project interchange
 

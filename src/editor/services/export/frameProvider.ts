@@ -28,6 +28,8 @@ export class ExportFrameProvider {
 	private readonly images = new Map<AssetId, ImageBitmap>();
 	private readonly canvases = new Map<ClipId, OffscreenCanvas>();
 	private readonly prepared = new Map<ClipId, CanvasImageSource>();
+	private readonly frameCache = new Map<string, ImageBitmap>();
+	private readonly cacheKeys: string[] = [];
 	private clock = 0;
 	private disposed = false;
 
@@ -63,8 +65,15 @@ export class ExportFrameProvider {
 					this.prepared.set(layer.clipId, image);
 					continue;
 				}
-				const decoder = await this.getDecoder(asset.id, asset.name);
 				const timeSec = Math.max(0, layer.sourceTime / 1_000_000);
+				const cacheKey = `${asset.id}:${Math.round(timeSec * (asset.fps ?? 30))}`;
+				const cached = this.frameCache.get(cacheKey);
+				if (cached) {
+					this.prepared.set(layer.clipId, cached);
+					continue;
+				}
+
+				const decoder = await this.getDecoder(asset.id, asset.name);
 				let sample = await decoder.sink.getSample(timeSec);
 				if (!sample && layer.sourceTime > 0 && asset.duration > 0) {
 					sample = await decoder.sink.getSample(
@@ -86,7 +95,18 @@ export class ExportFrameProvider {
 				if (!context) throw new Error('Offscreen canvas 2D rendering is unavailable.');
 				try {
 					sample.draw(context, 0, 0, canvas.width, canvas.height);
-					this.prepared.set(layer.clipId, canvas);
+					const bitmap = await createImageBitmap(canvas);
+					this.frameCache.set(cacheKey, bitmap);
+					this.cacheKeys.push(cacheKey);
+					if (this.cacheKeys.length > 64) {
+						const evict = this.cacheKeys.shift();
+						if (evict) {
+							const old = this.frameCache.get(evict);
+							old?.close();
+							this.frameCache.delete(evict);
+						}
+					}
+					this.prepared.set(layer.clipId, bitmap);
 				} finally {
 					sample.close();
 				}
@@ -104,6 +124,8 @@ export class ExportFrameProvider {
 	async dispose(): Promise<void> {
 		if (this.disposed) return;
 		this.disposed = true;
+		for (const bitmap of this.frameCache.values()) bitmap.close();
+		this.frameCache.clear();
 		for (const decoder of this.decoders.values()) decoder.input.dispose();
 		this.decoders.clear();
 		for (const image of this.images.values()) image.close();

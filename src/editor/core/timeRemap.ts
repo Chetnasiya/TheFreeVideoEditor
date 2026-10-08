@@ -1,5 +1,8 @@
-import { evaluate, isAnimated } from './animation';
-import type { Clip, Time } from './types';
+import { evaluate, isAnimated, retimeAnimatedValue, shiftAnimatedValue } from './animation';
+import { splitClipAnimation } from './clipAnimation';
+import { framesToTicks, ticksToFrames } from './time';
+import { clipEnd } from './timeline';
+import type { AnimatedValue, Clip, ClipId, Project, Time } from './types';
 
 type RemapClip = Pick<Clip, 'start' | 'sourceIn' | 'speed' | 'timeRemap'>;
 
@@ -70,4 +73,421 @@ export function sourceToTimeline(clip: RemapClip, sourceTime: Time, span: Time):
 		else high = middle;
 	}
 	return Math.round((low + high) / 2);
+}
+
+/**
+ * Computes the minimum and maximum source time (µs) visited by this clip.
+ * Evaluates endpoints, all keyframe stops, zero-crossings of the speed curve,
+ * and fine intermediate samples across the clip duration.
+ */
+export function sourceExtent(
+	clip: Pick<Clip, 'start' | 'duration' | 'sourceIn' | 'speed' | 'timeRemap'>
+): { min: number; max: number } {
+	if (!clip.timeRemap) {
+		const startSource = clip.sourceIn;
+		const endSource = Math.max(0, clip.sourceIn + Math.round(clip.duration * clip.speed));
+		return {
+			min: Math.min(startSource, endSource),
+			max: Math.max(startSource, endSource)
+		};
+	}
+
+	const sampleTimes = new Set<Time>();
+	sampleTimes.add(0);
+	sampleTimes.add(clip.duration);
+
+	if (isAnimated(clip.timeRemap)) {
+		for (const kf of clip.timeRemap.keyframes) {
+			if (kf.time > 0 && kf.time < clip.duration) {
+				sampleTimes.add(kf.time);
+			}
+		}
+	}
+
+	const steps = 64;
+	const dt = clip.duration / steps;
+	for (let i = 1; i < steps; i++) {
+		sampleTimes.add(Math.round(i * dt));
+	}
+
+	// Detect zero-crossings of speed (critical points where direction changes)
+	const sortedStops = [...sampleTimes].sort((a, b) => a - b);
+	for (let i = 0; i < sortedStops.length - 1; i++) {
+		const t0 = sortedStops[i]!;
+		const t1 = sortedStops[i + 1]!;
+		const s0 = evaluate(clip.timeRemap, t0);
+		const s1 = evaluate(clip.timeRemap, t1);
+		if ((s0 < 0 && s1 > 0) || (s0 > 0 && s1 < 0)) {
+			let lo = t0;
+			let hi = t1;
+			for (let it = 0; it < 16; it++) {
+				const mid = Math.round((lo + hi) / 2);
+				const smid = evaluate(clip.timeRemap, mid);
+				if ((smid < 0 && s0 < 0) || (smid > 0 && s0 > 0)) {
+					lo = mid;
+				} else {
+					hi = mid;
+				}
+			}
+			sampleTimes.add(Math.round((lo + hi) / 2));
+		}
+	}
+
+	let min = Infinity;
+	let max = -Infinity;
+	for (const t of sampleTimes) {
+		const sourceTime = timelineToSource(clip, clip.start + t);
+		if (sourceTime < min) min = sourceTime;
+		if (sourceTime > max) max = sourceTime;
+	}
+
+	return {
+		min: Math.max(0, Math.round(min)),
+		max: Math.max(0, Math.round(max))
+	};
+}
+
+/** Effective speed multiplier at timeline time (µs). */
+export function speedAt(clip: Pick<Clip, 'start' | 'speed' | 'timeRemap'>, time: Time): number {
+	if (!clip.timeRemap) return clip.speed;
+	const local = time - clip.start;
+	return evaluate(clip.timeRemap, local);
+}
+
+/**
+ * Re-bases timeRemap and recomputes sourceIn/sourceOut when the head is trimmed by `trimmed` (µs).
+ * Invariant: source time at every absolute timeline time >= newStart is strictly identical to before.
+ */
+export function retimeForHeadTrim(
+	clip: Clip,
+	trimmed: Time,
+	newDuration?: Time
+): Pick<Clip, 'sourceIn' | 'sourceOut' | 'timeRemap'> {
+	if (!clip.timeRemap || trimmed === 0) {
+		const sourceIn = Math.max(0, clip.sourceIn + Math.round(trimmed * clip.speed));
+		const dur = newDuration ?? Math.max(0, clip.duration - trimmed);
+		const sourceOut = sourceIn + Math.round(dur * clip.speed);
+		return { sourceIn, sourceOut };
+	}
+
+	const nextSourceIn = timelineToSource(clip, clip.start + trimmed);
+	const nextTimeRemap =
+		trimmed > 0
+			? (retimeAnimatedValue(
+					clip.timeRemap as AnimatedValue<unknown>,
+					trimmed
+				) as AnimatedValue<number>)
+			: (shiftAnimatedValue(
+					clip.timeRemap as AnimatedValue<unknown>,
+					-trimmed
+				) as AnimatedValue<number>);
+
+	const dur = newDuration ?? Math.max(0, clip.duration - trimmed);
+	const nextSourceOut = timelineToSource(
+		{
+			...clip,
+			start: clip.start + trimmed,
+			sourceIn: nextSourceIn,
+			timeRemap: nextTimeRemap
+		},
+		clip.start + trimmed + dur
+	);
+
+	return {
+		sourceIn: nextSourceIn,
+		sourceOut: nextSourceOut,
+		timeRemap: nextTimeRemap
+	};
+}
+
+export interface SetConstantSpeedOptions {
+	ripple?: boolean;
+	maintainPitch?: boolean;
+}
+
+/**
+ * Changes constant clip speed (duration = sourceRange / |speed|).
+ * Rejects speeds outside [0.01, 100]. Snaps timeline duration to project frame boundaries.
+ */
+export function setConstantSpeed(
+	project: Project,
+	clipIds: readonly ClipId[],
+	speedMultiplier: number,
+	options?: SetConstantSpeedOptions
+): Project {
+	if (!Number.isFinite(speedMultiplier) || speedMultiplier < 0.01 || speedMultiplier > 100) {
+		throw new RangeError('Speed multiplier must be between 0.01 and 100 (1% to 10000%).');
+	}
+
+	const fps = project.settings.fps;
+	const idSet = new Set(clipIds);
+	const tracks = project.tracks.map((track) => {
+		const trackHasTarget = track.clips.some((c) => idSet.has(c.id));
+		if (!trackHasTarget) return track;
+
+		let rippleShift = 0;
+		const newClips: Clip[] = [];
+
+		for (const clip of track.clips) {
+			if (!idSet.has(clip.id)) {
+				if (options?.ripple && rippleShift !== 0) {
+					newClips.push({ ...clip, start: clip.start + rippleShift });
+				} else {
+					newClips.push(clip);
+				}
+				continue;
+			}
+
+			const sourceSpan = Math.abs(clip.sourceOut - clip.sourceIn);
+			const rawDuration = Math.round(sourceSpan / speedMultiplier);
+			const snappedFrames = Math.max(1, ticksToFrames(rawDuration, fps));
+			const newDuration = framesToTicks(snappedFrames, fps);
+			const newSourceOut = clip.sourceIn + Math.round(newDuration * speedMultiplier);
+			const durationDelta = newDuration - clip.duration;
+
+			const updatedClip: Clip = {
+				...clip,
+				start: clip.start + rippleShift,
+				duration: newDuration,
+				speed: speedMultiplier,
+				sourceOut: newSourceOut,
+				...(options?.maintainPitch !== undefined ? { maintainPitch: options.maintainPitch } : {})
+			};
+			delete updatedClip.timeRemap;
+
+			newClips.push(updatedClip);
+			if (options?.ripple) {
+				rippleShift += durationDelta;
+			}
+		}
+
+		return { ...track, clips: newClips };
+	});
+
+	return { ...project, tracks };
+}
+
+function generateId(): string {
+	const cryptoApi = typeof globalThis.crypto === 'undefined' ? undefined : globalThis.crypto;
+	if (typeof cryptoApi?.randomUUID === 'function') return cryptoApi.randomUUID();
+	return 'c_' + Math.random().toString(36).substring(2, 11);
+}
+
+/**
+ * Reverses clip playback direction.
+ * If already constant speed: sets speed to -clip.speed and swaps sourceIn/sourceOut.
+ * If timeRemap is already present: inverts the speed curve and swaps anchor sourceIn/sourceOut.
+ */
+export function reverseClip(clip: Clip): Clip {
+	if (!clip.timeRemap) {
+		return {
+			...clip,
+			speed: -clip.speed,
+			sourceIn: clip.sourceOut,
+			sourceOut: clip.sourceIn
+		};
+	}
+
+	if (!isAnimated(clip.timeRemap)) {
+		const nextVal = -clip.timeRemap.value;
+		return {
+			...clip,
+			sourceIn: clip.sourceOut,
+			sourceOut: clip.sourceIn,
+			timeRemap: { value: nextVal }
+		};
+	}
+
+	const reversedKeyframes = clip.timeRemap.keyframes
+		.map((k) => ({
+			...k,
+			time: clip.duration - k.time,
+			value: -k.value
+		}))
+		.sort((a, b) => a.time - b.time);
+
+	const newSourceIn = timelineToSource(clip, clip.start + clip.duration);
+	const newSourceOut = timelineToSource(clip, clip.start);
+
+	return {
+		...clip,
+		sourceIn: newSourceIn,
+		sourceOut: newSourceOut,
+		timeRemap: { keyframes: reversedKeyframes }
+	};
+}
+
+/**
+ * Enables time remapping on a clip with an initial constant keyframe equal to current speed.
+ */
+export function enableTimeRemap(clip: Clip): Clip {
+	if (clip.timeRemap) return clip;
+	return {
+		...clip,
+		timeRemap: {
+			keyframes: [{ time: 0, value: clip.speed, interpolation: 'linear' }]
+		}
+	};
+}
+
+/**
+ * Disables time remapping, optionally setting constant speed to average speed across duration.
+ */
+export function disableTimeRemap(clip: Clip, mode: 'average' | 'initial' = 'initial'): Clip {
+	const { timeRemap: _removed, ...rest } = clip;
+	void _removed;
+
+	let speed = clip.speed;
+	if (mode === 'average' && clip.duration > 0) {
+		const avg = Math.abs((clip.sourceOut - clip.sourceIn) / clip.duration);
+		speed = Math.max(0.01, Math.min(100, Number(avg.toFixed(4))));
+	}
+
+	let sourceOut = clip.sourceOut;
+	if (sourceOut <= clip.sourceIn) {
+		sourceOut = clip.sourceIn + Math.round(clip.duration * speed);
+	}
+
+	return { ...rest, speed, sourceOut };
+}
+
+/**
+ * Splits clip at playhead time and inserts a hold segment with timeRemap { value: 0 } and silence.
+ * Ripples subsequent clips.
+ */
+export function addFreezeFrame(
+	project: Project,
+	clipId: ClipId,
+	time: Time,
+	duration: Time = 2_000_000,
+	options?: { ripple?: boolean }
+): Project {
+	const ripple = options?.ripple !== false;
+	const tracks = project.tracks.map((track) => {
+		const targetIndex = track.clips.findIndex((c) => c.id === clipId);
+		if (targetIndex === -1) return track;
+
+		const target = track.clips[targetIndex]!;
+		if (time <= target.start || time >= clipEnd(target)) {
+			return track;
+		}
+
+		const freezeSource = timelineToSource(target, time);
+		const leftDuration = time - target.start;
+		const rightDuration = clipEnd(target) - time;
+
+		const leftClip: Clip = {
+			...target,
+			duration: leftDuration,
+			sourceOut: freezeSource
+		};
+		if (target.timeRemap) {
+			const [leftAnimation] = splitClipAnimation(target, leftDuration);
+			Object.assign(leftClip, leftAnimation);
+		}
+
+		const freezeClip: Clip = {
+			...target,
+			id: generateId() as ClipId,
+			start: time,
+			duration,
+			sourceIn: freezeSource,
+			sourceOut: freezeSource,
+			speed: 1,
+			volume: 0,
+			timeRemap: { value: 0 }
+		};
+
+		const rightClip: Clip = {
+			...target,
+			id: generateId() as ClipId,
+			start: time + duration,
+			duration: rightDuration,
+			sourceIn: freezeSource
+		};
+		if (target.timeRemap) {
+			const [, rightAnimation] = splitClipAnimation(target, leftDuration);
+			Object.assign(rightClip, rightAnimation);
+		}
+
+		const newClips: Clip[] = [];
+		for (let i = 0; i < track.clips.length; i++) {
+			if (i === targetIndex) {
+				newClips.push(leftClip, freezeClip, rightClip);
+			} else if (i > targetIndex && ripple) {
+				const c = track.clips[i]!;
+				newClips.push({ ...c, start: c.start + duration });
+			} else {
+				newClips.push(track.clips[i]!);
+			}
+		}
+
+		return { ...track, clips: newClips };
+	});
+
+	return { ...project, tracks };
+}
+
+/**
+ * Freezes frame at playhead to the end of the clip (right half gets speed 0).
+ */
+export function freezeFrameToEnd(project: Project, clipId: ClipId, time: Time): Project {
+	const tracks = project.tracks.map((track) => {
+		const targetIndex = track.clips.findIndex((c) => c.id === clipId);
+		if (targetIndex === -1) return track;
+
+		const target = track.clips[targetIndex]!;
+		if (time <= target.start || time >= clipEnd(target)) return track;
+
+		const freezeSource = timelineToSource(target, time);
+		const leftDuration = time - target.start;
+		const rightDuration = clipEnd(target) - time;
+
+		const leftClip: Clip = {
+			...target,
+			duration: leftDuration,
+			sourceOut: freezeSource
+		};
+		if (target.timeRemap) {
+			const [leftAnimation] = splitClipAnimation(target, leftDuration);
+			Object.assign(leftClip, leftAnimation);
+		}
+
+		const rightClip: Clip = {
+			...target,
+			id: generateId() as ClipId,
+			start: time,
+			duration: rightDuration,
+			sourceIn: freezeSource,
+			sourceOut: freezeSource,
+			speed: 1,
+			volume: 0,
+			timeRemap: { value: 0 }
+		};
+
+		const newClips: Clip[] = [];
+		for (let i = 0; i < track.clips.length; i++) {
+			if (i === targetIndex) {
+				newClips.push(leftClip, rightClip);
+			} else {
+				newClips.push(track.clips[i]!);
+			}
+		}
+
+		return { ...track, clips: newClips };
+	});
+
+	return { ...project, tracks };
+}
+
+/**
+ * Checks whether the clip's speed curve / source range runs past the media boundaries.
+ */
+export function isSpeedExceedingMedia(
+	clip: Pick<Clip, 'start' | 'duration' | 'sourceIn' | 'speed' | 'timeRemap'>,
+	asset?: { duration: Time }
+): boolean {
+	if (!asset || asset.duration <= 0) return false;
+	const extent = sourceExtent(clip);
+	return extent.min < 0 || extent.max > asset.duration;
 }

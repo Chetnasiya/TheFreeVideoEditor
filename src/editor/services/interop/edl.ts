@@ -1,4 +1,4 @@
-import type { Project, Track } from '../../core';
+import { sourceExtent, type Project, type Track } from '../../core';
 import { frames, framesToTimecode, mediaPath, trackAsset } from './exportUtils';
 import type { InteropOptions } from './exportUtils';
 import { escapeXml } from './exportUtils';
@@ -29,8 +29,9 @@ export function exportEdlTrack(
 		.toSorted((first, second) => first.start - second.start)
 		.map((clip, index) => {
 			const asset = trackAsset(project, clip.assetId!);
-			const sourceIn = frames(clip.sourceIn, project);
-			const sourceOutExclusive = Math.max(sourceIn + 1, frames(clip.sourceOut, project));
+			const extent = sourceExtent(clip);
+			const sourceIn = frames(extent.min, project);
+			const sourceOutExclusive = Math.max(sourceIn + 1, frames(extent.max, project));
 			const recordIn = frames(clip.start, project);
 			const recordOutExclusive = recordIn + Math.max(1, frames(clip.duration, project));
 			return [

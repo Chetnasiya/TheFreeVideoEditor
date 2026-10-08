@@ -1,6 +1,7 @@
 import type { Asset, Clip, ClipId, Project, Time, Track, Transition } from './types';
 import { clipEnd } from './timeline';
 import { framesToTicks } from './time';
+import { sourceExtent } from './timeRemap';
 
 export type TransitionAlignment = 'center' | 'start' | 'end';
 export type TransitionEasing = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
@@ -94,13 +95,15 @@ export function availableHandles(
 	// tail handle = assetA.duration - clipA.sourceOut (scaled by speed if needed)
 	let handleA: Time = Number.MAX_SAFE_INTEGER;
 	if (clipA.assetId && assetA && assetA.duration > 0) {
-		handleA = Math.max(0, Math.floor((assetA.duration - clipA.sourceOut) / (clipA.speed || 1)));
+		const extentA = sourceExtent(clipA);
+		handleA = Math.max(0, Math.floor((assetA.duration - extentA.max) / (clipA.speed || 1)));
 	}
 
 	// Head handle for B: media before sourceIn
 	let handleB: Time = Number.MAX_SAFE_INTEGER;
 	if (clipB.assetId && assetB) {
-		handleB = Math.max(0, Math.floor(clipB.sourceIn / (clipB.speed || 1)));
+		const extentB = sourceExtent(clipB);
+		handleB = Math.max(0, Math.floor(extentB.min / (clipB.speed || 1)));
 	}
 
 	// In addition, clips cannot transition longer than their actual timeline duration
@@ -183,15 +186,17 @@ export function checkHandlesSufficient(
 		const neededB = clipA.start + clipA.duration - win.start;
 
 		if (clipA.assetId && assetA && assetA.duration > 0) {
+			const extentA = sourceExtent(clipA);
 			const availableA = Math.max(
 				0,
-				Math.floor((assetA.duration - clipA.sourceOut) / (clipA.speed || 1))
+				Math.floor((assetA.duration - extentA.max) / (clipA.speed || 1))
 			);
 			if (neededA > availableA) return false;
 		}
 
 		if (clipB.assetId && assetB) {
-			const availableB = Math.max(0, Math.floor(clipB.sourceIn / (clipB.speed || 1)));
+			const extentB = sourceExtent(clipB);
+			const availableB = Math.max(0, Math.floor(extentB.min / (clipB.speed || 1)));
 			if (neededB > availableB) return false;
 		}
 	}

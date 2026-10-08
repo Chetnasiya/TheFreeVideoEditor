@@ -32,8 +32,10 @@ import type { ResizeHandle } from '../../state/store';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
 import SourceMonitor from '../preview/SourceMonitor';
 import ExportDialog from '../export/ExportDialog';
+import SpeedDurationDialog from '../dialogs/SpeedDurationDialog';
 import EffectsLibrary from '../effects/EffectsLibrary';
 import ColorPanel from '../color/ColorPanel';
+import { MixerPanel } from '../audio/MixerPanel';
 
 interface PanelLayoutStyle extends CSSProperties {
 	'--media-panel-width': string;
@@ -256,6 +258,21 @@ function EditorShell() {
 			},
 			'ripple-delete': () => state().rippleDeleteSelection(),
 			duplicate: () => state().duplicateSelection(),
+			'speed-duration': () => {
+				const current = state();
+				const clipId = current.timeline.selection.clipIds[0];
+				if (clipId) current.openSpeedDialog(clipId);
+			},
+			'add-freeze-frame': () => {
+				const current = state();
+				const clipId = current.timeline.selection.clipIds[0];
+				if (clipId) current.addFreezeFrame(clipId);
+			},
+			'freeze-frame-to-end': () => {
+				const current = state();
+				const clipId = current.timeline.selection.clipIds[0];
+				if (clipId) current.freezeFrameToEnd(clipId);
+			},
 			'add-default-transition': () => state().applyDefaultTransition(),
 			'select-all': () => {
 				const current = state();
@@ -341,6 +358,31 @@ function EditorShell() {
 			},
 			'toggle-scopes': () => {
 				state().toggleScopesOpen();
+			},
+			'toggle-mixer': () => {
+				state().toggleMixer();
+			},
+			'reset-fader': () => {
+				const current = state();
+				const trackId = current.timeline.selection.trackId;
+				if (trackId) {
+					current.setTrackAudioGain(trackId, 0);
+				} else {
+					current.setMasterAudioGain(0);
+				}
+			},
+			'mute-track': () => {
+				const current = state();
+				const trackId = current.timeline.selection.trackId;
+				if (trackId && current.project) {
+					const track = current.project.tracks.find((t) => t.id === trackId);
+					if (track) current.setTimelineTrackFlags(trackId, { muted: !track.muted });
+				}
+			},
+			'solo-track': () => {
+				const current = state();
+				const trackId = current.timeline.selection.trackId;
+				if (trackId) current.setTrackAudioSolo(trackId);
 			}
 		});
 	}, [editorStore, openShortcutsDialog]);
@@ -697,6 +739,46 @@ function EditorShell() {
 										onClick={() => {
 											const current = editorStore.getState();
 											const clipId = current.timeline.selection.clipIds[0];
+											if (clipId) current.openSpeedDialog(clipId);
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Speed / Duration… <span>⌥R / Alt+R</span>
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project || selectedClipIds.length === 0}
+										onClick={() => {
+											const current = editorStore.getState();
+											const clipId = current.timeline.selection.clipIds[0];
+											if (clipId) current.addFreezeFrame(clipId);
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Add Freeze Frame <span>Shift+F</span>
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project || selectedClipIds.length === 0}
+										onClick={() => {
+											const current = editorStore.getState();
+											const clipId = current.timeline.selection.clipIds[0];
+											if (clipId) current.freezeFrameToEnd(clipId);
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Freeze Frame to End of Clip <span>⌥Shift+F</span>
+									</button>
+									<hr />
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project || selectedClipIds.length === 0}
+										onClick={() => {
+											const current = editorStore.getState();
+											const clipId = current.timeline.selection.clipIds[0];
 											if (clipId && current.project) {
 												const clip = current.project.tracks
 													.flatMap((t) => t.clips)
@@ -824,6 +906,18 @@ function EditorShell() {
 										}}
 									>
 										Paste Clip Effects
+									</button>
+									<hr />
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project}
+										onClick={() => {
+											editorStore.getState().toggleMixer();
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Audio Mixer <span>⌥M / Alt+M</span>
 									</button>
 								</div>
 							)}
@@ -1120,6 +1214,7 @@ function EditorShell() {
 					</h2>
 					<Timeline />
 				</section>
+				<MixerPanel />
 			</main>
 
 			<p id="project-name-message" className="sr-only" role="status" aria-live="polite">
@@ -1133,6 +1228,7 @@ function EditorShell() {
 			<RecoveryDialog />
 			<SaveCopyPrompt />
 			<ExportDialog />
+			<SpeedDurationDialog />
 			{isShortcutsOpen && (
 				<KeyboardShortcutsDialog entries={shortcutEntries} onClose={closeShortcutsDialog} />
 			)}

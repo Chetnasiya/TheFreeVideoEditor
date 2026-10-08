@@ -46,9 +46,12 @@ limitations are intentional at this stage:
   codecs display a decode error rather than a frame preview. On export, an audio
   stream that the browser cannot decode is skipped with an asset-specific warning;
   video export continues.
-- Reverse and shuttle playback are visual-only. Audio is enabled only at normal
-  forward speed. The preview corrects video drift by seeking when it exceeds
-  approximately 80 ms, which can cause visible jumps on slower decoders.
+- Reverse playback and speed ramps operate in seek mode during real-time preview,
+  displaying an informational notice ("Preview may be choppy for this speed").
+  Audio playback is enabled with pitch preservation for constant speeds between
+  0.25× and 4×; reverse and ramp audio is rendered during export via WSOLA.
+  The preview corrects video drift by seeking when it exceeds approximately 80 ms,
+  which can cause visible jumps on slower decoders.
 - Safari and Firefox may seek more slowly or report different media readiness
   events than Chromium. The player pauses its master clock while active media
   buffers, but exact frame presentation remains codec- and browser-dependent.

@@ -25,6 +25,7 @@ import {
 	type Track
 } from '../../core';
 import { getDerived, type DerivedData } from '../../services/storage/mediaCache';
+import { isSpeedExceedingMedia } from '../../core/timeRemap';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 
 interface ClipViewProps {
@@ -362,6 +363,64 @@ export default function ClipView({
 			{clip.linkId && (
 				<span className="clip-link-mark" aria-label="Linked clip">
 					↔
+				</span>
+			)}
+			{clip.speed !== undefined && clip.speed !== 1 && !clip.timeRemap && (
+				<span
+					className="clip-speed-badge"
+					style={{
+						position: 'relative',
+						zIndex: 1,
+						marginLeft: 'var(--spacing-xxs)',
+						padding: '1px 4px',
+						borderRadius: 'var(--radius-sm, 2px)',
+						background: 'color-mix(in srgb, var(--color-ink) 12%, transparent)',
+						color: 'var(--color-ink)',
+						fontFamily: 'var(--font-mono)',
+						fontSize: '0.625rem',
+						lineHeight: 1
+					}}
+					title={`Playback speed: ${Math.round(clip.speed * 100)}%`}
+				>
+					{clip.speed < 0
+						? `−${Math.round(Math.abs(clip.speed) * 100)}%`
+						: `${Math.round(clip.speed * 100)}%`}
+				</span>
+			)}
+			{clip.timeRemap && (
+				<span
+					className="clip-speed-badge clip-remap-badge"
+					style={{
+						position: 'relative',
+						zIndex: 1,
+						marginLeft: 'var(--spacing-xxs)',
+						padding: '1px 4px',
+						borderRadius: 'var(--radius-sm, 2px)',
+						background: 'color-mix(in srgb, var(--color-cyan, #06b6d4) 25%, transparent)',
+						color: 'var(--color-ink)',
+						fontFamily: 'var(--font-mono)',
+						fontSize: '0.625rem',
+						lineHeight: 1
+					}}
+					title="Time Remapped"
+				>
+					Remap
+				</span>
+			)}
+			{asset && !ghost && isSpeedExceedingMedia(clip, asset) && (
+				<span
+					className="clip-speed-exceeds-warning"
+					style={{
+						position: 'relative',
+						zIndex: 1,
+						marginLeft: 'var(--spacing-xxs)',
+						color: 'var(--color-warning, #f59e0b)',
+						fontSize: '0.625rem'
+					}}
+					title="Speed curve exceeds media duration (freeze hold applied)"
+					aria-label="Speed curve exceeds media duration"
+				>
+					⚠️
 				</span>
 			)}
 			<span className="timeline-clip-duration">{durationLabel}</span>

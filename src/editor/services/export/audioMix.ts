@@ -3,6 +3,7 @@ import { clipEnd } from '../../core';
 import type { AssetId } from '../../core';
 import { getMediaFile } from '../storage/opfs';
 import { transitionWindow, transitionGain } from '../../core/transitions';
+import { renderRemappedAudio } from '../audio/renderRemappedAudio';
 
 export interface AudioClipSchedule {
 	clipId: Clip['id'];
@@ -24,6 +25,8 @@ export class AudioMixError extends Error {
 	}
 }
 
+import { resolveAudibleTracks, clipGainAt } from '../../core/audioMath';
+
 export function audioSchedulesForChunk(
 	project: Project,
 	chunkStart: Time,
@@ -31,8 +34,10 @@ export function audioSchedulesForChunk(
 ): AudioClipSchedule[] {
 	const chunkEnd = chunkStart + chunkDuration;
 	const result: AudioClipSchedule[] = [];
+	const audibleTracks = resolveAudibleTracks(project.tracks);
+
 	for (const track of project.tracks) {
-		if (track.kind !== 'audio' || track.muted) continue;
+		if (track.kind !== 'audio' || !audibleTracks.has(track.id)) continue;
 		for (const clip of track.clips) {
 			if (!clip.assetId) continue;
 			const asset = project.assets[clip.assetId];
@@ -42,13 +47,12 @@ export function audioSchedulesForChunk(
 			if (overlapEnd <= overlapStart) continue;
 			const timelineDuration = overlapEnd - overlapStart;
 			const sourceOffset = clip.sourceIn + (overlapStart - clip.start) * clip.speed;
-			const sourceDuration = Math.min(
-				timelineDuration * clip.speed,
-				Math.max(0, clip.sourceOut - sourceOffset)
-			);
-			if (sourceDuration <= 0) continue;
-			let effectiveVolume = clip.volume;
+			const sourceDuration = clip.timeRemap
+				? timelineDuration * Math.abs(clip.speed || 1)
+				: Math.min(timelineDuration * clip.speed, Math.max(0, clip.sourceOut - sourceOffset));
+			if (sourceDuration <= 0 && !clip.timeRemap) continue;
 			const midPoint = overlapStart + Math.floor(timelineDuration / 2);
+			let effectiveVolume = clipGainAt(clip, midPoint);
 			const activeTrans = (track.transitions ?? []).find((tr) => {
 				let cutTime = 0;
 				const edge = tr.edge;
@@ -87,7 +91,7 @@ export function audioSchedulesForChunk(
 				if (isClipA || isClipB) {
 					const win = transitionWindow(cutTime, activeTrans.duration, activeTrans.alignment);
 					const { gainA, gainB } = transitionGain(midPoint, win, 'equalPower');
-					effectiveVolume = clip.volume * (isClipA ? gainA : gainB);
+					effectiveVolume = effectiveVolume * (isClipA ? gainA : gainB);
 				}
 			}
 
@@ -161,6 +165,49 @@ export async function mixAudioChunk(
 	for (const schedule of audioSchedulesForChunk(project, chunkStart, chunkDuration)) {
 		const buffer = buffers.get(schedule.assetId);
 		if (!buffer) continue;
+		const clip = project.tracks.flatMap((t) => t.clips).find((c) => c.id === schedule.clipId);
+
+		if (clip && (clip.timeRemap || clip.speed !== 1 || clip.maintainPitch !== undefined)) {
+			const sourceChannels: Float32Array[] = [];
+			for (let c = 0; c < buffer.numberOfChannels; c++) {
+				sourceChannels.push(buffer.getChannelData(c));
+			}
+
+			const overlapStartTicks = chunkStart + Math.round(schedule.whenSeconds * 1_000_000);
+			const overlapDurationTicks = Math.round(
+				(schedule.sourceDurationSeconds / Math.max(0.0001, Math.abs(schedule.playbackRate))) *
+					1_000_000
+			);
+
+			const remapped = renderRemappedAudio({
+				clip,
+				sourceChannels,
+				sourceSampleRate: buffer.sampleRate,
+				timelineStartTicks: Math.max(0, overlapStartTicks - clip.start),
+				timelineDurationTicks: overlapDurationTicks
+			});
+
+			const numChannels = remapped.channels.length;
+			const numSamples = remapped.channels[0]?.length ?? 0;
+			if (numSamples > 0) {
+				const remappedBuffer = context.createBuffer(numChannels, numSamples, remapped.sampleRate);
+				for (let c = 0; c < numChannels; c++) {
+					remappedBuffer.copyToChannel(
+						remapped.channels[c] as unknown as Float32Array<ArrayBuffer>,
+						c
+					);
+				}
+
+				const source = context.createBufferSource();
+				source.buffer = remappedBuffer;
+				const gain = context.createGain();
+				gain.gain.value = schedule.volume;
+				source.connect(gain).connect(context.destination);
+				source.start(schedule.whenSeconds);
+			}
+			continue;
+		}
+
 		const source = context.createBufferSource();
 		source.buffer = buffer;
 		source.playbackRate.value = schedule.playbackRate;

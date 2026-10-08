@@ -125,6 +125,8 @@ export interface ResolvedFrame {
 	missing: AssetId[];
 }
 
+import { resolveAudibleTracks, clipGainAt } from './audioMath';
+
 export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 	if (!Number.isSafeInteger(time) || time < 0) {
 		throw new RangeError('Playback time must be a non-negative integer tick value.');
@@ -133,10 +135,14 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 	const videoLayers: ActiveLayer[] = [];
 	const audioSources: ActiveAudio[] = [];
 	const missing = new Set<AssetId>();
+	const audibleAudioTracks = resolveAudibleTracks(project.tracks);
 
 	// Build clip lookup map per track
 	for (const [trackOrder, track] of project.tracks.entries()) {
-		if ((track.kind === 'video' && track.hidden) || (track.kind === 'audio' && track.muted)) {
+		if (track.kind === 'video' && track.hidden) {
+			continue;
+		}
+		if (track.kind === 'audio' && !audibleAudioTracks.has(track.id)) {
 			continue;
 		}
 
@@ -413,7 +419,9 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 				continue;
 			}
 
-			const sourceTime = timelineToSource(clip, time);
+			const rawSource = timelineToSource(clip, time);
+			const maxSource = asset.duration > 0 ? asset.duration : rawSource;
+			const sourceTime = Math.max(0, Math.min(maxSource, rawSource));
 			if (track.kind === 'video' && (asset.kind === 'video' || asset.kind === 'image')) {
 				videoLayers.push({
 					clipId: clip.id,
@@ -434,7 +442,7 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 					trackId: track.id,
 					trackOrder,
 					sourceTime,
-					volume: clip.volume
+					volume: clipGainAt(clip, time)
 				});
 			}
 		}

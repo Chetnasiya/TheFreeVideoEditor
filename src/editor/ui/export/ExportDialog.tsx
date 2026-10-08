@@ -167,6 +167,7 @@ export default function ExportDialog() {
 		let solidsCount = 0;
 		let masksCount = 0;
 		let transitionsCount = 0;
+		let speedChangesCount = 0;
 		for (const track of project.tracks) {
 			if (track.transitions) {
 				transitionsCount += track.transitions.length;
@@ -184,6 +185,9 @@ export default function ExportDialog() {
 				if (clip.source?.type === 'solid') {
 					solidsCount += 1;
 				}
+				if (clip.speed !== 1 || clip.timeRemap) {
+					speedChangesCount += 1;
+				}
 			}
 		}
 		if (
@@ -191,7 +195,8 @@ export default function ExportDialog() {
 			adjustmentsCount === 0 &&
 			solidsCount === 0 &&
 			masksCount === 0 &&
-			transitionsCount === 0
+			transitionsCount === 0 &&
+			speedChangesCount === 0
 		)
 			return null;
 		const parts: string[] = [];
@@ -209,6 +214,9 @@ export default function ExportDialog() {
 		}
 		if (solidsCount > 0) {
 			parts.push(`${solidsCount} solid color layer${solidsCount === 1 ? '' : 's'}`);
+		}
+		if (speedChangesCount > 0) {
+			parts.push(`${speedChangesCount} speed change${speedChangesCount === 1 ? '' : 's'}`);
 		}
 		return `${parts.join(', ')} are not included in project files; use Video export to render them.`;
 	}, [project]);

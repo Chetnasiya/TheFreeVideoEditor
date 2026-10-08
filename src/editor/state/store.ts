@@ -31,6 +31,12 @@ import {
 	timelineDuration,
 	groupOf,
 	snapToFrame,
+	setConstantSpeed,
+	reverseClip,
+	enableTimeRemap as enableClipTimeRemap,
+	disableTimeRemap as disableClipTimeRemap,
+	addFreezeFrame as addFreezeFrameOperation,
+	freezeFrameToEnd as freezeFrameToEndOperation,
 	descriptorFor,
 	ANIMATABLE_PROPERTY_IDS,
 	propertyCurve,
@@ -93,8 +99,12 @@ import {
 	type PropertyValue,
 	type Time,
 	type Track,
-	type TrackId
+	type TrackId,
+	type TrackEq,
+	type TrackCompressor,
+	type AnimatedValue
 } from '../core';
+import { defaultTrackAudio } from '../core/audioMath';
 import { ensureLutLoaded, storeParsedLut } from '../services/media/lutCache';
 import type { ScopeFrameData } from '../services/render/passes/scopes';
 import {
@@ -365,6 +375,8 @@ export interface EditorState {
 	isExportDialogOpen: boolean;
 	isExportClosePromptOpen: boolean;
 	isExporting: boolean;
+	isSpeedDialogOpen: boolean;
+	speedDialogClipId: ClipId | null;
 	recovery: RecoveryState | null;
 	media: MediaState;
 	timeline: TimelineState;
@@ -414,6 +426,20 @@ export interface EditorState {
 	closeSaveCopyPrompt: () => void;
 	openExportDialog: () => void;
 	closeExportDialog: () => void;
+	openSpeedDialog: (clipId?: ClipId) => void;
+	closeSpeedDialog: () => void;
+	setClipSpeed: (
+		clipIds: ClipId[],
+		speedMultiplier: number,
+		options?: { ripple?: boolean; maintainPitch?: boolean }
+	) => boolean;
+	reverseClips: (clipIds: ClipId[]) => boolean;
+	enableTimeRemap: (clipId: ClipId) => boolean;
+	disableTimeRemap: (clipId: ClipId, mode?: 'average' | 'initial') => boolean;
+	setClipTimeRemap: (clipId: ClipId, timeRemap: AnimatedValue<number>) => boolean;
+	addFreezeFrame: (clipId: ClipId, duration?: Time, options?: { ripple?: boolean }) => boolean;
+	freezeFrameToEnd: (clipId: ClipId) => boolean;
+	setMaintainPitch: (clipIds: ClipId[], maintainPitch: boolean) => boolean;
 	setExporting: (exporting: boolean) => void;
 	confirmCancelExportAndContinue: () => Promise<void>;
 	dismissExportClosePrompt: () => void;
@@ -587,6 +613,21 @@ export interface EditorState {
 		value: unknown,
 		options?: { autoKey?: boolean; coalesce?: boolean }
 	) => void;
+	// Audio actions
+	isMixerOpen: boolean;
+	toggleMixer: () => void;
+	setTrackAudioGain: (trackId: TrackId, gainDb: number, coalesce?: boolean) => boolean;
+	setTrackAudioPan: (trackId: TrackId, pan: number, coalesce?: boolean) => boolean;
+	setTrackAudioSolo: (trackId: TrackId, solo?: boolean) => boolean;
+	setTrackAudioEq: (trackId: TrackId, eq: TrackEq) => boolean;
+	setTrackAudioCompressor: (trackId: TrackId, compressor: TrackCompressor) => boolean;
+	resetTrackAudio: (trackId: TrackId) => boolean;
+	setMasterAudioGain: (gainDb: number, coalesce?: boolean) => boolean;
+	setMasterAudioLimiter: (limiter: boolean) => boolean;
+	setClipFade: (
+		clipId: ClipId,
+		fade: { fadeInUs?: Time; fadeOutUs?: Time; fadeCurve?: 'equalPower' | 'linear' }
+	) => boolean;
 }
 
 function errorMessage(error: unknown): string {
@@ -939,6 +980,8 @@ export function createEditorStore() {
 				isExportDialogOpen: false,
 				isExportClosePromptOpen: false,
 				isExporting: false,
+				isSpeedDialogOpen: false,
+				speedDialogClipId: null,
 				recovery: null,
 				media: {
 					importQueue: [],
@@ -970,6 +1013,7 @@ export function createEditorStore() {
 					showOverlay: true,
 					blockedMessage: null
 				},
+				isMixerOpen: false,
 				effectsClipboard: null,
 				async initialize() {
 					if (get().isInitialized) return;
@@ -1680,6 +1724,177 @@ export function createEditorStore() {
 					set((state) => {
 						state.isExportDialogOpen = false;
 					});
+				},
+				openSpeedDialog(clipId) {
+					const targetId = clipId ?? get().timeline.selection.clipIds[0];
+					if (!targetId) return;
+					set((state) => {
+						state.isSpeedDialogOpen = true;
+						state.speedDialogClipId = targetId;
+						state.isFileMenuOpen = false;
+					});
+				},
+				closeSpeedDialog() {
+					set((state) => {
+						state.isSpeedDialogOpen = false;
+						state.speedDialogClipId = null;
+					});
+				},
+				setClipSpeed(clipIds, speedMultiplier, options) {
+					const project = get().project;
+					if (!project || clipIds.length === 0) return false;
+					const allIds = new Set<ClipId>();
+					for (const id of clipIds) {
+						for (const member of groupOf(project, id)) {
+							allIds.add(member.id);
+						}
+					}
+					return Boolean(
+						mutateProject('Change clip speed', (current) => {
+							let updated = setConstantSpeed(current, Array.from(allIds), speedMultiplier, options);
+							if (options?.maintainPitch !== undefined) {
+								updated = {
+									...updated,
+									tracks: updated.tracks.map((track) => ({
+										...track,
+										clips: track.clips.map((clip) => {
+											if (allIds.has(clip.id)) {
+												return { ...clip, maintainPitch: options.maintainPitch };
+											}
+											return clip;
+										})
+									}))
+								};
+							}
+							return updated;
+						})
+					);
+				},
+				reverseClips(clipIds) {
+					const project = get().project;
+					if (!project || clipIds.length === 0) return false;
+					const allIds = new Set<ClipId>();
+					for (const id of clipIds) {
+						for (const member of groupOf(project, id)) {
+							allIds.add(member.id);
+						}
+					}
+					return Boolean(
+						mutateProject('Reverse clip', (current) => {
+							return {
+								...current,
+								tracks: current.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (allIds.has(clip.id)) {
+											return reverseClip(clip);
+										}
+										return clip;
+									})
+								}))
+							};
+						})
+					);
+				},
+				enableTimeRemap(clipId) {
+					const project = get().project;
+					if (!project) return false;
+					const allIds = new Set<ClipId>(groupOf(project, clipId).map((m) => m.id));
+					return Boolean(
+						mutateProject('Enable time remapping', (current) => {
+							return {
+								...current,
+								tracks: current.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (allIds.has(clip.id)) {
+											return enableClipTimeRemap(clip);
+										}
+										return clip;
+									})
+								}))
+							};
+						})
+					);
+				},
+				disableTimeRemap(clipId, mode = 'average') {
+					const project = get().project;
+					if (!project) return false;
+					const allIds = new Set<ClipId>(groupOf(project, clipId).map((m) => m.id));
+					return Boolean(
+						mutateProject('Disable time remapping', (current) => {
+							return {
+								...current,
+								tracks: current.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (allIds.has(clip.id)) {
+											return disableClipTimeRemap(clip, mode);
+										}
+										return clip;
+									})
+								}))
+							};
+						})
+					);
+				},
+				setClipTimeRemap(clipId, timeRemap) {
+					return Boolean(
+						mutateProject('Set time remapping curve', (current) => ({
+							...current,
+							tracks: current.tracks.map((track) => ({
+								...track,
+								clips: track.clips.map((clip) => {
+									if (clip.id === clipId) {
+										return { ...clip, timeRemap };
+									}
+									return clip;
+								})
+							}))
+						}))
+					);
+				},
+				addFreezeFrame(clipId, duration, options) {
+					const playhead = get().timeline.playhead;
+					return Boolean(
+						mutateProject('Add freeze frame', (current) => {
+							return addFreezeFrameOperation(current, clipId, playhead, duration, options);
+						})
+					);
+				},
+				freezeFrameToEnd(clipId) {
+					const playhead = get().timeline.playhead;
+					return Boolean(
+						mutateProject('Freeze frame to end', (current) => {
+							return freezeFrameToEndOperation(current, clipId, playhead);
+						})
+					);
+				},
+				setMaintainPitch(clipIds, maintainPitch) {
+					const project = get().project;
+					if (!project || clipIds.length === 0) return false;
+					const allIds = new Set<ClipId>();
+					for (const id of clipIds) {
+						for (const member of groupOf(project, id)) {
+							allIds.add(member.id);
+						}
+					}
+					return Boolean(
+						mutateProject('Toggle maintain pitch', (current) => {
+							return {
+								...current,
+								tracks: current.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (allIds.has(clip.id)) {
+											return { ...clip, maintainPitch };
+										}
+										return clip;
+									})
+								}))
+							};
+						})
+					);
 				},
 				setExporting(exporting) {
 					set((state) => {
@@ -3802,6 +4017,217 @@ export function createEditorStore() {
 					}
 
 					get().updateMask(clipId, maskId, { [param]: value } as Partial<Mask>, options);
+				},
+
+				toggleMixer() {
+					set((state) => {
+						state.isMixerOpen = !state.isMixerOpen;
+					});
+				},
+
+				setTrackAudioGain(trackId, gainDb, coalesce = false) {
+					try {
+						mutateProject(
+							'Change track gain',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, gainDb: Math.max(-96, Math.min(24, gainDb)) }
+									};
+								})
+							}),
+							{ history: 'record', mergeKey: coalesce ? `track-gain-${trackId}` : undefined }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioPan(trackId, pan, coalesce = false) {
+					try {
+						mutateProject(
+							'Change track pan',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, pan: Math.max(-1, Math.min(1, pan)) }
+									};
+								})
+							}),
+							{ history: 'record', mergeKey: coalesce ? `track-pan-${trackId}` : undefined }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioSolo(trackId, solo) {
+					try {
+						mutateProject(
+							'Toggle track solo',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									const nextSolo = solo !== undefined ? solo : !curAudio.solo;
+									return {
+										...t,
+										audio: { ...curAudio, solo: nextSolo }
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioEq(trackId, eq) {
+					try {
+						mutateProject(
+							'Update track EQ',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, eq }
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioCompressor(trackId, compressor) {
+					try {
+						mutateProject(
+							'Update track compressor',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, compressor }
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				resetTrackAudio(trackId) {
+					try {
+						mutateProject(
+							'Reset track audio',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									return {
+										...t,
+										audio: defaultTrackAudio()
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setMasterAudioGain(gainDb, coalesce = false) {
+					try {
+						mutateProject(
+							'Change master gain',
+							(proj) => ({
+								...proj,
+								masterAudio: {
+									gainDb: Math.max(-96, Math.min(24, gainDb)),
+									limiter: proj.masterAudio?.limiter ?? false,
+									loudnessTargetLufs: proj.masterAudio?.loudnessTargetLufs
+								}
+							}),
+							{ history: 'record', mergeKey: coalesce ? 'master-gain' : undefined }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setMasterAudioLimiter(limiter) {
+					try {
+						mutateProject(
+							'Toggle master limiter',
+							(proj) => ({
+								...proj,
+								masterAudio: {
+									gainDb: proj.masterAudio?.gainDb ?? 0,
+									limiter,
+									loudnessTargetLufs: proj.masterAudio?.loudnessTargetLufs
+								}
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setClipFade(clipId, fade) {
+					try {
+						mutateProject(
+							'Update clip fade',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId) return c;
+										return {
+											...c,
+											...(fade.fadeInUs !== undefined ? { fadeInUs: fade.fadeInUs } : {}),
+											...(fade.fadeOutUs !== undefined ? { fadeOutUs: fade.fadeOutUs } : {}),
+											...(fade.fadeCurve !== undefined ? { fadeCurve: fade.fadeCurve } : {})
+										};
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
 				}
 			};
 		})

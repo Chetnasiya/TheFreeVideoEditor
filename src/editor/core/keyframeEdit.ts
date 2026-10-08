@@ -138,6 +138,9 @@ function withCurve(clip: Clip, id: PropertyId, curve: AnimatedValue<PropertyValu
 		});
 		return { ...clip, masks };
 	}
+	if (id === 'timeRemap') {
+		return { ...clip, timeRemap: curve as AnimatedValue<number> };
+	}
 	return { ...clip, properties: { ...clip.properties, [id]: curve as AnimatedValue<unknown> } };
 }
 

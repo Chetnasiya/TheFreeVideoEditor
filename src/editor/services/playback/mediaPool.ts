@@ -224,8 +224,11 @@ export class MediaPool {
 		const expected = layer.sourceTime / 1_000_000;
 		if (video.readyState < MEDIA_HAVE_METADATA) return null;
 
-		if (playing && rate > 0) {
-			video.playbackRate = rate;
+		const isConstantInRange = !clip.timeRemap && clip.speed >= 0.25 && clip.speed <= 4;
+		if (playing && rate > 0 && isConstantInRange) {
+			const effectiveRate = rate * clip.speed;
+			video.playbackRate = effectiveRate;
+			video.preservesPitch = clip.maintainPitch ?? true;
 			if (needsDriftCorrection(video.currentTime, expected)) this.requestSeek(entry, expected);
 			if (video.paused)
 				void video.play().catch((error: unknown) => {
@@ -233,7 +236,7 @@ export class MediaPool {
 					this.reportError(error, asset.id);
 				});
 		} else {
-			video.pause();
+			if (!video.paused) video.pause();
 			this.requestSeek(entry, expected);
 		}
 		return video.readyState >= MEDIA_HAVE_CURRENT_DATA ? video : null;
@@ -248,6 +251,11 @@ export class MediaPool {
 		entry.lastUsed = this.now();
 		const audio = entry.element;
 		if (audio.readyState >= MEDIA_HAVE_METADATA) {
+			const isConstantInRange = !clip.timeRemap && clip.speed >= 0.25 && clip.speed <= 4;
+			if (isConstantInRange) {
+				audio.playbackRate = clip.speed;
+				audio.preservesPitch = clip.maintainPitch ?? true;
+			}
 			const expected = source.sourceTime / 1_000_000;
 			if (needsDriftCorrection(audio.currentTime, expected)) this.requestSeek(entry, expected);
 		}

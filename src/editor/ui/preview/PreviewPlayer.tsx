@@ -202,5 +202,43 @@ function PreviewNotice({
 			</div>
 		);
 	}
+	// Check if any active clip at playhead uses seeking mode (reverse, time remap, or speed outside [0.25, 4])
+	const hasChoppySpeed =
+		engine?.snapshot.playing &&
+		project.tracks.some((t) =>
+			t.clips.some((c) => {
+				if (
+					c.start <= (engine?.snapshot.time ?? 0) &&
+					(engine?.snapshot.time ?? 0) < c.start + c.duration
+				) {
+					if (c.timeRemap) return true;
+					if (c.speed !== undefined && (c.speed < 0 || c.speed < 0.25 || c.speed > 4)) return true;
+				}
+				return false;
+			})
+		);
+	if (hasChoppySpeed) {
+		return (
+			<div
+				className="preview-choppy-speed-hint"
+				style={{
+					position: 'absolute',
+					bottom: '8px',
+					left: '50%',
+					transform: 'translateX(-50%)',
+					background: 'rgba(0, 0, 0, 0.75)',
+					color: '#f59e0b',
+					padding: '3px 8px',
+					borderRadius: '4px',
+					fontSize: '0.6875rem',
+					pointerEvents: 'none',
+					zIndex: 10
+				}}
+				role="status"
+			>
+				Preview may be choppy for this speed
+			</div>
+		);
+	}
 	return null;
 }

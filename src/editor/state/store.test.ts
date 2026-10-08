@@ -639,4 +639,52 @@ LUT_3D_SIZE 2
 		expect(lutAssetId).toBeTruthy();
 		expect(store.getState().project?.assets[lutAssetId!]?.kind).toBe('lut');
 	});
+
+	it('manages Gate M speed, reverse, time remap, and freeze frame actions', async () => {
+		const store = createEditorStore();
+		await store.getState().createProject({ name: 'Speed Store Test' });
+
+		const solidId = store.getState().addSolidLayer('#3b82f6')!;
+		expect(solidId).toBeTruthy();
+		store.getState().selectClips([solidId]);
+
+		// Speed Dialog toggle
+		store.getState().openSpeedDialog(solidId);
+		expect(store.getState().isSpeedDialogOpen).toBe(true);
+		expect(store.getState().speedDialogClipId).toBe(solidId);
+		store.getState().closeSpeedDialog();
+		expect(store.getState().isSpeedDialogOpen).toBe(false);
+
+		// setClipSpeed
+		expect(store.getState().setClipSpeed([solidId], 2, { maintainPitch: true })).toBe(true);
+		let clip = store.getState().project?.tracks[0]?.clips[0];
+		expect(clip?.speed).toBe(2);
+		expect(clip?.maintainPitch).toBe(true);
+
+		// reverseClips
+		expect(store.getState().reverseClips([solidId])).toBe(true);
+		clip = store.getState().project?.tracks[0]?.clips[0];
+		expect(clip?.speed).toBe(-2);
+		expect(clip?.sourceIn).toBeGreaterThan(clip?.sourceOut ?? 0);
+
+		// enableTimeRemap / disableTimeRemap
+		expect(store.getState().enableTimeRemap(solidId)).toBe(true);
+		clip = store.getState().project?.tracks[0]?.clips[0];
+		expect(clip?.timeRemap).toBeTruthy();
+
+		expect(store.getState().disableTimeRemap(solidId, 'average')).toBe(true);
+		clip = store.getState().project?.tracks[0]?.clips[0];
+		expect(clip?.timeRemap).toBeUndefined();
+
+		// addFreezeFrame
+		store.getState().setPlayhead(1_000_000);
+		expect(store.getState().addFreezeFrame(solidId)).toBe(true);
+		const clips = store.getState().project?.tracks[0]?.clips ?? [];
+		expect(clips.length).toBe(3);
+		expect(clips[1]?.timeRemap).toEqual({ value: 0 });
+
+		// undo restores state
+		expect(store.getState().undo()).toBe(true);
+		expect(store.getState().project?.tracks[0]?.clips.length).toBe(1);
+	});
 });

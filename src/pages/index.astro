@@ -175,7 +175,8 @@ import Layout from '../layouts/Layout.astro';
 	}
 
 	@keyframes levitate-card {
-		0%, 100% {
+		0%,
+		100% {
 			transform: translateY(0px);
 		}
 		50% {
@@ -208,7 +209,8 @@ import Layout from '../layouts/Layout.astro';
 	}
 
 	@keyframes pulse-beacon {
-		0%, 100% {
+		0%,
+		100% {
 			transform: scale(0.9);
 			opacity: 0.6;
 		}
@@ -236,7 +238,9 @@ import Layout from '../layouts/Layout.astro';
 		line-height: 1.05;
 		color: #ffffff;
 		text-wrap: balance;
-		text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7), 0 0 45px rgba(255, 255, 255, 0.08);
+		text-shadow:
+			0 2px 20px rgba(0, 0, 0, 0.7),
+			0 0 45px rgba(255, 255, 255, 0.08);
 	}
 
 	.highlight-title {
@@ -276,7 +280,9 @@ import Layout from '../layouts/Layout.astro';
 		font-weight: 500;
 		text-decoration: none;
 		border: 1px solid rgba(255, 255, 255, 0.9);
-		box-shadow: 0 0 24px rgba(255, 255, 255, 0.18), 0 4px 14px rgba(0, 0, 0, 0.4);
+		box-shadow:
+			0 0 24px rgba(255, 255, 255, 0.18),
+			0 4px 14px rgba(0, 0, 0, 0.4);
 		transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
@@ -287,7 +293,9 @@ import Layout from '../layouts/Layout.astro';
 	.home-cta:hover {
 		background: #ffffff;
 		transform: translateY(-2px);
-		box-shadow: 0 0 32px rgba(255, 255, 255, 0.35), 0 8px 24px rgba(0, 0, 0, 0.5);
+		box-shadow:
+			0 0 32px rgba(255, 255, 255, 0.35),
+			0 8px 24px rgba(0, 0, 0, 0.5);
 	}
 
 	.home-cta:hover .cta-arrow {
@@ -410,15 +418,18 @@ import Layout from '../layouts/Layout.astro';
 			swayAmount: number;
 		}
 
-		const count = Math.min(Math.max(Math.floor((window.innerWidth * window.innerHeight) / 16000), 50), 95);
+		const count = Math.min(
+			Math.max(Math.floor((window.innerWidth * window.innerHeight) / 16000), 50),
+			95
+		);
 		const particles: Particle[] = [];
 
 		const colorPalette = [
-			'rgba(255, 255, 255, ',   // Pure starlight
-			'rgba(56, 189, 248, ',   // Antigravity cyan
-			'rgba(168, 85, 247, ',   // Deep cosmic violet
-			'rgba(99, 102, 241, ',   // Electric indigo
-			'rgba(203, 213, 225, '   // Soft silver
+			'rgba(255, 255, 255, ', // Pure starlight
+			'rgba(56, 189, 248, ', // Antigravity cyan
+			'rgba(168, 85, 247, ', // Deep cosmic violet
+			'rgba(99, 102, 241, ', // Electric indigo
+			'rgba(203, 213, 225, ' // Soft silver
 		];
 
 		for (let i = 0; i < count; i++) {

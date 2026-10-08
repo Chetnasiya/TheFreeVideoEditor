@@ -24,6 +24,7 @@ import {
 } from '../../core';
 import EffectsSection from './EffectsSection';
 import MasksSection from './MasksSection';
+import TimeRemapSection from './TimeRemapSection';
 import { TransitionInspector } from './TransitionInspector';
 import './inspector.css';
 
@@ -131,8 +132,14 @@ export default function Inspector() {
 	const isCropExpanded = Boolean(inspector.expanded.crop);
 
 	const isAdjustment = selectedClip.source?.type === 'adjustment';
+	const isSpeedExpanded = inspector.expanded.speed !== false;
 	const isMasksExpanded = inspector.expanded.masks !== false;
 	const isEffectsExpanded = inspector.expanded.effects !== false;
+	const isAudioExpanded = inspector.expanded.audio !== false;
+
+	const clipAsset = selectedClip.assetId ? project.assets[selectedClip.assetId] : undefined;
+	const clipTrack = project.tracks.find((t) => t.clips.some((c) => c.id === selectedClip.id));
+	const hasAudio = clipTrack?.kind === 'audio' || (clipAsset?.hasAudio ?? false);
 
 	return (
 		<div className="inspector-container">
@@ -204,6 +211,97 @@ export default function Inspector() {
 				)}
 			</section>
 
+			{/* Audio Section (Volume dB, Pan, Fades) */}
+			{hasAudio && (
+				<section className={`inspector-section ${isAudioExpanded ? 'is-open' : ''}`}>
+					<button
+						type="button"
+						className="inspector-section-header"
+						onClick={() => store.getState().setInspectorExpanded('audio', !isAudioExpanded)}
+						aria-expanded={isAudioExpanded}
+					>
+						<span className="inspector-section-title">
+							<span className="section-chevron" aria-hidden="true">
+								{isAudioExpanded ? '▼' : '▶'}
+							</span>
+							Audio
+						</span>
+					</button>
+					{isAudioExpanded && (
+						<div className="inspector-section-content">
+							<PropertyRow
+								clip={selectedClip}
+								propertyId="audio.volume"
+								localTime={localTime}
+								fps={project.settings.fps}
+								confirmDisable={confirmDisable}
+								onStartDisableConfirm={setConfirmDisable}
+								onCancelDisableConfirm={() => setConfirmDisable(null)}
+							/>
+							<PropertyRow
+								clip={selectedClip}
+								propertyId="audio.pan"
+								localTime={localTime}
+								fps={project.settings.fps}
+								confirmDisable={confirmDisable}
+								onStartDisableConfirm={setConfirmDisable}
+								onCancelDisableConfirm={() => setConfirmDisable(null)}
+							/>
+							<div className="mt-2 flex flex-col gap-2 border-t border-[var(--color-border-subtle)] p-2 text-xs">
+								<div className="font-medium text-[var(--color-text-secondary)]">Fades</div>
+								<div className="flex items-center justify-between">
+									<label className="text-[11px] text-[var(--color-text-muted)]">Fade In (s)</label>
+									<input
+										type="number"
+										min="0"
+										step="0.1"
+										value={((selectedClip.fadeInUs ?? 0) / 1_000_000).toFixed(2)}
+										onChange={(e) => {
+											const sec = Math.max(0, parseFloat(e.target.value) || 0);
+											store
+												.getState()
+												.setClipFade(selectedClip.id, { fadeInUs: Math.round(sec * 1_000_000) });
+										}}
+										className="w-16 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-1.5 py-0.5 text-right font-mono"
+									/>
+								</div>
+								<div className="flex items-center justify-between">
+									<label className="text-[11px] text-[var(--color-text-muted)]">Fade Out (s)</label>
+									<input
+										type="number"
+										min="0"
+										step="0.1"
+										value={((selectedClip.fadeOutUs ?? 0) / 1_000_000).toFixed(2)}
+										onChange={(e) => {
+											const sec = Math.max(0, parseFloat(e.target.value) || 0);
+											store
+												.getState()
+												.setClipFade(selectedClip.id, { fadeOutUs: Math.round(sec * 1_000_000) });
+										}}
+										className="w-16 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-1.5 py-0.5 text-right font-mono"
+									/>
+								</div>
+								<div className="flex items-center justify-between">
+									<label className="text-[11px] text-[var(--color-text-muted)]">Curve</label>
+									<select
+										value={selectedClip.fadeCurve ?? 'equalPower'}
+										onChange={(e) => {
+											store.getState().setClipFade(selectedClip.id, {
+												fadeCurve: e.target.value as 'equalPower' | 'linear'
+											});
+										}}
+										className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-1.5 py-0.5"
+									>
+										<option value="equalPower">Equal Power (sin)</option>
+										<option value="linear">Linear</option>
+									</select>
+								</div>
+							</div>
+						</div>
+					)}
+				</section>
+			)}
+
 			{/* Crop Section (hidden on adjustment layers) */}
 			{!isAdjustment && (
 				<section className={`inspector-section ${isCropExpanded ? 'is-open' : ''}`}>
@@ -235,6 +333,40 @@ export default function Inspector() {
 					)}
 				</section>
 			)}
+
+			{/* Time Remapping Section */}
+			<section className={`inspector-section ${isSpeedExpanded ? 'is-open' : ''}`}>
+				<button
+					type="button"
+					className="inspector-section-header"
+					onClick={() => store.getState().setInspectorExpanded('speed', !isSpeedExpanded)}
+					aria-expanded={isSpeedExpanded}
+				>
+					<span className="inspector-section-title">
+						<span className="section-chevron" aria-hidden="true">
+							{isSpeedExpanded ? '▼' : '▶'}
+						</span>
+						Speed & Time Remap
+						{selectedClip.timeRemap && (
+							<span className="section-badge" style={{ marginLeft: 6, fontSize: '0.6875rem' }}>
+								(Curve)
+							</span>
+						)}
+					</span>
+				</button>
+				{isSpeedExpanded && (
+					<div className="inspector-section-content">
+						<TimeRemapSection
+							clip={selectedClip}
+							localTime={localTime}
+							fps={project.settings.fps}
+							confirmDisable={confirmDisable}
+							onStartDisableConfirm={setConfirmDisable}
+							onCancelDisableConfirm={() => setConfirmDisable(null)}
+						/>
+					</div>
+				)}
+			</section>
 
 			{/* Masks Section */}
 			<section className={`inspector-section ${isMasksExpanded ? 'is-open' : ''}`}>

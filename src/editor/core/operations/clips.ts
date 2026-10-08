@@ -254,30 +254,50 @@ export function trimClip(
 		if (edge === 'start') {
 			const end = clipEnd(member);
 			const minimum = Math.min(frameDuration(project), member.duration);
-			const minStart = Math.max(0, member.start - member.sourceIn / member.speed);
-			start = Math.max(minStart, Math.min(end - minimum, requestedTime));
-			if (isStillLike) {
+			if (member.timeRemap) {
+				start = Math.max(0, Math.min(end - minimum, requestedTime));
 				duration = end - start;
-				sourceIn = Math.max(0, member.sourceIn + Math.round((start - member.start) * member.speed));
-				sourceOut = sourceIn + Math.round(duration * member.speed);
+				sourceIn = timelineToSource(member, start);
+				sourceOut = timelineToSource(member, end);
 			} else {
-				sourceIn = Math.max(0, member.sourceIn + Math.round((start - member.start) * member.speed));
-				duration = Math.max(minimum, Math.round((member.sourceOut - sourceIn) / member.speed));
-				start = end - duration;
-				sourceOut = member.sourceOut;
+				const minStart = Math.max(0, member.start - member.sourceIn / member.speed);
+				start = Math.max(minStart, Math.min(end - minimum, requestedTime));
+				if (isStillLike) {
+					duration = end - start;
+					sourceIn = Math.max(
+						0,
+						member.sourceIn + Math.round((start - member.start) * member.speed)
+					);
+					sourceOut = sourceIn + Math.round(duration * member.speed);
+				} else {
+					sourceIn = Math.max(
+						0,
+						member.sourceIn + Math.round((start - member.start) * member.speed)
+					);
+					duration = Math.max(minimum, Math.round((member.sourceOut - sourceIn) / member.speed));
+					start = end - duration;
+					sourceOut = member.sourceOut;
+				}
 			}
 		} else {
 			const requestedEnd = Math.max(member.start + frameDuration(project), requestedTime);
-			const maxDuration = isStillLike
-				? requestedEnd - member.start
-				: Math.max(0, ((asset?.duration ?? 0) - member.sourceIn) / member.speed);
-			duration = Math.max(
-				Math.min(frameDuration(project), maxDuration),
-				Math.min(requestedEnd - member.start, maxDuration)
-			);
-			start = member.start;
-			sourceIn = member.sourceIn;
-			sourceOut = sourceIn + Math.round(duration * member.speed);
+			if (member.timeRemap) {
+				duration = requestedEnd - member.start;
+				start = member.start;
+				sourceIn = member.sourceIn;
+				sourceOut = timelineToSource(member, member.start + duration);
+			} else {
+				const maxDuration = isStillLike
+					? requestedEnd - member.start
+					: Math.max(0, ((asset?.duration ?? 0) - member.sourceIn) / member.speed);
+				duration = Math.max(
+					Math.min(frameDuration(project), maxDuration),
+					Math.min(requestedEnd - member.start, maxDuration)
+				);
+				start = member.start;
+				sourceIn = member.sourceIn;
+				sourceOut = sourceIn + Math.round(duration * member.speed);
+			}
 		}
 		return {
 			old: member,

@@ -43,6 +43,10 @@ an edit that would remove or modify its clips, including linked partners.
 - S splits at the playhead; Delete removes selection; Shift+Delete ripple-deletes;
   Command/Ctrl+A selects all clips; Command/Ctrl+D duplicates selection; N toggles
   snapping.
+- Command/Ctrl+Shift+R opens the Speed / Duration dialog; Shift+F inserts a 2-second
+  freeze frame at the playhead; Alt+Shift+F freezes the current frame to the end of the clip.
+- Clips display speed badges (`[2x]`, `[Rev]`, `[Remap]`) and a warning badge (`!`)
+  if speed settings exceed underlying asset duration.
 - Ctrl/Command+wheel adjusts timeline zoom. The zoom slider and Fit action are
   available in the toolbar.
 

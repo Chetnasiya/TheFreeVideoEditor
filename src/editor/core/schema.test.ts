@@ -68,4 +68,41 @@ describe('project schema and migrations', () => {
 		});
 		expect(projectSchema.safeParse(danglingClip).success).toBe(false);
 	});
+
+	it('relaxes sourceOut > sourceIn only when timeRemap is present (Gate M)', () => {
+		const project = createEmptyProject({ name: 'Time remap schema test' });
+		const assetId = 'test-asset' as keyof typeof project.assets;
+		project.assets[assetId] = {
+			id: assetId,
+			kind: 'video',
+			name: 'clip.mp4',
+			mimeType: 'video/mp4',
+			size: 1000,
+			duration: 10_000_000,
+			hasAudio: true,
+			opfsPath: `projects/${project.id}/media/${assetId}.mp4`
+		};
+
+		// Clip without timeRemap where sourceOut <= sourceIn must fail validation
+		project.tracks[0]!.clips.push({
+			id: 'clip-reversed-no-remap' as (typeof project.tracks)[0]['clips'][number]['id'],
+			assetId,
+			start: 0,
+			duration: 2_000_000,
+			sourceIn: 4_000_000,
+			sourceOut: 2_000_000,
+			speed: 1,
+			volume: 1
+		});
+		expect(projectSchema.safeParse(project).success).toBe(false);
+
+		// With timeRemap, sourceOut <= sourceIn (e.g. reverse or freeze) is accepted
+		project.tracks[0]!.clips[0]!.timeRemap = { value: -1 };
+		expect(projectSchema.safeParse(project).success).toBe(true);
+
+		// Freeze frame where sourceOut == sourceIn is also accepted with timeRemap
+		project.tracks[0]!.clips[0]!.sourceOut = 4_000_000;
+		project.tracks[0]!.clips[0]!.timeRemap = { value: 0 };
+		expect(projectSchema.safeParse(project).success).toBe(true);
+	});
 });

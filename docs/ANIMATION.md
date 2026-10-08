@@ -29,8 +29,8 @@ transitions must reference existing clips. `duplicateProject` remaps these ids a
 
 `timelineToSource` is bit-identical to Phase 1 without `timeRemap`. With it, the speed curve is integrated
 (hold exact, linear trapezoid, bezier composite Simpson, 64 steps); `sourceToTimeline` inverts by binary
-search. `splitClipsAt` honours it. **`trimClip` leaves `timeRemap` untouched on a head trim; this is
-deferred to Gate M.**
+search. `splitClipsAt` honours it. In Gate M, head trims re-base `timeRemap` via `retimeForHeadTrim`,
+updating `clip.sourceIn` to the integrated source time at the cut point and shifting keyframe times backward.
 
 ## Gate I: Properties, Keyframing and Transform Gizmo
 

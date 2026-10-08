@@ -57,13 +57,10 @@ export function splitClipAnimation(
 /**
  * Re-bases animated fields after a head trim. `trimmed` is the new start minus the old start:
  * positive drops the leading part, negative shifts keyframes later to stay at the same media time.
- * `timeRemap` is intentionally left untouched (see docs/ANIMATION.md).
  */
 export function retimeClipAnimation(clip: AnimatedFields, trimmed: Time): AnimatedFields {
 	if (trimmed === 0) return {};
 	const transform: Transform = (value) =>
 		trimmed > 0 ? retimeAnimatedValue(value, trimmed) : shiftAnimatedValue(value, -trimmed);
-	const { timeRemap: _unused, ...rest } = clip;
-	void _unused;
-	return mapFields(rest, transform);
+	return mapFields(clip, transform);
 }

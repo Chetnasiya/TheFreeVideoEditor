@@ -389,6 +389,33 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			preventDefault: true
 		},
 		{
+			id: 'speed-duration',
+			keys: { mac: 'alt+r', other: 'alt+r' },
+			label: 'Speed / Duration',
+			group: 'Editing',
+			scope: 'editor',
+			handler: action('speed-duration'),
+			preventDefault: true
+		},
+		{
+			id: 'add-freeze-frame',
+			keys: { mac: 'shift+f', other: 'shift+f' },
+			label: 'Add Freeze Frame',
+			group: 'Editing',
+			scope: 'editor',
+			handler: action('add-freeze-frame'),
+			preventDefault: true
+		},
+		{
+			id: 'freeze-frame-to-end',
+			keys: { mac: 'alt+shift+f', other: 'alt+shift+f' },
+			label: 'Freeze Frame to End of Clip',
+			group: 'Editing',
+			scope: 'editor',
+			handler: action('freeze-frame-to-end'),
+			preventDefault: true
+		},
+		{
 			id: 'add-default-transition',
 			keys: { mac: 'mod+shift+d', other: 'mod+shift+d' },
 			label: 'Apply Default Transition',
@@ -643,6 +670,42 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			group: 'View',
 			scope: 'editor',
 			handler: action('toggle-scopes'),
+			preventDefault: true
+		},
+		{
+			id: 'toggle-mixer',
+			keys: { mac: 'alt+m', other: 'alt+m' },
+			label: 'Toggle Audio Mixer',
+			group: 'Audio',
+			scope: 'editor',
+			handler: action('toggle-mixer'),
+			preventDefault: true
+		},
+		{
+			id: 'reset-fader',
+			keys: { mac: 'alt+0', other: 'alt+0' },
+			label: 'Reset Fader to 0 dB',
+			group: 'Audio',
+			scope: 'editor',
+			handler: action('reset-fader'),
+			preventDefault: true
+		},
+		{
+			id: 'mute-track',
+			keys: { mac: 'alt+shift+m', other: 'alt+shift+m' },
+			label: 'Mute Selected Track',
+			group: 'Audio',
+			scope: 'editor',
+			handler: action('mute-track'),
+			preventDefault: true
+		},
+		{
+			id: 'solo-track',
+			keys: { mac: 'alt+shift+s', other: 'alt+shift+s' },
+			label: 'Solo Selected Track',
+			group: 'Audio',
+			scope: 'editor',
+			handler: action('solo-track'),
 			preventDefault: true
 		}
 	];

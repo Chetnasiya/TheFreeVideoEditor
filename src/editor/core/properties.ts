@@ -89,6 +89,40 @@ export const PROPERTY_DESCRIPTORS: Readonly<Record<string, PropertyDescriptor>> 
 		unit: '%',
 		displayFactor: 100,
 		step: 1
+	},
+	timeRemap: {
+		id: 'timeRemap',
+		label: 'Speed',
+		shape: 'number',
+		channels: ['Speed'],
+		defaultValue: 1,
+		unit: '%',
+		displayFactor: 100,
+		step: 1
+	},
+	'audio.volume': {
+		id: 'audio.volume',
+		label: 'Volume',
+		shape: 'number',
+		channels: ['Level'],
+		defaultValue: 0,
+		min: -96,
+		max: 24,
+		unit: '',
+		displayFactor: 1,
+		step: 0.5
+	},
+	'audio.pan': {
+		id: 'audio.pan',
+		label: 'Pan',
+		shape: 'number',
+		channels: ['Pan'],
+		defaultValue: 0,
+		min: -1,
+		max: 1,
+		unit: '',
+		displayFactor: 1,
+		step: 0.05
 	}
 };
 
@@ -284,11 +318,19 @@ export function propertyCurve(
 			if (staticVal !== undefined) return { value: staticVal as PropertyValue };
 		}
 	}
+	if (id === 'timeRemap') {
+		if (clip.timeRemap) return clip.timeRemap as AnimatedValue<PropertyValue>;
+		return { value: clip.speed };
+	}
 	return clip.properties?.[id] as AnimatedValue<PropertyValue> | undefined;
 }
 
 /** Evaluated property at a clip-local time, falling back to the legacy transform and then the default. */
 export function readProperty(clip: Clip, id: PropertyId, localTime: Time): PropertyValue {
+	if (id === 'timeRemap') {
+		if (clip.timeRemap) return evaluate(clip.timeRemap, localTime);
+		return clip.speed;
+	}
 	const curve = propertyCurve(clip, id);
 	if (curve) return evaluate(curve, localTime);
 	const descriptor = descriptorFor(id);

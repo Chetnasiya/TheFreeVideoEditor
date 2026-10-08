@@ -1,5 +1,4 @@
-import type { Project, Track } from '../../core';
-import { timelineDuration } from '../../core';
+import { sourceExtent, timelineDuration, type Project, type Track } from '../../core';
 import { frames, mediaPath, secondsAsRational, trackAsset, escapeXml } from './exportUtils';
 import type { InteropOptions } from './exportUtils';
 
@@ -12,7 +11,8 @@ function clipXml(
 	const asset = trackAsset(project, clip.assetId!);
 	const start = frames(clip.start, project);
 	const duration = Math.max(1, frames(clip.duration, project));
-	const sourceIn = frames(clip.sourceIn, project);
+	const extent = sourceExtent(clip);
+	const sourceIn = frames(extent.min, project);
 	const mediaType = track.kind === 'video' ? 'video' : 'audio';
 	const content = `<${mediaType} ref="${ref}"${track.kind === 'audio' ? ` role="audio.${track.muted ? 'dialogue' : 'music'}"` : ''}/>`;
 	const markers = project.markers
@@ -71,7 +71,8 @@ export function exportFcpxml(project: Project, options: InteropOptions = {}): st
 					const ref = assetRefs.get(clip.assetId!);
 					if (!ref) return '';
 					const lane = index + 1;
-					return `<asset-clip lane="${lane}" name="${escapeXml(track.name)} — ${escapeXml(trackAsset(project, clip.assetId!).name)}" offset="${secondsAsRational(frames(clip.start, project), fps)}" start="${secondsAsRational(frames(clip.sourceIn, project), fps)}" duration="${secondsAsRational(Math.max(1, frames(clip.duration, project)), fps)}" ref="${ref}" enabled="${track.hidden || track.muted ? '0' : '1'}"/>`;
+					const extent = sourceExtent(clip);
+					return `<asset-clip lane="${lane}" name="${escapeXml(track.name)} — ${escapeXml(trackAsset(project, clip.assetId!).name)}" offset="${secondsAsRational(frames(clip.start, project), fps)}" start="${secondsAsRational(frames(extent.min, project), fps)}" duration="${secondsAsRational(Math.max(1, frames(clip.duration, project)), fps)}" ref="${ref}" enabled="${track.hidden || track.muted ? '0' : '1'}"/>`;
 				})
 		)
 		.join('');

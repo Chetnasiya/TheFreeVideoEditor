@@ -149,6 +149,42 @@ export interface ClipTransform {
 	opacity: number;
 }
 
+export interface EqBand {
+	type: 'lowshelf' | 'peaking' | 'highshelf';
+	frequencyHz: number;
+	gainDb: number;
+	q: number;
+}
+
+export interface TrackEq {
+	enabled: boolean;
+	bands: [EqBand, EqBand, EqBand, EqBand];
+}
+
+export interface TrackCompressor {
+	enabled: boolean;
+	thresholdDb: number;
+	ratio: number;
+	attackMs: number;
+	releaseMs: number;
+	kneeDb: number;
+	makeupDb: number;
+}
+
+export interface TrackAudio {
+	gainDb: number;
+	pan: number;
+	solo: boolean;
+	eq?: TrackEq;
+	compressor?: TrackCompressor;
+}
+
+export interface ProjectMaster {
+	gainDb: number;
+	limiter: boolean;
+	loudnessTargetLufs?: number;
+}
+
 export interface Clip {
 	id: ClipId;
 	assetId?: AssetId;
@@ -168,6 +204,11 @@ export interface Clip {
 	blendMode?: BlendMode;
 	/** Speed curve over clip-local time; 1 is normal, negative reverses, 0 freezes. */
 	timeRemap?: AnimatedValue<number>;
+	/** Pitch preservation for speed changes (defaults to true). */
+	maintainPitch?: boolean;
+	fadeInUs?: Time;
+	fadeOutUs?: Time;
+	fadeCurve?: 'equalPower' | 'linear';
 }
 
 export interface Track {
@@ -179,6 +220,7 @@ export interface Track {
 	hidden: boolean;
 	clips: Clip[];
 	transitions?: Transition[];
+	audio?: TrackAudio;
 }
 
 export interface Marker {
@@ -199,6 +241,7 @@ export interface Project {
 	tracks: Track[];
 	markers: Marker[];
 	sequences?: Record<SequenceId, Sequence>;
+	masterAudio?: ProjectMaster;
 }
 
 export interface ProjectSummary {

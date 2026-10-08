@@ -158,8 +158,8 @@ export const clipSchema = z.object({
 	start: timeSchema,
 	duration: timeSchema.positive(),
 	sourceIn: timeSchema,
-	sourceOut: timeSchema.positive(),
-	speed: z.number().positive(),
+	sourceOut: timeSchema,
+	speed: z.number().refine((val) => val !== 0, 'Speed must be non-zero'),
 	volume: z.number().nonnegative(),
 	linkId: z.string().min(1).optional(),
 	effects: z.array(effectSchema).optional(),
@@ -177,7 +177,47 @@ export const clipSchema = z.object({
 					: Number.isFinite(curve.value),
 			'Time remap values must be finite numbers.'
 		)
-		.optional()
+		.optional(),
+	maintainPitch: z.boolean().optional(),
+	fadeInUs: timeSchema.nonnegative().optional(),
+	fadeOutUs: timeSchema.nonnegative().optional(),
+	fadeCurve: z.enum(['equalPower', 'linear']).optional()
+});
+
+export const eqBandSchema = z.object({
+	type: z.enum(['lowshelf', 'peaking', 'highshelf']),
+	frequencyHz: z.number().min(20).max(20000),
+	gainDb: z.number().min(-24).max(24),
+	q: z.number().min(0.1).max(18)
+});
+
+export const trackEqSchema = z.object({
+	enabled: z.boolean(),
+	bands: z.tuple([eqBandSchema, eqBandSchema, eqBandSchema, eqBandSchema])
+});
+
+export const trackCompressorSchema = z.object({
+	enabled: z.boolean(),
+	thresholdDb: z.number().min(-60).max(0),
+	ratio: z.number().min(1).max(20),
+	attackMs: z.number().min(0.1).max(500),
+	releaseMs: z.number().min(5).max(2000),
+	kneeDb: z.number().min(0).max(12),
+	makeupDb: z.number().min(0).max(24)
+});
+
+export const trackAudioSchema = z.object({
+	gainDb: z.number().min(-96).max(24),
+	pan: z.number().min(-1).max(1),
+	solo: z.boolean(),
+	eq: trackEqSchema.optional(),
+	compressor: trackCompressorSchema.optional()
+});
+
+export const projectMasterSchema = z.object({
+	gainDb: z.number().min(-96).max(24),
+	limiter: z.boolean(),
+	loudnessTargetLufs: z.number().optional()
 });
 
 export const assetSchema = z.object({
@@ -210,7 +250,8 @@ export const trackSchema = z.object({
 	locked: z.boolean(),
 	hidden: z.boolean(),
 	clips: z.array(clipSchema),
-	transitions: z.array(transitionSchema).optional()
+	transitions: z.array(transitionSchema).optional(),
+	audio: trackAudioSchema.optional()
 });
 
 export const markerSchema = z.object({
@@ -243,7 +284,8 @@ export const projectSchema = z
 				z.custom<SequenceId>((value) => typeof value === 'string' && value.length > 0),
 				sequenceSchema
 			)
-			.optional()
+			.optional(),
+		masterAudio: projectMasterSchema.optional()
 	})
 	.superRefine((project, context) => {
 		const ids = new Set<string>([project.id]);
@@ -311,7 +353,7 @@ export const projectSchema = z
 						}
 						ids.add(id);
 					}
-					if (clip.sourceOut <= clip.sourceIn) {
+					if (!clip.timeRemap && (clip.speed ?? 1) > 0 && clip.sourceOut <= clip.sourceIn) {
 						context.addIssue({
 							code: 'custom',
 							path: [...clipPath, 'sourceOut'],

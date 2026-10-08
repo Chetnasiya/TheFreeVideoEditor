@@ -1,5 +1,4 @@
-import type { Project, Track } from '../../core';
-import { timelineDuration } from '../../core';
+import { sourceExtent, timelineDuration, type Project, type Track } from '../../core';
 import { frames, mediaPath, trackAsset } from './exportUtils';
 import type { InteropOptions } from './exportUtils';
 
@@ -39,10 +38,11 @@ function trackChildren(project: Project, track: Track, options: InteropOptions) 
 			});
 		}
 		const asset = trackAsset(project, clip.assetId);
+		const extent = sourceExtent(clip);
 		children.push({
 			OTIO_SCHEMA: 'Clip.2',
 			name: asset.name,
-			source_range: timeRange(frames(clip.sourceIn, project), duration, fps),
+			source_range: timeRange(frames(extent.min, project), duration, fps),
 			media_reference: {
 				OTIO_SCHEMA: 'ExternalReference.1',
 				target_url: `file://localhost/${mediaPath(project, asset, options)

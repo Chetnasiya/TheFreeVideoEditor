@@ -1,4 +1,4 @@
-import type { Project, Track } from '../../core';
+import { sourceExtent, type Project, type Track } from '../../core';
 import { frames, mediaPath, escapeXml, trackAsset, type InteropOptions } from './exportUtils';
 
 function rateXml(fps: number): string {
@@ -29,8 +29,9 @@ function clipItemXml(
 	const asset = trackAsset(project, clip.assetId);
 	const start = frames(clip.start, project);
 	const duration = Math.max(1, frames(clip.duration, project));
-	const sourceIn = frames(clip.sourceIn, project);
-	const sourceOut = Math.max(sourceIn, frames(clip.sourceOut, project) - 1);
+	const extent = sourceExtent(clip);
+	const sourceIn = frames(extent.min, project);
+	const sourceOut = Math.max(sourceIn, frames(extent.max, project) - 1);
 	const file = fileXml(project, asset.id, options);
 	const links = clip.linkId
 		? project.tracks.flatMap((linkedTrack, linkedTrackIndex) =>
