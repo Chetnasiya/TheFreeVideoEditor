@@ -901,6 +901,17 @@ function EditorShell() {
 									<button
 										type="button"
 										role="menuitem"
+										disabled={!project}
+										onClick={() => {
+											editorStore.getState().addTextLayer();
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Add Text...
+									</button>
+									<button
+										type="button"
+										role="menuitem"
 										disabled={!project || selectedClipIds.length === 0}
 										onClick={() => {
 											const clipId = selectedClipIds[0];

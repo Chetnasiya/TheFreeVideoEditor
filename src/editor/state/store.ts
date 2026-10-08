@@ -388,6 +388,9 @@ export interface EditorState {
 	scopes: ScopesUiState;
 	colorUi: ColorUiState;
 	effectsClipboard: EffectInstance[] | null;
+	textTool: {
+		active: boolean;
+	};
 	initialize: () => Promise<void>;
 	toggleTheme: () => void;
 	beginRename: () => void;
