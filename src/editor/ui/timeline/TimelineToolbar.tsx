@@ -112,7 +112,7 @@ export default function TimelineToolbar({
 						onClick={onAddAdjustment}
 						title="Add adjustment layer across sequence"
 					>
-						+ Adjustment
+						+ Adjustment Layer
 					</button>
 				)}
 				{onAddSolid && (
@@ -122,7 +122,7 @@ export default function TimelineToolbar({
 						onClick={onAddSolid}
 						title="Add solid color layer"
 					>
-						+ Solid
+						+ Solid Layer
 					</button>
 				)}
 			</div>
