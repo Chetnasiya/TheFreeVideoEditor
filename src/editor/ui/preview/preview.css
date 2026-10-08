@@ -282,59 +282,10 @@
 	}
 }
 
-/* Mask Toolbar & Overlay styles */
-.mask-monitor-toolbar {
-	position: absolute;
-	top: var(--spacing-sm);
-	left: 50%;
-	transform: translateX(-50%);
-	display: flex;
-	align-items: center;
-	gap: var(--spacing-xxs);
-	background: color-mix(in srgb, var(--color-canvas-elevated) 92%, transparent);
-	backdrop-filter: blur(8px);
-	border: 1px solid var(--color-hairline);
-	border-radius: var(--radius-md);
-	padding: 4px;
-	z-index: 30;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.mask-tool-btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 28px;
-	height: 28px;
-	border-radius: var(--radius-sm);
-	border: 1px solid transparent;
-	background: transparent;
-	color: var(--color-mute);
-	cursor: pointer;
-	padding: 0;
-	transition: all 0.15s ease;
-}
-
-.mask-tool-btn:hover {
-	color: var(--color-ink);
-	background: var(--color-hairline-soft);
-}
-
-.mask-tool-btn.is-active {
-	background: var(--color-primary);
-	color: #ffffff;
-}
-
-.mask-toolbar-divider {
-	width: 1px;
-	height: 16px;
-	background: var(--color-hairline);
-	margin: 0 2px;
-}
-
+/* Mask Overlay styles */
 .mask-blocked-banner {
 	position: absolute;
-	top: 48px;
+	top: var(--spacing-md);
 	left: 50%;
 	transform: translateX(-50%);
 	background: rgba(239, 68, 68, 0.9);

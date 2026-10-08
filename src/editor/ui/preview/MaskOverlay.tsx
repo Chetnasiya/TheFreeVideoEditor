@@ -25,9 +25,25 @@ interface MaskOverlayProps {
 	renderedHeight: number;
 }
 
+type DragHandleType =
+	| 'move'
+	| 'rotate'
+	| 'nw'
+	| 'ne'
+	| 'se'
+	| 'sw'
+	| 'n'
+	| 'e'
+	| 's'
+	| 'w'
+	| 'path-vertex'
+	| 'path-in'
+	| 'path-out';
+
 interface DraggingPoint {
 	maskId: string;
 	pointIndex: number;
+	handleType?: DragHandleType;
 	handle?: 'in' | 'out';
 	startPos: Point2D;
 	originalShape: number[];
@@ -274,15 +290,20 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 	const activeMaskId = maskTool.selectedMaskId ?? (masks.length > 0 ? masks[0]!.id : null);
 	const activeMask = evaluatedMasks.find((m) => m.id === activeMaskId);
 
-	const handlePointerDownAnchor = (
+	const handlePointerDownHandle = (
 		e: ReactPointerEvent,
 		mask: EvaluatedMask,
-		idx: number,
+		handleType: DragHandleType,
+		idx = 0,
 		handle?: 'in' | 'out'
 	) => {
 		e.stopPropagation();
 		e.preventDefault();
-		(e.target as SVGElement).setPointerCapture(e.pointerId);
+		try {
+			(e.target as SVGElement).setPointerCapture(e.pointerId);
+		} catch {
+			// ignore if capture fails
+		}
 
 		const svg = svgRef.current;
 		if (!svg) return;
@@ -292,6 +313,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		setDragging({
 			maskId: mask.id,
 			pointIndex: idx,
+			handleType,
 			handle,
 			startPos: p,
 			originalShape: [...mask.shape],
@@ -303,6 +325,21 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		});
 		store.getState().selectMask(mask.id);
 		store.getState().selectMaskPoint(idx);
+	};
+
+	const handlePointerDownAnchor = (
+		e: ReactPointerEvent,
+		mask: EvaluatedMask,
+		idx: number,
+		handle?: 'in' | 'out'
+	) => {
+		handlePointerDownHandle(
+			e,
+			mask,
+			handle ? (handle === 'in' ? 'path-in' : 'path-out') : 'path-vertex',
+			idx,
+			handle
+		);
 	};
 
 	const handleDoubleClickAnchor = (e: React.MouseEvent, mask: EvaluatedMask, idx: number) => {
@@ -370,6 +407,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		setDragging({
 			maskId: mask.id,
 			pointIndex: insertIdx,
+			handleType: 'path-vertex',
 			startPos: hit.normPoint,
 			originalShape: [...mask.shape],
 			originalPoints: pts.map((pt) => ({
@@ -389,27 +427,155 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		const currentNorm = fromMonitor(currentScreen);
 
 		if (dragging) {
-			const dx = currentNorm.x - dragging.startPos.x;
-			const dy = currentNorm.y - dragging.startPos.y;
-
 			const currentMask = masks.find((m) => m.id === dragging.maskId);
 			if (!currentMask) return;
+			const handleType =
+				dragging.handleType ??
+				(dragging.handle
+					? dragging.handle === 'in'
+						? 'path-in'
+						: 'path-out'
+					: currentMask.type === 'path'
+						? 'path-vertex'
+						: 'move');
 
 			if (currentMask.type === 'rect') {
-				const shape = [...dragging.originalShape];
-				shape[0] = Math.max(0, Math.min(1, shape[0]! + dx));
-				shape[1] = Math.max(0, Math.min(1, shape[1]! + dy));
-				store
-					.getState()
-					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+				const [origCx, origCy, origW, origH, origRot = 0] = dragging.originalShape as [
+					number,
+					number,
+					number,
+					number,
+					number?
+				];
+				const rotRad = ((origRot ?? 0) * Math.PI) / 180;
+				const cos = Math.cos(rotRad);
+				const sin = Math.sin(rotRad);
+
+				if (handleType === 'move') {
+					const dx = currentNorm.x - dragging.startPos.x;
+					const dy = currentNorm.y - dragging.startPos.y;
+					const shape = [...dragging.originalShape];
+					shape[0] = Math.max(0, Math.min(1, origCx + dx));
+					shape[1] = Math.max(0, Math.min(1, origCy + dy));
+					store
+						.getState()
+						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+				} else if (handleType === 'rotate') {
+					const centerMon = toMonitor({ x: origCx, y: origCy });
+					const vX = currentScreen.x - centerMon.x;
+					const vY = currentScreen.y - centerMon.y;
+					const angleDeg = Math.atan2(vY, vX) * (180 / Math.PI) + 90;
+					let newRot = ((Math.round(angleDeg) % 360) + 360) % 360;
+					if (e.shiftKey) {
+						newRot = Math.round(newRot / 15) * 15;
+					}
+					const shape = [...dragging.originalShape];
+					shape[4] = newRot;
+					store
+						.getState()
+						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+				} else {
+					// Resizing rectangle handles ('nw', 'ne', 'se', 'sw', 'n', 'e', 's', 'w')
+					const dX = currentNorm.x - origCx;
+					const dY = currentNorm.y - origCy;
+					const localX = dX * cos + dY * sin;
+					const localY = -dX * sin + dY * cos;
+
+					const shape = [...dragging.originalShape];
+					let w = origW;
+					let h = origH;
+
+					if (handleType === 'e' || handleType === 'w') {
+						w = Math.max(0.02, Math.min(1, 2 * Math.abs(localX)));
+					} else if (handleType === 'n' || handleType === 's') {
+						h = Math.max(0.02, Math.min(1, 2 * Math.abs(localY)));
+					} else {
+						// Corners
+						w = Math.max(0.02, Math.min(1, 2 * Math.abs(localX)));
+						h = Math.max(0.02, Math.min(1, 2 * Math.abs(localY)));
+						if (e.shiftKey) {
+							const maxDim = Math.max(w, h);
+							w = maxDim;
+							h = maxDim;
+						}
+					}
+					shape[2] = w;
+					shape[3] = h;
+					store
+						.getState()
+						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+				}
+				return;
 			} else if (currentMask.type === 'ellipse') {
-				const shape = [...dragging.originalShape];
-				shape[0] = Math.max(0, Math.min(1, shape[0]! + dx));
-				shape[1] = Math.max(0, Math.min(1, shape[1]! + dy));
-				store
-					.getState()
-					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+				const [origCx, origCy, origRx, origRy, origRot = 0] = dragging.originalShape as [
+					number,
+					number,
+					number,
+					number,
+					number?
+				];
+				const rotRad = ((origRot ?? 0) * Math.PI) / 180;
+				const cos = Math.cos(rotRad);
+				const sin = Math.sin(rotRad);
+
+				if (handleType === 'move') {
+					const dx = currentNorm.x - dragging.startPos.x;
+					const dy = currentNorm.y - dragging.startPos.y;
+					const shape = [...dragging.originalShape];
+					shape[0] = Math.max(0, Math.min(1, origCx + dx));
+					shape[1] = Math.max(0, Math.min(1, origCy + dy));
+					store
+						.getState()
+						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+				} else if (handleType === 'rotate') {
+					const centerMon = toMonitor({ x: origCx, y: origCy });
+					const vX = currentScreen.x - centerMon.x;
+					const vY = currentScreen.y - centerMon.y;
+					const angleDeg = Math.atan2(vY, vX) * (180 / Math.PI) + 90;
+					let newRot = ((Math.round(angleDeg) % 360) + 360) % 360;
+					if (e.shiftKey) {
+						newRot = Math.round(newRot / 15) * 15;
+					}
+					const shape = [...dragging.originalShape];
+					shape[4] = newRot;
+					store
+						.getState()
+						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+				} else {
+					// Resizing ellipse handles ('e', 'w', 'n', 's', 'nw', 'ne', 'se', 'sw')
+					const dX = currentNorm.x - origCx;
+					const dY = currentNorm.y - origCy;
+					const localX = dX * cos + dY * sin;
+					const localY = -dX * sin + dY * cos;
+
+					const shape = [...dragging.originalShape];
+					let rx = origRx;
+					let ry = origRy;
+
+					if (handleType === 'e' || handleType === 'w') {
+						rx = Math.max(0.01, Math.min(0.5, Math.abs(localX)));
+					} else if (handleType === 'n' || handleType === 's') {
+						ry = Math.max(0.01, Math.min(0.5, Math.abs(localY)));
+					} else {
+						// Corners
+						rx = Math.max(0.01, Math.min(0.5, Math.abs(localX)));
+						ry = Math.max(0.01, Math.min(0.5, Math.abs(localY)));
+						if (e.shiftKey) {
+							const maxR = Math.max(rx, ry);
+							rx = maxR;
+							ry = maxR;
+						}
+					}
+					shape[2] = rx;
+					shape[3] = ry;
+					store
+						.getState()
+						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+				}
+				return;
 			} else if (currentMask.type === 'path' && dragging.originalPoints) {
+				const dx = currentNorm.x - dragging.startPos.x;
+				const dy = currentNorm.y - dragging.startPos.y;
 				const points = dragging.originalPoints.map((pt) => ({
 					...pt,
 					inHandle: pt.inHandle ? { ...pt.inHandle } : undefined,
@@ -418,10 +584,10 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 				const pt = points[dragging.pointIndex];
 				if (pt) {
 					const origPt = dragging.originalPoints[dragging.pointIndex]!;
-					if (dragging.handle === 'in') {
+					if (dragging.handle === 'in' || handleType === 'path-in') {
 						const origIn = origPt.inHandle ?? { x: 0, y: 0 };
 						pt.inHandle = { x: origIn.x + dx, y: origIn.y + dy };
-					} else if (dragging.handle === 'out') {
+					} else if (dragging.handle === 'out' || handleType === 'path-out') {
 						const origOut = origPt.outHandle ?? { x: 0, y: 0 };
 						pt.outHandle = { x: origOut.x + dx, y: origOut.y + dy };
 					} else {
@@ -432,8 +598,8 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 						.getState()
 						.updateMask(selectedClip.id, dragging.maskId, { points }, { coalesce: true });
 				}
+				return;
 			}
-			return;
 		}
 
 		// When not dragging, check for hover over active path mask to show add-point indicator
@@ -472,119 +638,6 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 
 	return (
 		<>
-			{/* On-Monitor Mask Toolbar */}
-			<div
-				className="mask-monitor-toolbar"
-				role="toolbar"
-				aria-label="Mask tools"
-				data-testid="mask-monitor-toolbar"
-			>
-				<button
-					type="button"
-					className={`mask-tool-btn ${maskTool.activeTool === 'select' ? 'is-active' : ''}`}
-					onClick={() => store.getState().setMaskTool('select')}
-					title="Select / Edit Mask (V)"
-					aria-label="Select / Edit Mask"
-				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-					>
-						<path d="M3 3l7 18 3-7 7-3L3 3z" />
-					</svg>
-				</button>
-				<button
-					type="button"
-					className={`mask-tool-btn ${maskTool.activeTool === 'rect' ? 'is-active' : ''}`}
-					onClick={() => {
-						const maskId = store.getState().addMask(selectedClip.id, 'rect');
-						if (maskId) store.getState().selectMask(maskId);
-					}}
-					title="Add Rectangle Mask"
-					aria-label="Add Rectangle Mask"
-				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-					>
-						<rect x="3" y="3" width="18" height="18" rx="2" />
-					</svg>
-				</button>
-				<button
-					type="button"
-					className={`mask-tool-btn ${maskTool.activeTool === 'ellipse' ? 'is-active' : ''}`}
-					onClick={() => {
-						const maskId = store.getState().addMask(selectedClip.id, 'ellipse');
-						if (maskId) store.getState().selectMask(maskId);
-					}}
-					title="Add Ellipse Mask"
-					aria-label="Add Ellipse Mask"
-				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-					>
-						<circle cx="12" cy="12" r="9" />
-					</svg>
-				</button>
-				<button
-					type="button"
-					className={`mask-tool-btn ${maskTool.activeTool === 'pen' ? 'is-active' : ''}`}
-					onClick={() => {
-						const maskId = store.getState().addMask(selectedClip.id, 'path');
-						if (maskId) store.getState().selectMask(maskId);
-					}}
-					title="Add Path Mask"
-					aria-label="Add Path Mask"
-				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-					>
-						<path d="M12 19l7-7 3 3-7 7-3-3z" />
-						<path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-						<path d="M2 2l7.586 7.586" />
-						<circle cx="11" cy="11" r="2" />
-					</svg>
-				</button>
-				<div className="mask-toolbar-divider" />
-				<button
-					type="button"
-					className={`mask-tool-btn ${maskTool.showOverlay ? 'is-active' : ''}`}
-					onClick={() => store.getState().setMaskOverlayVisible(!maskTool.showOverlay)}
-					title="Toggle Mask Overlay"
-					aria-label="Toggle Mask Overlay"
-				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-					>
-						<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-						<circle cx="12" cy="12" r="3" />
-					</svg>
-				</button>
-			</div>
-
 			{/* Blocked Edit Message Banner */}
 			{maskTool.blockedMessage && (
 				<div
@@ -625,12 +678,48 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 					const strokeColor = isSelected ? '#3b82f6' : 'rgba(255, 255, 255, 0.6)';
 
 					if (mask.type === 'rect') {
-						const [cx, cy, w, h] = mask.shape;
-						const p0 = toMonitor({ x: cx - w / 2, y: cy - h / 2 });
-						const p1 = toMonitor({ x: cx + w / 2, y: cy - h / 2 });
-						const p2 = toMonitor({ x: cx + w / 2, y: cy + h / 2 });
-						const p3 = toMonitor({ x: cx - w / 2, y: cy + h / 2 });
+						const [cx, cy, w, h, rotDeg = 0] = mask.shape;
+						const rad = (rotDeg * Math.PI) / 180;
+						const cos = Math.cos(rad);
+						const sin = Math.sin(rad);
+
+						// 4 corners in rotated layer space
+						const p0Layer = {
+							x: cx - (w / 2) * cos + (h / 2) * sin,
+							y: cy - (w / 2) * sin - (h / 2) * cos
+						};
+						const p1Layer = {
+							x: cx + (w / 2) * cos + (h / 2) * sin,
+							y: cy + (w / 2) * sin - (h / 2) * cos
+						};
+						const p2Layer = {
+							x: cx + (w / 2) * cos - (h / 2) * sin,
+							y: cy + (w / 2) * sin + (h / 2) * cos
+						};
+						const p3Layer = {
+							x: cx - (w / 2) * cos - (h / 2) * sin,
+							y: cy - (w / 2) * sin + (h / 2) * cos
+						};
+
+						const p0 = toMonitor(p0Layer);
+						const p1 = toMonitor(p1Layer);
+						const p2 = toMonitor(p2Layer);
+						const p3 = toMonitor(p3Layer);
 						const center = toMonitor({ x: cx, y: cy });
+
+						// 4 edge midpoints
+						const pTopMid = toMonitor({ x: cx + (h / 2) * sin, y: cy - (h / 2) * cos });
+						const pRightMid = toMonitor({ x: cx + (w / 2) * cos, y: cy + (w / 2) * sin });
+						const pBotMid = toMonitor({ x: cx - (h / 2) * sin, y: cy + (h / 2) * cos });
+						const pLeftMid = toMonitor({ x: cx - (w / 2) * cos, y: cy - (w / 2) * sin });
+
+						// Rotation stem
+						const upDir = { x: pTopMid.x - center.x, y: pTopMid.y - center.y };
+						const upLen = Math.hypot(upDir.x, upDir.y) || 1;
+						const pRot = {
+							x: pTopMid.x + (upDir.x / upLen) * 22,
+							y: pTopMid.y + (upDir.y / upLen) * 22
+						};
 
 						const featherScale = renderedWidth / Math.max(1, project.settings.width);
 						const featherMon = mask.feather * featherScale;
@@ -648,15 +737,17 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 									/>
 								)}
 
+								{/* Main body of rectangle (dragging inside or on stroke moves the mask) */}
 								<polygon
 									points={`${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`}
-									fill="none"
+									fill="rgba(59, 130, 246, 0.05)"
 									stroke={strokeColor}
 									strokeWidth={1.5}
 									strokeDasharray={isSelected ? undefined : '4 4'}
 									style={{ cursor: 'move' }}
-									onPointerDown={(e) => handlePointerDownAnchor(e, mask, 0)}
+									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
 								/>
+
 								{/* Center move handle */}
 								<circle
 									cx={center.x}
@@ -666,53 +757,135 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 									stroke={strokeColor}
 									strokeWidth={2}
 									style={{ cursor: 'move' }}
-									onPointerDown={(e) => handlePointerDownAnchor(e, mask, 0)}
+									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
 								>
 									<title>Drag to move mask</title>
 								</circle>
 
-								{/* Bounding box corner handles when selected */}
+								{/* Handles when selected */}
 								{isSelected && (
 									<>
+										{/* Rotation stem & circle */}
+										<line
+											x1={pTopMid.x}
+											y1={pTopMid.y}
+											x2={pRot.x}
+											y2={pRot.y}
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											strokeDasharray="2 2"
+										/>
+										<circle
+											cx={pRot.x}
+											cy={pRot.y}
+											r={5}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={2}
+											style={{ cursor: 'grab' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'rotate')}
+										>
+											<title>Drag to rotate mask (Shift to snap 15°)</title>
+										</circle>
+
+										{/* 4 Corner handles (resize both width and height) */}
 										<rect
 											x={p0.x - 4}
 											y={p0.y - 4}
 											width={8}
 											height={8}
+											rx={1}
 											fill="#ffffff"
 											stroke="#3b82f6"
 											strokeWidth={1.5}
 											style={{ cursor: 'nwse-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'nw')}
 										/>
 										<rect
 											x={p1.x - 4}
 											y={p1.y - 4}
 											width={8}
 											height={8}
+											rx={1}
 											fill="#ffffff"
 											stroke="#3b82f6"
 											strokeWidth={1.5}
 											style={{ cursor: 'nesw-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'ne')}
 										/>
 										<rect
 											x={p2.x - 4}
 											y={p2.y - 4}
 											width={8}
 											height={8}
+											rx={1}
 											fill="#ffffff"
 											stroke="#3b82f6"
 											strokeWidth={1.5}
 											style={{ cursor: 'nwse-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'se')}
 										/>
 										<rect
 											x={p3.x - 4}
 											y={p3.y - 4}
 											width={8}
 											height={8}
+											rx={1}
 											fill="#ffffff"
 											stroke="#3b82f6"
 											strokeWidth={1.5}
 											style={{ cursor: 'nesw-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'sw')}
+										/>
+
+										{/* 4 Edge handles (resize width or height) */}
+										<rect
+											x={pTopMid.x - 4}
+											y={pTopMid.y - 4}
+											width={8}
+											height={8}
+											rx={1}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											style={{ cursor: 'ns-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'n')}
+										/>
+										<rect
+											x={pRightMid.x - 4}
+											y={pRightMid.y - 4}
+											width={8}
+											height={8}
+											rx={1}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											style={{ cursor: 'ew-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'e')}
+										/>
+										<rect
+											x={pBotMid.x - 4}
+											y={pBotMid.y - 4}
+											width={8}
+											height={8}
+											rx={1}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											style={{ cursor: 'ns-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 's')}
+										/>
+										<rect
+											x={pLeftMid.x - 4}
+											y={pLeftMid.y - 4}
+											width={8}
+											height={8}
+											rx={1}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											style={{ cursor: 'ew-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'w')}
 										/>
 									</>
 								)}
@@ -721,25 +894,84 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 					}
 
 					if (mask.type === 'ellipse') {
-						const [cx, cy, rx, ry] = mask.shape;
-						const center = toMonitor({ x: cx, y: cy });
-						const pRx = toMonitor({ x: cx + rx, y: cy });
-						const pRy = toMonitor({ x: cx, y: cy + ry });
-						const screenRx = Math.hypot(pRx.x - center.x, pRx.y - center.y);
-						const screenRy = Math.hypot(pRy.x - center.x, pRy.y - center.y);
+						const [cx, cy, rx, ry, rotDeg = 0] = mask.shape;
+						const rad = (rotDeg * Math.PI) / 180;
+						const cos = Math.cos(rad);
+						const sin = Math.sin(rad);
 
-						const featherScale = renderedWidth / Math.max(1, project.settings.width);
-						const featherMon = mask.feather * featherScale;
+						const center = toMonitor({ x: cx, y: cy });
+
+						// 4 cardinal handles in layer space
+						const pRight = toMonitor({ x: cx + rx * cos, y: cy + rx * sin });
+						const pLeft = toMonitor({ x: cx - rx * cos, y: cy - rx * sin });
+						const pTop = toMonitor({ x: cx + ry * sin, y: cy - ry * cos });
+						const pBot = toMonitor({ x: cx - ry * sin, y: cy + ry * cos });
+
+						// 4 bounding box corner handles
+						const pTL = toMonitor({
+							x: cx - rx * cos + ry * sin,
+							y: cy - rx * sin - ry * cos
+						});
+						const pTR = toMonitor({
+							x: cx + rx * cos + ry * sin,
+							y: cy + rx * sin - ry * cos
+						});
+						const pBR = toMonitor({
+							x: cx + rx * cos - ry * sin,
+							y: cy + rx * sin + ry * cos
+						});
+						const pBL = toMonitor({
+							x: cx - rx * cos - ry * sin,
+							y: cy - rx * sin + ry * cos
+						});
+
+						// Generate 32-sample smooth polygon path for rotated ellipse in monitor coordinates
+						const numSamples = 32;
+						let ellipsePath = '';
+						for (let s = 0; s < numSamples; s++) {
+							const t = (s / numSamples) * Math.PI * 2;
+							const ex = cx + rx * Math.cos(t) * cos - ry * Math.sin(t) * sin;
+							const ey = cy + rx * Math.cos(t) * sin + ry * Math.sin(t) * cos;
+							const sp = toMonitor({ x: ex, y: ey });
+							ellipsePath += s === 0 ? `M ${sp.x} ${sp.y}` : ` L ${sp.x} ${sp.y}`;
+						}
+						ellipsePath += ' Z';
+
+						// Rotation stem extending from top handle
+						const upDir = { x: pTop.x - center.x, y: pTop.y - center.y };
+						const upLen = Math.hypot(upDir.x, upDir.y) || 1;
+						const pRot = {
+							x: pTop.x + (upDir.x / upLen) * 22,
+							y: pTop.y + (upDir.y / upLen) * 22
+						};
+
+						// Feather guide outline
+						let featherPath = '';
+						if (isSelected && mask.feather > 0) {
+							const featherNormX = mask.feather / Math.max(1, project.settings.width);
+							const featherNormY = mask.feather / Math.max(1, project.settings.height);
+							for (let s = 0; s < numSamples; s++) {
+								const t = (s / numSamples) * Math.PI * 2;
+								const ex =
+									cx +
+									(rx + featherNormX) * Math.cos(t) * cos -
+									(ry + featherNormY) * Math.sin(t) * sin;
+								const ey =
+									cy +
+									(rx + featherNormX) * Math.cos(t) * sin +
+									(ry + featherNormY) * Math.sin(t) * cos;
+								const sp = toMonitor({ x: ex, y: ey });
+								featherPath += s === 0 ? `M ${sp.x} ${sp.y}` : ` L ${sp.x} ${sp.y}`;
+							}
+							featherPath += ' Z';
+						}
 
 						return (
 							<g key={mask.id}>
 								{/* Visual feather indicator when selected */}
-								{isSelected && mask.feather > 0 && (
-									<ellipse
-										cx={center.x}
-										cy={center.y}
-										rx={screenRx + featherMon}
-										ry={screenRy + featherMon}
+								{featherPath && (
+									<path
+										d={featherPath}
 										fill="none"
 										stroke="rgba(59, 130, 246, 0.35)"
 										strokeWidth={1}
@@ -747,18 +979,18 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 									/>
 								)}
 
-								<ellipse
-									cx={center.x}
-									cy={center.y}
-									rx={screenRx}
-									ry={screenRy}
-									fill="none"
+								{/* Main body of ellipse (dragging inside or on stroke moves the mask) */}
+								<path
+									d={ellipsePath}
+									fill="rgba(59, 130, 246, 0.05)"
 									stroke={strokeColor}
 									strokeWidth={1.5}
 									strokeDasharray={isSelected ? undefined : '4 4'}
 									style={{ cursor: 'move' }}
-									onPointerDown={(e) => handlePointerDownAnchor(e, mask, 0)}
+									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
 								/>
+
+								{/* Center move handle */}
 								<circle
 									cx={center.x}
 									cy={center.y}
@@ -767,53 +999,144 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 									stroke={strokeColor}
 									strokeWidth={2}
 									style={{ cursor: 'move' }}
-									onPointerDown={(e) => handlePointerDownAnchor(e, mask, 0)}
+									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
 								>
 									<title>Drag to move mask</title>
 								</circle>
 
-								{/* Bounding box cardinal handles when selected */}
+								{/* Handles when selected */}
 								{isSelected && (
 									<>
+										{/* Rotation stem & circle */}
+										<line
+											x1={pTop.x}
+											y1={pTop.y}
+											x2={pRot.x}
+											y2={pRot.y}
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											strokeDasharray="2 2"
+										/>
+										<circle
+											cx={pRot.x}
+											cy={pRot.y}
+											r={5}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={2}
+											style={{ cursor: 'grab' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'rotate')}
+										>
+											<title>Drag to rotate mask (Shift to snap 15°)</title>
+										</circle>
+
+										{/* Bounding box outline */}
+										<polygon
+											points={`${pTL.x},${pTL.y} ${pTR.x},${pTR.y} ${pBR.x},${pBR.y} ${pBL.x},${pBL.y}`}
+											fill="none"
+											stroke="rgba(59, 130, 246, 0.25)"
+											strokeWidth={1}
+											strokeDasharray="3 3"
+										/>
+
+										{/* 4 Cardinal handles (resizes horizontal or vertical radius) */}
 										<rect
-											x={center.x + screenRx - 4}
-											y={center.y - 4}
+											x={pRight.x - 4}
+											y={pRight.y - 4}
 											width={8}
 											height={8}
+											rx={1}
 											fill="#ffffff"
 											stroke="#3b82f6"
 											strokeWidth={1.5}
 											style={{ cursor: 'ew-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'e')}
 										/>
 										<rect
-											x={center.x - screenRx - 4}
-											y={center.y - 4}
+											x={pLeft.x - 4}
+											y={pLeft.y - 4}
 											width={8}
 											height={8}
+											rx={1}
 											fill="#ffffff"
 											stroke="#3b82f6"
 											strokeWidth={1.5}
 											style={{ cursor: 'ew-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'w')}
 										/>
 										<rect
-											x={center.x - 4}
-											y={center.y - screenRy - 4}
+											x={pTop.x - 4}
+											y={pTop.y - 4}
 											width={8}
 											height={8}
+											rx={1}
 											fill="#ffffff"
 											stroke="#3b82f6"
 											strokeWidth={1.5}
 											style={{ cursor: 'ns-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'n')}
 										/>
 										<rect
-											x={center.x - 4}
-											y={center.y + screenRy - 4}
+											x={pBot.x - 4}
+											y={pBot.y - 4}
 											width={8}
 											height={8}
+											rx={1}
 											fill="#ffffff"
 											stroke="#3b82f6"
 											strokeWidth={1.5}
 											style={{ cursor: 'ns-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 's')}
+										/>
+
+										{/* 4 Corner handles (resizes both radii simultaneously) */}
+										<rect
+											x={pTL.x - 4}
+											y={pTL.y - 4}
+											width={8}
+											height={8}
+											rx={1}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											style={{ cursor: 'nwse-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'nw')}
+										/>
+										<rect
+											x={pTR.x - 4}
+											y={pTR.y - 4}
+											width={8}
+											height={8}
+											rx={1}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											style={{ cursor: 'nesw-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'ne')}
+										/>
+										<rect
+											x={pBR.x - 4}
+											y={pBR.y - 4}
+											width={8}
+											height={8}
+											rx={1}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											style={{ cursor: 'nwse-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'se')}
+										/>
+										<rect
+											x={pBL.x - 4}
+											y={pBL.y - 4}
+											width={8}
+											height={8}
+											rx={1}
+											fill="#ffffff"
+											stroke="#3b82f6"
+											strokeWidth={1.5}
+											style={{ cursor: 'nesw-resize' }}
+											onPointerDown={(e) => handlePointerDownHandle(e, mask, 'sw')}
 										/>
 									</>
 								)}
@@ -865,7 +1188,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 								{/* Visible stroke path */}
 								<path
 									d={d}
-									fill="none"
+									fill="rgba(59, 130, 246, 0.05)"
 									stroke={strokeColor}
 									strokeWidth={1.5}
 									strokeDasharray={isSelected ? undefined : '4 4'}
@@ -899,7 +1222,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 																	toMonitor({ x: pt.x + pt.inHandle.x, y: pt.y + pt.inHandle.y }).x
 																}
 																y2={
-																	toMonitor({ x: pt.x + pt.inHandle.x, y: pt.y + pt.inHandle.y }).y
+																	toMonitor({ x: pt.x + pt.inHandle.y, y: pt.y + pt.inHandle.y }).y
 																}
 																stroke="#3b82f6"
 																strokeWidth={1.5}
@@ -913,14 +1236,12 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 																	toMonitor({ x: pt.x + pt.inHandle.x, y: pt.y + pt.inHandle.y }).y
 																}
 																r={4}
-																fill="#3b82f6"
-																stroke="#ffffff"
+																fill="#ffffff"
+																stroke="#3b82f6"
 																strokeWidth={1.5}
 																style={{ cursor: 'pointer' }}
 																onPointerDown={(e) => handlePointerDownAnchor(e, mask, idx, 'in')}
-															>
-																<title>Drag in-tangent handle</title>
-															</circle>
+															/>
 														</>
 													)}
 													{pt.outHandle && (
@@ -950,32 +1271,32 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 																		.y
 																}
 																r={4}
-																fill="#3b82f6"
-																stroke="#ffffff"
+																fill="#ffffff"
+																stroke="#3b82f6"
 																strokeWidth={1.5}
 																style={{ cursor: 'pointer' }}
 																onPointerDown={(e) => handlePointerDownAnchor(e, mask, idx, 'out')}
-															>
-																<title>Drag out-tangent handle</title>
-															</circle>
+															/>
 														</>
 													)}
 												</>
 											)}
 
-											{/* Anchor Point Circle */}
+											{/* Anchor Vertex */}
 											<circle
 												cx={p.x}
 												cy={p.y}
-												r={isPointSelected ? 5.5 : 4.5}
+												r={isPointSelected ? 5 : 4}
 												fill={isPointSelected ? '#3b82f6' : '#ffffff'}
-												stroke="#000000"
+												stroke={strokeColor}
 												strokeWidth={1.5}
 												style={{ cursor: 'pointer' }}
 												onPointerDown={(e) => handlePointerDownAnchor(e, mask, idx)}
 												onDoubleClick={(e) => handleDoubleClickAnchor(e, mask, idx)}
 											>
-												<title>Drag to move. Double-click to toggle smooth/corner.</title>
+												<title>
+													Click and drag to move vertex. Double-click to toggle smooth/corner.
+												</title>
 											</circle>
 										</g>
 									);
@@ -987,34 +1308,17 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 					return null;
 				})}
 
-				{/* Hover indicator showing where a new point will be added upon clicking the path */}
+				{/* Visual hover indicator along path when hovering to insert point */}
 				{hoverHit && (
-					<g pointerEvents="none">
-						<circle
-							cx={hoverHit.screenPoint.x}
-							cy={hoverHit.screenPoint.y}
-							r={6}
-							fill="#3b82f6"
-							stroke="#ffffff"
-							strokeWidth={2}
-						/>
-						<line
-							x1={hoverHit.screenPoint.x - 3}
-							y1={hoverHit.screenPoint.y}
-							x2={hoverHit.screenPoint.x + 3}
-							y2={hoverHit.screenPoint.y}
-							stroke="#ffffff"
-							strokeWidth={1.5}
-						/>
-						<line
-							x1={hoverHit.screenPoint.x}
-							y1={hoverHit.screenPoint.y - 3}
-							x2={hoverHit.screenPoint.x}
-							y2={hoverHit.screenPoint.y + 3}
-							stroke="#ffffff"
-							strokeWidth={1.5}
-						/>
-					</g>
+					<circle
+						cx={hoverHit.screenPoint.x}
+						cy={hoverHit.screenPoint.y}
+						r={5}
+						fill="#3b82f6"
+						stroke="#ffffff"
+						strokeWidth={2}
+						style={{ pointerEvents: 'none' }}
+					/>
 				)}
 			</svg>
 		</>

@@ -13,18 +13,21 @@ async function createProject(page: Page, name: string): Promise<void> {
 }
 
 async function readPixelAt(page: Page, normX: number, normY: number): Promise<number[]> {
-	return page.getByTestId('preview-canvas').evaluate((canvas, { normX, normY }) => {
-		const el = canvas as HTMLCanvasElement;
-		const sampleCanvas = document.createElement('canvas');
-		sampleCanvas.width = 1;
-		sampleCanvas.height = 1;
-		const ctx = sampleCanvas.getContext('2d', { willReadFrequently: true });
-		if (!ctx) return [0, 0, 0, 0];
-		const px = Math.floor(normX * el.width);
-		const py = Math.floor(normY * el.height);
-		ctx.drawImage(el, px, py, 1, 1, 0, 0, 1, 1);
-		return Array.from(ctx.getImageData(0, 0, 1, 1).data);
-	}, { normX, normY });
+	return page.getByTestId('preview-canvas').evaluate(
+		(canvas, { normX, normY }) => {
+			const el = canvas as HTMLCanvasElement;
+			const sampleCanvas = document.createElement('canvas');
+			sampleCanvas.width = 1;
+			sampleCanvas.height = 1;
+			const ctx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+			if (!ctx) return [0, 0, 0, 0];
+			const px = Math.floor(normX * el.width);
+			const py = Math.floor(normY * el.height);
+			ctx.drawImage(el, px, py, 1, 1, 0, 0, 1, 1);
+			return Array.from(ctx.getImageData(0, 0, 1, 1).data);
+		},
+		{ normX, normY }
+	);
 }
 
 test.describe('Masks Architecture & Pipeline (Gate L)', () => {
@@ -143,7 +146,9 @@ test.describe('Masks Architecture & Pipeline (Gate L)', () => {
 		expect(rightPixel[2]).toBeLessThan(100);
 	});
 
-	test('allows adding points by clicking along path and precisely dragging points', async ({ page }) => {
+	test('allows adding points by clicking along path and precisely dragging points', async ({
+		page
+	}) => {
 		await createProject(page, 'Masks Path Points');
 
 		// Add solid clip and create path mask
@@ -202,5 +207,87 @@ test.describe('Masks Architecture & Pipeline (Gate L)', () => {
 		});
 		expect(movedY).toBeGreaterThan(0.5);
 		expect(movedY).toBeLessThan(0.95);
+	});
+
+	test('allows resizing and moving rectangle and ellipse masks using mouse handles without floating toolbar', async ({
+		page
+	}) => {
+		await createProject(page, 'Masks Resize Shapes');
+
+		// 1. Verify floating toolbar is NOT present on the screen
+		const toolbar = page.locator('.mask-monitor-toolbar');
+		await expect(toolbar).toHaveCount(0);
+
+		// Add solid clip and create rect mask
+		await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clipId = store.getState().addSolidLayer('#ffffff');
+			store.getState().selectClips([clipId]);
+			store.getState().addMask(clipId, 'rect', {
+				shape: [0.5, 0.5, 0.4, 0.4, 0, 0]
+			});
+		});
+
+		await page.waitForTimeout(300);
+
+		// Floating toolbar should still NOT exist
+		await expect(toolbar).toHaveCount(0);
+
+		const overlay = page.locator('.mask-canvas-overlay');
+		await expect(overlay).toBeVisible();
+		const box = await overlay.boundingBox();
+		expect(box).not.toBeNull();
+
+		// Bottom-right corner of rect is at (0.5 + 0.2, 0.5 + 0.2) = (0.7, 0.7)
+		const cornerX = box!.x + box!.width * 0.7;
+		const cornerY = box!.y + box!.height * 0.7;
+
+		// Drag bottom-right corner outwards by 30px
+		await page.mouse.move(cornerX, cornerY);
+		await page.mouse.down();
+		await page.mouse.move(cornerX + 30, cornerY + 30, { steps: 5 });
+		await page.mouse.up();
+
+		await page.waitForTimeout(300);
+
+		// Verify width and height of rect increased
+		const updatedRect = await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			return clip.masks[0].shape;
+		});
+		expect(updatedRect[2]).toBeGreaterThan(0.42); // width increased
+		expect(updatedRect[3]).toBeGreaterThan(0.42); // height increased
+
+		// Add ellipse mask
+		await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			store.getState().addMask(clip.id, 'ellipse', {
+				shape: [0.5, 0.5, 0.2, 0.2, 0]
+			});
+		});
+
+		await page.waitForTimeout(300);
+
+		// Right cardinal handle of ellipse is at (0.5 + 0.2, 0.5) = (0.7, 0.5)
+		const rightHandleX = box!.x + box!.width * 0.7;
+		const rightHandleY = box!.y + box!.height * 0.5;
+
+		// Drag right handle outwards by 30px
+		await page.mouse.move(rightHandleX, rightHandleY);
+		await page.mouse.down();
+		await page.mouse.move(rightHandleX + 30, rightHandleY, { steps: 5 });
+		await page.mouse.up();
+
+		await page.waitForTimeout(300);
+
+		// Verify rx increased
+		const updatedEllipse = await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			return clip.masks[1].shape;
+		});
+		expect(updatedEllipse[2]).toBeGreaterThan(0.21); // rx increased
 	});
 });
