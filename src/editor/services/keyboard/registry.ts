@@ -538,6 +538,15 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			preventDefault: true
 		},
 		{
+			id: 'new-text-clip',
+			keys: { mac: 't', other: 't' },
+			label: 'New Text Clip',
+			group: 'Timeline',
+			scope: 'editor',
+			handler: action('new-text-clip'),
+			preventDefault: true
+		},
+		{
 			id: 'undo',
 			keys: { mac: 'mod+z', other: 'mod+z' },
 			label: 'Undo',

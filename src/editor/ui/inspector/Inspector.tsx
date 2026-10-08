@@ -25,7 +25,7 @@ import {
 import EffectsSection from './EffectsSection';
 import MasksSection from './MasksSection';
 import TimeRemapSection from './TimeRemapSection';
-import TextSection from './TextSection';
+import { TextSection } from './TextSection';
 import { TransitionInspector } from './TransitionInspector';
 import './inspector.css';
 
@@ -136,15 +136,45 @@ export default function Inspector() {
 	const isSpeedExpanded = inspector.expanded.speed !== false;
 	const isMasksExpanded = inspector.expanded.masks !== false;
 	const isEffectsExpanded = inspector.expanded.effects !== false;
-	const isTextExpanded = inspector.expanded.text !== false;
 	const isAudioExpanded = inspector.expanded.audio !== false;
 
 	const clipAsset = selectedClip.assetId ? project.assets[selectedClip.assetId] : undefined;
 	const clipTrack = project.tracks.find((t) => t.clips.some((c) => c.id === selectedClip.id));
-	const hasAudio = clipTrack?.kind === 'audio' || (clipAsset?.hasAudio ?? false);
+	const isText = selectedClip.source?.type === 'text';
+	const isTextExpanded = inspector.expanded.text !== false;
+	const hasAudio = !isText && (clipTrack?.kind === 'audio' || (clipAsset?.hasAudio ?? false));
 
 	return (
 		<div className="inspector-container">
+			{/* Text Section */}
+			{isText && (
+				<section className={`inspector-section ${isTextExpanded ? 'is-open' : ''}`}>
+					<button
+						type="button"
+						className="inspector-section-header"
+						onClick={() => store.getState().setInspectorExpanded('text', !isTextExpanded)}
+						aria-expanded={isTextExpanded}
+					>
+						<span className="inspector-section-title">
+							<span className="section-chevron" aria-hidden="true">
+								{isTextExpanded ? '▼' : '▶'}
+							</span>
+							Text
+						</span>
+					</button>
+					{isTextExpanded && (
+						<TextSection
+							clip={selectedClip}
+							localTime={localTime}
+							fps={project.settings.fps}
+							confirmDisable={confirmDisable}
+							onStartDisableConfirm={setConfirmDisable}
+							onCancelDisableConfirm={() => setConfirmDisable(null)}
+						/>
+					)}
+				</section>
+			)}
+
 			{/* Transform Section */}
 			<section className={`inspector-section ${isTransformExpanded ? 'is-open' : ''}`}>
 				<button
@@ -403,37 +433,6 @@ export default function Inspector() {
 					</div>
 				)}
 			</section>
-
-			{/* Text Section */}
-			{selectedClip.source?.type === 'text' && (
-				<section className={`inspector-section ${isTextExpanded ? 'is-open' : ''}`}>
-					<button
-						type="button"
-						className="inspector-section-header"
-						onClick={() => store.getState().setInspectorExpanded('text', !isTextExpanded)}
-						aria-expanded={isTextExpanded}
-					>
-						<span className="inspector-section-title">
-							<span className="section-chevron" aria-hidden="true">
-								{isTextExpanded ? '▼' : '▶'}
-							</span>
-							Text
-						</span>
-					</button>
-					{isTextExpanded && (
-						<div className="inspector-section-content">
-							<TextSection
-								clip={selectedClip}
-								localTime={localTime}
-								fps={project.settings.fps}
-								confirmDisable={confirmDisable}
-								onStartDisableConfirm={setConfirmDisable}
-								onCancelDisableConfirm={() => setConfirmDisable(null)}
-							/>
-						</div>
-					)}
-				</section>
-			)}
 
 			{/* Effects Section */}
 			<section className={`inspector-section ${isEffectsExpanded ? 'is-open' : ''}`}>

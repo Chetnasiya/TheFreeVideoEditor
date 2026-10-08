@@ -46,6 +46,46 @@ export default function ScopesPanel({ engine, onClose }: ScopesPanelProps) {
 
 	return (
 		<div className="scopes-panel" role="region" aria-label="Video Scopes">
+			<div className="scopes-header">
+				<div className="scopes-mode-tabs" role="tablist">
+					{(['waveform', 'parade', 'histogram', 'vectorscope'] as const).map((m) => (
+						<button
+							key={m}
+							type="button"
+							role="tab"
+							aria-selected={mode === m}
+							className={`scopes-tab-btn ${mode === m ? 'is-active' : ''}`}
+							onClick={() => store.getState().setScopesMode(m)}
+						>
+							{m.charAt(0).toUpperCase() + m.slice(1)}
+						</button>
+					))}
+				</div>
+
+				<div className="scopes-channel-toggle">
+					{mode === 'waveform' && (
+						<button
+							type="button"
+							className="scopes-tab-btn"
+							onClick={() => store.getState().setScopesChannel(channel === 'luma' ? 'rgb' : 'luma')}
+						>
+							{channel.toUpperCase()}
+						</button>
+					)}
+					<button
+						type="button"
+						className="scopes-close-btn"
+						title="Close scopes"
+						aria-label="Close scopes"
+						onClick={() => {
+							store.getState().setScopesOpen(false);
+							onClose?.();
+						}}
+					>
+						×
+					</button>
+				</div>
+			</div>
 
 			<div className="scopes-canvas-container">
 				<canvas ref={canvasRef} width={256} height={180} className="scopes-canvas" />

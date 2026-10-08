@@ -258,15 +258,27 @@ export default function ClipView({
 
 	const isAdjustment = clip.source?.type === 'adjustment';
 	const isSolid = clip.source?.type === 'solid';
-	const clipName = asset?.name ?? (isAdjustment ? 'Adjustment Layer' : isSolid ? 'Solid' : 'Clip');
+	const isText = clip.source?.type === 'text';
+	const textContent = clip.source?.type === 'text' ? clip.source.text : '';
+	const clipName =
+		asset?.name ??
+		(isText
+			? `T ${textContent || 'Text'}`
+			: isAdjustment
+				? 'Adjustment Layer'
+				: isSolid
+					? 'Solid'
+					: 'Clip');
 	const kindClass =
 		track.kind === 'audio'
 			? 'is-audio'
-			: isAdjustment
-				? 'is-adjustment'
-				: isSolid
-					? 'is-solid'
-					: 'is-video';
+			: isText
+				? 'is-text'
+				: isAdjustment
+					? 'is-adjustment'
+					: isSolid
+						? 'is-solid'
+						: 'is-video';
 
 	return (
 		<div

@@ -2,6 +2,8 @@ import { ALL_FORMATS, BlobSource, Input, VideoSampleSink } from 'mediabunny';
 import type { ActiveLayer, Project } from '../../core';
 import type { AssetId, ClipId } from '../../core';
 import { getMediaFile } from '../storage/opfs';
+import { rasterizeText } from '../render/text/rasterizer';
+import { ensureFontLoaded } from '../render/text/fontLoader';
 
 interface VideoDecoderEntry {
 	input: Input;
@@ -52,6 +54,28 @@ export class ExportFrameProvider {
 
 		for (const layer of allLayers) {
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
+			if (layer.kind === 'text' && layer.textData) {
+				const data = layer.textData;
+				if (data.style.fontFamily) {
+					await ensureFontLoaded(data.style.fontFamily);
+				}
+				const scale = Math.max(layer.transform?.scaleX ?? 1, layer.transform?.scaleY ?? 1);
+				const textCanvas = rasterizeText({
+					text: data.text,
+					style: data.style,
+					box: data.box,
+					fontSize: data.fontSize,
+					fillColor: data.fillColor,
+					strokeColor: data.strokeColor,
+					strokeWidth: data.strokeWidth,
+					letterSpacing: data.letterSpacing,
+					lineHeight: data.lineHeight,
+					reveal: data.reveal,
+					scale
+				});
+				this.prepared.set(layer.clipId, textCanvas);
+				continue;
+			}
 			if (!layer.assetId) continue;
 			const asset = this.project.assets[layer.assetId];
 			if (!asset || asset.offline) continue;

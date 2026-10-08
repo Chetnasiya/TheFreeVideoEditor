@@ -56,6 +56,9 @@ import {
 	createAdjustmentClip,
 	createSolidClip,
 	createTextClip,
+	applyTextTemplatePreset,
+	applyTextAnimationPreset,
+	clearTextAnimations,
 	insertClip,
 	createEffectInstance,
 	addEffectToClip,
@@ -106,7 +109,6 @@ import {
 	type AnimatedValue
 } from '../core';
 import { defaultTrackAudio } from '../core/audioMath';
-import { generatePresetKeyframes, templates } from '../core/text/presets';
 import { ensureLutLoaded, storeParsedLut } from '../services/media/lutCache';
 import type { ScopeFrameData } from '../services/render/passes/scopes';
 import {
@@ -388,9 +390,6 @@ export interface EditorState {
 	scopes: ScopesUiState;
 	colorUi: ColorUiState;
 	effectsClipboard: EffectInstance[] | null;
-	textTool: {
-		active: boolean;
-	};
 	initialize: () => Promise<void>;
 	toggleTheme: () => void;
 	beginRename: () => void;
@@ -563,11 +562,6 @@ export interface EditorState {
 		start?: Time,
 		duration?: Time
 	) => ClipId | null;
-	addTextLayer: (text?: string, trackId?: TrackId, start?: Time, duration?: Time) => ClipId | null;
-	setTextContent: (clipId: ClipId, text: string) => void;
-	setTextFillColor: (clipId: ClipId, color: ColorRgba) => void;
-	setTextFontSize: (clipId: ClipId, fontSize: number) => void;
-	applyTextAnimationPreset: (clipId: ClipId, preset: 'fade-in' | 'fade-out' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'pop-in' | 'pop-out' | 'typewriter-in' | 'typewriter-out') => void;
 	importLut: (name: string, cubeText: string) => Promise<AssetId | null>;
 	// Transition actions
 	addTransition: (
@@ -638,6 +632,16 @@ export interface EditorState {
 		clipId: ClipId,
 		fade: { fadeInUs?: Time; fadeOutUs?: Time; fadeCurve?: 'equalPower' | 'linear' }
 	) => boolean;
+	// Text actions
+	editingTextClipId: ClipId | null;
+	setEditingTextClipId: (clipId: ClipId | null) => void;
+	addTextClip: (options?: { text?: string; template?: string }) => ClipId | null;
+	setTextContent: (clipId: ClipId, text: string) => boolean;
+	setTextStyle: (clipId: ClipId, style: Partial<import('../core/types').TextStyle>) => boolean;
+	setTextBox: (clipId: ClipId, box: Partial<import('../core/types').TextBox>) => boolean;
+	applyTextTemplate: (clipId: ClipId, templateId: string) => boolean;
+	applyTextAnimation: (clipId: ClipId, presetId: string) => boolean;
+	clearTextAnimations: (clipId: ClipId) => boolean;
 }
 
 function errorMessage(error: unknown): string {
@@ -3553,127 +3557,6 @@ export function createEditorStore() {
 						return null;
 					}
 				},
-				addTextLayer(text = 'Text', trackId, start, duration) {
-					const project = get().project;
-					if (!project) return null;
-					const clipStart = snapToFrame(start ?? get().timeline.playhead, project.settings.fps);
-					const clipDuration =
-						duration ?? framesToTicks(5 * project.settings.fps, project.settings.fps);
-
-					let targetTrackId = trackId;
-					if (!targetTrackId) {
-						const selTrackId = get().timeline.selection.trackId;
-						const selTrack = project.tracks.find(
-							(t) => t.id === selTrackId && t.kind === 'video' && !t.locked
-						);
-						if (selTrack) {
-							targetTrackId = selTrack.id;
-						} else {
-							const videoTracks = project.tracks.filter((t) => t.kind === 'video' && !t.locked);
-							if (videoTracks.length > 0) {
-								targetTrackId = videoTracks[0]!.id;
-							}
-						}
-					}
-
-					let createdClipId: ClipId | null = null;
-					try {
-						mutateProject(
-							'Add text layer',
-							(proj) => {
-								let currentProj = proj;
-								let trackToUse = targetTrackId
-									? currentProj.tracks.find(
-											(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
-										)
-									: undefined;
-								if (!trackToUse) {
-									const prevIds = new Set(currentProj.tracks.map((t) => t.id));
-									currentProj = addTrackOperation(currentProj, 'video');
-									trackToUse = currentProj.tracks.find(
-										(t) => !prevIds.has(t.id) && t.kind === 'video'
-									);
-								}
-								const clip = createTextClip(clipStart, clipDuration, text);
-								createdClipId = clip.id;
-								return insertClip(currentProj, trackToUse!.id, clip);
-							},
-							{ history: 'record' }
-						);
-						if (createdClipId) {
-							get().selectClips([createdClipId]);
-						}
-						return createdClipId;
-					} catch (error) {
-						set((state) => {
-							state.timeline.message = errorMessage(error);
-						});
-						return null;
-					}
-				},
-				setTextContent(clipId, text) {
-					const project = get().project;
-					if (!project) return;
-					mutateProject(
-						'Set text content',
-						(proj) => ({
-							...proj,
-							tracks: proj.tracks.map((track) => ({
-								...track,
-								clips: track.clips.map((clip) =>
-									clip.id === clipId && clip.source?.type === 'text'
-										? {
-												...clip,
-												source: {
-													...clip.source,
-													text
-												}
-											}
-										: clip
-								)
-							}))
-						}),
-						{ history: 'record' }
-					);
-				},
-				setTextFillColor(clipId, color) {
-					const project = get().project;
-					if (!project) return;
-					// Color animation is handled via keyframes on text.fillColor property
-				},
-				setTextFontSize(clipId, fontSize) {
-					const project = get().project;
-					if (!project) return;
-					// Font size animation is handled via keyframes on text.fontSize property
-				},
-				applyTextAnimationPreset(clipId, preset) {
-					const project = get().project;
-					if (!project) return;
-					const clip = project.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
-					if (!clip) return;
-					const keyframes = generatePresetKeyframes(preset, clip.duration);
-					mutateProject(
-						`Apply ${preset} preset`,
-						(proj) => ({
-							...proj,
-							tracks: proj.tracks.map((track) => ({
-								...track,
-								clips: track.clips.map((c) => {
-									if (c.id !== clipId) return c;
-									const newProperties = { ...c.properties } || {};
-									for (const [propId, frames] of Object.entries(keyframes)) {
-										newProperties[propId] = frames as any;
-									}
-									return {
-										...c,
-										properties: newProperties
-									};
-								})
-							}))
-						}),
-						{ history: 'record' }
-					);
-				},
 				async importLut(name, cubeText) {
 					const project = get().project;
 					if (!project) return null;
@@ -4350,6 +4233,227 @@ export function createEditorStore() {
 											...(fade.fadeOutUs !== undefined ? { fadeOutUs: fade.fadeOutUs } : {}),
 											...(fade.fadeCurve !== undefined ? { fadeCurve: fade.fadeCurve } : {})
 										};
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				editingTextClipId: null,
+				setEditingTextClipId(clipId) {
+					set((state) => {
+						state.editingTextClipId = clipId;
+					});
+				},
+
+				addTextClip(options) {
+					const project = get().project;
+					if (!project) return null;
+					const clipStart = get().timeline.playhead;
+					const clipDuration = 5_000_000; // 5s default
+
+					const selTrackId = get().timeline.selection.trackId;
+					let targetTrackId: TrackId | null = null;
+					if (selTrackId) {
+						const selectedTrack = project.tracks.find(
+							(t) => t.id === selTrackId && t.kind === 'video' && !t.locked
+						);
+						if (selectedTrack) targetTrackId = selectedTrack.id;
+					}
+					if (!targetTrackId) {
+						const videoTracks = project.tracks.filter((t) => t.kind === 'video' && !t.locked);
+						if (videoTracks.length > 0) {
+							targetTrackId = videoTracks[0]!.id;
+						}
+					}
+
+					let createdClipId: ClipId | null = null;
+					try {
+						mutateProject(
+							'Add text clip',
+							(proj) => {
+								let currentProj = proj;
+								let trackToUse = targetTrackId
+									? currentProj.tracks.find(
+											(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
+										)
+									: undefined;
+								if (!trackToUse) {
+									const prevIds = new Set(currentProj.tracks.map((t) => t.id));
+									currentProj = addTrackOperation(currentProj, 'video');
+									trackToUse = currentProj.tracks.find(
+										(t) => !prevIds.has(t.id) && t.kind === 'video'
+									);
+								}
+								const clip = createTextClip(clipStart, clipDuration, options?.text ?? 'Title Text');
+								createdClipId = clip.id;
+								return insertClip(currentProj, trackToUse!.id, clip);
+							},
+							{ history: 'record' }
+						);
+						if (createdClipId) {
+							get().selectClips([createdClipId]);
+						}
+						return createdClipId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				setTextContent(clipId, text) {
+					try {
+						mutateProject(
+							'Update text content',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId || c.source?.type !== 'text') return c;
+										return {
+											...c,
+											text,
+											source: {
+												...c.source,
+												text
+											}
+										};
+									})
+								}))
+							}),
+							{ history: 'record', mergeKey: `text-edit-${clipId}` }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTextStyle(clipId, style) {
+					try {
+						mutateProject(
+							'Update text style',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId || c.source?.type !== 'text') return c;
+										return {
+											...c,
+											source: {
+												...c.source,
+												style: {
+													...(c.source.style ?? { fontFamily: 'sans-serif' }),
+													...style
+												}
+											}
+										};
+									})
+								}))
+							}),
+							{ history: 'record', mergeKey: `text-style-${clipId}` }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTextBox(clipId, box) {
+					try {
+						mutateProject(
+							'Update text box',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId || c.source?.type !== 'text') return c;
+										return {
+											...c,
+											source: {
+												...c.source,
+												box: {
+													...(c.source.box ?? {}),
+													...box
+												}
+											}
+										};
+									})
+								}))
+							}),
+							{ history: 'record', mergeKey: `text-box-${clipId}` }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				applyTextTemplate(clipId, templateId) {
+					try {
+						mutateProject(
+							'Apply text template',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId || c.source?.type !== 'text') return c;
+										return applyTextTemplatePreset(c, templateId, true);
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				applyTextAnimation(clipId, presetId) {
+					try {
+						mutateProject(
+							'Apply text animation',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId || c.source?.type !== 'text') return c;
+										return applyTextAnimationPreset(c, presetId);
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				clearTextAnimations(clipId) {
+					try {
+						mutateProject(
+							'Clear text animations',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId || c.source?.type !== 'text') return c;
+										return clearTextAnimations(c);
 									})
 								}))
 							}),

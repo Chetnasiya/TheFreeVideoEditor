@@ -1,104 +1,58 @@
-import { rasterizeText, hashTextConfig, type TextRasterConfig } from './rasterizer';
+import { hashTextConfig, rasterizeText, type TextRasterConfig } from './rasterizer';
 
-export interface CacheEntry {
-	canvas: OffscreenCanvas;
+interface CacheEntry {
+	canvas: OffscreenCanvas | HTMLCanvasElement;
 	lastUsedFrame: number;
+	key: string;
 }
 
-/**
- * Text rasterization cache.
- * Caches OffscreenCanvas outputs by hash(text, style, scale) to avoid re-rasterizing
- * when the same text configuration appears in the same frame or across frames.
- */
 export class TextRasterCache {
-	private cache = new Map<string, CacheEntry>();
-	private frameIndex = 0;
-	private canvasCount = 0;
-	private textureCount = 0;
-	private readonly maxCacheSize = 100; // Reasonable limit for text cache
+	private readonly entries = new Map<string, CacheEntry>();
+	private frameCount = 0;
+	private liveAllocations = 0;
 
-	/**
-	 * Get or create a rasterized text canvas.
-	 */
-	getOrRasterize(config: TextRasterConfig, frameIndex: number): OffscreenCanvas {
-		const hash = hashTextConfig(config);
-		const entry = this.cache.get(hash);
+	getLiveCount(): number {
+		return this.entries.size;
+	}
 
-		if (entry) {
-			entry.lastUsedFrame = frameIndex;
-			return entry.canvas;
+	get(config: TextRasterConfig): OffscreenCanvas | HTMLCanvasElement {
+		const key = hashTextConfig(config);
+		const existing = this.entries.get(key);
+		if (existing) {
+			existing.lastUsedFrame = this.frameCount;
+			return existing.canvas;
 		}
 
-		// Not in cache, rasterize now
 		const canvas = rasterizeText(config);
-		this.cache.set(hash, {
+		this.entries.set(key, {
 			canvas,
-			lastUsedFrame: frameIndex
+			lastUsedFrame: this.frameCount,
+			key
 		});
-		this.canvasCount++;
-
-		// Evict oldest entries if cache is too large
-		if (this.cache.size > this.maxCacheSize) {
-			this.evict();
-		}
-
+		this.liveAllocations++;
 		return canvas;
 	}
 
-	/**
-	 * Update frame index for LRU tracking.
-	 */
-	updateFrame(frameIndex: number) {
-		this.frameIndex = frameIndex;
-	}
-
-	/**
-	 * Evict least recently used entries to stay under cache size.
-	 */
-	private evict() {
-		const entries = Array.from(this.cache.entries())
-			.sort((a, b) => a[1].lastUsedFrame - b[1].lastUsedFrame);
-
-		const toRemove = Math.ceil(this.cache.size * 0.2); // Remove oldest 20%
-		for (let i = 0; i < toRemove && i < entries.length; i++) {
-			this.cache.delete(entries[i]![0]);
+	tick(): void {
+		this.frameCount++;
+		if (this.frameCount % 120 === 0) {
+			this.evictOlderThan(120);
 		}
 	}
 
-	/**
-	 * Clear all cached canvases and reset counters.
-	 */
-	dispose() {
-		this.cache.clear();
-		this.canvasCount = 0;
-		this.textureCount = 0;
+	evictOlderThan(maxAgeFrames: number): void {
+		for (const [key, entry] of this.entries.entries()) {
+			if (this.frameCount - entry.lastUsedFrame > maxAgeFrames) {
+				this.entries.delete(key);
+			}
+		}
 	}
 
-	/**
-	 * Get leak counter stats for debugging.
-	 */
-	getStats() {
-		return {
-			cacheSize: this.cache.size,
-			canvasCount: this.canvasCount,
-			textureCount: this.textureCount
-		};
+	clear(): void {
+		this.entries.clear();
 	}
-}
 
-// Global singleton cache for text rasterization
-let globalTextRasterCache: TextRasterCache | null = null;
-
-export function getGlobalTextRasterCache(): TextRasterCache {
-	if (!globalTextRasterCache) {
-		globalTextRasterCache = new TextRasterCache();
+	dispose(): void {
+		this.clear();
 	}
-	return globalTextRasterCache;
-}
-
-export function resetGlobalTextRasterCache() {
-	if (globalTextRasterCache) {
-		globalTextRasterCache.dispose();
-	}
-	globalTextRasterCache = null;
 }

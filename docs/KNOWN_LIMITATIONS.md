@@ -104,3 +104,10 @@ limitations are intentional at this stage:
 - **Mask Tracking**: Automated mask motion tracking is out of scope (manual keyframing supported).
 - **Interchange Export**: Masks cannot be represented in EDL, FCPXML, xmeml, or OTIO interchange formats and are omitted with a warning during interchange export.
 - **Compositor Requirement**: Masks require WebGL2 rendering (`projectNeedsGpu` is true for any clip with masks). Browsers without WebGL2 cannot composite masks.
+
+## Gate O (Text System)
+
+- **Canvas2D & WebGL2 Text Paths**: Text layers render seamlessly in both Canvas2D and WebGL2. Text alone does not force WebGL2, preserving minimal GPU overhead on lower-end devices.
+- **Letter Spacing Support**: `letterSpacing` uses the standard Canvas2D `ctx.letterSpacing` property when supported, and falls back gracefully to manual grapheme layout spacing in older browser engines.
+- **Interchange Export**: Custom text styling, font selections, and animation presets cannot be fully represented in EDL/xmeml and are flattened or omitted with an explicit export notice.
+- **Raster Resolution Cap**: Dynamic text rasterization is capped at 2× composition resolution to balance sharp zoom fidelity against texture memory consumption.

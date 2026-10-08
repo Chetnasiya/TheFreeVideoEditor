@@ -109,7 +109,13 @@ function AssetPreview({ asset, projectId }: { asset: Asset; projectId: ProjectId
 	}
 	return (
 		<div className="asset-kind-icon" aria-hidden="true">
-			{asset.kind === 'video' ? '▻' : asset.kind === 'audio' ? '♫' : '▧'}
+			{asset.kind === 'video'
+				? '▻'
+				: asset.kind === 'audio'
+					? '♫'
+					: asset.kind === 'font'
+						? 'T'
+						: '▧'}
 		</div>
 	);
 }

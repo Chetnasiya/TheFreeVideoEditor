@@ -6,6 +6,7 @@ import type { RendererKind } from '../../services/render';
 import { observePreviewScale } from '../../services/playback/previewLayout';
 import TransformGizmo from './TransformGizmo';
 import MaskOverlay from './MaskOverlay';
+import TextInlineEditor from './TextInlineEditor';
 
 interface PreviewPlayerProps {
 	project: Project | null;
@@ -75,6 +76,11 @@ export default function PreviewPlayer({
 							renderedHeight={renderedHeight}
 						/>
 						<MaskOverlay
+							project={project}
+							renderedWidth={renderedWidth}
+							renderedHeight={renderedHeight}
+						/>
+						<TextInlineEditor
 							project={project}
 							renderedWidth={renderedWidth}
 							renderedHeight={renderedHeight}

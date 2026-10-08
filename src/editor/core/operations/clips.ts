@@ -52,7 +52,11 @@ export function insertClip(project: Project, trackId: TrackId, clip: Clip): Proj
 	if (clip.assetId) {
 		const asset = project.assets[clip.assetId];
 		if (asset && !fitsTrack(asset, track, clip.linkId)) throw new TrackKindMismatchError();
-	} else if (clip.source?.type === 'adjustment' || clip.source?.type === 'solid') {
+	} else if (
+		clip.source?.type === 'adjustment' ||
+		clip.source?.type === 'solid' ||
+		clip.source?.type === 'text'
+	) {
 		if (track.kind !== 'video') throw new TrackKindMismatchError();
 	}
 	if (findFreeGap(track, clip.start, clip.duration) === null) throw new NoSpaceError();

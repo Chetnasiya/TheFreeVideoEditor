@@ -106,3 +106,11 @@ Masks are evaluated in layer space before downstream effects and composition:
 - **Premultiplied Alpha & FboPool**: Mask mattes are accumulated into FBOs from `FboPool` and premultiplied with source RGBA:
   $$\text{RGBA}_{\text{out}} = \text{RGBA}_{\text{src}} \times M$$
 - **Parity & Neutral Skip**: When all masks on a clip are disabled or evaluated to identity, mask passes are completely bypassed. Worker export and Canvas2D export paths share identical masking logic.
+
+## Text Pipeline & Rasterization (Gate O)
+
+Text layers are treated as first-class visual clips:
+
+- **Raster Cache**: `TextRasterCache` retains rasterized textures on OffscreenCanvases, re-rasterizing only upon text, style, or quantized resolution change.
+- **Dual Pipeline**: Canvas2D renders text textures directly via `drawImage` with `fit: 'none'`; WebGL2 composites text textures through `layerAffine` and feeds them into masks, effects, and blend modes seamlessly.
+- **Crisp Dynamic Resolution**: Text is rasterized at `composition px × scale` capped at 2× composition size to prevent pixelation on zoom.

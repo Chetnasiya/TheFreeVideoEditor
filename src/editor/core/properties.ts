@@ -172,6 +172,30 @@ export const PROPERTY_DESCRIPTORS: Readonly<Record<string, PropertyDescriptor>> 
 		displayFactor: 1,
 		step: 0.5
 	},
+	'text.letterSpacing': {
+		id: 'text.letterSpacing',
+		label: 'Letter Spacing',
+		shape: 'number',
+		channels: ['Spacing'],
+		defaultValue: 0,
+		min: -50,
+		max: 200,
+		unit: 'px',
+		displayFactor: 1,
+		step: 1
+	},
+	'text.lineHeight': {
+		id: 'text.lineHeight',
+		label: 'Line Height',
+		shape: 'number',
+		channels: ['Height'],
+		defaultValue: 1.2,
+		min: 0.5,
+		max: 5,
+		unit: '',
+		displayFactor: 1,
+		step: 0.1
+	},
 	'text.reveal': {
 		id: 'text.reveal',
 		label: 'Reveal',
@@ -180,9 +204,9 @@ export const PROPERTY_DESCRIPTORS: Readonly<Record<string, PropertyDescriptor>> 
 		defaultValue: 1,
 		min: 0,
 		max: 1,
-		unit: '',
-		displayFactor: 1,
-		step: 0.01
+		unit: '%',
+		displayFactor: 100,
+		step: 1
 	}
 };
 

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Clip, Time } from '../../core';
-import { useEditorStoreApi, useEditorStore } from '../../state/EditorProvider';
+import { TEXT_TEMPLATE_PRESETS, TEXT_ANIMATION_PRESETS } from '../../core/text/presets';
+import { useEditorStoreApi } from '../../state/EditorProvider';
 import { PropertyRow, type ConfirmDisableState } from './Inspector';
+import { BUNDLED_FONTS } from '../../services/render/text/fontLoader';
 
 interface TextSectionProps {
 	clip: Clip;
@@ -12,7 +14,7 @@ interface TextSectionProps {
 	onCancelDisableConfirm: () => void;
 }
 
-export default function TextSection({
+export function TextSection({
 	clip,
 	localTime,
 	fps,
@@ -21,135 +23,248 @@ export default function TextSection({
 	onCancelDisableConfirm
 }: TextSectionProps) {
 	const store = useEditorStoreApi();
-	const [expandedPresets, setExpandedPresets] = useState(false);
+	const textSource = clip.source?.type === 'text' ? clip.source : null;
+	const textStyle = textSource?.style ?? { fontFamily: 'sans-serif', alignment: 'center' };
+	const textBox = textSource?.box;
 
-	if (!clip.source || clip.source.type !== 'text') {
-		return null;
-	}
+	const [fontSearch, setFontSearch] = useState('');
+	const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
-	const textSource = clip.source;
-	const textStyle = textSource.style || { fontFamily: 'sans-serif' };
-	const textBox = textSource.box || { width: 400 };
+	if (!textSource) return null;
 
-	const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+	const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		store.getState().setTextContent(clip.id, e.target.value);
 	};
 
-	const handleFontFamilyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newStyle = { ...textStyle, fontFamily: e.target.value };
-		// Update via clip modification
-		store.getState().mutateProject(
-			'Update text font family',
-			(proj) => ({
-				...proj,
-				tracks: proj.tracks.map((track) => ({
-					...track,
-					clips: track.clips.map((c) =>
-						c.id === clip.id && c.source?.type === 'text'
-							? {
-									...c,
-									source: {
-										...c.source,
-										style: newStyle
-									}
-								}
-							: c
-					)
-				}))
-			}),
-			{ history: 'record' }
-		);
+	const handleTemplateSelect = (templateId: string) => {
+		store.getState().applyTextTemplate(clip.id, templateId);
+	};
+
+	const handleAnimationSelect = (presetId: string) => {
+		store.getState().applyTextAnimation(clip.id, presetId);
+	};
+
+	const handleClearAnimations = () => {
+		store.getState().clearTextAnimations(clip.id);
+	};
+
+	const handleFontSelect = (family: string) => {
+		store.getState().setTextStyle(clip.id, { fontFamily: family });
+		setFontPickerOpen(false);
 	};
 
 	const handleAlignmentChange = (alignment: 'left' | 'center' | 'right') => {
-		const newStyle = { ...textStyle, alignment };
-		store.getState().mutateProject(
-			'Update text alignment',
-			(proj) => ({
-				...proj,
-				tracks: proj.tracks.map((track) => ({
-					...track,
-					clips: track.clips.map((c) =>
-						c.id === clip.id && c.source?.type === 'text'
-							? {
-									...c,
-									source: {
-										...c.source,
-										style: newStyle
-									}
-								}
-							: c
-					)
-				}))
-			}),
-			{ history: 'record' }
-		);
+		store.getState().setTextStyle(clip.id, { alignment });
 	};
 
-	const applyPreset = (presetName: string) => {
-		const presetMap: Record<string, 'fade-in' | 'fade-out' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'pop-in' | 'pop-out' | 'typewriter-in' | 'typewriter-out'> = {
-			'Fade In': 'fade-in',
-			'Fade Out': 'fade-out',
-			'Slide Up': 'slide-up',
-			'Slide Down': 'slide-down',
-			'Slide Left': 'slide-left',
-			'Slide Right': 'slide-right',
-			'Pop In': 'pop-in',
-			'Pop Out': 'pop-out',
-			'Typewriter In': 'typewriter-in',
-			'Typewriter Out': 'typewriter-out'
-		};
-		const preset = presetMap[presetName];
-		if (preset) {
-			store.getState().applyTextAnimationPreset(clip.id, preset);
+	const handleWeightChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+		store.getState().setTextStyle(clip.id, {
+			fontWeight: e.target.value as
+				'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+		});
+	};
+
+	const handleStyleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+		store.getState().setTextStyle(clip.id, {
+			fontStyle: e.target.value as 'normal' | 'italic'
+		});
+	};
+
+	const handleBoxModeChange = (mode: 'auto' | 'fixed') => {
+		if (mode === 'auto') {
+			store.getState().setTextBox(clip.id, { autoSize: true });
+		} else {
+			store.getState().setTextBox(clip.id, { autoSize: false, width: textBox?.width ?? 600 });
 		}
 	};
 
+	const handleBoxWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const width = Math.max(20, Number(e.target.value) || 20);
+		store.getState().setTextBox(clip.id, { width, autoSize: false });
+	};
+
+	const handleVerticalAnchorChange = (anchor: 'top' | 'center' | 'bottom') => {
+		store.getState().setTextBox(clip.id, { verticalAnchor: anchor });
+	};
+
+	const filteredFonts = BUNDLED_FONTS.filter(
+		(f) =>
+			f.displayName.toLowerCase().includes(fontSearch.toLowerCase()) ||
+			f.family.toLowerCase().includes(fontSearch.toLowerCase())
+	);
+
 	return (
-		<div className="properties-section">
-			<h3>Text</h3>
+		<div className="inspector-section-content">
+			{/* Template Presets Picker */}
+			<div className="property-row">
+				<label className="property-label">Template</label>
+				<select
+					className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+					onChange={(e) => {
+						if (e.target.value) handleTemplateSelect(e.target.value);
+					}}
+					defaultValue=""
+					aria-label="Apply text template preset"
+				>
+					<option value="" disabled>
+						Apply Style Template…
+					</option>
+					{TEXT_TEMPLATE_PRESETS.map((t) => (
+						<option key={t.id} value={t.id}>
+							{t.name}
+						</option>
+					))}
+				</select>
+			</div>
 
-			<div className="form-group">
-				<label>Content</label>
+			{/* Animation Presets */}
+			<div className="property-row">
+				<label className="property-label">Animation</label>
+				<div className="flex w-full gap-1">
+					<select
+						className="flex-1 rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						onChange={(e) => {
+							if (e.target.value) handleAnimationSelect(e.target.value);
+						}}
+						defaultValue=""
+						aria-label="Apply text animation preset"
+					>
+						<option value="" disabled>
+							Apply Animation…
+						</option>
+						{TEXT_ANIMATION_PRESETS.map((a) => (
+							<option key={a.id} value={a.id}>
+								{a.name} ({a.kind})
+							</option>
+						))}
+					</select>
+					<button
+						type="button"
+						className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)] hover:bg-[var(--color-hairline)]"
+						onClick={handleClearAnimations}
+						title="Clear all animation keyframes on this text clip"
+					>
+						Clear
+					</button>
+				</div>
+			</div>
+
+			{/* Text Content */}
+			<div className="property-row">
+				<label className="property-label" htmlFor="text-content-input">
+					Content
+				</label>
 				<textarea
-					value={textSource.text || ''}
-					onChange={handleTextChange}
-					placeholder="Enter text..."
+					id="text-content-input"
+					className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] p-2 font-mono text-xs text-[var(--color-ink)] focus:border-[var(--color-link)] focus:outline-none"
 					rows={3}
-					style={{ width: '100%', fontFamily: 'monospace', fontSize: '12px' }}
+					value={textSource.text}
+					onChange={handleContentChange}
+					placeholder="Enter text..."
 				/>
 			</div>
 
-			<div className="form-group">
-				<label>Font Family</label>
-				<input
-					type="text"
-					value={textStyle.fontFamily || 'sans-serif'}
-					onChange={handleFontFamilyChange}
-					placeholder="e.g., Arial, sans-serif"
-				/>
+			{/* Font Family Picker */}
+			<div className="property-row">
+				<label className="property-label">Font Family</label>
+				<div className="relative w-full">
+					<button
+						type="button"
+						className="flex w-full items-center justify-between rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						onClick={() => setFontPickerOpen(!fontPickerOpen)}
+						aria-label="Select font family"
+					>
+						<span>{textStyle.fontFamily || 'sans-serif'}</span>
+						<span aria-hidden="true">▾</span>
+					</button>
+
+					{fontPickerOpen && (
+						<div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-y-auto rounded border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] p-1 shadow-lg">
+							<input
+								type="text"
+								className="mb-1 w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)] focus:outline-none"
+								placeholder="Search fonts..."
+								value={fontSearch}
+								onChange={(e) => setFontSearch(e.target.value)}
+								autoFocus
+							/>
+							<div className="flex flex-col gap-0.5">
+								<button
+									type="button"
+									className="rounded px-2 py-1 text-left text-xs hover:bg-[var(--color-hairline)]"
+									onClick={() => handleFontSelect('sans-serif')}
+								>
+									System Sans-Serif
+								</button>
+								<button
+									type="button"
+									className="rounded px-2 py-1 text-left text-xs hover:bg-[var(--color-hairline)]"
+									onClick={() => handleFontSelect('monospace')}
+								>
+									System Monospace
+								</button>
+								{filteredFonts.map((font) => (
+									<button
+										key={font.family}
+										type="button"
+										className="flex items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-[var(--color-hairline)]"
+										onClick={() => handleFontSelect(font.family)}
+									>
+										<span style={{ fontFamily: font.family }}>{font.displayName}</span>
+										<span className="text-[10px] text-[var(--color-mute)]">{font.category}</span>
+									</button>
+								))}
+							</div>
+						</div>
+					)}
+				</div>
 			</div>
 
-			<div className="form-group">
-				<label>Alignment</label>
-				<div style={{ display: 'flex', gap: '8px' }}>
+			{/* Font Weight & Style */}
+			<div className="flex gap-2">
+				<div className="flex-1">
+					<label className="text-[11px] text-[var(--color-text-muted)]">Weight</label>
+					<select
+						className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						value={textStyle.fontWeight || 'normal'}
+						onChange={handleWeightChange}
+					>
+						<option value="normal">Normal (400)</option>
+						<option value="bold">Bold (700)</option>
+						<option value="300">Light (300)</option>
+						<option value="500">Medium (500)</option>
+						<option value="600">Semi-Bold (600)</option>
+						<option value="800">Extra-Bold (800)</option>
+						<option value="900">Black (900)</option>
+					</select>
+				</div>
+				<div className="flex-1">
+					<label className="text-[11px] text-[var(--color-text-muted)]">Style</label>
+					<select
+						className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						value={textStyle.fontStyle || 'normal'}
+						onChange={handleStyleChange}
+					>
+						<option value="normal">Normal</option>
+						<option value="italic">Italic</option>
+					</select>
+				</div>
+			</div>
+
+			{/* Alignment */}
+			<div className="property-row">
+				<label className="property-label">Alignment</label>
+				<div className="flex gap-1">
 					{(['left', 'center', 'right'] as const).map((align) => (
 						<button
 							key={align}
+							type="button"
+							className={`flex-1 rounded px-2 py-1 text-xs capitalize ${
+								(textStyle.alignment || 'center') === align
+									? 'bg-[var(--color-link)] text-white'
+									: 'border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] text-[var(--color-ink)]'
+							}`}
 							onClick={() => handleAlignmentChange(align)}
-							style={{
-								flex: 1,
-								padding: '6px',
-								backgroundColor:
-									textStyle.alignment === align
-										? 'var(--accent-color)'
-										: 'var(--bg-secondary)',
-								border: 'none',
-								borderRadius: '4px',
-								cursor: 'pointer',
-								color: 'inherit',
-								textTransform: 'capitalize'
-							}}
 						>
 							{align}
 						</button>
@@ -157,88 +272,146 @@ export default function TextSection({
 				</div>
 			</div>
 
-			<div className="form-group">
-				<label>
-					<input
-						type="checkbox"
-						checked={expandedPresets}
-						onChange={(e) => setExpandedPresets(e.target.checked)}
-					/>
-					Animation Presets
-				</label>
-				{expandedPresets && (
-					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '8px' }}>
-						{[
-							'Fade In',
-							'Fade Out',
-							'Slide Up',
-							'Slide Down',
-							'Slide Left',
-							'Slide Right',
-							'Pop In',
-							'Pop Out',
-							'Typewriter In',
-							'Typewriter Out'
-						].map((preset) => (
-							<button
-								key={preset}
-								onClick={() => applyPreset(preset)}
-								style={{
-									padding: '6px 12px',
-									backgroundColor: 'var(--bg-secondary)',
-									border: '1px solid var(--border-color)',
-									borderRadius: '4px',
-									cursor: 'pointer',
-									color: 'inherit',
-									fontSize: '12px'
-								}}
-							>
-								{preset}
-							</button>
-						))}
-					</div>
-				)}
+			{/* Box Sizing (Auto / Fixed Width) */}
+			<div className="property-row">
+				<label className="property-label">Box Mode</label>
+				<div className="flex gap-1">
+					<button
+						type="button"
+						className={`flex-1 rounded px-2 py-1 text-xs ${
+							textBox?.autoSize !== false
+								? 'bg-[var(--color-link)] text-white'
+								: 'border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] text-[var(--color-ink)]'
+						}`}
+						onClick={() => handleBoxModeChange('auto')}
+					>
+						Auto Size
+					</button>
+					<button
+						type="button"
+						className={`flex-1 rounded px-2 py-1 text-xs ${
+							textBox?.autoSize === false
+								? 'bg-[var(--color-link)] text-white'
+								: 'border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] text-[var(--color-ink)]'
+						}`}
+						onClick={() => handleBoxModeChange('fixed')}
+					>
+						Fixed Width
+					</button>
+				</div>
 			</div>
 
-			<PropertyRow
-				clip={clip}
-				propertyId="text.fontSize"
-				localTime={localTime}
-				fps={fps}
-				confirmDisable={confirmDisable}
-				onStartDisableConfirm={onStartDisableConfirm}
-				onCancelDisableConfirm={onCancelDisableConfirm}
-			/>
+			{textBox?.autoSize === false && (
+				<div className="property-row">
+					<label className="property-label">Width (px)</label>
+					<input
+						type="number"
+						min="50"
+						max="3840"
+						className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						value={textBox?.width ?? 600}
+						onChange={handleBoxWidthChange}
+					/>
+				</div>
+			)}
 
-			<PropertyRow
-				clip={clip}
-				propertyId="text.fillColor"
-				localTime={localTime}
-				fps={fps}
-				confirmDisable={confirmDisable}
-				onStartDisableConfirm={onStartDisableConfirm}
-				onCancelDisableConfirm={onCancelDisableConfirm}
-			/>
+			{/* Vertical Anchor */}
+			<div className="property-row">
+				<label className="property-label">Vertical Anchor</label>
+				<div className="flex gap-1">
+					{(['top', 'center', 'bottom'] as const).map((anchor) => (
+						<button
+							key={anchor}
+							type="button"
+							className={`flex-1 rounded px-2 py-1 text-xs capitalize ${
+								(textBox?.verticalAnchor || 'center') === anchor
+									? 'bg-[var(--color-link)] text-white'
+									: 'border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] text-[var(--color-ink)]'
+							}`}
+							onClick={() => handleVerticalAnchorChange(anchor)}
+						>
+							{anchor}
+						</button>
+					))}
+				</div>
+			</div>
 
-			<PropertyRow
-				clip={clip}
-				propertyId="text.strokeWidth"
-				localTime={localTime}
-				fps={fps}
-				confirmDisable={confirmDisable}
-				onStartDisableConfirm={onStartDisableConfirm}
-				onCancelDisableConfirm={onCancelDisableConfirm}
-			/>
+			{/* Animatable Text Properties */}
+			<div className="mt-3 flex flex-col gap-1 border-t border-[var(--color-border-subtle)] pt-2">
+				<span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
+					Styling Properties
+				</span>
 
-			<PropertyRow
-				clip={clip}
-				propertyId="text.reveal"
-				localTime={localTime}
-				fps={fps}
-				confirmDisable={confirmDisable}
-				onStartDisableConfirm={onStartDisableConfirm}
-				onCancelDisableConfirm={onCancelDisableConfirm}
-			/>
+				<PropertyRow
+					clip={clip}
+					propertyId="text.fontSize"
+					localTime={localTime}
+					fps={fps}
+					confirmDisable={confirmDisable}
+					onStartDisableConfirm={onStartDisableConfirm}
+					onCancelDisableConfirm={onCancelDisableConfirm}
+				/>
+
+				<PropertyRow
+					clip={clip}
+					propertyId="text.fillColor"
+					localTime={localTime}
+					fps={fps}
+					confirmDisable={confirmDisable}
+					onStartDisableConfirm={onStartDisableConfirm}
+					onCancelDisableConfirm={onCancelDisableConfirm}
+				/>
+
+				<PropertyRow
+					clip={clip}
+					propertyId="text.strokeColor"
+					localTime={localTime}
+					fps={fps}
+					confirmDisable={confirmDisable}
+					onStartDisableConfirm={onStartDisableConfirm}
+					onCancelDisableConfirm={onCancelDisableConfirm}
+				/>
+
+				<PropertyRow
+					clip={clip}
+					propertyId="text.strokeWidth"
+					localTime={localTime}
+					fps={fps}
+					confirmDisable={confirmDisable}
+					onStartDisableConfirm={onStartDisableConfirm}
+					onCancelDisableConfirm={onCancelDisableConfirm}
+				/>
+
+				<PropertyRow
+					clip={clip}
+					propertyId="text.letterSpacing"
+					localTime={localTime}
+					fps={fps}
+					confirmDisable={confirmDisable}
+					onStartDisableConfirm={onStartDisableConfirm}
+					onCancelDisableConfirm={onCancelDisableConfirm}
+				/>
+
+				<PropertyRow
+					clip={clip}
+					propertyId="text.lineHeight"
+					localTime={localTime}
+					fps={fps}
+					confirmDisable={confirmDisable}
+					onStartDisableConfirm={onStartDisableConfirm}
+					onCancelDisableConfirm={onCancelDisableConfirm}
+				/>
+
+				<PropertyRow
+					clip={clip}
+					propertyId="text.reveal"
+					localTime={localTime}
+					fps={fps}
+					confirmDisable={confirmDisable}
+					onStartDisableConfirm={onStartDisableConfirm}
+					onCancelDisableConfirm={onCancelDisableConfirm}
+				/>
+			</div>
 		</div>
 	);
 }

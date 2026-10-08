@@ -98,18 +98,17 @@ Keyframes of a path shape MUST all share the same number of control points. Addi
 
 Evaluated against reference analytical and CPU Canvas2D rasters across all mask geometries and combine modes:
 
-| Test Case | Tolerance | Max Observed Error | Status |
-| :--- | :--- | :--- | :--- |
-| **Rectangle Coverage** | 0.5 px | 0.0 px | PASS |
-| **Ellipse Coverage** | 0.5 px | 0.0 px | PASS |
-| **Path vs Canvas2D Raster** | 1 level (RGB [0–255]) | 0 levels | PASS |
-| **Feather Profile (4 px)** | $\pm 2$ levels | 0 levels | PASS |
-| **Feather Profile (30 px)** | $\pm 2$ levels | 1 level | PASS |
-| **Feather Profile (100 px)** | $\pm 3$ levels | 1 level | PASS |
-| **Expansion Profile** | $\pm 1$ level | 0 levels | PASS |
-| **Mode: Add** | 0 (bit-exact) | 0 | PASS |
-| **Mode: Subtract** | 0 (bit-exact) | 0 | PASS |
-| **Mode: Intersect** | 0 (bit-exact) | 0 | PASS |
-| **Inversion ($1 - m$)** | 0 (bit-exact) | 0 | PASS |
-| **Opacity Modulation** | $\pm 1$ level | 0 levels | PASS |
-
+| Test Case                    | Tolerance             | Max Observed Error | Status |
+| :--------------------------- | :-------------------- | :----------------- | :----- |
+| **Rectangle Coverage**       | 0.5 px                | 0.0 px             | PASS   |
+| **Ellipse Coverage**         | 0.5 px                | 0.0 px             | PASS   |
+| **Path vs Canvas2D Raster**  | 1 level (RGB [0–255]) | 0 levels           | PASS   |
+| **Feather Profile (4 px)**   | $\pm 2$ levels        | 0 levels           | PASS   |
+| **Feather Profile (30 px)**  | $\pm 2$ levels        | 1 level            | PASS   |
+| **Feather Profile (100 px)** | $\pm 3$ levels        | 1 level            | PASS   |
+| **Expansion Profile**        | $\pm 1$ level         | 0 levels           | PASS   |
+| **Mode: Add**                | 0 (bit-exact)         | 0                  | PASS   |
+| **Mode: Subtract**           | 0 (bit-exact)         | 0                  | PASS   |
+| **Mode: Intersect**          | 0 (bit-exact)         | 0                  | PASS   |
+| **Inversion ($1 - m$)**      | 0 (bit-exact)         | 0                  | PASS   |
+| **Opacity Modulation**       | $\pm 1$ level         | 0 levels           | PASS   |

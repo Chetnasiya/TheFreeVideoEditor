@@ -101,6 +101,7 @@ function ConnectedToolbar({
 			onAddTrack={onAddTrack}
 			onAddAdjustment={() => store.getState().addAdjustmentLayer()}
 			onAddSolid={() => store.getState().addSolidLayer()}
+			onAddText={() => store.getState().addTextClip()}
 		/>
 	);
 }

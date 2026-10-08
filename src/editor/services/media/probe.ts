@@ -177,6 +177,27 @@ async function probeWithBrowser(
 	const url = URL.createObjectURL(file);
 	try {
 		if (options.signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
+		if (kind === 'font') {
+			const familyName = file.name.replace(/\.[^/.]+$/, '');
+			try {
+				if (typeof FontFace !== 'undefined') {
+					const face = new FontFace(familyName, `url(${url})`);
+					await face.load();
+					if (typeof document !== 'undefined' && document.fonts) {
+						document.fonts.add(face);
+					}
+				}
+			} catch {
+				// font loading failed or not supported in current environment
+			}
+			return {
+				kind,
+				duration: 0,
+				hasAudio: false,
+				audioChecked: true
+			};
+		}
+
 		if (kind === 'image') {
 			const image = new Image();
 			const loaded = waitForEvent(image, ['load'], options.signal, options.timeoutMs);

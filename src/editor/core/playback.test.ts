@@ -137,6 +137,45 @@ describe('resolveFrame', () => {
 		expect(resolveFrame(audible, 1_000_000).audioSources).toEqual([]);
 	});
 
+	it('resolves text clips into ActiveLayer of kind "text" with full textData', () => {
+		const textClip: Clip = {
+			id: 'text-1' as Clip['id'],
+			start: 0,
+			duration: 2_000_000,
+			sourceIn: 0,
+			sourceOut: 2_000_000,
+			speed: 1,
+			volume: 0,
+			source: {
+				type: 'text',
+				text: 'Sample Headline',
+				style: { fontFamily: 'Montserrat', alignment: 'center' },
+				box: { autoSize: true, verticalAnchor: 'center' }
+			},
+			properties: {
+				'text.fontSize': { value: 72 },
+				'text.fillColor': { value: [1, 0.8, 0, 1] },
+				'text.strokeColor': { value: [0, 0, 0, 1] },
+				'text.strokeWidth': { value: 2 },
+				'text.reveal': { value: 1 }
+			}
+		};
+		const project = projectWith([makeTrack('video-track', 'video', [textClip])], []);
+
+		const resolved = resolveFrame(project, 500_000);
+		expect(resolved.videoLayers).toHaveLength(1);
+		const layer = resolved.videoLayers[0]!;
+		expect(layer.kind).toBe('text');
+		expect(layer.clipId).toBe('text-1');
+		expect(layer.fit).toBe('none');
+		expect(layer.textData).toBeDefined();
+		expect(layer.textData?.text).toBe('Sample Headline');
+		expect(layer.textData?.fontSize).toBe(72);
+		expect(layer.textData?.fillColor).toEqual({ r: 1, g: 0.8, b: 0, a: 1 });
+		expect(layer.textData?.strokeWidth).toBe(2);
+		expect(layer.textData?.style.fontFamily).toBe('Montserrat');
+	});
+
 	it('reports boundaries in the requested direction', () => {
 		const asset = makeAsset('video-a', 'video');
 		const project = projectWith(

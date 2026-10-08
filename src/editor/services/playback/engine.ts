@@ -13,7 +13,8 @@ import {
 import { extractCanvasScopeFrame, type ScopeFrameData } from '../render/passes/scopes';
 import { createPlaybackClock, type PlaybackRate } from './clock';
 import { MediaPool } from './mediaPool';
-import { TextFrameProvider } from './textFrameProvider';
+import { TextRasterCache } from '../render/text/cache';
+import { ensureFontLoaded } from '../render/text/fontLoader';
 
 export interface PlaybackSnapshot {
 	time: Time;
@@ -101,6 +102,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	private loadingTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly listeners = new Set<(snapshot: PlaybackSnapshot) => void>();
 	private readonly lastGoodFrames: LastGoodFrames = new Map();
+	private readonly textCache = new TextRasterCache();
 	private readonly runtimeMissing = new Set<AssetId>();
 	private readonly stalledClips = new Set<ClipId>();
 	private readonly clockUnsubscribe: () => void;
@@ -111,7 +113,6 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	private writingPlayhead = false;
 	private disposed = false;
 	private snapshotValue: PlaybackSnapshot;
-	private textFrameProvider: TextFrameProvider;
 	onPoolFrame = (): void => this.requestRender();
 	onPoolMissing = (assetId: AssetId): void => this.markMissing(assetId);
 	onPoolError = (error: Error): void => this.reportError(error);
@@ -145,7 +146,6 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		private readonly audio: AudioEngine
 	) {
 		this.project = project;
-		this.textFrameProvider = new TextFrameProvider(project);
 		this.snapshotValue = {
 			time: clock.time,
 			duration: timelineDuration(project),
@@ -260,7 +260,6 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		}
 		const previousProject = this.project;
 		this.project = project;
-		this.textFrameProvider = new TextFrameProvider(project);
 		this.stalledClips.clear();
 		this.resumeAfterStall = false;
 		this.pool.setProject(project);
@@ -431,12 +430,12 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		this.clock.dispose();
 		if (this.loadingTimer !== null) clearTimeout(this.loadingTimer);
 		this.loadingTimer = null;
-		this.textFrameProvider.dispose();
 		const audioDispose = this.audio.dispose();
 		this.pool.dispose();
 		void audioDispose.catch((error: unknown) => this.reportError(error));
 		this.listeners.clear();
 		this.lastGoodFrames.clear();
+		this.textCache.dispose();
 	}
 
 	private get audioContextState(): AudioContextState | 'uninitialized' {
@@ -497,10 +496,26 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			{ width: this.project.settings.width, height: this.project.settings.height },
 			layers,
 			(layer: ActiveLayer): FrameSource | null => {
-				// Try text frame provider first
-				const textSource = this.textFrameProvider.getFrameSource(layer, this.clock.time);
-				if (textSource) return textSource;
-				// Fall back to media pool for asset-based layers
+				if (layer.kind === 'text' && layer.textData) {
+					const data = layer.textData;
+					if (data.style.fontFamily) {
+						void ensureFontLoaded(data.style.fontFamily);
+					}
+					const scale = Math.max(layer.transform?.scaleX ?? 1, layer.transform?.scaleY ?? 1);
+					return this.textCache.get({
+						text: data.text,
+						style: data.style,
+						box: data.box,
+						fontSize: data.fontSize,
+						fillColor: data.fillColor,
+						strokeColor: data.strokeColor,
+						strokeWidth: data.strokeWidth,
+						letterSpacing: data.letterSpacing,
+						lineHeight: data.lineHeight,
+						reveal: data.reveal,
+						scale
+					});
+				}
 				const source = this.pool.getFrameSource(layer, this.clock.playing, this.clock.rate);
 				if (!source) loading = true;
 				return source;

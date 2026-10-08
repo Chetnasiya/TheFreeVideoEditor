@@ -19,7 +19,11 @@ const EXTENSION_KIND: Record<string, MediaKind> = {
 	jpg: 'image',
 	jpeg: 'image',
 	webp: 'image',
-	gif: 'image'
+	gif: 'image',
+	ttf: 'font',
+	otf: 'font',
+	woff: 'font',
+	woff2: 'font'
 };
 
 export const ACCEPTED_TYPES = [
@@ -38,7 +42,11 @@ export const ACCEPTED_TYPES = [
 	'.jpg',
 	'.jpeg',
 	'.webp',
-	'.gif'
+	'.gif',
+	'.ttf',
+	'.otf',
+	'.woff',
+	'.woff2'
 ] as const;
 
 export function classifyMime(mime: string, filename: string): MediaKind | null {

@@ -17,215 +17,225 @@ export interface LayoutResult {
 export type MeasureFunction = (text: string, font: string) => number;
 
 /**
- * Pure text layout engine for text clips.
- * Handles word wrapping, alignment, line height, and grapheme-aware splitting.
- *
- * @param text - The text content
- * @param style - TextStyle configuration (fontFamily, alignment, lineHeight, letterSpacing)
- * @param box - TextBox configuration (width, autoSize, verticalAnchor, padding)
- * @param measure - Function to measure text width given text and font string
- * @returns Layout result with lines, box dimensions, and baseline
+ * Split text into graphemes using Intl.Segmenter if available, or fallback to Array.from.
+ */
+export function getGraphemes(text: string): string[] {
+	interface SegmenterConstructor {
+		new (
+			locales?: string | string[],
+			options?: { granularity?: string }
+		): {
+			segment(input: string): Iterable<{ segment: string }>;
+		};
+	}
+	const intlAny = Intl as unknown as { Segmenter?: SegmenterConstructor };
+	if (typeof intlAny.Segmenter !== 'undefined') {
+		const segmenter = new intlAny.Segmenter(undefined, { granularity: 'grapheme' });
+		const segments = segmenter.segment(text);
+		const result: string[] = [];
+		for (const segment of segments) {
+			result.push(segment.segment);
+		}
+		return result;
+	}
+	return Array.from(text);
+}
+
+/**
+ * Count the revealed character count based on revealUnit: 'char' | 'word' | 'line'.
+ * Always counted on graphemes so emojis and combining marks are preserved.
+ */
+export function revealCount(
+	text: string,
+	unit: 'char' | 'word' | 'line',
+	progress: number
+): number {
+	if (progress <= 0) return 0;
+	if (progress >= 1) return text.length;
+
+	if (unit === 'line') {
+		const lines = text.split('\n');
+		const totalLines = lines.length;
+		if (totalLines <= 1) {
+			const graphemes = getGraphemes(text);
+			return Math.round(graphemes.length * progress);
+		}
+		const revealedLineCount = Math.max(1, Math.ceil(totalLines * progress));
+		const visibleLines = lines.slice(0, revealedLineCount);
+		return visibleLines.join('\n').length;
+	}
+
+	if (unit === 'word') {
+		// Split by word boundaries
+		const wordsWithDelims = text.split(/(\s+)/);
+		const wordsOnly = wordsWithDelims.filter((w) => w.trim().length > 0);
+		if (wordsOnly.length === 0) return text.length;
+		const targetWords = Math.max(1, Math.ceil(wordsOnly.length * progress));
+		let wordsSeen = 0;
+		let charCount = 0;
+		for (const part of wordsWithDelims) {
+			if (part.trim().length > 0) {
+				wordsSeen++;
+			}
+			charCount += part.length;
+			if (wordsSeen >= targetWords) break;
+		}
+		return charCount;
+	}
+
+	// Default: 'char'
+	const graphemes = getGraphemes(text);
+	const targetCount = Math.round(graphemes.length * progress);
+	return graphemes.slice(0, targetCount).join('').length;
+}
+
+/**
+ * Pure text layout engine.
+ * Takes (text, style, box, measure), where measure(text, font) -> width is injected.
+ * Returns lines [{ text, x, y, width }], box dimensions, and baseline.
  */
 export function layout(
 	text: string,
 	style: TextStyle,
 	box: TextBox | undefined,
-	measure: MeasureFunction
+	measure: MeasureFunction,
+	fontSize: number = 48
 ): LayoutResult {
 	const fontFamily = style.fontFamily || 'sans-serif';
 	const fontWeight = style.fontWeight || 'normal';
 	const fontStyle = style.fontStyle || 'normal';
-	const fontSize = 16; // Default, will be overridden by property animation
 	const fontString = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
 
-	const alignment = style.alignment || 'left';
-	const lineHeight = style.lineHeight || 1.5;
-	const letterSpacing = style.letterSpacing || 0;
-	const boxWidth = box?.width ?? 300;
-	const autoSize = box?.autoSize ?? false;
+	const alignment = style.alignment || 'center';
+	const lineHeightMultiplier = style.lineHeight ?? 1.2;
+	const lineStep = fontSize * lineHeightMultiplier;
+	const letterSpacing = style.letterSpacing ?? 0;
 	const paddingX = box?.paddingX ?? 0;
 	const paddingY = box?.paddingY ?? 0;
-	const verticalAnchor = box?.verticalAnchor ?? 'top';
+	const autoSize = box?.autoSize ?? true;
+	const verticalAnchor = box?.verticalAnchor ?? 'center';
 
-	const availableWidth = Math.max(1, boxWidth - 2 * paddingX);
-	const lines: LayoutLine[] = [];
+	const fixedWidth = box?.width;
+	const maxWidth =
+		fixedWidth !== undefined && !autoSize ? Math.max(1, fixedWidth - 2 * paddingX) : Infinity;
 
-	// Split text into lines by explicit newlines first
+	const measureWithSpacing = (str: string): number => {
+		if (str.length === 0) return 0;
+		const raw = measure(str, fontString);
+		const graphemes = getGraphemes(str);
+		const extra = (graphemes.length - 1) * letterSpacing;
+		return Math.max(0, raw + extra);
+	};
+
 	const paragraphs = text.split('\n');
+	const rawLines: string[] = [];
 
-	for (const paragraph of paragraphs) {
-		if (paragraph.length === 0) {
-			// Empty line
-			lines.push({
-				text: '',
-				x: paddingX,
-				y: lines.length > 0 ? lines[lines.length - 1]!.y + fontSize * lineHeight : paddingY,
-				width: 0
-			});
+	for (const para of paragraphs) {
+		if (para.length === 0) {
+			rawLines.push('');
 			continue;
 		}
 
-		// Grapheme-aware word wrapping for each paragraph
-		const wrappedLines = wrapText(paragraph, fontString, availableWidth, measure, letterSpacing);
-		for (const wrappedLine of wrappedLines) {
-			const lineWidth = measure(wrappedLine, fontString);
-			let lineX = paddingX;
+		if (maxWidth === Infinity) {
+			rawLines.push(para);
+			continue;
+		}
 
-			// Apply alignment
-			if (alignment === 'center') {
-				lineX = paddingX + (availableWidth - lineWidth) / 2;
-			} else if (alignment === 'right') {
-				lineX = paddingX + availableWidth - lineWidth;
+		// Wrap words within maxWidth
+		const words = para.split(/(\s+)/);
+		let currentLine = '';
+
+		for (const token of words) {
+			if (token.length === 0) continue;
+			const testLine = currentLine + token;
+			const testWidth = measureWithSpacing(testLine);
+
+			if (testWidth <= maxWidth) {
+				currentLine = testLine;
+			} else {
+				if (currentLine.length > 0) {
+					rawLines.push(currentLine.trimEnd());
+					currentLine = '';
+				}
+
+				// If single word exceeds maxWidth, break by grapheme
+				const tokenWidth = measureWithSpacing(token);
+				if (tokenWidth > maxWidth) {
+					const graphemes = getGraphemes(token);
+					let segment = '';
+					for (const g of graphemes) {
+						if (measureWithSpacing(segment + g) <= maxWidth) {
+							segment += g;
+						} else {
+							if (segment.length > 0) rawLines.push(segment);
+							segment = g;
+						}
+					}
+					currentLine = segment;
+				} else {
+					// Word fits on next line
+					currentLine = token.trimStart();
+				}
 			}
+		}
 
-			lines.push({
-				text: wrappedLine,
-				x: lineX,
-				y: lines.length > 0 ? lines[lines.length - 1]!.y + fontSize * lineHeight : paddingY,
-				width: lineWidth
-			});
+		if (currentLine.length > 0) {
+			rawLines.push(currentLine.trimEnd());
 		}
 	}
 
-	// Calculate box dimensions
-	const contentHeight = lines.length > 0 ? lines[lines.length - 1]!.y - paddingY + fontSize : 0;
-	const finalBoxHeight = autoSize ? contentHeight + 2 * paddingY : (box?.height ?? 200);
-	const finalBoxWidth = autoSize ? Math.max(boxWidth, Math.max(...lines.map(l => l.width)) + 2 * paddingX) : boxWidth;
-
-	// Apply vertical anchor
-	let baselineOffset = 0;
-	if (verticalAnchor === 'center') {
-		baselineOffset = (finalBoxHeight - contentHeight) / 2 - paddingY;
-	} else if (verticalAnchor === 'bottom') {
-		baselineOffset = finalBoxHeight - contentHeight - 2 * paddingY;
-	}
-
-	// Adjust all line positions by vertical anchor
-	const adjustedLines = lines.map(line => ({
-		...line,
-		y: line.y + baselineOffset
+	const measuredLines: { text: string; width: number }[] = rawLines.map((l) => ({
+		text: l,
+		width: measureWithSpacing(l)
 	}));
 
+	const maxLineWidth =
+		measuredLines.length > 0 ? Math.max(...measuredLines.map((l) => l.width)) : 0;
+	const contentWidth = Math.max(1, maxLineWidth);
+	const contentHeight = Math.max(
+		1,
+		measuredLines.length > 0 ? (measuredLines.length - 1) * lineStep + fontSize : fontSize
+	);
+
+	const finalBoxWidth =
+		autoSize || fixedWidth === undefined ? contentWidth + 2 * paddingX : fixedWidth;
+
+	const finalBoxHeight =
+		box?.height !== undefined && !autoSize ? box.height : contentHeight + 2 * paddingY;
+
+	const usableWidth = Math.max(1, finalBoxWidth - 2 * paddingX);
+	const usableHeight = Math.max(1, finalBoxHeight - 2 * paddingY);
+
+	// Compute vertical offset based on verticalAnchor
+	let startY = paddingY;
+	if (verticalAnchor === 'center') {
+		startY = paddingY + (usableHeight - contentHeight) / 2;
+	} else if (verticalAnchor === 'bottom') {
+		startY = paddingY + (usableHeight - contentHeight);
+	}
+
+	const lines: LayoutLine[] = [];
+	for (let i = 0; i < measuredLines.length; i++) {
+		const item = measuredLines[i]!;
+		let lineX = paddingX;
+		if (alignment === 'center') {
+			lineX = paddingX + (usableWidth - item.width) / 2;
+		} else if (alignment === 'right') {
+			lineX = paddingX + (usableWidth - item.width);
+		}
+		const lineY = startY + i * lineStep;
+		lines.push({
+			text: item.text,
+			x: lineX,
+			y: lineY,
+			width: item.width
+		});
+	}
+
 	return {
-		lines: adjustedLines,
-		boxWidth: finalBoxWidth,
-		boxHeight: finalBoxHeight,
-		baseline: fontSize * 0.8 // Approximate baseline offset from top
+		lines,
+		boxWidth: Math.ceil(finalBoxWidth),
+		boxHeight: Math.ceil(finalBoxHeight),
+		baseline: fontSize * 0.8
 	};
-}
-
-/**
- * Wrap text to fit within a maximum width, respecting word boundaries.
- * Uses grapheme segmentation for proper handling of emoji and combining marks.
- */
-function wrapText(
-	text: string,
-	fontString: string,
-	maxWidth: number,
-	measure: MeasureFunction,
-	letterSpacing: number
-): string[] {
-	if (text.length === 0) return [];
-
-	const result: string[] = [];
-	let currentLine = '';
-
-	// Split by spaces to get words
-	const words = text.split(/(\s+)/);
-
-	for (const word of words) {
-		if (word.length === 0) continue;
-
-		// Check if this would fit on current line
-		const testLine = currentLine + word;
-		const testWidth = measure(testLine, fontString) + (testLine.length - 1) * letterSpacing;
-
-		if (testWidth <= maxWidth) {
-			currentLine = testLine;
-		} else {
-			// Word doesn't fit
-			if (currentLine.length > 0) {
-				result.push(currentLine);
-				currentLine = '';
-			}
-
-			// If word itself is longer than max width, we need to break it
-			if (measure(word, fontString) + (word.length - 1) * letterSpacing > maxWidth) {
-				const brokenWords = breakLongWord(word, fontString, maxWidth, measure, letterSpacing);
-				for (let i = 0; i < brokenWords.length - 1; i++) {
-					result.push(brokenWords[i]!);
-				}
-				currentLine = brokenWords[brokenWords.length - 1] || '';
-			} else {
-				currentLine = word;
-			}
-		}
-	}
-
-	if (currentLine.length > 0) {
-		result.push(currentLine);
-	}
-
-	return result;
-}
-
-/**
- * Break a long word by adding characters one at a time until it exceeds max width.
- */
-function breakLongWord(
-	word: string,
-	fontString: string,
-	maxWidth: number,
-	measure: MeasureFunction,
-	letterSpacing: number
-): string[] {
-	const result: string[] = [];
-	let current = '';
-
-	for (const char of word) {
-		const test = current + char;
-		const width = measure(test, fontString) + Math.max(0, (test.length - 1) * letterSpacing);
-
-		if (width <= maxWidth) {
-			current = test;
-		} else {
-			if (current.length > 0) {
-				result.push(current);
-			}
-			current = char;
-		}
-	}
-
-	if (current.length > 0) {
-		result.push(current);
-	}
-
-	return result.length > 0 ? result : [word];
-}
-
-/**
- * Count the number of graphemes (visible characters) to reveal.
- * Supports reveal by character, word, or line.
- */
-export function revealCount(text: string, unit: 'char' | 'word' | 'line', progress: number): number {
-	if (progress <= 0) return 0;
-	if (progress >= 1) return text.length;
-
-	if (unit === 'char') {
-		// Simple character count (works for basic ASCII, Intl.Segmenter would give grapheme count)
-		return Math.ceil(text.length * progress);
-	} else if (unit === 'word') {
-		const words = text.split(/\s+/).filter(w => w.length > 0);
-		if (words.length === 0) return 0;
-		const targetWords = Math.ceil(words.length * progress);
-		const revealedText = words.slice(0, Math.max(1, targetWords)).join(' ');
-		return revealedText.length;
-	} else if (unit === 'line') {
-		const lines = text.split('\n');
-		const targetLines = Math.ceil(lines.length * progress);
-		const revealedText = lines.slice(0, Math.max(1, targetLines)).join('\n');
-		return revealedText.length;
-	}
-
-	return text.length;
 }

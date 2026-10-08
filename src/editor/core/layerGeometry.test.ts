@@ -55,4 +55,16 @@ describe('layerAffine', () => {
 		expect(applyAffine(affine, 0.5, 0.5)).toEqual({ x: 60, y: 45 });
 		expect(applyAffine(affine, 1, 1)).toEqual({ x: 85, y: 145 });
 	});
+
+	it('supports fit: none without letterboxing or scaling', () => {
+		const affine = layerAffine({ fit: 'none' }, 400, 200, 1920, 1080);
+		// Centers unscaled 400x200 box in 1920x1080 composition
+		// Top-left: (1920 - 400)/2 = 760, (1080 - 200)/2 = 440
+		const topLeft = applyAffine(affine, 0, 0);
+		const bottomRight = applyAffine(affine, 1, 1);
+		expect(topLeft.x).toBeCloseTo(760);
+		expect(topLeft.y).toBeCloseTo(440);
+		expect(bottomRight.x).toBeCloseTo(1160);
+		expect(bottomRight.y).toBeCloseTo(640);
+	});
 });

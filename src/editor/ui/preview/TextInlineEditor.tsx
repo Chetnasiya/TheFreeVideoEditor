@@ -1,65 +1,117 @@
-import { useRef, useEffect, useState } from 'react';
-import type { ClipId } from '../../core/types';
-import { useEditorStoreApi } from '../../state/EditorProvider';
+import { useEffect, useRef, useState } from 'react';
+import type { Project } from '../../core';
+import { readProperty } from '../../core';
+import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 
 interface TextInlineEditorProps {
-	clipId: ClipId;
-	text: string;
-	position: { x: number; y: number; width: number; height: number };
-	onCommit: (text: string) => void;
-	onCancel: () => void;
+	project: Project;
+	renderedWidth: number;
+	renderedHeight: number;
 }
 
-export function TextInlineEditor({ clipId, text, position, onCommit, onCancel }: TextInlineEditorProps) {
+export default function TextInlineEditor({
+	project,
+	renderedWidth,
+	renderedHeight
+}: TextInlineEditorProps) {
+	const store = useEditorStoreApi();
+	const editingClipId = useEditorStore((state) => state.editingTextClipId);
+	const playhead = useEditorStore((state) => state.timeline.playhead);
+
+	const clip = editingClipId
+		? (project.tracks.flatMap((t) => t.clips).find((c) => c.id === editingClipId) ?? null)
+		: null;
+
+	const textSource = clip?.source?.type === 'text' ? clip.source : null;
+	const [textValue, setTextValue] = useState(textSource?.text ?? '');
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	const [value, setValue] = useState(text);
 
 	useEffect(() => {
-		if (textareaRef.current) {
-			textareaRef.current.focus();
-			textareaRef.current.select();
+		if (textSource) {
+			setTextValue(textSource.text);
+			// Auto focus and select all
+			setTimeout(() => {
+				if (textareaRef.current) {
+					textareaRef.current.focus();
+					textareaRef.current.select();
+				}
+			}, 10);
 		}
-	}, []);
+	}, [clip?.id, textSource]);
+
+	if (!clip || !textSource) return null;
+
+	const monitorScale = renderedWidth / Math.max(1, project.settings.width);
+	const localTime = playhead - clip.start;
+	const position = (readProperty(clip, 'position', localTime) as [number, number]) ?? [0, 0];
+	const fontSize =
+		((readProperty(clip, 'text.fontSize', localTime) as number) ?? 48) * monitorScale;
+
+	// Center in preview plus clip position offset
+	const centerX = renderedWidth / 2 + position[0] * monitorScale;
+	const centerY = renderedHeight / 2 + position[1] * monitorScale;
+
+	const handleCommit = () => {
+		if (clip) {
+			store.getState().setTextContent(clip.id, textValue);
+		}
+		store.getState().setEditingTextClipId(null);
+	};
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		if (e.key === 'Escape') {
 			e.preventDefault();
-			onCancel();
-		} else if (e.key === 'Enter' && e.ctrlKey) {
+			e.stopPropagation();
+			store.getState().setEditingTextClipId(null);
+		} else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
 			e.preventDefault();
-			onCommit(value);
+			e.stopPropagation();
+			handleCommit();
 		}
 	};
 
-	const handleBlur = () => {
-		onCommit(value);
-	};
-
 	return (
-		<textarea
-			ref={textareaRef}
-			value={value}
-			onChange={(e) => setValue(e.target.value)}
-			onKeyDown={handleKeyDown}
-			onBlur={handleBlur}
+		<div
+			className="text-inline-editor-backdrop"
 			style={{
 				position: 'absolute',
-				left: `${position.x}px`,
-				top: `${position.y}px`,
-				width: `${position.width}px`,
-				height: `${position.height}px`,
-				padding: '8px',
-				fontSize: '14px',
-				fontFamily: 'monospace',
-				backgroundColor: 'var(--bg-primary)',
-				color: 'var(--text-primary)',
-				border: '2px solid var(--accent-color)',
-				borderRadius: '4px',
-				zIndex: 1000,
-				resize: 'none',
-				boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+				inset: 0,
+				pointerEvents: 'auto',
+				zIndex: 20
 			}}
-			placeholder="Enter text... (Ctrl+Enter to commit, Esc to cancel)"
-		/>
+			onClick={(e) => {
+				if (e.target === e.currentTarget) handleCommit();
+			}}
+		>
+			<textarea
+				ref={textareaRef}
+				value={textValue}
+				onChange={(e) => setTextValue(e.target.value)}
+				onBlur={handleCommit}
+				onKeyDown={handleKeyDown}
+				aria-label="Edit text on canvas"
+				style={{
+					position: 'absolute',
+					left: `${centerX}px`,
+					top: `${centerY}px`,
+					transform: 'translate(-50%, -50%)',
+					minWidth: '200px',
+					maxWidth: '80%',
+					minHeight: '60px',
+					fontSize: `${Math.max(14, fontSize)}px`,
+					fontFamily: textSource.style?.fontFamily || 'sans-serif',
+					fontWeight: textSource.style?.fontWeight || 'normal',
+					textAlign: textSource.style?.alignment || 'center',
+					color: 'var(--color-ink, #ffffff)',
+					backgroundColor: 'rgba(0, 0, 0, 0.75)',
+					border: '1px solid var(--color-link, #0070f3)',
+					borderRadius: '4px',
+					padding: '8px 12px',
+					outline: 'none',
+					resize: 'both',
+					overflow: 'hidden'
+				}}
+			/>
+		</div>
 	);
 }

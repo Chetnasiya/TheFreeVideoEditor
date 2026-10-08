@@ -109,7 +109,7 @@
 
 .timeline-ruler-row {
 	position: sticky;
-	z-index: 0;
+	z-index: 5;
 	top: 0;
 	display: grid;
 	height: 2rem;
@@ -380,6 +380,11 @@
 .timeline-clip.is-solid {
 	border-color: color-mix(in srgb, #3b82f6 60%, var(--color-hairline));
 	background: color-mix(in srgb, #3b82f6 22%, var(--color-canvas-elevated));
+}
+
+.timeline-clip.is-text {
+	border-color: color-mix(in srgb, var(--color-teal) 60%, var(--color-hairline));
+	background: color-mix(in srgb, var(--color-teal) 22%, var(--color-canvas-elevated));
 }
 
 .timeline-clip.is-selected {

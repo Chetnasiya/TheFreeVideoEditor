@@ -1,4 +1,4 @@
-import { layout } from '../../../core/text/layout';
+import { layout, revealCount, type MeasureFunction } from '../../../core/text/layout';
 import type { TextStyle, TextBox } from '../../../core/types';
 
 export interface TextRasterConfig {
@@ -9,6 +9,10 @@ export interface TextRasterConfig {
 	fillColor: { r: number; g: number; b: number; a: number };
 	strokeColor?: { r: number; g: number; b: number; a: number };
 	strokeWidth?: number;
+	letterSpacing?: number;
+	lineHeight?: number;
+	reveal?: number;
+	revealUnit?: 'char' | 'word' | 'line';
 	shadowColor?: { r: number; g: number; b: number; a: number };
 	shadowBlur?: number;
 	shadowOffsetX?: number;
@@ -20,166 +24,230 @@ export interface TextRasterConfig {
 }
 
 /**
- * Rasterize text to an OffscreenCanvas.
- * Output is premultiplied RGBA suitable for compositing.
+ * Checks whether the current environment supports ctx.letterSpacing.
  */
-export function rasterizeText(config: TextRasterConfig): OffscreenCanvas {
-	const canvas = new OffscreenCanvas(1024, 512);
-	const ctx = canvas.getContext('2d');
-	if (!ctx) throw new Error('Failed to get 2D context from OffscreenCanvas');
+let supportsCanvasLetterSpacing: boolean | null = null;
+export function hasCanvasLetterSpacing(): boolean {
+	if (supportsCanvasLetterSpacing !== null) return supportsCanvasLetterSpacing;
+	if (typeof OffscreenCanvas !== 'undefined') {
+		try {
+			const c = new OffscreenCanvas(1, 1);
+			const ctx = c.getContext('2d');
+			supportsCanvasLetterSpacing = Boolean(ctx && 'letterSpacing' in ctx);
+			return supportsCanvasLetterSpacing;
+		} catch {
+			// ignore
+		}
+	}
+	if (typeof document !== 'undefined') {
+		const c = document.createElement('canvas');
+		const ctx = c.getContext('2d');
+		supportsCanvasLetterSpacing = Boolean(ctx && 'letterSpacing' in ctx);
+		return supportsCanvasLetterSpacing;
+	}
+	supportsCanvasLetterSpacing = false;
+	return false;
+}
 
-	// Clear with transparent
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
+export function getTextDimensions(
+	text: string,
+	style: TextStyle,
+	box: TextBox | undefined,
+	fontSize: number
+): { width: number; height: number } {
+	const fontFamily = style.fontFamily || 'sans-serif';
+	const fontWeight = style.fontWeight || 'normal';
+	const fontStyle = style.fontStyle || 'normal';
+	const fontString = `${fontStyle} ${fontWeight} ${Math.round(fontSize)}px ${fontFamily}`;
 
-	const fontFamily = config.style.fontFamily || 'sans-serif';
-	const fontWeight = config.style.fontWeight || 'normal';
-	const fontStyle = config.style.fontStyle || 'normal';
-	const fontSize = config.fontSize || 48;
-	const fontString = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+	let measureCanvas: OffscreenCanvas | HTMLCanvasElement;
+	if (typeof OffscreenCanvas !== 'undefined') {
+		measureCanvas = new OffscreenCanvas(10, 10);
+	} else if (typeof document !== 'undefined') {
+		measureCanvas = document.createElement('canvas');
+		measureCanvas.width = 10;
+		measureCanvas.height = 10;
+	} else {
+		// Fallback
+		return { width: 300, height: 100 };
+	}
+	const mCtx = measureCanvas.getContext('2d') as
+		CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+	if (!mCtx) return { width: 300, height: 100 };
+	mCtx.font = fontString;
 
-	// Measure function for layout
-	const measure = (text: string): number => {
-		ctx.font = fontString;
-		return ctx.measureText(text).width;
+	const measure: MeasureFunction = (str: string) => {
+		mCtx.font = fontString;
+		return mCtx.measureText(str).width;
 	};
 
-	// Compute layout
-	const layoutResult = layout(config.text, config.style, config.box, measure);
+	const res = layout(text, style, box, measure, fontSize);
+	return { width: Math.max(10, res.boxWidth), height: Math.max(10, res.boxHeight) };
+}
 
-	// Calculate total bounding box
-	let minX = Infinity;
-	let minY = Infinity;
-	let maxX = -Infinity;
-	let maxY = -Infinity;
+/**
+ * Rasterize text to an OffscreenCanvas (or HTMLCanvasElement).
+ * Draw order: background box -> shadow -> stroke (round joins, behind fill) -> fill.
+ * Works in export Web Worker and on main thread.
+ */
+export function rasterizeText(
+	config: TextRasterConfig,
+	maxDim: number = 4096
+): OffscreenCanvas | HTMLCanvasElement {
+	const text = config.text ?? '';
+	const style = config.style ?? { fontFamily: 'sans-serif' };
+	const fontSize = Math.max(1, config.fontSize || 48);
+	const scale = Math.min(2, Math.max(0.1, config.scale || 1));
+	const effectiveFontSize = fontSize * scale;
 
-	for (const line of layoutResult.lines) {
-		minX = Math.min(minX, line.x);
-		minY = Math.min(minY, line.y);
-		maxX = Math.max(maxX, line.x + line.width);
-		maxY = Math.max(maxY, line.y + fontSize);
+	const fontFamily = style.fontFamily || 'sans-serif';
+	const fontWeight = style.fontWeight || 'normal';
+	const fontStyle = style.fontStyle || 'normal';
+	const fontString = `${fontStyle} ${fontWeight} ${Math.round(effectiveFontSize)}px ${fontFamily}`;
+
+	// Helper measurement canvas
+	let measureCanvas: OffscreenCanvas | HTMLCanvasElement;
+	if (typeof OffscreenCanvas !== 'undefined') {
+		measureCanvas = new OffscreenCanvas(10, 10);
+	} else {
+		measureCanvas = document.createElement('canvas');
+		measureCanvas.width = 10;
+		measureCanvas.height = 10;
+	}
+	const mCtx = measureCanvas.getContext('2d') as
+		CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+	mCtx.font = fontString;
+
+	const measure: MeasureFunction = (str: string) => {
+		mCtx.font = fontString;
+		return mCtx.measureText(str).width;
+	};
+
+	// 1. Layout full text to determine stable layout box dimensions
+	const fullLayout = layout(
+		text,
+		{ ...style, letterSpacing: (style.letterSpacing ?? config.letterSpacing ?? 0) * scale },
+		config.box
+			? {
+					...config.box,
+					width: config.box.width !== undefined ? config.box.width * scale : undefined,
+					height: config.box.height !== undefined ? config.box.height * scale : undefined,
+					paddingX: (config.box.paddingX ?? 0) * scale,
+					paddingY: (config.box.paddingY ?? 0) * scale
+				}
+			: undefined,
+		measure,
+		effectiveFontSize
+	);
+
+	const boxW = Math.min(maxDim, Math.max(2, fullLayout.boxWidth));
+	const boxH = Math.min(maxDim, Math.max(2, fullLayout.boxHeight));
+
+	let canvas: OffscreenCanvas | HTMLCanvasElement;
+	if (typeof OffscreenCanvas !== 'undefined') {
+		canvas = new OffscreenCanvas(boxW, boxH);
+	} else {
+		canvas = document.createElement('canvas');
+		canvas.width = boxW;
+		canvas.height = boxH;
 	}
 
-	if (!isFinite(minX)) {
-		// No text, return empty canvas
-		return canvas;
-	}
+	const ctx = canvas.getContext('2d') as
+		CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+	if (!ctx) throw new Error('Could not get 2D context for text rasterization.');
 
-	const padding = config.backgroundBoxPadding || 0;
-	const boxX = minX - padding;
-	const boxY = minY - padding;
-	const boxWidth = maxX - minX + 2 * padding;
-	const boxHeight = maxY - minY + 2 * padding;
+	ctx.clearRect(0, 0, boxW, boxH);
 
-	// Resize canvas to fit content
-	canvas.width = Math.ceil(boxWidth + 10);
-	canvas.height = Math.ceil(boxHeight + 10);
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-	const offsetX = 5 - boxX;
-	const offsetY = 5 - boxY;
-
-	// Draw background box if specified
-	if (config.backgroundBoxColor) {
-		const bgColor = config.backgroundBoxColor;
-		ctx.fillStyle = `rgba(${Math.round(bgColor.r * 255)}, ${Math.round(bgColor.g * 255)}, ${Math.round(bgColor.b * 255)}, ${bgColor.a})`;
-		ctx.globalAlpha = bgColor.a;
-		const radius = config.backgroundBoxRadius || 0;
-		if (radius > 0) {
-			roundRect(ctx, offsetX + boxX, offsetY + boxY, boxWidth, boxHeight, radius);
+	// 2. Draw background box if configured
+	if (config.backgroundBoxColor && config.backgroundBoxColor.a > 0) {
+		const bg = config.backgroundBoxColor;
+		ctx.fillStyle = `rgba(${Math.round(bg.r * 255)}, ${Math.round(bg.g * 255)}, ${Math.round(bg.b * 255)}, ${bg.a})`;
+		const radius = (config.backgroundBoxRadius ?? 0) * scale;
+		if (radius > 0 && typeof ctx.roundRect === 'function') {
+			ctx.beginPath();
+			ctx.roundRect(0, 0, boxW, boxH, radius);
 			ctx.fill();
 		} else {
-			ctx.fillRect(offsetX + boxX, offsetY + boxY, boxWidth, boxHeight);
-		}
-		ctx.globalAlpha = 1;
-	}
-
-	// Draw shadow if specified
-	if (config.shadowColor && config.shadowBlur) {
-		const shadowColor = config.shadowColor;
-		ctx.shadowColor = `rgba(${Math.round(shadowColor.r * 255)}, ${Math.round(shadowColor.g * 255)}, ${Math.round(shadowColor.b * 255)}, ${shadowColor.a})`;
-		ctx.shadowBlur = config.shadowBlur;
-		ctx.shadowOffsetX = config.shadowOffsetX || 2;
-		ctx.shadowOffsetY = config.shadowOffsetY || 2;
-
-		// Draw shadow text
-		ctx.font = fontString;
-		const fillColor = config.fillColor;
-		ctx.fillStyle = `rgba(${Math.round(fillColor.r * 255)}, ${Math.round(fillColor.g * 255)}, ${Math.round(fillColor.b * 255)}, ${fillColor.a})`;
-		for (const line of layoutResult.lines) {
-			ctx.fillText(line.text, offsetX + line.x, offsetY + line.y + fontSize);
-		}
-
-		ctx.shadowColor = 'transparent';
-		ctx.shadowBlur = 0;
-		ctx.shadowOffsetX = 0;
-		ctx.shadowOffsetY = 0;
-	}
-
-	// Draw stroke if specified
-	if (config.strokeColor && config.strokeWidth && config.strokeWidth > 0) {
-		const strokeColor = config.strokeColor;
-		ctx.strokeStyle = `rgba(${Math.round(strokeColor.r * 255)}, ${Math.round(strokeColor.g * 255)}, ${Math.round(strokeColor.b * 255)}, ${strokeColor.a})`;
-		ctx.lineWidth = config.strokeWidth;
-		ctx.lineJoin = 'round';
-		ctx.lineCap = 'round';
-
-		ctx.font = fontString;
-		for (const line of layoutResult.lines) {
-			ctx.strokeText(line.text, offsetX + line.x, offsetY + line.y + fontSize);
+			ctx.fillRect(0, 0, boxW, boxH);
 		}
 	}
 
-	// Draw fill text
-	const fillColor = config.fillColor;
-	ctx.fillStyle = `rgba(${Math.round(fillColor.r * 255)}, ${Math.round(fillColor.g * 255)}, ${Math.round(fillColor.b * 255)}, ${fillColor.a})`;
+	// 3. Compute revealed prefix if reveal < 1
+	const revealProgress = config.reveal !== undefined ? Math.max(0, Math.min(1, config.reveal)) : 1;
+	const visibleCharCount = revealCount(text, config.revealUnit ?? 'char', revealProgress);
+
+	// Setup font styling
 	ctx.font = fontString;
 	ctx.textBaseline = 'top';
 
-	// Apply letter spacing if supported
-	if ('letterSpacing' in ctx) {
-		if (config.style.letterSpacing) {
-			(ctx as any).letterSpacing = `${config.style.letterSpacing}px`;
-		}
-	}
+	const strokeWidth = (config.strokeWidth ?? 0) * scale;
+	const strokeColor = config.strokeColor;
+	const hasStroke = Boolean(strokeColor && strokeWidth > 0 && strokeColor.a > 0);
 
-	for (const line of layoutResult.lines) {
-		ctx.fillText(line.text, offsetX + line.x, offsetY + line.y + fontSize);
+	const fillColor = config.fillColor ?? { r: 1, g: 1, b: 1, a: 1 };
+	const fillStyleStr = `rgba(${Math.round(fillColor.r * 255)}, ${Math.round(fillColor.g * 255)}, ${Math.round(fillColor.b * 255)}, ${fillColor.a})`;
+
+	// Walk lines and draw text characters up to visibleCharCount
+	let charsDrawn = 0;
+
+	for (const line of fullLayout.lines) {
+		if (charsDrawn >= visibleCharCount) break;
+
+		const lineChars = Array.from(line.text);
+		const charsToTake = Math.min(lineChars.length, visibleCharCount - charsDrawn);
+		const lineSubstring = lineChars.slice(0, charsToTake).join('');
+		charsDrawn += lineChars.length;
+
+		if (lineSubstring.length === 0) continue;
+
+		// 4. Shadow
+		if (config.shadowColor && (config.shadowBlur || config.shadowOffsetX || config.shadowOffsetY)) {
+			ctx.save();
+			const sColor = config.shadowColor;
+			ctx.shadowColor = `rgba(${Math.round(sColor.r * 255)}, ${Math.round(sColor.g * 255)}, ${Math.round(sColor.b * 255)}, ${sColor.a})`;
+			ctx.shadowBlur = (config.shadowBlur ?? 4) * scale;
+			ctx.shadowOffsetX = (config.shadowOffsetX ?? 2) * scale;
+			ctx.shadowOffsetY = (config.shadowOffsetY ?? 2) * scale;
+			ctx.fillStyle = fillStyleStr;
+			ctx.fillText(lineSubstring, line.x, line.y);
+			ctx.restore();
+		}
+
+		// 5. Stroke (behind fill)
+		if (hasStroke && strokeColor) {
+			ctx.save();
+			ctx.strokeStyle = `rgba(${Math.round(strokeColor.r * 255)}, ${Math.round(strokeColor.g * 255)}, ${Math.round(strokeColor.b * 255)}, ${strokeColor.a})`;
+			ctx.lineWidth = strokeWidth * 2; // doubled since half is covered by fill
+			ctx.lineJoin = 'round';
+			ctx.lineCap = 'round';
+			ctx.strokeText(lineSubstring, line.x, line.y);
+			ctx.restore();
+		}
+
+		// 6. Fill
+		ctx.fillStyle = fillStyleStr;
+		ctx.fillText(lineSubstring, line.x, line.y);
 	}
 
 	return canvas;
 }
 
 /**
- * Helper to draw rounded rectangle.
- */
-function roundRect(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-	const minDim = Math.min(w, h);
-	r = Math.min(r, minDim / 2);
-
-	if (typeof ctx.roundRect === 'function') {
-		(ctx as any).roundRect(x, y, w, h, r);
-	} else {
-		// Fallback for older browsers
-		ctx.beginPath();
-		ctx.moveTo(x + r, y);
-		ctx.lineTo(x + w - r, y);
-		ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-		ctx.lineTo(x + w, y + h - r);
-		ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-		ctx.lineTo(x + r, y + h);
-		ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-		ctx.lineTo(x, y + r);
-		ctx.quadraticCurveTo(x, y, x + r, y);
-		ctx.closePath();
-	}
-}
-
-/**
- * Generate a hash key for text rasterization caching.
+ * Creates a unique cache key for a rasterized text configuration.
  */
 export function hashTextConfig(config: TextRasterConfig): string {
 	const scale = Math.round((config.scale || 1) * 100);
-	const styleKey = `${config.style.fontFamily}|${config.style.fontWeight}|${config.style.fontStyle}`;
-	const colorKey = `${Math.round(config.fillColor.r * 255)},${Math.round(config.fillColor.g * 255)},${Math.round(config.fillColor.b * 255)},${Math.round(config.fillColor.a * 255)}`;
-	return `${styleKey}|${config.fontSize}|${config.text}|${scale}|${colorKey}`;
+	const text = config.text || '';
+	const style = config.style;
+	const styleKey = `${style.fontFamily}|${style.fontWeight || ''}|${style.fontStyle || ''}|${style.alignment || ''}|${style.letterSpacing || 0}`;
+	const boxKey = config.box
+		? `${config.box.width || 0}|${config.box.autoSize !== false}|${config.box.verticalAnchor || ''}`
+		: '';
+	const col = config.fillColor;
+	const colorKey = `${Math.round(col.r * 255)},${Math.round(col.g * 255)},${Math.round(col.b * 255)},${Math.round(col.a * 255)}`;
+	const stroke = config.strokeColor
+		? `${Math.round(config.strokeColor.r * 255)},${Math.round(config.strokeColor.g * 255)},${Math.round(config.strokeColor.b * 255)},${Math.round(config.strokeColor.a * 255)},${config.strokeWidth || 0}`
+		: '0';
+	const reveal = config.reveal !== undefined ? Math.round(config.reveal * 1000) : 1000;
+	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${text}`;
 }

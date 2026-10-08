@@ -25,6 +25,7 @@ import {
 	type Point,
 	type Project
 } from '../../core';
+import { getTextDimensions } from '../../services/render/text/rasterizer';
 
 interface TransformGizmoProps {
 	project: Project;
@@ -84,6 +85,22 @@ export default function TransformGizmo({
 	}, [selectedClip, localTime]);
 
 	const geometry: GizmoGeometry = useMemo(() => {
+		if (selectedClip?.source?.type === 'text') {
+			const fontSize = (readProperty(selectedClip, 'text.fontSize', localTime) as number) ?? 48;
+			const dims = getTextDimensions(
+				selectedClip.source.text,
+				selectedClip.source.style ?? { fontFamily: 'sans-serif' },
+				selectedClip.source.box,
+				fontSize
+			);
+			return {
+				sourceWidth: dims.width,
+				sourceHeight: dims.height,
+				width: project.settings.width,
+				height: project.settings.height,
+				crop
+			};
+		}
 		const asset = selectedClip?.assetId ? project.assets[selectedClip.assetId] : undefined;
 		return {
 			sourceWidth: asset?.width ?? project.settings.width,
@@ -92,7 +109,7 @@ export default function TransformGizmo({
 			height: project.settings.height,
 			crop
 		};
-	}, [selectedClip, project, crop]);
+	}, [selectedClip, project, crop, localTime]);
 
 	const currentState: GizmoState = useMemo(
 		() => ({
@@ -289,6 +306,11 @@ export default function TransformGizmo({
 			onPointerDown={handlePointerDown}
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
+			onDoubleClick={() => {
+				if (selectedClip?.source?.type === 'text') {
+					store.getState().setEditingTextClipId(selectedClip.id);
+				}
+			}}
 			onKeyDown={handleKeyDown}
 			data-testid="transform-gizmo"
 		>

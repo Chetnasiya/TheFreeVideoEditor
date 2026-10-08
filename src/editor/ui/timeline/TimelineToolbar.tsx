@@ -17,6 +17,7 @@ interface TimelineToolbarProps {
 	onAddTrack: (kind: 'video' | 'audio') => void;
 	onAddAdjustment?: () => void;
 	onAddSolid?: () => void;
+	onAddText?: () => void;
 }
 
 export default function TimelineToolbar({
@@ -37,7 +38,8 @@ export default function TimelineToolbar({
 	onFit,
 	onAddTrack,
 	onAddAdjustment,
-	onAddSolid
+	onAddSolid,
+	onAddText
 }: TimelineToolbarProps) {
 	return (
 		<div className="timeline-toolbar-row">
@@ -123,6 +125,16 @@ export default function TimelineToolbar({
 						title="Add solid color layer"
 					>
 						+ Solid Layer
+					</button>
+				)}
+				{onAddText && (
+					<button
+						type="button"
+						className="tool-button"
+						onClick={onAddText}
+						title="Add text layer across sequence"
+					>
+						+ Text
 					</button>
 				)}
 			</div>

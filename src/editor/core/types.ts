@@ -81,7 +81,8 @@ export type BlendMode = 'normal' | 'add' | 'multiply' | 'screen';
 
 export interface TextStyle {
 	fontFamily: string;
-	fontWeight?: 'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
+	fontWeight?:
+		'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
 	fontStyle?: 'normal' | 'italic';
 	alignment?: 'left' | 'center' | 'right';
 	lineHeight?: number;

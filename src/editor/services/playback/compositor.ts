@@ -169,74 +169,21 @@ export function renderFrame(
 			context.restore();
 			continue;
 		}
-
-		if (layer.kind === 'text') {
-			// Text layers use frameProvider to get rasterized canvas
-			const source = frameProvider(layer) ?? lastGoodFrames.get(layer.clipId) ?? null;
-			if (!source) continue;
-			const dimensions = sourceDimensions(source);
-			if (dimensions.width <= 0 || dimensions.height <= 0) continue;
-			lastGoodFrames.set(layer.clipId, source);
-
-			const transform = layer.transform;
-			const blendMode = layer.blendMode ?? 'normal';
-			const [cropLeft, cropTop, cropRight, cropBottom] = layer.crop ?? [0, 0, 0, 0];
-			const cropped = Boolean(layer.crop);
-			const drawRect = {
-				x: cropLeft * dimensions.width,
-				y: cropTop * dimensions.height,
-				width: dimensions.width * (1 - cropLeft - cropRight),
-				height: dimensions.height * (1 - cropTop - cropBottom)
-			};
-			const sourceRect = {
-				x: cropLeft * dimensions.width,
-				y: cropTop * dimensions.height,
-				width: dimensions.width * (1 - cropLeft - cropRight),
-				height: dimensions.height * (1 - cropTop - cropBottom)
-			};
-
-			context.save();
-			context.globalAlpha = transform?.opacity ?? 1;
-			context.globalCompositeOperation = CANVAS_BLEND[blendMode];
-			const anchor = layer.anchor ?? { x: 0, y: 0 };
-			context.translate(
-				size.width / 2 + (transform?.x ?? 0) + anchor.x,
-				size.height / 2 + (transform?.y ?? 0) + anchor.y
-			);
-			context.rotate(((transform?.rotation ?? 0) * Math.PI) / 180);
-			context.scale(transform?.scaleX ?? 1, transform?.scaleY ?? 1);
-
-			if (cropped) {
-				context.drawImage(
-					source,
-					sourceRect.x,
-					sourceRect.y,
-					sourceRect.width,
-					sourceRect.height,
-					drawRect.x - (size.width / 2 + anchor.x),
-					drawRect.y - (size.height / 2 + anchor.y),
-					drawRect.width,
-					drawRect.height
-				);
-			} else {
-				context.drawImage(
-					source,
-					-dimensions.width / 2,
-					-dimensions.height / 2,
-					dimensions.width,
-					dimensions.height
-				);
-			}
-			context.restore();
-			continue;
-		}
-
 		const source = frameProvider(layer) ?? lastGoodFrames.get(layer.clipId) ?? null;
 		if (!source) continue;
 		const dimensions = sourceDimensions(source);
 		if (dimensions.width <= 0 || dimensions.height <= 0) continue;
 		lastGoodFrames.set(layer.clipId, source);
-		const rect = fitRect(dimensions.width, dimensions.height, size.width, size.height);
+		const fit = layer.fit ?? 'contain';
+		const rect =
+			fit === 'none'
+				? {
+						x: (size.width - dimensions.width) / 2,
+						y: (size.height - dimensions.height) / 2,
+						width: dimensions.width,
+						height: dimensions.height
+					}
+				: fitRect(dimensions.width, dimensions.height, size.width, size.height);
 		const transform = layer.transform;
 		const blendMode = layer.blendMode ?? 'normal';
 		const [cropLeft, cropTop, cropRight, cropBottom] = layer.crop ?? [0, 0, 0, 0];

@@ -94,9 +94,24 @@ export interface ActiveLayer {
 	/** Pivot offset from the layer center, in composition pixels. */
 	anchor?: { x: number; y: number };
 	blendMode?: BlendMode;
+	/** Fit mode: contain (default, letterbox) or none (unscaled 1:1, used for text layers). */
+	fit?: 'contain' | 'none';
 	/** Source insets [left, top, right, bottom] as fractions; the visible part keeps its position. */
 	crop?: Crop;
 	solidColor?: { r: number; g: number; b: number; a: number };
+	/** Text content and evaluated styling for text layers */
+	textData?: {
+		text: string;
+		style: import('./types').TextStyle;
+		box?: import('./types').TextBox;
+		fontSize: number;
+		fillColor: { r: number; g: number; b: number; a: number };
+		strokeColor: { r: number; g: number; b: number; a: number };
+		strokeWidth: number;
+		letterSpacing: number;
+		lineHeight: number;
+		reveal: number;
+	};
 	masks?: EvaluatedMask[];
 	effects?: EvaluatedEffect[];
 	/** Transition details when this layer represents a transition blend between two layers */
@@ -191,13 +206,60 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 
 			if (clip.source?.type === 'text') {
 				if (track.kind !== 'video') return null;
+				const style = clip.source.style ?? { fontFamily: 'sans-serif' };
+				const box = clip.source.box;
+				const props = clip.properties;
+				const read = (id: string, fallback: unknown): unknown => {
+					const anim = props?.[id] as AnimatedValue<unknown> | undefined;
+					return anim ? evaluateOr(anim, localTime, fallback) : fallback;
+				};
+
+				const fontSize = finite(read('text.fontSize', 48), 48);
+				const rawFill = read('text.fillColor', [1, 1, 1, 1]);
+				const fillColor =
+					Array.isArray(rawFill) && rawFill.length >= 4
+						? {
+								r: finite(rawFill[0], 1),
+								g: finite(rawFill[1], 1),
+								b: finite(rawFill[2], 1),
+								a: finite(rawFill[3], 1)
+							}
+						: { r: 1, g: 1, b: 1, a: 1 };
+				const rawStroke = read('text.strokeColor', [0, 0, 0, 1]);
+				const strokeColor =
+					Array.isArray(rawStroke) && rawStroke.length >= 4
+						? {
+								r: finite(rawStroke[0], 0),
+								g: finite(rawStroke[1], 0),
+								b: finite(rawStroke[2], 0),
+								a: finite(rawStroke[3], 1)
+							}
+						: { r: 0, g: 0, b: 0, a: 1 };
+				const strokeWidth = finite(read('text.strokeWidth', 0), 0);
+				const letterSpacing = finite(read('text.letterSpacing', style.letterSpacing ?? 0), 0);
+				const lineHeight = finite(read('text.lineHeight', style.lineHeight ?? 1.2), 1.2);
+				const reveal = Math.min(1, Math.max(0, finite(read('text.reveal', 1), 1)));
+
 				return {
 					clipId: clip.id,
 					trackId: track.id,
 					trackOrder,
 					sourceTime: localTime,
 					kind: 'text',
+					fit: 'none',
 					opacity: 1,
+					textData: {
+						text: clip.source.text,
+						style,
+						box,
+						fontSize,
+						fillColor,
+						strokeColor,
+						strokeWidth,
+						letterSpacing,
+						lineHeight,
+						reveal
+					},
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
 					...evaluateLayerProperties(clip, localTime)
@@ -422,6 +484,14 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 						effects: evaluatedEffects,
 						...evaluateLayerProperties(clip, localTime)
 					});
+				}
+				continue;
+			}
+
+			if (clip.source?.type === 'text') {
+				if (track.kind === 'video') {
+					const textLayer = makeClipLayer(clip, time);
+					if (textLayer) videoLayers.push(textLayer);
 				}
 				continue;
 			}

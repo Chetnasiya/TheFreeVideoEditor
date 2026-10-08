@@ -91,9 +91,34 @@ const colorSchema = z.object({
 	a: z.number()
 });
 
+export const textStyleSchema = z.object({
+	fontFamily: z.string().min(1),
+	fontWeight: z
+		.enum(['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'])
+		.optional(),
+	fontStyle: z.enum(['normal', 'italic']).optional(),
+	alignment: z.enum(['left', 'center', 'right']).optional(),
+	lineHeight: z.number().positive().optional(),
+	letterSpacing: z.number().optional()
+});
+
+export const textBoxSchema = z.object({
+	width: z.number().positive().optional(),
+	height: z.number().positive().optional(),
+	autoSize: z.boolean().optional(),
+	verticalAnchor: z.enum(['top', 'center', 'bottom']).optional(),
+	paddingX: z.number().nonnegative().optional(),
+	paddingY: z.number().nonnegative().optional()
+});
+
 export const clipSourceSchema = z.discriminatedUnion('type', [
 	z.object({ type: z.literal('asset') }),
-	z.object({ type: z.literal('text'), text: z.string() }),
+	z.object({
+		type: z.literal('text'),
+		text: z.string(),
+		style: textStyleSchema.optional(),
+		box: textBoxSchema.optional()
+	}),
 	z.object({ type: z.literal('sequence'), sequenceId: z.string().min(1) }),
 	z.object({ type: z.literal('solid'), color: colorSchema }),
 	z.object({ type: z.literal('adjustment') })
@@ -222,7 +247,7 @@ export const projectMasterSchema = z.object({
 
 export const assetSchema = z.object({
 	id: assetIdSchema,
-	kind: z.enum(['video', 'audio', 'image', 'lut']),
+	kind: z.enum(['video', 'audio', 'image', 'lut', 'font']),
 	name: z.string().min(1),
 	mimeType: z.string().min(1),
 	size: z.number().int().nonnegative(),

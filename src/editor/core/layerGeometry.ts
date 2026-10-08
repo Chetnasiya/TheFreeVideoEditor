@@ -7,9 +7,18 @@ export function croppedFitRect(
 	sourceWidth: number,
 	sourceHeight: number,
 	width: number,
-	height: number
+	height: number,
+	fit: 'contain' | 'none' = 'contain'
 ): { x: number; y: number; width: number; height: number } {
-	const fitted = fitRect(sourceWidth, sourceHeight, width, height);
+	const fitted =
+		fit === 'none'
+			? {
+					x: (width - sourceWidth) / 2,
+					y: (height - sourceHeight) / 2,
+					width: sourceWidth,
+					height: sourceHeight
+				}
+			: fitRect(sourceWidth, sourceHeight, width, height);
 	const [left, top, right, bottom] = crop ?? [0, 0, 0, 0];
 	return {
 		x: fitted.x + left * fitted.width,
@@ -35,13 +44,20 @@ export interface Affine2D {
  * its tests; it mirrors the Canvas2D reference path exactly.
  */
 export function layerAffine(
-	layer: Pick<ActiveLayer, 'transform' | 'anchor' | 'crop'>,
+	layer: Pick<ActiveLayer, 'transform' | 'anchor' | 'crop' | 'fit'>,
 	sourceWidth: number,
 	sourceHeight: number,
 	width: number,
 	height: number
 ): Affine2D {
-	const rect = croppedFitRect(layer.crop, sourceWidth, sourceHeight, width, height);
+	const rect = croppedFitRect(
+		layer.crop,
+		sourceWidth,
+		sourceHeight,
+		width,
+		height,
+		layer.fit ?? 'contain'
+	);
 	const transform = layer.transform;
 	const anchor = layer.anchor ?? { x: 0, y: 0 };
 	const radians = ((transform?.rotation ?? 0) * Math.PI) / 180;

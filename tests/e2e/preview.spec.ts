@@ -1,10 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import type { PlaybackDebugStats } from '../../src/editor/services/playback/engine';
+import type { PlaybackDebugStats, PlaybackEngine } from '../../src/editor/services/playback/engine';
 
 declare global {
 	interface Window {
 		__tfvePlaybackTest?: {
 			getStats: () => PlaybackDebugStats;
+			engine?: PlaybackEngine;
 		};
 	}
 }

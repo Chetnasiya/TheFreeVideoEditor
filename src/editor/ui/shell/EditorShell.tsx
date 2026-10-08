@@ -324,6 +324,7 @@ function EditorShell() {
 			'nudge-second-forward': () => nudge(1, true),
 			'add-video-track': () => state().addTimelineTrack('video'),
 			'add-audio-track': () => state().addTimelineTrack('audio'),
+			'new-text-clip': () => state().addTextClip(),
 			undo: () => state().undo(),
 			redo: () => state().redo(),
 			'new-project': () => state().openNewProjectDialog(),
@@ -903,11 +904,11 @@ function EditorShell() {
 										role="menuitem"
 										disabled={!project}
 										onClick={() => {
-											editorStore.getState().addTextLayer();
+											editorStore.getState().addTextClip();
 											setIsEditMenuOpen(false);
 										}}
 									>
-										Add Text...
+										New → Text
 									</button>
 									<button
 										type="button"

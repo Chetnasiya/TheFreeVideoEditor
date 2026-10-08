@@ -27,3 +27,5 @@ export * from './transitions';
 export * from './transitionsRegistry';
 export * from './maskGeometry';
 export * from './masks';
+export * from './text/layout';
+export * from './text/presets';

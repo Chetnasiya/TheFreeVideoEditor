@@ -1,4 +1,4 @@
-import type { Clip, ClipId, Time, TextStyle, TextBox } from './types';
+import type { Clip, ClipId, Time } from './types';
 
 function randomId(): string {
 	const cryptoApi = typeof globalThis.crypto === 'undefined' ? undefined : globalThis.crypto;
@@ -54,9 +54,7 @@ export function createSolidClip(
 export function createTextClip(
 	start: Time,
 	duration: Time,
-	text: string = 'Text',
-	style?: TextStyle,
-	box?: TextBox,
+	text: string = 'Title Text',
 	options: Partial<Clip> = {}
 ): Clip {
 	return {
@@ -67,7 +65,25 @@ export function createTextClip(
 		sourceOut: duration,
 		speed: 1,
 		volume: 0,
-		source: { type: 'text', text, style, box },
+		source: {
+			type: 'text',
+			text,
+			style: {
+				fontFamily: 'sans-serif',
+				alignment: 'center'
+			},
+			box: {
+				autoSize: true,
+				verticalAnchor: 'center'
+			}
+		},
+		properties: {
+			'text.fontSize': { value: 64 },
+			'text.fillColor': { value: [1, 1, 1, 1] },
+			'text.strokeColor': { value: [0, 0, 0, 1] },
+			'text.strokeWidth': { value: 0 },
+			'text.reveal': { value: 1 }
+		},
 		effects: [],
 		...options
 	};

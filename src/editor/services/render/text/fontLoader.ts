@@ -1,196 +1,123 @@
-/**
- * Font loading management for text rendering.
- * Handles FontFace registration and loading in preview and export worker contexts.
- */
-
-export interface FontSpec {
+export interface BundledFont {
 	family: string;
+	displayName: string;
+	category: 'sans' | 'display' | 'serif' | 'mono' | 'handwriting' | 'condensed';
 	url: string;
-	weight?: string;
-	style?: string;
+	license: string;
 }
 
-class FontLoader {
-	private loadedFonts = new Set<string>();
-	private pendingFonts = new Map<string, Promise<void>>();
-
-	/**
-	 * Register and load a font via FontFace API.
-	 * Works in both main thread and Worker contexts.
-	 */
-	async loadFont(spec: FontSpec): Promise<void> {
-		const key = `${spec.family}|${spec.weight}|${spec.style}`;
-
-		// Already loaded
-		if (this.loadedFonts.has(key)) {
-			return;
-		}
-
-		// Already loading
-		if (this.pendingFonts.has(key)) {
-			return this.pendingFonts.get(key);
-		}
-
-		// Start loading
-		const promise = this.doLoadFont(spec, key);
-		this.pendingFonts.set(key, promise);
-
-		try {
-			await promise;
-			this.loadedFonts.add(key);
-		} finally {
-			this.pendingFonts.delete(key);
-		}
+export const BUNDLED_FONTS: readonly BundledFont[] = [
+	{
+		family: 'Inter',
+		displayName: 'Inter (Sans)',
+		category: 'sans',
+		url: '/fonts/Inter-VariableFont_opsz,wght.ttf',
+		license: 'OFL-1.1'
+	},
+	{
+		family: 'Montserrat',
+		displayName: 'Montserrat (Display Sans)',
+		category: 'display',
+		url: '/fonts/Montserrat-VariableFont_wght.ttf',
+		license: 'OFL-1.1'
+	},
+	{
+		family: 'Playfair Display',
+		displayName: 'Playfair Display (Serif)',
+		category: 'serif',
+		url: '/fonts/PlayfairDisplay-VariableFont_wght.ttf',
+		license: 'OFL-1.1'
+	},
+	{
+		family: 'Roboto Mono',
+		displayName: 'Roboto Mono (Monospace)',
+		category: 'mono',
+		url: '/fonts/RobotoMono-VariableFont_wght.ttf',
+		license: 'Apache-2.0'
+	},
+	{
+		family: 'Caveat',
+		displayName: 'Caveat (Handwriting)',
+		category: 'handwriting',
+		url: '/fonts/Caveat-VariableFont_wght.ttf',
+		license: 'OFL-1.1'
+	},
+	{
+		family: 'Bebas Neue',
+		displayName: 'Bebas Neue (Condensed Bold)',
+		category: 'condensed',
+		url: '/fonts/BebasNeue-Regular.ttf',
+		license: 'OFL-1.1'
 	}
+];
 
-	private async doLoadFont(spec: FontSpec, key: string): Promise<void> {
+const loadedFonts = new Set<string>();
+const loadingPromises = new Map<string, Promise<boolean>>();
+
+/**
+ * Ensures a font family is loaded via FontFace.
+ * Works in Window and DedicatedWorker contexts where FontFace is available.
+ */
+export async function ensureFontLoaded(family: string, url?: string): Promise<boolean> {
+	if (loadedFonts.has(family)) return true;
+	if (loadingPromises.has(family)) return loadingPromises.get(family)!;
+
+	const loadPromise = (async () => {
 		try {
-			const fontFace = new FontFace(spec.family, `url(${spec.url})`, {
-				weight: spec.weight || 'normal',
-				style: spec.style || 'normal'
-			});
+			if (typeof FontFace === 'undefined') return true;
 
-			const loaded = await fontFace.load();
-			if (document.fonts) {
-				document.fonts.add(loaded);
+			// If font is bundled or custom url is given
+			const fontInfo = BUNDLED_FONTS.find((f) => f.family.toLowerCase() === family.toLowerCase());
+			const fontUrl = url || fontInfo?.url;
+
+			if (!fontUrl) {
+				// System fallback font (sans-serif, monospace, etc.)
+				loadedFonts.add(family);
+				return true;
 			}
-		} catch (err) {
-			console.warn(`Failed to load font ${spec.family}:`, err);
-			// Don't throw - allow rendering to continue with fallback font
+
+			const fontFace = new FontFace(family, `url(${fontUrl})`);
+			const loadedFace = await fontFace.load();
+
+			interface WithFonts {
+				fonts?: FontFaceSet;
+			}
+			const globalFonts =
+				typeof document !== 'undefined' ? document.fonts : (self as unknown as WithFonts).fonts;
+			if (globalFonts) {
+				globalFonts.add(loadedFace);
+			}
+
+			loadedFonts.add(family);
+			return true;
+		} catch {
+			return false;
+		} finally {
+			loadingPromises.delete(family);
 		}
-	}
+	})();
 
-	/**
-	 * Load a font from a File object (used in export worker).
-	 */
-	async loadFontFromFile(family: string, file: File, weight?: string, style?: string): Promise<void> {
-		const key = `${family}|${weight}|${style}`;
-
-		if (this.loadedFonts.has(key)) {
-			return;
-		}
-
-		try {
-			const url = URL.createObjectURL(file);
-			await this.loadFont({
-				family,
-				url,
-				weight,
-				style
-			});
-		} catch (err) {
-			console.warn(`Failed to load font from file:`, err);
-		}
-	}
-
-	/**
-	 * Check if a font is loaded or loading.
-	 */
-	isFontLoaded(family: string, weight?: string, style?: string): boolean {
-		const key = `${family}|${weight}|${style}`;
-		return this.loadedFonts.has(key);
-	}
-
-	/**
-	 * Clear all loaded fonts.
-	 */
-	reset() {
-		this.loadedFonts.clear();
-		this.pendingFonts.clear();
-	}
-}
-
-// Global singleton
-let globalFontLoader: FontLoader | null = null;
-
-export function getGlobalFontLoader(): FontLoader {
-	if (!globalFontLoader) {
-		globalFontLoader = new FontLoader();
-	}
-	return globalFontLoader;
+	loadingPromises.set(family, loadPromise);
+	return loadPromise;
 }
 
 /**
- * Bundled fonts configuration.
- * These ship with the editor and are self-hosted (no external network requests).
+ * Synchronous check whether font is already loaded.
  */
-export const BUNDLED_FONTS: Record<string, FontSpec[]> = {
-	'Inter': [
-		{
-			family: 'Inter',
-			url: '/fonts/inter-regular.woff2',
-			weight: '400',
-			style: 'normal'
-		},
-		{
-			family: 'Inter',
-			url: '/fonts/inter-bold.woff2',
-			weight: '700',
-			style: 'normal'
-		}
-	],
-	'Oswald': [
-		{
-			family: 'Oswald',
-			url: '/fonts/oswald-bold.woff2',
-			weight: '700',
-			style: 'normal'
-		}
-	],
-	'Playfair Display': [
-		{
-			family: 'Playfair Display',
-			url: '/fonts/playfair-display-bold.woff2',
-			weight: '700',
-			style: 'normal'
-		}
-	],
-	'Roboto Mono': [
-		{
-			family: 'Roboto Mono',
-			url: '/fonts/roboto-mono-regular.woff2',
-			weight: '400',
-			style: 'normal'
-		}
-	],
-	'Caveat': [
-		{
-			family: 'Caveat',
-			url: '/fonts/caveat-regular.woff2',
-			weight: '400',
-			style: 'normal'
-		}
-	],
-	'Bebas Neue': [
-		{
-			family: 'Bebas Neue',
-			url: '/fonts/bebas-neue-regular.woff2',
-			weight: '400',
-			style: 'normal'
-		}
-	]
-};
-
-/**
- * Preload all bundled fonts on app startup.
- */
-export async function preloadBundledFonts() {
-	const loader = getGlobalFontLoader();
-	const fontPromises: Promise<void>[] = [];
-
-	for (const specs of Object.values(BUNDLED_FONTS)) {
-		for (const spec of specs) {
-			fontPromises.push(loader.loadFont(spec));
-		}
+export function isFontLoaded(family: string): boolean {
+	if (
+		[
+			'sans-serif',
+			'serif',
+			'monospace',
+			'cursive',
+			'fantasy',
+			'system-ui',
+			'arial',
+			'helvetica'
+		].includes(family.toLowerCase())
+	) {
+		return true;
 	}
-
-	await Promise.all(fontPromises);
-}
-
-/**
- * Get available font families (bundled + user fonts).
- */
-export function getAvailableFonts(userFonts?: string[]): string[] {
-	const bundled = Object.keys(BUNDLED_FONTS);
-	return userFonts ? [...bundled, ...userFonts] : bundled;
+	return loadedFonts.has(family);
 }
