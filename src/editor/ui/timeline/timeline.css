@@ -109,7 +109,7 @@
 
 .timeline-ruler-row {
 	position: sticky;
-	z-index: 5;
+	z-index: 0;
 	top: 0;
 	display: grid;
 	height: 2rem;
