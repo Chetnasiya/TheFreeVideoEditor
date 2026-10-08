@@ -104,8 +104,28 @@ function EditorShell() {
 	const projectNameButtonRef = useRef<HTMLButtonElement>(null);
 	const projectNameInputRef = useRef<HTMLInputElement>(null);
 	const playbackRef = useRef<PlaybackEngine | null>(null);
+	const [playbackEngine, setPlaybackEngine] = useState<PlaybackEngine | null>(null);
 	const onPlaybackEngineChange = useCallback((engine: PlaybackEngine | null) => {
 		playbackRef.current = engine;
+		setPlaybackEngine(engine);
+	}, []);
+
+	const [isAppFullscreen, setIsAppFullscreen] = useState(false);
+
+	useEffect(() => {
+		const handleFsChange = () => {
+			setIsAppFullscreen(Boolean(document.fullscreenElement));
+		};
+		document.addEventListener('fullscreenchange', handleFsChange);
+		return () => document.removeEventListener('fullscreenchange', handleFsChange);
+	}, []);
+
+	const toggleAppFullscreen = useCallback(() => {
+		if (!document.fullscreenElement) {
+			void document.documentElement.requestFullscreen?.().catch(() => {});
+		} else {
+			void document.exitFullscreen?.().catch(() => {});
+		}
 	}, []);
 
 	const closeAllMenus = useCallback(() => {
@@ -1086,6 +1106,33 @@ function EditorShell() {
 							{theme === 'dark' ? 'Light' : 'Dark'}
 						</button>
 						<button
+							className="toolbar-button fullscreen-button"
+							type="button"
+							aria-label={isAppFullscreen ? 'Exit full screen' : 'Enter full screen'}
+							title={isAppFullscreen ? 'Exit full screen' : 'Enter full screen'}
+							onClick={toggleAppFullscreen}
+						>
+							<svg
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="currentColor"
+								aria-hidden="true"
+								style={{
+									marginRight: '4px',
+									display: 'inline-block',
+									verticalAlign: 'text-bottom'
+								}}
+							>
+								{isAppFullscreen ? (
+									<path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z" />
+								) : (
+									<path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zm10-1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1 0-1h4zm-10 15a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 1 0v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5zm14.5 0a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4z" />
+								)}
+							</svg>
+							{isAppFullscreen ? 'Windowed' : 'Fullscreen'}
+						</button>
+						<button
 							className="export-button"
 							type="button"
 							disabled={!project || isExporting}
@@ -1157,7 +1204,7 @@ function EditorShell() {
 							<span className="panel-meta">Project media</span>
 						</div>
 						<div className="monitor-stage">
-							<SourceMonitor />
+							<SourceMonitor engine={playbackEngine} />
 						</div>
 					</div>
 

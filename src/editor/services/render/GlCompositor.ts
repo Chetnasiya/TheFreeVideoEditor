@@ -13,7 +13,7 @@ import { RenderContext, type GlCanvas, type RenderContextOptions } from './Rende
 import type { RenderStats } from './stats';
 import { FboPool, type PooledFbo } from './passes/FboPool';
 import { ShaderPassManager } from './passes/ShaderPass';
-import { captureScopeFrame, type ScopeFrameData } from './passes/scopes';
+import { captureScopeFrame, extractCanvasScopeFrame, type ScopeFrameData } from './passes/scopes';
 import { getParsedLut } from '../media/lutCache';
 import { BLIT_MASK_MIX_FRAG } from './passes/maskShaders';
 import type { EvaluatedMask } from '../../core/masks';
@@ -579,6 +579,10 @@ export class GlCompositor implements FrameRenderer {
 		}
 
 		// Blit accumulated composite to canvas
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.viewport(0, 0, size.width, size.height);
+		gl.clearColor(0, 0, 0, 1);
+		gl.clear(gl.COLOR_BUFFER_BIT);
 		this.passManager.blit(accumFbo.texture, null, size.width, size.height, 1.0);
 		this.fboPool.release(accumFbo);
 
@@ -893,6 +897,9 @@ export class GlCompositor implements FrameRenderer {
 export class Canvas2DRenderer implements FrameRenderer {
 	readonly kind = 'canvas2d';
 	readonly stats: RenderStats;
+	private scopesEnabled = false;
+	private lastScopeFrame: ScopeFrameData | null = null;
+	private lastScopeTime = 0;
 
 	constructor(
 		private readonly context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -901,11 +908,20 @@ export class Canvas2DRenderer implements FrameRenderer {
 		this.stats = stats;
 	}
 
+	enableScopes(enabled: boolean): void {
+		this.scopesEnabled = enabled;
+	}
+
+	getLastScopeFrame(): ScopeFrameData | null {
+		return this.lastScopeFrame;
+	}
+
 	render(
 		size: CompositionSize,
 		layers: readonly ActiveLayer[],
 		frameProvider: FrameProvider,
-		lastGoodFrames: LastGoodFrames = new Map()
+		lastGoodFrames: LastGoodFrames = new Map(),
+		options: { playing?: boolean } = {}
 	): boolean {
 		const started = performance.now();
 		renderFrame(this.context, size, layers, frameProvider, lastGoodFrames);
@@ -914,6 +930,19 @@ export class Canvas2DRenderer implements FrameRenderer {
 		this.stats.lastFrameMs = elapsed;
 		this.stats.maxFrameMs = Math.max(this.stats.maxFrameMs, elapsed);
 		this.stats.totalFrameMs += elapsed;
+
+		if (this.scopesEnabled) {
+			const now = performance.now();
+			const shouldCapture = !options.playing || now - this.lastScopeTime >= 66;
+			if (shouldCapture && this.context.canvas) {
+				const frame = extractCanvasScopeFrame(this.context.canvas);
+				if (frame) {
+					this.lastScopeFrame = frame;
+					this.lastScopeTime = now;
+				}
+			}
+		}
+
 		return true;
 	}
 

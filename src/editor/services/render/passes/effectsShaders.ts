@@ -1,5 +1,6 @@
 export const PASS_VERTEX_SHADER = `#version 300 es
 precision highp float;
+precision highp int;
 uniform int u_targetIsCanvas;
 out vec2 v_uv;
 void main() {
@@ -12,12 +13,19 @@ void main() {
 
 export const BLIT_FRAG = `#version 300 es
 precision highp float;
+precision highp int;
 uniform sampler2D u_texture;
 uniform float u_opacity;
+uniform int u_targetIsCanvas;
 in vec2 v_uv;
 out vec4 outColor;
 void main() {
-    outColor = texture(u_texture, v_uv) * u_opacity;
+    vec4 c = texture(u_texture, v_uv) * u_opacity;
+    if (u_targetIsCanvas == 1) {
+        outColor = vec4(c.rgb, 1.0);
+    } else {
+        outColor = c;
+    }
 }
 `;
 

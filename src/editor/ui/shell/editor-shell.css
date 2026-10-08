@@ -723,7 +723,6 @@
 	place-items: center;
 	overflow: hidden;
 	background: var(--color-preview-stage);
-	padding: var(--spacing-md);
 }
 
 .monitor-stage > .preview-panel-content,
@@ -737,6 +736,50 @@
 .source-monitor-content {
 	display: flex;
 	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	background: var(--color-canvas);
+}
+
+.source-monitor-header {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	padding: 3px 6px;
+	border-bottom: 1px solid var(--color-hairline);
+	background: var(--color-canvas-elevated);
+	flex-shrink: 0;
+	z-index: 1;
+}
+
+.source-monitor-tabs {
+	display: flex;
+	gap: 3px;
+	overflow-x: auto;
+}
+
+.source-monitor-tab {
+	padding: 2px 7px;
+	border-radius: var(--radius-sm);
+	border: 1px solid transparent;
+	background: transparent;
+	color: var(--color-mute);
+	font-size: 0.6875rem;
+	font-weight: var(--font-weight-normal);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.source-monitor-tab:hover {
+	color: var(--color-ink);
+	background: var(--color-hairline-soft);
+}
+
+.source-monitor-tab.is-active {
+	background: var(--color-hairline-soft);
+	color: var(--color-ink);
+	border-color: var(--color-hairline);
+	font-weight: var(--font-weight-medium);
 }
 
 .source-media-stage {

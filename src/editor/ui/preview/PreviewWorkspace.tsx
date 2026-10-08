@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Project } from '../../core';
 import { createPlaybackEngine, type PlaybackEngine } from '../../services/playback/engine';
 import { selectRenderer } from '../../services/render';
 import { attachPlaybackTestHooks } from '../../services/playback/testHooks';
-import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import { useEditorStoreApi } from '../../state/EditorProvider';
 import PreviewPlayer from './PreviewPlayer';
-import ScopesPanel from './ScopesPanel';
 import TransportBar from './TransportBar';
 import './preview.css';
 
@@ -21,7 +20,6 @@ export default function PreviewWorkspace({
 	onEngineChange
 }: PreviewWorkspaceProps) {
 	const store = useEditorStoreApi();
-	const scopesOpen = useEditorStore((state) => state.scopes.open);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const currentProject = useRef(project);
 	const engineChange = useRef(onEngineChange);
@@ -61,8 +59,32 @@ export default function PreviewWorkspace({
 		if (project && engine?.projectId === project.id) engine.setProject(project);
 	}, [engine, project, revision]);
 
+	const containerRef = useRef<HTMLDivElement>(null);
+	const [isFullscreen, setIsFullscreen] = useState(false);
+
+	const toggleFullscreen = useCallback(() => {
+		const container = containerRef.current;
+		if (!container) return;
+		if (!document.fullscreenElement) {
+			void container.requestFullscreen?.().catch(() => {});
+		} else {
+			void document.exitFullscreen?.().catch(() => {});
+		}
+	}, []);
+
+	useEffect(() => {
+		const handleFsChange = () => {
+			const container = containerRef.current;
+			setIsFullscreen(
+				Boolean(document.fullscreenElement && container?.contains(document.fullscreenElement))
+			);
+		};
+		document.addEventListener('fullscreenchange', handleFsChange);
+		return () => document.removeEventListener('fullscreenchange', handleFsChange);
+	}, []);
+
 	return (
-		<div className="preview-panel-content">
+		<div ref={containerRef} className="preview-panel-content">
 			<div
 				className="preview-stage-row"
 				style={{ display: 'flex', flex: 1, minHeight: 0, width: '100%' }}
@@ -74,7 +96,6 @@ export default function PreviewWorkspace({
 					canvasRef={canvasRef}
 					renderer={renderer}
 				/>
-				{scopesOpen && <ScopesPanel engine={engine} />}
 			</div>
 			{project && (
 				<TransportBar
@@ -82,6 +103,8 @@ export default function PreviewWorkspace({
 					fps={project.settings.fps}
 					zoom={zoom}
 					onZoomChange={setZoom}
+					isFullscreen={isFullscreen}
+					onToggleFullscreen={toggleFullscreen}
 				/>
 			)}
 		</div>

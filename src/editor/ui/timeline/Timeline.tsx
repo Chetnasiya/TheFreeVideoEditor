@@ -435,6 +435,23 @@ function ActiveTimeline({ project }: { project: Project }) {
 
 	useEffect(() => {
 		if (!context) return;
+		if (contextMenuRef.current) {
+			const rect = contextMenuRef.current.getBoundingClientRect();
+			const winW = window.innerWidth;
+			const winH = window.innerHeight;
+			let adjX = context.x;
+			let adjY = context.y;
+			if (rect.right > winW - 8) {
+				adjX = Math.max(8, winW - rect.width - 8);
+			}
+			if (rect.bottom > winH - 8) {
+				adjY = Math.max(8, winH - rect.height - 8);
+			}
+			if (adjX !== context.x || adjY !== context.y) {
+				setContext((prev) => (prev ? { ...prev, x: adjX, y: adjY } : null));
+				return;
+			}
+		}
 		contextMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
 		const dismiss = (event: globalThis.PointerEvent) => {
 			if (event.target instanceof HTMLElement && !event.target.closest('.timeline-context-menu')) {
@@ -586,6 +603,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 				? 'toggle'
 				: 'replace';
 		selectClips([clipId], mode);
+		store.getState().setScopesOpen(true);
 	}
 
 	function handleKeyboardTrim(clip: Clip, edge: 'start' | 'end', frameDelta: number): void {
@@ -603,9 +621,17 @@ function ActiveTimeline({ project }: { project: Project }) {
 		if (!selection.clipIds.includes(clip.id)) selectClips([clip.id]);
 		contextTriggerRef.current = event.currentTarget;
 		const mouseEvent = 'clientX' in event;
+		const rawX = mouseEvent ? event.clientX : 220;
+		const rawY = mouseEvent ? event.clientY : 140;
+		const winW = typeof window !== 'undefined' ? window.innerWidth : 1280;
+		const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
+		const estimatedW = 240;
+		const estimatedH = 340;
+		const clampedX = Math.max(10, Math.min(rawX, winW - estimatedW - 10));
+		const clampedY = Math.max(10, Math.min(rawY, winH - estimatedH - 10));
 		setContext({
-			x: mouseEvent ? event.clientX : 220,
-			y: mouseEvent ? event.clientY : 140,
+			x: clampedX,
+			y: clampedY,
 			clip
 		});
 	}
@@ -1357,7 +1383,17 @@ function ActiveTimeline({ project }: { project: Project }) {
 							closeContextMenu();
 						}}
 					>
-						Split at playhead
+						<svg
+							className="menu-icon"
+							viewBox="0 0 16 16"
+							width="14"
+							height="14"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h4v-1.5H2.5v-11H6V1H2zm8 0v1.5h3.5v11H10V15h4a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1h-4zm-2.5 0v14h1V1h-1z" />
+						</svg>
+						<span>Split at playhead</span>
 					</button>
 					<button
 						type="button"
@@ -1366,7 +1402,21 @@ function ActiveTimeline({ project }: { project: Project }) {
 							closeContextMenu();
 						}}
 					>
-						Delete
+						<svg
+							className="menu-icon"
+							viewBox="0 0 16 16"
+							width="14"
+							height="14"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+							<path
+								fillRule="evenodd"
+								d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
+							/>
+						</svg>
+						<span>Delete</span>
 					</button>
 					<button
 						type="button"
@@ -1375,7 +1425,18 @@ function ActiveTimeline({ project }: { project: Project }) {
 							closeContextMenu();
 						}}
 					>
-						Ripple delete
+						<svg
+							className="menu-icon"
+							viewBox="0 0 16 16"
+							width="14"
+							height="14"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M2.5 1a1 1 0 0 0-1 1v1h11V2a1 1 0 0 0-1-1h-9zm10 3H1.5v8a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V4zm-7 2.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5zm3 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z" />
+							<path d="M14 6l2 2-2 2V6z" />
+						</svg>
+						<span>Ripple delete</span>
 					</button>
 					<button
 						type="button"
@@ -1384,7 +1445,17 @@ function ActiveTimeline({ project }: { project: Project }) {
 							closeContextMenu();
 						}}
 					>
-						Duplicate
+						<svg
+							className="menu-icon"
+							viewBox="0 0 16 16"
+							width="14"
+							height="14"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1H2V6h1V5H2z" />
+						</svg>
+						<span>Duplicate</span>
 					</button>
 					<hr />
 					<button
@@ -1394,7 +1465,18 @@ function ActiveTimeline({ project }: { project: Project }) {
 							closeContextMenu();
 						}}
 					>
-						Speed / Duration…
+						<svg
+							className="menu-icon"
+							viewBox="0 0 16 16"
+							width="14"
+							height="14"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z" />
+							<path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z" />
+						</svg>
+						<span>Speed / Duration…</span>
 					</button>
 					<button
 						type="button"
@@ -1403,7 +1485,17 @@ function ActiveTimeline({ project }: { project: Project }) {
 							closeContextMenu();
 						}}
 					>
-						Add freeze frame
+						<svg
+							className="menu-icon"
+							viewBox="0 0 16 16"
+							width="14"
+							height="14"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M8 0a.5.5 0 0 1 .5.5v15a.5.5 0 0 1-1 0V.5A.5.5 0 0 1 8 0zm7.5 8a.5.5 0 0 1-.5.5H1a.5.5 0 0 1 0-1h14a.5.5 0 0 1 .5.5zm-2.146-5.354a.5.5 0 0 1 0 .708L2.707 13.999a.5.5 0 0 1-.707-.708L12.646 2.646a.5.5 0 0 1 .708 0zm-10.647 0a.5.5 0 0 1 .708 0l10.646 10.645a.5.5 0 0 1-.708.708L2.707 3.354a.5.5 0 0 1 0-.708z" />
+						</svg>
+						<span>Add freeze frame</span>
 					</button>
 					<button
 						type="button"
@@ -1412,7 +1504,18 @@ function ActiveTimeline({ project }: { project: Project }) {
 							closeContextMenu();
 						}}
 					>
-						Freeze frame to end of clip
+						<svg
+							className="menu-icon"
+							viewBox="0 0 16 16"
+							width="14"
+							height="14"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M8 0a.5.5 0 0 1 .5.5v15a.5.5 0 0 1-1 0V.5A.5.5 0 0 1 8 0zm7.5 8a.5.5 0 0 1-.5.5H1a.5.5 0 0 1 0-1h14a.5.5 0 0 1 .5.5z" />
+							<path d="M12 4l3 4-3 4V4z" />
+						</svg>
+						<span>Freeze frame to end of clip</span>
 					</button>
 					<hr />
 					{context.clip.linkId ? (
@@ -1423,7 +1526,18 @@ function ActiveTimeline({ project }: { project: Project }) {
 								closeContextMenu();
 							}}
 						>
-							Unlink clips
+							<svg
+								className="menu-icon"
+								viewBox="0 0 16 16"
+								width="14"
+								height="14"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
+								<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
+							</svg>
+							<span>Unlink clips</span>
 						</button>
 					) : (
 						<button
@@ -1433,7 +1547,18 @@ function ActiveTimeline({ project }: { project: Project }) {
 								closeContextMenu();
 							}}
 						>
-							Link selected clips
+							<svg
+								className="menu-icon"
+								viewBox="0 0 16 16"
+								width="14"
+								height="14"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
+								<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
+							</svg>
+							<span>Link selected clips</span>
 						</button>
 					)}
 				</div>

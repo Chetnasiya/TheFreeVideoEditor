@@ -568,23 +568,42 @@
 
 .timeline-context-menu {
 	position: fixed;
-	z-index: 20;
-	display: grid;
-	min-width: 12rem;
+	z-index: 1000;
+	display: flex;
+	flex-direction: column;
+	min-width: 14rem;
+	max-height: calc(100vh - 24px);
+	overflow-y: auto;
 	border: 1px solid var(--color-hairline);
 	border-radius: var(--radius-sm);
 	background: var(--color-canvas-elevated);
 	padding: var(--spacing-xxs);
 	box-shadow: var(--shadow-floating);
+	font-size: var(--text-body-sm);
 }
 
 .timeline-context-menu button {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-xs);
 	border: 0;
 	border-radius: var(--radius-sm);
 	background: transparent;
-	padding: var(--spacing-xs);
+	padding: 6px var(--spacing-sm);
 	color: var(--color-body);
 	text-align: left;
+	font-size: 12px;
+	font-weight: var(--font-weight-normal);
+	line-height: 1.25;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.timeline-context-menu button .menu-icon {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	opacity: 0.8;
 }
 
 .timeline-context-menu button:hover {
@@ -592,10 +611,15 @@
 	color: var(--color-ink);
 }
 
+.timeline-context-menu button:hover .menu-icon {
+	opacity: 1;
+}
+
 .timeline-context-menu hr {
 	width: 100%;
 	border: 0;
 	border-top: 1px solid var(--color-hairline);
+	margin: var(--spacing-xxs) 0;
 }
 
 .timeline-editor .timeline-empty {

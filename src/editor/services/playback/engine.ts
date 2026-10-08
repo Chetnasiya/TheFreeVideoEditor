@@ -10,7 +10,7 @@ import {
 	type FrameRenderer,
 	type RenderStats
 } from '../render';
-import type { ScopeFrameData } from '../render/passes/scopes';
+import { extractCanvasScopeFrame, type ScopeFrameData } from '../render/passes/scopes';
 import { createPlaybackClock, type PlaybackRate } from './clock';
 import { MediaPool } from './mediaPool';
 
@@ -186,6 +186,12 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			if (state.timeline.playhead !== previous.timeline.playhead) {
 				clock.seek(state.timeline.playhead);
 				void audio.unlock().catch((error: unknown) => this.reportError(error));
+				this.syncAndRender();
+			}
+			if (state.scopes?.open !== previous.scopes?.open) {
+				if (state.scopes?.open) {
+					this.renderer?.enableScopes?.(true);
+				}
 				this.syncAndRender();
 			}
 		});
@@ -390,10 +396,18 @@ class PlaybackEngineImpl implements PlaybackEngine {
 
 	enableScopes(enabled: boolean): void {
 		this.renderer?.enableScopes?.(enabled);
+		if (enabled) {
+			this.requestRender();
+		}
 	}
 
 	getLastScopeFrame(): ScopeFrameData | null {
-		return this.renderer?.getLastScopeFrame?.() ?? null;
+		const fromRenderer = this.renderer?.getLastScopeFrame?.();
+		if (fromRenderer) return fromRenderer;
+		if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
+			return extractCanvasScopeFrame(this.canvas);
+		}
+		return null;
 	}
 
 	getRenderer(): FrameRenderer | null {

@@ -17,15 +17,19 @@ export default function ScopesPanel({ engine, onClose }: ScopesPanelProps) {
 	const animHandleRef = useRef<number | null>(null);
 
 	useEffect(() => {
+		engine?.enableScopes(true);
+	}, [engine]);
+
+	useEffect(() => {
 		let lastRenderTime = 0;
 
 		const renderLoop = (time: number) => {
 			if (time - lastRenderTime >= 33) {
 				// Cap scope canvas update to ~30 fps
 				lastRenderTime = time;
-				const frame = engine?.getLastScopeFrame();
+				const frame = engine?.getLastScopeFrame() ?? null;
 				const canvas = canvasRef.current;
-				if (canvas && frame) {
+				if (canvas) {
 					drawScope(canvas, frame, mode, channel);
 				}
 			}
@@ -42,7 +46,7 @@ export default function ScopesPanel({ engine, onClose }: ScopesPanelProps) {
 
 	return (
 		<div className="scopes-panel" role="region" aria-label="Video Scopes">
-			<div className="scopes-header">
+			{/* <div className="scopes-header">
 				<div className="scopes-mode-tabs" role="tablist">
 					{(['waveform', 'parade', 'histogram', 'vectorscope'] as const).map((m) => (
 						<button
@@ -81,7 +85,7 @@ export default function ScopesPanel({ engine, onClose }: ScopesPanelProps) {
 						×
 					</button>
 				</div>
-			</div>
+			</div> */}
 
 			<div className="scopes-canvas-container">
 				<canvas ref={canvasRef} width={256} height={180} className="scopes-canvas" />
@@ -97,7 +101,7 @@ export default function ScopesPanel({ engine, onClose }: ScopesPanelProps) {
 
 function drawScope(
 	canvas: HTMLCanvasElement,
-	frame: ScopeFrameData,
+	frame: ScopeFrameData | null,
 	mode: 'waveform' | 'parade' | 'histogram' | 'vectorscope',
 	channel: 'luma' | 'rgb'
 ): void {
@@ -147,12 +151,13 @@ function drawGraticule(ctx: CanvasRenderingContext2D, x: number, y: number, w: n
 
 function drawWaveform(
 	ctx: CanvasRenderingContext2D,
-	frame: ScopeFrameData,
+	frame: ScopeFrameData | null,
 	w: number,
 	h: number,
 	channel: 'luma' | 'rgb'
 ) {
 	drawGraticule(ctx, 0, 0, w, h);
+	if (!frame) return;
 
 	const { width: fw, height: fh, data } = frame;
 	const usableH = h - 16;
@@ -171,22 +176,27 @@ function drawWaveform(
 			if (channel === 'luma') {
 				const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 				const targetY = topOffset + (1 - y) * usableH;
-				ctx.fillStyle = 'rgba(70, 255, 70, 0.08)';
-				ctx.fillRect(targetX, targetY, 1.2, 1.2);
+				ctx.fillStyle = 'rgba(70, 255, 70, 0.25)';
+				ctx.fillRect(targetX, targetY, 1.5, 1.5);
 			} else {
-				ctx.fillStyle = 'rgba(255, 60, 60, 0.06)';
-				ctx.fillRect(targetX, topOffset + (1 - r) * usableH, 1, 1);
-				ctx.fillStyle = 'rgba(60, 255, 60, 0.06)';
-				ctx.fillRect(targetX, topOffset + (1 - g) * usableH, 1, 1);
-				ctx.fillStyle = 'rgba(60, 100, 255, 0.06)';
-				ctx.fillRect(targetX, topOffset + (1 - b) * usableH, 1, 1);
+				ctx.fillStyle = 'rgba(255, 60, 60, 0.2)';
+				ctx.fillRect(targetX, topOffset + (1 - r) * usableH, 1.2, 1.2);
+				ctx.fillStyle = 'rgba(60, 255, 60, 0.2)';
+				ctx.fillRect(targetX, topOffset + (1 - g) * usableH, 1.2, 1.2);
+				ctx.fillStyle = 'rgba(60, 100, 255, 0.2)';
+				ctx.fillRect(targetX, topOffset + (1 - b) * usableH, 1.2, 1.2);
 			}
 		}
 	}
 	ctx.globalCompositeOperation = 'source-over';
 }
 
-function drawParade(ctx: CanvasRenderingContext2D, frame: ScopeFrameData, w: number, h: number) {
+function drawParade(
+	ctx: CanvasRenderingContext2D,
+	frame: ScopeFrameData | null,
+	w: number,
+	h: number
+) {
 	const colW = w / 3;
 	const usableH = h - 16;
 	const topOffset = 8;
@@ -194,6 +204,8 @@ function drawParade(ctx: CanvasRenderingContext2D, frame: ScopeFrameData, w: num
 	drawGraticule(ctx, 0, 0, colW, h);
 	drawGraticule(ctx, colW, 0, colW, h);
 	drawGraticule(ctx, colW * 2, 0, colW, h);
+
+	if (!frame) return;
 
 	const { width: fw, height: fh, data } = frame;
 
@@ -208,22 +220,36 @@ function drawParade(ctx: CanvasRenderingContext2D, frame: ScopeFrameData, w: num
 			const relX = (px / fw) * colW;
 
 			// Red column
-			ctx.fillStyle = 'rgba(255, 70, 70, 0.08)';
-			ctx.fillRect(relX, topOffset + (1 - r) * usableH, 1.2, 1.2);
+			ctx.fillStyle = 'rgba(255, 70, 70, 0.22)';
+			ctx.fillRect(relX, topOffset + (1 - r) * usableH, 1.5, 1.5);
 
 			// Green column
-			ctx.fillStyle = 'rgba(70, 255, 70, 0.08)';
-			ctx.fillRect(colW + relX, topOffset + (1 - g) * usableH, 1.2, 1.2);
+			ctx.fillStyle = 'rgba(70, 255, 70, 0.22)';
+			ctx.fillRect(colW + relX, topOffset + (1 - g) * usableH, 1.5, 1.5);
 
 			// Blue column
-			ctx.fillStyle = 'rgba(70, 120, 255, 0.08)';
-			ctx.fillRect(colW * 2 + relX, topOffset + (1 - b) * usableH, 1.2, 1.2);
+			ctx.fillStyle = 'rgba(70, 120, 255, 0.22)';
+			ctx.fillRect(colW * 2 + relX, topOffset + (1 - b) * usableH, 1.5, 1.5);
 		}
 	}
 	ctx.globalCompositeOperation = 'source-over';
 }
 
-function drawHistogram(ctx: CanvasRenderingContext2D, frame: ScopeFrameData, w: number, h: number) {
+function drawHistogram(
+	ctx: CanvasRenderingContext2D,
+	frame: ScopeFrameData | null,
+	w: number,
+	h: number
+) {
+	const usableH = h - 16;
+	const bottom = h - 8;
+
+	// Grid
+	ctx.strokeStyle = '#222';
+	ctx.strokeRect(8, 8, w - 16, usableH);
+
+	if (!frame) return;
+
 	const rHist = new Uint32Array(256);
 	const gHist = new Uint32Array(256);
 	const bHist = new Uint32Array(256);
@@ -243,13 +269,6 @@ function drawHistogram(ctx: CanvasRenderingContext2D, frame: ScopeFrameData, w: 
 		if (bHist[i]! > maxCount) maxCount = bHist[i]!;
 	}
 
-	const usableH = h - 16;
-	const bottom = h - 8;
-
-	// Grid
-	ctx.strokeStyle = '#222';
-	ctx.strokeRect(8, 8, w - 16, usableH);
-
 	const drawChannel = (hist: Uint32Array, color: string) => {
 		ctx.fillStyle = color;
 		ctx.beginPath();
@@ -266,15 +285,15 @@ function drawHistogram(ctx: CanvasRenderingContext2D, frame: ScopeFrameData, w: 
 	};
 
 	ctx.globalCompositeOperation = 'screen';
-	drawChannel(rHist, 'rgba(255, 50, 50, 0.35)');
-	drawChannel(gHist, 'rgba(50, 255, 50, 0.35)');
-	drawChannel(bHist, 'rgba(50, 100, 255, 0.35)');
+	drawChannel(rHist, 'rgba(255, 50, 50, 0.4)');
+	drawChannel(gHist, 'rgba(50, 255, 50, 0.4)');
+	drawChannel(bHist, 'rgba(50, 100, 255, 0.4)');
 	ctx.globalCompositeOperation = 'source-over';
 }
 
 function drawVectorscope(
 	ctx: CanvasRenderingContext2D,
-	frame: ScopeFrameData,
+	frame: ScopeFrameData | null,
 	w: number,
 	h: number
 ) {
@@ -322,6 +341,8 @@ function drawVectorscope(
 		ctx.fillText(t.label, tx + 5, ty + 3);
 	}
 
+	if (!frame) return;
+
 	// Plot frame points
 	const { width: fw, height: fh, data } = frame;
 	ctx.globalCompositeOperation = 'screen';
@@ -338,8 +359,8 @@ function drawVectorscope(
 			const px_out = cx + cb * radius * 2.2;
 			const py_out = cy - cr * radius * 2.2;
 
-			ctx.fillStyle = 'rgba(70, 255, 120, 0.08)';
-			ctx.fillRect(px_out, py_out, 1.2, 1.2);
+			ctx.fillStyle = 'rgba(70, 255, 120, 0.25)';
+			ctx.fillRect(px_out, py_out, 1.5, 1.5);
 		}
 	}
 	ctx.globalCompositeOperation = 'source-over';

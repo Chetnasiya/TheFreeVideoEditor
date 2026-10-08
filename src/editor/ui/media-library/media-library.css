@@ -259,7 +259,28 @@
 }
 
 .media-assets-list .media-asset {
+	position: relative;
 	min-height: calc(var(--media-thumbnail-height, 40px) + var(--spacing-xs));
+}
+
+.media-assets-list .media-asset-actions {
+	position: absolute;
+	right: var(--spacing-xxs);
+	top: 50%;
+	transform: translateY(-50%);
+	border-radius: var(--radius-sm);
+	background: var(--color-canvas-elevated);
+	box-shadow: var(--shadow-floating);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.15s ease;
+}
+
+.media-assets-list .media-asset:hover .media-asset-actions,
+.media-assets-list .media-asset:focus-within .media-asset-actions,
+.media-assets-list .media-asset.is-selected .media-asset-actions {
+	opacity: 1;
+	pointer-events: auto;
 }
 
 .media-assets-grid .media-asset-actions {
