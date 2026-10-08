@@ -78,7 +78,7 @@ export function extractCanvasScopeFrame(
 		}
 		helperCanvas.width = targetWidth;
 		helperCanvas.height = targetHeight;
-		const ctx = helperCanvas.getContext('2d') as
+		const ctx = helperCanvas.getContext('2d', { willReadFrequently: true }) as
 			CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
 		if (!ctx) return null;
 		ctx.clearRect(0, 0, targetWidth, targetHeight);

@@ -123,6 +123,66 @@ export const PROPERTY_DESCRIPTORS: Readonly<Record<string, PropertyDescriptor>> 
 		unit: '',
 		displayFactor: 1,
 		step: 0.05
+	},
+	'text.fontSize': {
+		id: 'text.fontSize',
+		label: 'Font Size',
+		shape: 'number',
+		channels: ['Size'],
+		defaultValue: 48,
+		min: 1,
+		max: 1000,
+		unit: 'px',
+		displayFactor: 1,
+		step: 1
+	},
+	'text.fillColor': {
+		id: 'text.fillColor',
+		label: 'Fill Color',
+		shape: 'vec4',
+		channels: ['R', 'G', 'B', 'A'],
+		defaultValue: [1, 1, 1, 1],
+		min: 0,
+		max: 1,
+		unit: '',
+		displayFactor: 1,
+		step: 0.01
+	},
+	'text.strokeColor': {
+		id: 'text.strokeColor',
+		label: 'Stroke Color',
+		shape: 'vec4',
+		channels: ['R', 'G', 'B', 'A'],
+		defaultValue: [0, 0, 0, 1],
+		min: 0,
+		max: 1,
+		unit: '',
+		displayFactor: 1,
+		step: 0.01
+	},
+	'text.strokeWidth': {
+		id: 'text.strokeWidth',
+		label: 'Stroke Width',
+		shape: 'number',
+		channels: ['Width'],
+		defaultValue: 0,
+		min: 0,
+		max: 50,
+		unit: 'px',
+		displayFactor: 1,
+		step: 0.5
+	},
+	'text.reveal': {
+		id: 'text.reveal',
+		label: 'Reveal',
+		shape: 'number',
+		channels: ['Progress'],
+		defaultValue: 1,
+		min: 0,
+		max: 1,
+		unit: '',
+		displayFactor: 1,
+		step: 0.01
 	}
 };
 

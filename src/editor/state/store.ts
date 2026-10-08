@@ -55,6 +55,7 @@ import {
 	pasteKeyframes,
 	createAdjustmentClip,
 	createSolidClip,
+	createTextClip,
 	insertClip,
 	createEffectInstance,
 	addEffectToClip,
@@ -105,6 +106,7 @@ import {
 	type AnimatedValue
 } from '../core';
 import { defaultTrackAudio } from '../core/audioMath';
+import { generatePresetKeyframes, templates } from '../core/text/presets';
 import { ensureLutLoaded, storeParsedLut } from '../services/media/lutCache';
 import type { ScopeFrameData } from '../services/render/passes/scopes';
 import {
@@ -558,6 +560,11 @@ export interface EditorState {
 		start?: Time,
 		duration?: Time
 	) => ClipId | null;
+	addTextLayer: (text?: string, trackId?: TrackId, start?: Time, duration?: Time) => ClipId | null;
+	setTextContent: (clipId: ClipId, text: string) => void;
+	setTextFillColor: (clipId: ClipId, color: ColorRgba) => void;
+	setTextFontSize: (clipId: ClipId, fontSize: number) => void;
+	applyTextAnimationPreset: (clipId: ClipId, preset: 'fade-in' | 'fade-out' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'pop-in' | 'pop-out' | 'typewriter-in' | 'typewriter-out') => void;
 	importLut: (name: string, cubeText: string) => Promise<AssetId | null>;
 	// Transition actions
 	addTransition: (
@@ -3542,6 +3549,127 @@ export function createEditorStore() {
 						});
 						return null;
 					}
+				},
+				addTextLayer(text = 'Text', trackId, start, duration) {
+					const project = get().project;
+					if (!project) return null;
+					const clipStart = snapToFrame(start ?? get().timeline.playhead, project.settings.fps);
+					const clipDuration =
+						duration ?? framesToTicks(5 * project.settings.fps, project.settings.fps);
+
+					let targetTrackId = trackId;
+					if (!targetTrackId) {
+						const selTrackId = get().timeline.selection.trackId;
+						const selTrack = project.tracks.find(
+							(t) => t.id === selTrackId && t.kind === 'video' && !t.locked
+						);
+						if (selTrack) {
+							targetTrackId = selTrack.id;
+						} else {
+							const videoTracks = project.tracks.filter((t) => t.kind === 'video' && !t.locked);
+							if (videoTracks.length > 0) {
+								targetTrackId = videoTracks[0]!.id;
+							}
+						}
+					}
+
+					let createdClipId: ClipId | null = null;
+					try {
+						mutateProject(
+							'Add text layer',
+							(proj) => {
+								let currentProj = proj;
+								let trackToUse = targetTrackId
+									? currentProj.tracks.find(
+											(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
+										)
+									: undefined;
+								if (!trackToUse) {
+									const prevIds = new Set(currentProj.tracks.map((t) => t.id));
+									currentProj = addTrackOperation(currentProj, 'video');
+									trackToUse = currentProj.tracks.find(
+										(t) => !prevIds.has(t.id) && t.kind === 'video'
+									);
+								}
+								const clip = createTextClip(clipStart, clipDuration, text);
+								createdClipId = clip.id;
+								return insertClip(currentProj, trackToUse!.id, clip);
+							},
+							{ history: 'record' }
+						);
+						if (createdClipId) {
+							get().selectClips([createdClipId]);
+						}
+						return createdClipId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+				setTextContent(clipId, text) {
+					const project = get().project;
+					if (!project) return;
+					mutateProject(
+						'Set text content',
+						(proj) => ({
+							...proj,
+							tracks: proj.tracks.map((track) => ({
+								...track,
+								clips: track.clips.map((clip) =>
+									clip.id === clipId && clip.source?.type === 'text'
+										? {
+												...clip,
+												source: {
+													...clip.source,
+													text
+												}
+											}
+										: clip
+								)
+							}))
+						}),
+						{ history: 'record' }
+					);
+				},
+				setTextFillColor(clipId, color) {
+					const project = get().project;
+					if (!project) return;
+					// Color animation is handled via keyframes on text.fillColor property
+				},
+				setTextFontSize(clipId, fontSize) {
+					const project = get().project;
+					if (!project) return;
+					// Font size animation is handled via keyframes on text.fontSize property
+				},
+				applyTextAnimationPreset(clipId, preset) {
+					const project = get().project;
+					if (!project) return;
+					const clip = project.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
+					if (!clip) return;
+					const keyframes = generatePresetKeyframes(preset, clip.duration);
+					mutateProject(
+						`Apply ${preset} preset`,
+						(proj) => ({
+							...proj,
+							tracks: proj.tracks.map((track) => ({
+								...track,
+								clips: track.clips.map((c) => {
+									if (c.id !== clipId) return c;
+									const newProperties = { ...c.properties } || {};
+									for (const [propId, frames] of Object.entries(keyframes)) {
+										newProperties[propId] = frames as any;
+									}
+									return {
+										...c,
+										properties: newProperties
+									};
+								})
+							}))
+						}),
+						{ history: 'record' }
+					);
 				},
 				async importLut(name, cubeText) {
 					const project = get().project;

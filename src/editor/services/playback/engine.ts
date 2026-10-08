@@ -13,6 +13,7 @@ import {
 import { extractCanvasScopeFrame, type ScopeFrameData } from '../render/passes/scopes';
 import { createPlaybackClock, type PlaybackRate } from './clock';
 import { MediaPool } from './mediaPool';
+import { TextFrameProvider } from './textFrameProvider';
 
 export interface PlaybackSnapshot {
 	time: Time;
@@ -110,6 +111,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	private writingPlayhead = false;
 	private disposed = false;
 	private snapshotValue: PlaybackSnapshot;
+	private textFrameProvider: TextFrameProvider;
 	onPoolFrame = (): void => this.requestRender();
 	onPoolMissing = (assetId: AssetId): void => this.markMissing(assetId);
 	onPoolError = (error: Error): void => this.reportError(error);
@@ -143,6 +145,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		private readonly audio: AudioEngine
 	) {
 		this.project = project;
+		this.textFrameProvider = new TextFrameProvider(project);
 		this.snapshotValue = {
 			time: clock.time,
 			duration: timelineDuration(project),
@@ -257,6 +260,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		}
 		const previousProject = this.project;
 		this.project = project;
+		this.textFrameProvider = new TextFrameProvider(project);
 		this.stalledClips.clear();
 		this.resumeAfterStall = false;
 		this.pool.setProject(project);
@@ -427,6 +431,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		this.clock.dispose();
 		if (this.loadingTimer !== null) clearTimeout(this.loadingTimer);
 		this.loadingTimer = null;
+		this.textFrameProvider.dispose();
 		const audioDispose = this.audio.dispose();
 		this.pool.dispose();
 		void audioDispose.catch((error: unknown) => this.reportError(error));
@@ -492,6 +497,10 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			{ width: this.project.settings.width, height: this.project.settings.height },
 			layers,
 			(layer: ActiveLayer): FrameSource | null => {
+				// Try text frame provider first
+				const textSource = this.textFrameProvider.getFrameSource(layer, this.clock.time);
+				if (textSource) return textSource;
+				// Fall back to media pool for asset-based layers
 				const source = this.pool.getFrameSource(layer, this.clock.playing, this.clock.rate);
 				if (!source) loading = true;
 				return source;

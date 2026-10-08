@@ -15,7 +15,7 @@ export interface ProjectSettings {
 	sampleRate: number;
 }
 
-export type AssetKind = 'video' | 'audio' | 'image' | 'lut';
+export type AssetKind = 'video' | 'audio' | 'image' | 'lut' | 'font';
 
 export interface Asset {
 	id: AssetId;
@@ -79,9 +79,27 @@ export type Effect = EffectInstance;
 
 export type BlendMode = 'normal' | 'add' | 'multiply' | 'screen';
 
+export interface TextStyle {
+	fontFamily: string;
+	fontWeight?: 'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
+	fontStyle?: 'normal' | 'italic';
+	alignment?: 'left' | 'center' | 'right';
+	lineHeight?: number;
+	letterSpacing?: number;
+}
+
+export interface TextBox {
+	width?: number;
+	height?: number;
+	autoSize?: boolean;
+	verticalAnchor?: 'top' | 'center' | 'bottom';
+	paddingX?: number;
+	paddingY?: number;
+}
+
 export type ClipSource =
 	| { type: 'asset' }
-	| { type: 'text'; text: string }
+	| { type: 'text'; text: string; style?: TextStyle; box?: TextBox }
 	| { type: 'sequence'; sequenceId: SequenceId }
 	| { type: 'solid'; color: { r: number; g: number; b: number; a: number } }
 	| { type: 'adjustment' };

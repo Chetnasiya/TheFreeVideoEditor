@@ -88,7 +88,7 @@ export interface ActiveLayer {
 	trackId: TrackId;
 	trackOrder: number;
 	sourceTime: Time;
-	kind: 'video' | 'image' | 'solid' | 'adjustment';
+	kind: 'video' | 'image' | 'solid' | 'adjustment' | 'text';
 	opacity: number;
 	transform?: Clip['transform'];
 	/** Pivot offset from the layer center, in composition pixels. */
@@ -182,6 +182,21 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 					sourceTime: localTime,
 					kind: 'solid',
 					solidColor: clip.source.color,
+					opacity: 1,
+					masks: evaluatedMasks,
+					effects: evaluatedEffects,
+					...evaluateLayerProperties(clip, localTime)
+				};
+			}
+
+			if (clip.source?.type === 'text') {
+				if (track.kind !== 'video') return null;
+				return {
+					clipId: clip.id,
+					trackId: track.id,
+					trackOrder,
+					sourceTime: localTime,
+					kind: 'text',
 					opacity: 1,
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
