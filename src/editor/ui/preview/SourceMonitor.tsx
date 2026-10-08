@@ -14,14 +14,13 @@ interface SourceMonitorProps {
 	engine?: PlaybackEngine | null;
 }
 
-type SourceMonitorView = 'source' | 'waveform' | 'parade' | 'histogram' | 'vectorscope';
+type SourceMonitorView = 'source' | 'scopes';
 
 export default function SourceMonitor({ engine = null }: SourceMonitorProps) {
 	const store = useEditorStoreApi();
 	const project = useEditorStore((state) => state.project);
 	const projectId = project?.id;
 	const selectedAssetIds = useEditorStore((state) => state.media.selectedAssetIds);
-	const scopesMode = useEditorStore((state) => state.scopes.mode);
 	const scopesOpen = useEditorStore((state) => state.scopes.open);
 	const asset = useMemo(
 		() => selectedAssetIds.map((id) => project?.assets[id]).find((item) => item !== undefined),
@@ -44,16 +43,10 @@ export default function SourceMonitor({ engine = null }: SourceMonitorProps) {
 		prevSelectedAssetIdsRef.current = selectedAssetIds;
 	}, [selectedAssetIds, store]);
 
-	const viewMode: SourceMonitorView = scopesOpen ? scopesMode : 'source';
+	const viewMode: SourceMonitorView = scopesOpen ? 'scopes' : 'source';
 
-	// Keep store scopes mode in sync when viewMode is a scope:
 	const handleSelectView = (mode: SourceMonitorView) => {
-		if (mode === 'source') {
-			store.getState().setScopesOpen(false);
-		} else {
-			store.getState().setScopesMode(mode);
-			store.getState().setScopesOpen(true);
-		}
+		store.getState().setScopesOpen(mode === 'scopes');
 	};
 
 	const [sourceMedia, setSourceMedia] = useState<SourceMedia>({ url: '', error: '' });
@@ -158,22 +151,19 @@ export default function SourceMonitor({ engine = null }: SourceMonitorProps) {
 					>
 						Source Media
 					</button>
-					{(['waveform', 'parade', 'histogram', 'vectorscope'] as const).map((mode) => (
-						<button
-							key={mode}
-							type="button"
-							role="tab"
-							aria-selected={viewMode === mode}
-							className={`source-monitor-tab ${viewMode === mode ? 'is-active' : ''}`}
-							onClick={() => handleSelectView(mode)}
-						>
-							{mode.charAt(0).toUpperCase() + mode.slice(1)}
-						</button>
-					))}
+					<button
+						type="button"
+						role="tab"
+						aria-selected={viewMode === 'scopes'}
+						className={`source-monitor-tab ${viewMode === 'scopes' ? 'is-active' : ''}`}
+						onClick={() => handleSelectView('scopes')}
+					>
+						Scopes
+					</button>
 				</div>
 			</div>
 
-			{viewMode !== 'source' ? (
+			{viewMode === 'scopes' ? (
 				<ScopesPanel engine={engine} onClose={() => handleSelectView('source')} />
 			) : (
 				<>

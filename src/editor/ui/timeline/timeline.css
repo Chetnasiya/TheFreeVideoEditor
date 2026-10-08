@@ -513,8 +513,8 @@
 .timeline-playhead,
 .timeline-snap-guide {
 	position: absolute;
-	z-index: 8;
-	top: 2rem;
+	z-index: 10;
+	top: 0;
 	bottom: 0;
 	width: 1px;
 	pointer-events: none;
@@ -526,7 +526,7 @@
 
 .timeline-playhead > span {
 	position: absolute;
-	top: -0.25rem;
+	top: 0;
 	left: -4px;
 	width: 9px;
 	height: 9px;

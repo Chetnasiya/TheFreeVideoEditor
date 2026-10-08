@@ -1324,14 +1324,6 @@ function ActiveTimeline({ project }: { project: Project }) {
 								? `Drop to add a ${newTrackDropKind} track`
 								: 'Drop media here to create a new track'}
 						</div>
-						<ConnectedPlayhead pixelsPerSecond={pixelsPerSecond} offset={HEADER_WIDTH} />
-						{drag?.snappedTo !== undefined && (
-							<div
-								className="timeline-snap-guide"
-								style={{ left: HEADER_WIDTH + timeToPixels(drag.snappedTo, pixelsPerSecond) }}
-								aria-hidden="true"
-							/>
-						)}
 						{marquee && (
 							<div
 								className="timeline-marquee"
@@ -1345,6 +1337,14 @@ function ActiveTimeline({ project }: { project: Project }) {
 							/>
 						)}
 					</div>
+					<ConnectedPlayhead pixelsPerSecond={pixelsPerSecond} offset={HEADER_WIDTH} />
+					{drag?.snappedTo !== undefined && (
+						<div
+							className="timeline-snap-guide"
+							style={{ left: HEADER_WIDTH + timeToPixels(drag.snappedTo, pixelsPerSecond) }}
+							aria-hidden="true"
+						/>
+					)}
 				</div>
 			</div>
 			<div className="timeline-status-row" role="status" aria-live="polite">
