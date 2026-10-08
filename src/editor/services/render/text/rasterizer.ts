@@ -1,4 +1,4 @@
-import { layout, revealCount, type MeasureFunction } from '../../../core/text/layout';
+import { layout, revealCount, getGraphemes, type MeasureFunction } from '../../../core/text/layout';
 import type { TextStyle, TextBox } from '../../../core/types';
 
 export interface TextRasterConfig {
@@ -75,6 +75,13 @@ export function getTextDimensions(
 		CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
 	if (!mCtx) return { width: 300, height: 100 };
 	mCtx.font = fontString;
+	if ('letterSpacing' in mCtx) {
+		try {
+			(mCtx as unknown as { letterSpacing: string }).letterSpacing = '0px';
+		} catch {
+			// ignore
+		}
+	}
 
 	const measure: MeasureFunction = (str: string) => {
 		mCtx.font = fontString;
@@ -117,16 +124,30 @@ export function rasterizeText(
 	const mCtx = measureCanvas.getContext('2d') as
 		CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 	mCtx.font = fontString;
+	if ('letterSpacing' in mCtx) {
+		try {
+			(mCtx as unknown as { letterSpacing: string }).letterSpacing = '0px';
+		} catch {
+			// ignore
+		}
+	}
 
 	const measure: MeasureFunction = (str: string) => {
 		mCtx.font = fontString;
 		return mCtx.measureText(str).width;
 	};
 
+	const effectiveLineHeight = config.lineHeight ?? style.lineHeight ?? 1.2;
+	const effectiveLetterSpacing = (config.letterSpacing ?? style.letterSpacing ?? 0) * scale;
+
 	// 1. Layout full text to determine stable layout box dimensions
 	const fullLayout = layout(
 		text,
-		{ ...style, letterSpacing: (style.letterSpacing ?? config.letterSpacing ?? 0) * scale },
+		{
+			...style,
+			lineHeight: effectiveLineHeight,
+			letterSpacing: effectiveLetterSpacing
+		},
 		config.box
 			? {
 					...config.box,
@@ -180,12 +201,43 @@ export function rasterizeText(
 	ctx.font = fontString;
 	ctx.textBaseline = 'top';
 
+	const supportsSpacing = hasCanvasLetterSpacing();
+	if (supportsSpacing && effectiveLetterSpacing !== 0) {
+		try {
+			(ctx as unknown as { letterSpacing: string }).letterSpacing = `${effectiveLetterSpacing}px`;
+		} catch {
+			// ignore
+		}
+	}
+
 	const strokeWidth = (config.strokeWidth ?? 0) * scale;
 	const strokeColor = config.strokeColor;
 	const hasStroke = Boolean(strokeColor && strokeWidth > 0 && strokeColor.a > 0);
 
 	const fillColor = config.fillColor ?? { r: 1, g: 1, b: 1, a: 1 };
 	const fillStyleStr = `rgba(${Math.round(fillColor.r * 255)}, ${Math.round(fillColor.g * 255)}, ${Math.round(fillColor.b * 255)}, ${fillColor.a})`;
+
+	const renderString = (str: string, x: number, y: number, isStroke: boolean) => {
+		if (supportsSpacing || effectiveLetterSpacing === 0) {
+			if (isStroke) {
+				ctx.strokeText(str, x, y);
+			} else {
+				ctx.fillText(str, x, y);
+			}
+		} else {
+			// Fallback for canvas contexts without ctx.letterSpacing support
+			const graphemes = getGraphemes(str);
+			let curX = x;
+			for (const g of graphemes) {
+				if (isStroke) {
+					ctx.strokeText(g, curX, y);
+				} else {
+					ctx.fillText(g, curX, y);
+				}
+				curX += measure(g, fontString) + effectiveLetterSpacing;
+			}
+		}
+	};
 
 	// Walk lines and draw text characters up to visibleCharCount
 	let charsDrawn = 0;
@@ -209,7 +261,7 @@ export function rasterizeText(
 			ctx.shadowOffsetX = (config.shadowOffsetX ?? 2) * scale;
 			ctx.shadowOffsetY = (config.shadowOffsetY ?? 2) * scale;
 			ctx.fillStyle = fillStyleStr;
-			ctx.fillText(lineSubstring, line.x, line.y);
+			renderString(lineSubstring, line.x, line.y, false);
 			ctx.restore();
 		}
 
@@ -220,13 +272,13 @@ export function rasterizeText(
 			ctx.lineWidth = strokeWidth * 2; // doubled since half is covered by fill
 			ctx.lineJoin = 'round';
 			ctx.lineCap = 'round';
-			ctx.strokeText(lineSubstring, line.x, line.y);
+			renderString(lineSubstring, line.x, line.y, true);
 			ctx.restore();
 		}
 
 		// 6. Fill
 		ctx.fillStyle = fillStyleStr;
-		ctx.fillText(lineSubstring, line.x, line.y);
+		renderString(lineSubstring, line.x, line.y, false);
 	}
 
 	return canvas;
@@ -239,9 +291,11 @@ export function hashTextConfig(config: TextRasterConfig): string {
 	const scale = Math.round((config.scale || 1) * 100);
 	const text = config.text || '';
 	const style = config.style;
-	const styleKey = `${style.fontFamily}|${style.fontWeight || ''}|${style.fontStyle || ''}|${style.alignment || ''}|${style.letterSpacing || 0}`;
+	const effLetterSpacing = Math.round((config.letterSpacing ?? style.letterSpacing ?? 0) * 100);
+	const effLineHeight = Math.round((config.lineHeight ?? style.lineHeight ?? 1.2) * 100);
+	const styleKey = `${style.fontFamily}|${style.fontWeight || ''}|${style.fontStyle || ''}|${style.alignment || ''}|${effLetterSpacing}|${effLineHeight}`;
 	const boxKey = config.box
-		? `${config.box.width || 0}|${config.box.autoSize !== false}|${config.box.verticalAnchor || ''}`
+		? `${config.box.width || 0}|${config.box.height || 0}|${config.box.autoSize !== false}|${config.box.verticalAnchor || ''}|${config.box.paddingX || 0}|${config.box.paddingY || 0}`
 		: '';
 	const col = config.fillColor;
 	const colorKey = `${Math.round(col.r * 255)},${Math.round(col.g * 255)},${Math.round(col.b * 255)},${Math.round(col.a * 255)}`;
@@ -249,5 +303,12 @@ export function hashTextConfig(config: TextRasterConfig): string {
 		? `${Math.round(config.strokeColor.r * 255)},${Math.round(config.strokeColor.g * 255)},${Math.round(config.strokeColor.b * 255)},${Math.round(config.strokeColor.a * 255)},${config.strokeWidth || 0}`
 		: '0';
 	const reveal = config.reveal !== undefined ? Math.round(config.reveal * 1000) : 1000;
-	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${text}`;
+	const revealUnit = config.revealUnit || 'char';
+	const shadow = config.shadowColor
+		? `${Math.round(config.shadowColor.r * 255)},${Math.round(config.shadowColor.g * 255)},${Math.round(config.shadowColor.b * 255)},${Math.round(config.shadowColor.a * 255)},${config.shadowBlur || 0},${config.shadowOffsetX || 0},${config.shadowOffsetY || 0}`
+		: '0';
+	const bg = config.backgroundBoxColor
+		? `${Math.round(config.backgroundBoxColor.r * 255)},${Math.round(config.backgroundBoxColor.g * 255)},${Math.round(config.backgroundBoxColor.b * 255)},${Math.round(config.backgroundBoxColor.a * 255)},${config.backgroundBoxRadius || 0}`
+		: '0';
+	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${revealUnit}#${shadow}#${bg}#${text}`;
 }

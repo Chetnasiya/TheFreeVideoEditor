@@ -66,4 +66,52 @@ describe('text layout engine', () => {
 		const graphemes = getGraphemes(emojiText);
 		expect(graphemes.length).toBeLessThan(emojiText.length);
 	});
+
+	it('applies letter spacing to text line width', () => {
+		const base = layout(
+			'Hello',
+			{ fontFamily: 'monospace', letterSpacing: 0 },
+			undefined,
+			monoMeasure,
+			20
+		);
+		// 5 chars * 10 = 50px
+		expect(base.lines[0]?.width).toBe(50);
+
+		const spaced = layout(
+			'Hello',
+			{ fontFamily: 'monospace', letterSpacing: 5 },
+			undefined,
+			monoMeasure,
+			20
+		);
+		// 50 + (5 - 1) * 5 = 70px
+		expect(spaced.lines[0]?.width).toBe(70);
+		expect(spaced.boxWidth).toBe(70);
+	});
+
+	it('applies line height to line positions and box height', () => {
+		const standard = layout(
+			'Line1\nLine2',
+			{ fontFamily: 'monospace', lineHeight: 1.0 },
+			undefined,
+			monoMeasure,
+			20
+		);
+		const double = layout(
+			'Line1\nLine2',
+			{ fontFamily: 'monospace', lineHeight: 2.0 },
+			undefined,
+			monoMeasure,
+			20
+		);
+
+		// lineStep = fontSize * lineHeight
+		// For standard: lineStep = 20 * 1 = 20. Diff = 20
+		expect(standard.lines[1]!.y - standard.lines[0]!.y).toBe(20);
+
+		// For double: lineStep = 20 * 2 = 40. Diff = 40
+		expect(double.lines[1]!.y - double.lines[0]!.y).toBe(40);
+		expect(double.boxHeight).toBeGreaterThan(standard.boxHeight);
+	});
 });

@@ -87,9 +87,21 @@ export default function TransformGizmo({
 	const geometry: GizmoGeometry = useMemo(() => {
 		if (selectedClip?.source?.type === 'text') {
 			const fontSize = (readProperty(selectedClip, 'text.fontSize', localTime) as number) ?? 48;
+			const letterSpacing =
+				(readProperty(selectedClip, 'text.letterSpacing', localTime) as number) ??
+				selectedClip.source.style?.letterSpacing ??
+				0;
+			const lineHeight =
+				(readProperty(selectedClip, 'text.lineHeight', localTime) as number) ??
+				selectedClip.source.style?.lineHeight ??
+				1.2;
 			const dims = getTextDimensions(
 				selectedClip.source.text,
-				selectedClip.source.style ?? { fontFamily: 'sans-serif' },
+				{
+					...(selectedClip.source.style ?? { fontFamily: 'sans-serif' }),
+					letterSpacing,
+					lineHeight
+				},
 				selectedClip.source.box,
 				fontSize
 			);

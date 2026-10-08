@@ -3,6 +3,7 @@ import { EFFECT_DEFINITIONS } from '../../core/effects/registry';
 import type { Clip, EffectInstance, Time } from '../../core';
 import { useEditorStoreApi, useEditorStore } from '../../state/EditorProvider';
 import { PropertyRow, type ConfirmDisableState } from './Inspector';
+import { ColorPickerField } from './ColorPickerField';
 import {
 	BUILT_IN_PRESETS,
 	listUserPresets,
@@ -10,35 +11,6 @@ import {
 	deleteUserPreset,
 	type EffectPreset
 } from '../../services/storage/presets';
-
-function colorToHex(color: unknown): string {
-	if (typeof color === 'string' && color.startsWith('#')) return color;
-	if (Array.isArray(color) && color.length >= 3) {
-		const r = Math.round(Math.min(1, Math.max(0, Number(color[0]) || 0)) * 255)
-			.toString(16)
-			.padStart(2, '0');
-		const g = Math.round(Math.min(1, Math.max(0, Number(color[1]) || 0)) * 255)
-			.toString(16)
-			.padStart(2, '0');
-		const b = Math.round(Math.min(1, Math.max(0, Number(color[2]) || 0)) * 255)
-			.toString(16)
-			.padStart(2, '0');
-		return `#${r}${g}${b}`;
-	}
-	return '#00ff00';
-}
-
-function hexToRgbTuple(hex: string): [number, number, number] {
-	const clean = hex.replace('#', '');
-	if (clean.length === 6) {
-		return [
-			parseInt(clean.slice(0, 2), 16) / 255,
-			parseInt(clean.slice(2, 4), 16) / 255,
-			parseInt(clean.slice(4, 6), 16) / 255
-		];
-	}
-	return [0, 1, 0];
-}
 
 interface EffectsSectionProps {
 	clip: Clip;
@@ -334,74 +306,28 @@ export default function EffectsSection({
 												const propId = `effect:${eff.type}:${eff.id}:${paramName}`;
 
 												if (paramSchema.type === 'color') {
-													const hex = colorToHex(eff.params[paramName]);
+													const colorVal = eff.params[paramName] as
+														| [number, number, number]
+														| [number, number, number, number]
+														| string
+														| undefined;
 													return (
 														<div key={propId} className="effect-custom-param-row">
 															<span className="property-label">{paramSchema.label}</span>
-															<div className="effect-color-input-wrapper">
-																<input
-																	type="color"
-																	value={hex}
-																	onChange={(e) =>
-																		store
-																			.getState()
-																			.setEffectParam(
-																				clip.id,
-																				eff.id,
-																				paramName,
-																				hexToRgbTuple(e.target.value)
-																			)
-																	}
-																	className="effect-color-swatch"
-																/>
-																<input
-																	type="text"
-																	value={hex}
-																	onChange={(e) =>
-																		store
-																			.getState()
-																			.setEffectParam(
-																				clip.id,
-																				eff.id,
-																				paramName,
-																				hexToRgbTuple(e.target.value)
-																			)
-																	}
-																	className="effect-color-text"
-																/>
-																{'EyeDropper' in window && (
-																	<button
-																		type="button"
-																		className="effects-eyedropper-btn"
-																		title="Pick color from screen"
-																		onClick={async () => {
-																			try {
-																				const EyeDropperCtor = (
-																					window as unknown as {
-																						EyeDropper: new () => {
-																							open: () => Promise<{ sRGBHex: string }>;
-																						};
-																					}
-																				).EyeDropper;
-																				const dropper = new EyeDropperCtor();
-																				const res = await dropper.open();
-																				if (res?.sRGBHex) {
-																					store
-																						.getState()
-																						.setEffectParam(
-																							clip.id,
-																							eff.id,
-																							paramName,
-																							hexToRgbTuple(res.sRGBHex)
-																						);
-																				}
-																			} catch {}
-																		}}
-																	>
-																		💧
-																	</button>
-																)}
-															</div>
+															<ColorPickerField
+																value={colorVal ?? [0, 1, 0]}
+																hasAlpha={false}
+																label={paramSchema.label}
+																onChange={(rgba) => {
+																	store
+																		.getState()
+																		.setEffectParam(clip.id, eff.id, paramName, [
+																			rgba[0],
+																			rgba[1],
+																			rgba[2]
+																		]);
+																}}
+															/>
 														</div>
 													);
 												}

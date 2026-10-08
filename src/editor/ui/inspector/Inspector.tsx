@@ -27,6 +27,7 @@ import MasksSection from './MasksSection';
 import TimeRemapSection from './TimeRemapSection';
 import { TextSection } from './TextSection';
 import { TransitionInspector } from './TransitionInspector';
+import { ColorPickerField } from './ColorPickerField';
 import './inspector.css';
 
 export interface ConfirmDisableState {
@@ -142,6 +143,8 @@ export default function Inspector() {
 	const clipTrack = project.tracks.find((t) => t.clips.some((c) => c.id === selectedClip.id));
 	const isText = selectedClip.source?.type === 'text';
 	const isTextExpanded = inspector.expanded.text !== false;
+	const isSolid = selectedClip.source?.type === 'solid';
+	const isSolidExpanded = inspector.expanded.solid !== false;
 	const hasAudio = !isText && (clipTrack?.kind === 'audio' || (clipAsset?.hasAudio ?? false));
 
 	return (
@@ -171,6 +174,45 @@ export default function Inspector() {
 							onStartDisableConfirm={setConfirmDisable}
 							onCancelDisableConfirm={() => setConfirmDisable(null)}
 						/>
+					)}
+				</section>
+			)}
+
+			{/* Solid Color Section */}
+			{isSolid && selectedClip.source?.type === 'solid' && (
+				<section className={`inspector-section ${isSolidExpanded ? 'is-open' : ''}`}>
+					<button
+						type="button"
+						className="inspector-section-header"
+						onClick={() => store.getState().setInspectorExpanded('solid', !isSolidExpanded)}
+						aria-expanded={isSolidExpanded}
+					>
+						<span className="inspector-section-title">
+							<span className="section-chevron" aria-hidden="true">
+								{isSolidExpanded ? '▼' : '▶'}
+							</span>
+							Solid Color
+						</span>
+					</button>
+					{isSolidExpanded && (
+						<div className="inspector-section-content">
+							<div className="property-row">
+								<span className="property-label">Color</span>
+								<ColorPickerField
+									value={selectedClip.source.color}
+									onChange={(rgba) => {
+										store.getState().setSolidColor(selectedClip.id, {
+											r: rgba[0],
+											g: rgba[1],
+											b: rgba[2],
+											a: rgba[3]
+										});
+									}}
+									label="Solid Color"
+									hasAlpha={true}
+								/>
+							</div>
+						</div>
 					)}
 				</section>
 			)}
@@ -649,19 +691,42 @@ export function PropertyRow({
 			)}
 
 			<div className="property-inputs-wrapper">
-				<div className="property-inputs">
-					{desc.channels.map((channelLabel, channelIdx) => (
-						<ChannelField
-							key={channelLabel}
-							clip={clip}
-							desc={desc}
-							channelIdx={channelIdx}
-							channelLabel={channelLabel}
-							evaluatedValue={evaluatedValue}
-							linkScale={linkScale}
-						/>
-					))}
-				</div>
+				{desc.shape === 'vec4' &&
+				desc.channels.length === 4 &&
+				desc.channels[0] === 'R' &&
+				desc.channels[1] === 'G' &&
+				desc.channels[2] === 'B' &&
+				desc.channels[3] === 'A' ? (
+					<ColorPickerField
+						value={
+							Array.isArray(evaluatedValue) && evaluatedValue.length >= 4
+								? [evaluatedValue[0]!, evaluatedValue[1]!, evaluatedValue[2]!, evaluatedValue[3]!]
+								: [1, 1, 1, 1]
+						}
+						onChange={(nextRgba, coalesce) => {
+							store.getState().setProperty(clip.id, propertyId, nextRgba, {
+								autoKey: true,
+								coalesce
+							});
+						}}
+						label={desc.label}
+						hasAlpha={true}
+					/>
+				) : (
+					<div className="property-inputs">
+						{desc.channels.map((channelLabel, channelIdx) => (
+							<ChannelField
+								key={channelLabel}
+								clip={clip}
+								desc={desc}
+								channelIdx={channelIdx}
+								channelLabel={channelLabel}
+								evaluatedValue={evaluatedValue}
+								linkScale={linkScale}
+							/>
+						))}
+					</div>
+				)}
 				{propertyId === 'scale' && onToggleLinkScale && (
 					<button
 						type="button"

@@ -46,6 +46,14 @@ export default function TextInlineEditor({
 	const position = (readProperty(clip, 'position', localTime) as [number, number]) ?? [0, 0];
 	const fontSize =
 		((readProperty(clip, 'text.fontSize', localTime) as number) ?? 48) * monitorScale;
+	const letterSpacing =
+		((readProperty(clip, 'text.letterSpacing', localTime) as number) ??
+			textSource.style?.letterSpacing ??
+			0) * monitorScale;
+	const lineHeight =
+		(readProperty(clip, 'text.lineHeight', localTime) as number) ??
+		textSource.style?.lineHeight ??
+		1.2;
 
 	// Center in preview plus clip position offset
 	const centerX = renderedWidth / 2 + position[0] * monitorScale;
@@ -99,6 +107,8 @@ export default function TextInlineEditor({
 					maxWidth: '80%',
 					minHeight: '60px',
 					fontSize: `${Math.max(14, fontSize)}px`,
+					letterSpacing: `${letterSpacing}px`,
+					lineHeight: `${lineHeight}`,
 					fontFamily: textSource.style?.fontFamily || 'sans-serif',
 					fontWeight: textSource.style?.fontWeight || 'normal',
 					textAlign: textSource.style?.alignment || 'center',

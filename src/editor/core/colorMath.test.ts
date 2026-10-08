@@ -14,7 +14,9 @@ import {
 	rgbToHsl,
 	rgbToYcbcr,
 	sample3dLut,
-	ycbcrToRgb
+	ycbcrToRgb,
+	rgbToHex,
+	hexToRgb
 } from './colorMath';
 
 describe('colorMath', () => {
@@ -178,5 +180,20 @@ describe('colorMath', () => {
 		expect(full[0]).toBeCloseTo(0.75, 2);
 		expect(full[1]).toBeCloseTo(0.75, 2);
 		expect(full[2]).toBeCloseTo(0.75, 2);
+	});
+
+	it('converts between RGB and Hex strings accurately', () => {
+		expect(rgbToHex(1, 1, 1)).toBe('#FFFFFF');
+		expect(rgbToHex(0, 0, 0)).toBe('#000000');
+		expect(rgbToHex(1, 0, 0)).toBe('#FF0000');
+		expect(rgbToHex(0, 1, 0)).toBe('#00FF00');
+		expect(rgbToHex(0, 0, 1)).toBe('#0000FF');
+
+		expect(hexToRgb('#FFFFFF')).toEqual([1, 1, 1]);
+		expect(hexToRgb('#000000')).toEqual([0, 0, 0]);
+		expect(hexToRgb('FFF')).toEqual([1, 1, 1]);
+		expect(hexToRgb('000')).toEqual([0, 0, 0]);
+		expect(hexToRgb('#FF0000')).toEqual([1, 0, 0]);
+		expect(hexToRgb('invalid')).toBeNull();
 	});
 });

@@ -642,6 +642,10 @@ export interface EditorState {
 	applyTextTemplate: (clipId: ClipId, templateId: string) => boolean;
 	applyTextAnimation: (clipId: ClipId, presetId: string) => boolean;
 	clearTextAnimations: (clipId: ClipId) => boolean;
+	setSolidColor: (
+		clipId: ClipId,
+		color: { r: number; g: number; b: number; a?: number }
+	) => boolean;
 }
 
 function errorMessage(error: unknown): string {
@@ -4458,6 +4462,39 @@ export function createEditorStore() {
 								}))
 							}),
 							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setSolidColor(clipId, color) {
+					try {
+						mutateProject(
+							'Update solid color',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId || c.source?.type !== 'solid') return c;
+										return {
+											...c,
+											source: {
+												...c.source,
+												color: {
+													r: color.r,
+													g: color.g,
+													b: color.b,
+													a: color.a ?? 1
+												}
+											}
+										};
+									})
+								}))
+							}),
+							{ history: 'record', mergeKey: `solid-color-${clipId}` }
 						);
 						return true;
 					} catch {

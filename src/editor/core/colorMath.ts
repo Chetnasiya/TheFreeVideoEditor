@@ -330,3 +330,35 @@ export function sample3dLut(
 		clamp01(lerp(c0[2], c1[2], db))
 	];
 }
+
+/** Converts normalized RGB [0, 1] into uppercase 6-character hex string (#RRGGBB). */
+export function rgbToHex(r: number, g: number, b: number): string {
+	const toHex = (c: number) =>
+		Math.round(clamp01(c) * 255)
+			.toString(16)
+			.padStart(2, '0')
+			.toUpperCase();
+	return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+/** Parses hex string (#RGB, #RRGGBB, or #RRGGBBAA) into normalized RGB [0, 1]. Returns null if invalid. */
+export function hexToRgb(hex: string): RGB | null {
+	if (!hex || typeof hex !== 'string') return null;
+	const clean = hex.trim().replace(/^#/, '');
+	if (clean.length === 3) {
+		const r = parseInt(clean[0]! + clean[0]!, 16);
+		const g = parseInt(clean[1]! + clean[1]!, 16);
+		const b = parseInt(clean[2]! + clean[2]!, 16);
+		if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+			return [r / 255, g / 255, b / 255];
+		}
+	} else if (clean.length === 6 || clean.length === 8) {
+		const r = parseInt(clean.slice(0, 2), 16);
+		const g = parseInt(clean.slice(2, 4), 16);
+		const b = parseInt(clean.slice(4, 6), 16);
+		if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+			return [r / 255, g / 255, b / 255];
+		}
+	}
+	return null;
+}
