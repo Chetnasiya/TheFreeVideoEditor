@@ -173,8 +173,8 @@ export const proxyStatusSchema = z.enum([
 
 export const proxyInfoSchema = z.object({
 	opfsPath: z.string().optional(),
-	width: z.number().int().positive().optional(),
-	height: z.number().int().positive().optional(),
+	width: z.number().int().nonnegative().optional(),
+	height: z.number().int().nonnegative().optional(),
 	status: proxyStatusSchema,
 	progress: z.number().min(0).max(1).optional(),
 	error: z.string().optional(),

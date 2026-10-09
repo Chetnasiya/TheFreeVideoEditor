@@ -21,6 +21,8 @@ export interface HistoryEntry {
 	selectionAfter: ClipId[];
 	keyframeSelectionBefore?: HistoryKeyframeRef[];
 	keyframeSelectionAfter?: HistoryKeyframeRef[];
+	activeSequenceIdBefore?: string;
+	activeSequenceIdAfter?: string;
 }
 
 export interface HistorySnapshot {
@@ -97,7 +99,8 @@ export function createHistory(options: HistoryOptions = {}): ProjectHistory {
 				patches: [...previous.patches, ...entry.patches],
 				inversePatches: [...entry.inversePatches, ...previous.inversePatches],
 				selectionBefore: previous.selectionBefore,
-				keyframeSelectionBefore: previous.keyframeSelectionBefore ?? entry.keyframeSelectionBefore
+				keyframeSelectionBefore: previous.keyframeSelectionBefore ?? entry.keyframeSelectionBefore,
+				activeSequenceIdBefore: previous.activeSequenceIdBefore ?? entry.activeSequenceIdBefore
 			};
 		} else {
 			undoStack.push(entry);

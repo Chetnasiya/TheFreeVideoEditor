@@ -106,6 +106,7 @@ scope.addEventListener('message', async (e: MessageEvent<ProxyWorkerInMessage>) 
 					codec: job.codec === 'avc' ? 'avc' : 'vp9',
 					frameRate: job.fps,
 					keyFrameInterval: 0.5, // 0.5s short GOP for fast scrubbing
+					bitrate: job.bitrate,
 					forceTranscode: true
 				},
 				audio: {

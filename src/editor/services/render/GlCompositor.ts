@@ -1,6 +1,6 @@
 import { layerAffine } from '../../core/layerGeometry';
 import type { ActiveLayer } from '../../core/playback';
-import type { BlendMode, ClipId } from '../../core/types';
+import type { BlendMode } from '../../core/types';
 import type { ParsedLut3D } from '../../core/lut';
 import {
 	renderFrame,
@@ -37,7 +37,7 @@ export interface FrameRenderer {
 		lastGoodFrames?: LastGoodFrames,
 		options?: { playing?: boolean }
 	): boolean;
-	releaseUnused(liveClipIds: ReadonlySet<ClipId>): void;
+	releaseUnused(liveKeys: ReadonlySet<string>): void;
 	dispose(): void;
 	enableScopes?(enabled: boolean): void;
 	getLastScopeFrame?(): ScopeFrameData | null;
@@ -80,7 +80,7 @@ function blendFunction(gl: WebGL2RenderingContext, mode: BlendMode): void {
 export class GlCompositor implements FrameRenderer {
 	readonly kind = 'webgl2';
 	private readonly context: RenderContext;
-	private readonly textures = new Map<ClipId, CachedTexture>();
+	private readonly textures = new Map<string, CachedTexture>();
 	private frameIndex = 0;
 	private vao: WebGLVertexArrayObject | null;
 	private fboPool: FboPool;
@@ -163,6 +163,7 @@ export class GlCompositor implements FrameRenderer {
 					Boolean(layer.transition) ||
 					layer.kind === 'adjustment' ||
 					layer.kind === 'solid' ||
+					layer.kind === 'sequence' ||
 					(layer.effects && layer.effects.some((e) => !e.isNeutral)) ||
 					(layer.masks && layer.masks.some((m) => m.enabled))
 			);
@@ -181,11 +182,12 @@ export class GlCompositor implements FrameRenderer {
 			gl.activeTexture(gl.TEXTURE0);
 
 			for (const layer of layers) {
-				const source = frameProvider(layer) ?? lastGoodFrames.get(layer.clipId) ?? null;
+				const goodKey = layer.instanceKey ?? layer.clipId;
+				const source = frameProvider(layer) ?? lastGoodFrames.get(goodKey) ?? null;
 				if (!source || !isUploadable(source)) continue;
 				const { width, height } = dimensions(source);
 				if (width <= 0 || height <= 0) continue;
-				lastGoodFrames.set(layer.clipId, source);
+				lastGoodFrames.set(goodKey, source);
 				const entry = this.upload(layer, source, width, height);
 				if (!entry) continue;
 				const affine = layerAffine(layer, width, height, size.width, size.height);
@@ -220,6 +222,8 @@ export class GlCompositor implements FrameRenderer {
 
 		// Accumulation path for effects and adjustment layers
 		let accumFbo = this.fboPool.acquire(size.width, size.height);
+		const frameNestedCache = new Map<string, PooledFbo>();
+		const frameFbosToRelease: PooledFbo[] = [];
 		gl.bindFramebuffer(gl.FRAMEBUFFER, accumFbo.framebuffer);
 		gl.viewport(0, 0, size.width, size.height);
 		gl.clearColor(0, 0, 0, 0);
@@ -455,6 +459,130 @@ export class GlCompositor implements FrameRenderer {
 				continue;
 			}
 
+			if (layer.kind === 'sequence' && layer.nested) {
+				const nested = layer.nested;
+				const nestedKey = `${nested.sequenceId}:${nested.nestedTime}`;
+				let nestedFbo = frameNestedCache.get(nestedKey);
+
+				if (!nestedFbo) {
+					nestedFbo = this.fboPool.acquire(nested.size.width, nested.size.height);
+					gl.bindFramebuffer(gl.FRAMEBUFFER, nestedFbo.framebuffer);
+					gl.viewport(0, 0, nested.size.width, nested.size.height);
+					gl.clearColor(0, 0, 0, 0);
+					gl.clear(gl.COLOR_BUFFER_BIT);
+
+					for (const childLayer of nested.layers) {
+						this.renderSingleLayer(
+							childLayer,
+							nestedFbo,
+							nested.size,
+							frameProvider,
+							lastGoodFrames
+						);
+					}
+					frameNestedCache.set(nestedKey, nestedFbo);
+					frameFbosToRelease.push(nestedFbo);
+				}
+
+				let layerTex = nestedFbo.texture;
+				const fbosToRelease: PooledFbo[] = [];
+				const width = nested.size.width;
+				const height = nested.size.height;
+
+				const activeMasks = (layer.masks ?? []).filter((m) => m.enabled && !m.effectId);
+				const effectMasks = new Map<string, EvaluatedMask>();
+				for (const m of layer.masks ?? []) {
+					if (m.enabled && m.effectId) effectMasks.set(m.effectId, m);
+				}
+
+				const effW = Math.min(width, size.width * 2);
+				const effH = Math.min(height, size.height * 2);
+
+				if (activeMasks.length > 0) {
+					const matteFbo = this.passManager.accumulateMasks(activeMasks, this.fboPool, effW, effH);
+					fbosToRelease.push(matteFbo);
+					const maskedFbo = this.passManager.applyMatteToTexture(
+						layerTex,
+						matteFbo.texture,
+						this.fboPool,
+						effW,
+						effH
+					);
+					fbosToRelease.push(maskedFbo);
+					layerTex = maskedFbo.texture;
+				}
+
+				const activeEffects = (layer.effects ?? []).filter((e) => !e.isNeutral);
+				if (activeEffects.length > 0) {
+					let currFbo: PooledFbo | null = null;
+					for (const eff of activeEffects) {
+						let maskTex: WebGLTexture | null = null;
+						const effMask = effectMasks.get(eff.id);
+						if (effMask) {
+							const effMatteFbo = this.passManager.generateMaskMatte(
+								effMask,
+								this.fboPool,
+								effW,
+								effH
+							);
+							fbosToRelease.push(effMatteFbo);
+							maskTex = effMatteFbo.texture;
+						}
+						const nextFbo = this.passManager.applyEffect(
+							eff,
+							currFbo ? currFbo.texture : layerTex,
+							this.fboPool,
+							effW,
+							effH,
+							layer.sourceTime,
+							this.lutProvider ?? undefined,
+							maskTex
+						);
+						if (currFbo) fbosToRelease.push(currFbo);
+						currFbo = nextFbo;
+					}
+					if (currFbo) {
+						layerTex = currFbo.texture;
+						fbosToRelease.push(currFbo);
+					}
+				}
+
+				// Composite layer onto accumulation FBO
+				gl.bindFramebuffer(gl.FRAMEBUFFER, accumFbo.framebuffer);
+				gl.viewport(0, 0, size.width, size.height);
+				gl.useProgram(program.program);
+				if (program.targetIsCanvas) gl.uniform1i(program.targetIsCanvas, 0);
+				gl.bindVertexArray(this.vao);
+				gl.uniform2f(program.size, size.width, size.height);
+				gl.uniform1i(program.texture, 0);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, layerTex);
+
+				const affine = layerAffine(layer, width, height, size.width, size.height);
+				gl.uniformMatrix3fv(program.affine, false, [
+					affine.a,
+					affine.b,
+					0,
+					affine.c,
+					affine.d,
+					0,
+					affine.e,
+					affine.f,
+					1
+				]);
+				const crop = layer.crop ?? [0, 0, 0, 0];
+				gl.uniform4f(program.crop, crop[0], crop[1], crop[2], crop[3]);
+				gl.uniform1f(program.opacity, layer.transform?.opacity ?? 1);
+				blendFunction(gl, layer.blendMode ?? 'normal');
+				gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+				stats.drawCalls += 1;
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, null);
+
+				for (const f of fbosToRelease) this.fboPool.release(f);
+				continue;
+			}
+
 			// Standard video or image layer
 			const source = frameProvider(layer) ?? lastGoodFrames.get(layer.clipId) ?? null;
 			if (!source || !isUploadable(source)) continue;
@@ -585,6 +713,7 @@ export class GlCompositor implements FrameRenderer {
 		gl.clear(gl.COLOR_BUFFER_BIT);
 		this.passManager.blit(accumFbo.texture, null, size.width, size.height, 1.0);
 		this.fboPool.release(accumFbo);
+		for (const f of frameFbosToRelease) this.fboPool.release(f);
 
 		gl.bindVertexArray(null);
 		this.evict();
@@ -624,13 +753,14 @@ export class GlCompositor implements FrameRenderer {
 		height: number
 	): CachedTexture | null {
 		const { gl, stats } = this.context;
-		let entry = this.textures.get(layer.clipId);
+		const key = layer.instanceKey ?? layer.clipId;
+		let entry = this.textures.get(key);
 		if (!entry) {
 			const texture = gl.createTexture();
 			if (!texture) return null;
 			stats.texturesCreated += 1;
 			entry = { texture, source: null, width: 0, height: 0, lastUsedFrame: 0 };
-			this.textures.set(layer.clipId, entry);
+			this.textures.set(key, entry);
 			gl.bindTexture(gl.TEXTURE_2D, texture);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -655,21 +785,20 @@ export class GlCompositor implements FrameRenderer {
 	}
 
 	private evict(): void {
-		for (const [clipId, entry] of this.textures) {
-			if (this.frameIndex - entry.lastUsedFrame > EVICT_AFTER_FRAMES)
-				this.deleteEntry(clipId, entry);
+		for (const [key, entry] of this.textures) {
+			if (this.frameIndex - entry.lastUsedFrame > EVICT_AFTER_FRAMES) this.deleteEntry(key, entry);
 		}
 	}
 
-	private deleteEntry(clipId: ClipId, entry: CachedTexture): void {
+	private deleteEntry(key: string, entry: CachedTexture): void {
 		if (!this.context.lost) this.context.gl.deleteTexture(entry.texture);
 		this.context.stats.texturesDeleted += 1;
-		this.textures.delete(clipId);
+		this.textures.delete(key);
 	}
 
-	releaseUnused(liveClipIds: ReadonlySet<ClipId>): void {
-		for (const [clipId, entry] of this.textures) {
-			if (!liveClipIds.has(clipId)) this.deleteEntry(clipId, entry);
+	releaseUnused(liveKeys: ReadonlySet<string>): void {
+		for (const [key, entry] of this.textures) {
+			if (!liveKeys.has(key)) this.deleteEntry(key, entry);
 		}
 	}
 
@@ -782,11 +911,12 @@ export class GlCompositor implements FrameRenderer {
 			return;
 		}
 
-		const source = frameProvider(layer) ?? lastGoodFrames.get(layer.clipId) ?? null;
+		const goodKey = layer.instanceKey ?? layer.clipId;
+		const source = frameProvider(layer) ?? lastGoodFrames.get(goodKey) ?? null;
 		if (!source || !isUploadable(source)) return;
 		const { width, height } = dimensions(source);
 		if (width <= 0 || height <= 0) return;
-		lastGoodFrames.set(layer.clipId, source);
+		lastGoodFrames.set(goodKey, source);
 		const entry = this.upload(layer, source, width, height);
 		if (!entry) return;
 

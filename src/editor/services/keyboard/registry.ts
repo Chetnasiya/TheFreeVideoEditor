@@ -734,6 +734,33 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			scope: 'editor',
 			handler: action('solo-track'),
 			preventDefault: true
+		},
+		{
+			id: 'nest-selection',
+			keys: { mac: 'alt+shift+n', other: 'alt+shift+n' },
+			label: 'Nest Selected Clips',
+			group: 'Sequences',
+			scope: 'editor',
+			handler: action('nest-selection'),
+			preventDefault: true
+		},
+		{
+			id: 'open-sequence-instance',
+			keys: { mac: 'alt+arrowdown', other: 'alt+arrowdown' },
+			label: 'Open Selected Sequence in Timeline',
+			group: 'Sequences',
+			scope: 'editor',
+			handler: action('open-sequence-instance'),
+			preventDefault: true
+		},
+		{
+			id: 'go-up-sequence',
+			keys: { mac: 'alt+arrowup', other: 'alt+arrowup' },
+			label: 'Go Up to Host Sequence',
+			group: 'Sequences',
+			scope: 'editor',
+			handler: action('go-up-sequence'),
+			preventDefault: true
 		}
 	];
 	const conflicts = findShortcutConflicts(entries, 'mac').concat(

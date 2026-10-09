@@ -1,7 +1,8 @@
-import type { Clip, Project, Track, TrackAudio } from '../../core/types';
+import type { Clip, Project, Track, TrackAudio, SequenceId } from '../../core/types';
 import { dbToGain, resolveAudibleTracks, fadeGain } from '../../core/audioMath';
 import { renderRemappedAudio } from './renderRemappedAudio';
 import { defaultAudioDecodeCache } from './decode';
+import { renderOfflineAudio } from './offlineRender';
 
 export interface AudioGraphMeterNodes {
 	analyserL: AnalyserNode;
@@ -63,6 +64,27 @@ export interface BuildAudioGraphOptions {
 	destination?: AudioNode;
 }
 
+/**
+ * Cache for bounced remapped sequence audio buffers.
+ * Key: instanceKey / clipId + sequence content hash.
+ */
+const bouncedSequenceAudioCache = new Map<string, AudioBuffer>();
+
+/**
+ * Invalidate bounced audio cache for a sequence (or all if omitted).
+ */
+export function invalidateBouncedAudioCache(sequenceId?: SequenceId): void {
+	if (!sequenceId) {
+		bouncedSequenceAudioCache.clear();
+		return;
+	}
+	for (const key of Array.from(bouncedSequenceAudioCache.keys())) {
+		if (key.startsWith(sequenceId + ':')) {
+			bouncedSequenceAudioCache.delete(key);
+		}
+	}
+}
+
 function createMeterPair(ctx: BaseAudioContext): AudioGraphMeterNodes {
 	const analyserL = ctx.createAnalyser();
 	const analyserR = ctx.createAnalyser();
@@ -85,6 +107,95 @@ function calculateMeterLevels(analyser: AnalyserNode): { peak: number; rms: numb
 	}
 	const rms = Math.sqrt(sumSq / buffer.length);
 	return { peak, rms };
+}
+
+function buildSingleTrackChain(
+	ctx: BaseAudioContext,
+	track: Track,
+	destination: AudioNode,
+	isAudible: boolean,
+	enableMeters: boolean
+): TrackAudioNodes {
+	const tAudio = track.audio ?? { gainDb: 0, pan: 0, solo: false };
+	const trackIn = ctx.createGain();
+	let trackTail: AudioNode = trackIn;
+
+	// 1. EQ
+	let eqFilters: BiquadFilterNode[] | undefined;
+	if (tAudio.eq?.enabled) {
+		eqFilters = tAudio.eq.bands.map((band) => {
+			const filter = ctx.createBiquadFilter();
+			filter.type = band.type;
+			filter.frequency.value = band.frequencyHz;
+			filter.gain.value = band.gainDb;
+			filter.Q.value = band.q;
+			return filter;
+		});
+		for (const f of eqFilters) {
+			trackTail.connect(f);
+			trackTail = f;
+		}
+	}
+
+	// 2. Compressor
+	let compNode: DynamicsCompressorNode | undefined;
+	if (tAudio.compressor?.enabled) {
+		compNode = ctx.createDynamicsCompressor();
+		compNode.threshold.value = tAudio.compressor.thresholdDb;
+		compNode.ratio.value = tAudio.compressor.ratio;
+		compNode.attack.value = tAudio.compressor.attackMs / 1000;
+		compNode.release.value = tAudio.compressor.releaseMs / 1000;
+		compNode.knee.value = tAudio.compressor.kneeDb;
+		trackTail.connect(compNode);
+		trackTail = compNode;
+	}
+
+	// 3. Track Gain
+	const fader = ctx.createGain();
+	fader.gain.value = dbToGain(tAudio.gainDb);
+	trackTail.connect(fader);
+	trackTail = fader;
+
+	// 4. Track Pan
+	let panner: StereoPannerNode | undefined;
+	if (typeof ctx.createStereoPanner === 'function') {
+		panner = ctx.createStereoPanner();
+		panner.pan.value = tAudio.pan;
+		trackTail.connect(panner);
+		trackTail = panner;
+	}
+
+	// 5. Mute/Solo Gate
+	const muteGain = ctx.createGain();
+	muteGain.gain.value = isAudible ? 1.0 : 0.0;
+	trackTail.connect(muteGain);
+	trackTail = muteGain;
+
+	// 6. Track Meters
+	let trackMeters: AudioGraphMeterNodes | undefined;
+	if (enableMeters) {
+		trackMeters = createMeterPair(ctx);
+		const splitter = ctx.createChannelSplitter(2);
+		trackTail.connect(splitter);
+		splitter.connect(trackMeters.analyserL, 0);
+		splitter.connect(trackMeters.analyserR, 1);
+	}
+
+	// 7. Track Output -> Destination
+	const trackOut = ctx.createGain();
+	trackTail.connect(trackOut);
+	trackOut.connect(destination);
+
+	return {
+		input: trackIn,
+		eqNodes: eqFilters,
+		compressorNode: compNode,
+		faderGain: fader,
+		panPanner: panner,
+		muteGain,
+		meters: trackMeters,
+		output: trackOut
+	};
 }
 
 export function buildAudioGraph(
@@ -140,94 +251,20 @@ export function buildAudioGraph(
 		output: masterOutput
 	};
 
-	// Track Chains
+	// Track Chains for root project
 	const trackNodes = new Map<string, TrackAudioNodes>();
 	const audibleTracks = resolveAudibleTracks(project.tracks);
 
 	for (const track of project.tracks) {
 		if (track.kind !== 'audio') continue;
-
-		const tAudio = track.audio ?? { gainDb: 0, pan: 0, solo: false };
-		const trackIn = ctx.createGain();
-		let trackTail: AudioNode = trackIn;
-
-		// 1. EQ
-		let eqFilters: BiquadFilterNode[] | undefined;
-		if (tAudio.eq?.enabled) {
-			eqFilters = tAudio.eq.bands.map((band) => {
-				const filter = ctx.createBiquadFilter();
-				filter.type = band.type;
-				filter.frequency.value = band.frequencyHz;
-				filter.gain.value = band.gainDb;
-				filter.Q.value = band.q;
-				return filter;
-			});
-			for (const f of eqFilters) {
-				trackTail.connect(f);
-				trackTail = f;
-			}
-		}
-
-		// 2. Compressor
-		let compNode: DynamicsCompressorNode | undefined;
-		if (tAudio.compressor?.enabled) {
-			compNode = ctx.createDynamicsCompressor();
-			compNode.threshold.value = tAudio.compressor.thresholdDb;
-			compNode.ratio.value = tAudio.compressor.ratio;
-			compNode.attack.value = tAudio.compressor.attackMs / 1000;
-			compNode.release.value = tAudio.compressor.releaseMs / 1000;
-			compNode.knee.value = tAudio.compressor.kneeDb;
-			trackTail.connect(compNode);
-			trackTail = compNode;
-		}
-
-		// 3. Track Gain
-		const fader = ctx.createGain();
-		fader.gain.value = dbToGain(tAudio.gainDb);
-		trackTail.connect(fader);
-		trackTail = fader;
-
-		// 4. Track Pan (using StereoPannerNode or splitter/merger fallback)
-		let panner: StereoPannerNode | undefined;
-		if (typeof ctx.createStereoPanner === 'function') {
-			panner = ctx.createStereoPanner();
-			panner.pan.value = tAudio.pan;
-			trackTail.connect(panner);
-			trackTail = panner;
-		}
-
-		// 5. Mute/Solo Gate
-		const muteGain = ctx.createGain();
-		const isAudible = audibleTracks.has(track.id);
-		muteGain.gain.value = isAudible ? 1.0 : 0.0;
-		trackTail.connect(muteGain);
-		trackTail = muteGain;
-
-		// 6. Track Meters
-		let trackMeters: AudioGraphMeterNodes | undefined;
-		if (enableMeters) {
-			trackMeters = createMeterPair(ctx);
-			const splitter = ctx.createChannelSplitter(2);
-			trackTail.connect(splitter);
-			splitter.connect(trackMeters.analyserL, 0);
-			splitter.connect(trackMeters.analyserR, 1);
-		}
-
-		// 7. Track Output -> Master Input
-		const trackOut = ctx.createGain();
-		trackTail.connect(trackOut);
-		trackOut.connect(masterInput);
-
-		trackNodes.set(track.id, {
-			input: trackIn,
-			eqNodes: eqFilters,
-			compressorNode: compNode,
-			faderGain: fader,
-			panPanner: panner,
-			muteGain,
-			meters: trackMeters,
-			output: trackOut
-		});
+		const nodes = buildSingleTrackChain(
+			ctx,
+			track,
+			masterInput,
+			audibleTracks.has(track.id),
+			enableMeters
+		);
+		trackNodes.set(track.id, nodes);
 	}
 
 	const activeSources: AudioBufferSourceNode[] = [];
@@ -238,10 +275,11 @@ export function buildAudioGraph(
 		whenSeconds: number,
 		offsetSeconds: number,
 		durationSeconds: number,
-		buffer?: AudioBuffer
+		buffer?: AudioBuffer,
+		targetNode?: AudioNode
 	): AudioBufferSourceNode | null => {
-		const tNode = trackNodes.get(track.id);
-		if (!tNode || !buffer) return null;
+		const destInput = targetNode ?? trackNodes.get(track.id)?.input;
+		if (!destInput || !buffer) return null;
 
 		let playBuffer = buffer;
 		let playRate = clip.speed ?? 1;
@@ -270,7 +308,7 @@ export function buildAudioGraph(
 			}
 		}
 
-		// Clip-level chain: source -> clipGain -> clipPan -> trackInput
+		// Clip-level chain: source -> clipGain -> clipPan -> destInput
 		const source = ctx.createBufferSource();
 		source.buffer = playBuffer;
 		source.playbackRate.value = playRate;
@@ -306,7 +344,7 @@ export function buildAudioGraph(
 		}
 
 		source.connect(clipGain);
-		clipTail.connect(tNode.input);
+		clipTail.connect(destInput);
 
 		source.start(whenSeconds, offsetSeconds, durationSeconds);
 		activeSources.push(source);
@@ -325,23 +363,8 @@ export function buildAudioGraph(
 		for (const track of project.tracks) {
 			if (track.kind !== 'audio') continue;
 			for (const clip of track.clips) {
-				if (!clip.assetId) continue;
 				const clipEndUs = clip.start + clip.duration;
 				if (clipEndUs <= startUs || clip.start >= endUs) continue;
-
-				let buffer = providedBuffers?.get(clip.assetId);
-				const ctxWithDecode = ctx as unknown as {
-					decodeAudioData?: (b: ArrayBuffer) => Promise<AudioBuffer>;
-				};
-				if (!buffer && typeof ctxWithDecode.decodeAudioData === 'function') {
-					buffer =
-						(await defaultAudioDecodeCache.getOrDecode(
-							clip.assetId,
-							project,
-							ctxWithDecode as Pick<AudioContext, 'decodeAudioData'>
-						)) ?? undefined;
-				}
-				if (!buffer) continue;
 
 				const overlapStartUs = Math.max(startUs, clip.start);
 				const overlapEndUs = Math.min(endUs, clipEndUs);
@@ -351,6 +374,167 @@ export function buildAudioGraph(
 				const offsetSec =
 					(clip.sourceIn + (overlapStartUs - clip.start) * (clip.speed || 1)) / 1_000_000;
 				const durSec = overlapDurUs / 1_000_000;
+
+				// Handle sequence clips
+				if (clip.source?.type === 'sequence') {
+					const seqId = clip.source.sequenceId;
+					const { viewProject, sequenceDuration } = await import('../../core/sequences');
+					const nestedView = viewProject(project, seqId);
+					const isConstantSpeed1 = (clip.speed ?? 1) === 1 && !clip.timeRemap;
+
+					if (isConstantSpeed1) {
+						// LIVE SUB-GRAPH (Decision 6):
+						// Construct instance bus driven by host clip volume, pan, and fades
+						const instanceBusIn = ctx.createGain();
+						const instanceFader = ctx.createGain();
+						const volProp = clip.properties?.['audio.volume'];
+						const volDb = volProp && 'value' in volProp ? Number(volProp.value) || 0 : 0;
+						const baseGain = volProp ? dbToGain(volDb) : (clip.volume ?? 1);
+						instanceFader.gain.value = baseGain;
+
+						if (clip.fadeInUs || clip.fadeOutUs) {
+							const fadeCurve = clip.fadeCurve ?? 'equalPower';
+							const steps = 32;
+							const gainValues = new Float32Array(steps);
+							for (let i = 0; i < steps; i++) {
+								const relTimeTicks = (i / (steps - 1)) * clip.duration;
+								gainValues[i] =
+									baseGain *
+									fadeGain(
+										relTimeTicks,
+										clip.duration,
+										clip.fadeInUs ?? 0,
+										clip.fadeOutUs ?? 0,
+										fadeCurve
+									);
+							}
+							instanceFader.gain.setValueCurveAtTime(gainValues, whenSec, durSec);
+						}
+
+						instanceBusIn.connect(instanceFader);
+						let instanceTail: AudioNode = instanceFader;
+
+						if (typeof ctx.createStereoPanner === 'function') {
+							const instancePanner = ctx.createStereoPanner();
+							const panProp = clip.properties?.['audio.pan'];
+							const panVal = panProp && 'value' in panProp ? Number(panProp.value) || 0 : 0;
+							instancePanner.pan.value = panVal;
+							instanceFader.connect(instancePanner);
+							instanceTail = instancePanner;
+						}
+
+						// Connect instance bus tail into host track input
+						const hostTrackNode = trackNodes.get(track.id);
+						if (hostTrackNode) {
+							instanceTail.connect(hostTrackNode.input);
+						}
+
+						// Build nested track chains routed into instanceBusIn
+						const nestedAudible = resolveAudibleTracks(nestedView.tracks);
+						const nestedTrackNodes = new Map<string, TrackAudioNodes>();
+						for (const nTrack of nestedView.tracks) {
+							if (nTrack.kind !== 'audio') continue;
+							const nNode = buildSingleTrackChain(
+								ctx,
+								nTrack,
+								instanceBusIn,
+								nestedAudible.has(nTrack.id),
+								enableMeters
+							);
+							nestedTrackNodes.set(nTrack.id, nNode);
+						}
+
+						// Schedule nested clips into their respective nestedTrackNodes
+						const nestedWindowStartUs = clip.sourceIn + (overlapStartUs - clip.start);
+						const nestedWindowEndUs = nestedWindowStartUs + overlapDurUs;
+
+						for (const nTrack of nestedView.tracks) {
+							if (nTrack.kind !== 'audio') continue;
+							const nNode = nestedTrackNodes.get(nTrack.id);
+							if (!nNode) continue;
+
+							for (const nClip of nTrack.clips) {
+								const nClipEndUs = nClip.start + nClip.duration;
+								if (nClipEndUs <= nestedWindowStartUs || nClip.start >= nestedWindowEndUs) continue;
+
+								let nBuffer = providedBuffers?.get(nClip.assetId ?? '');
+								const ctxWithDecode = ctx as unknown as {
+									decodeAudioData?: (b: ArrayBuffer) => Promise<AudioBuffer>;
+								};
+								if (
+									!nBuffer &&
+									nClip.assetId &&
+									typeof ctxWithDecode.decodeAudioData === 'function'
+								) {
+									nBuffer =
+										(await defaultAudioDecodeCache.getOrDecode(
+											nClip.assetId,
+											project,
+											ctxWithDecode as Pick<AudioContext, 'decodeAudioData'>
+										)) ?? undefined;
+								}
+								if (!nBuffer) continue;
+
+								const nOverlapStartUs = Math.max(nestedWindowStartUs, nClip.start);
+								const nOverlapEndUs = Math.min(nestedWindowEndUs, nClipEndUs);
+								const nOverlapDurUs = nOverlapEndUs - nOverlapStartUs;
+
+								const nWhenSec = whenSec + (nOverlapStartUs - nestedWindowStartUs) / 1_000_000;
+								const nOffsetSec =
+									(nClip.sourceIn + (nOverlapStartUs - nClip.start) * (nClip.speed || 1)) /
+									1_000_000;
+								const nDurSec = nOverlapDurUs / 1_000_000;
+
+								const nSrc = scheduleClip(
+									nClip,
+									nTrack,
+									nWhenSec,
+									nOffsetSec,
+									nDurSec,
+									nBuffer,
+									nNode.input
+								);
+								if (nSrc) sources.push(nSrc);
+							}
+						}
+						continue;
+					} else {
+						// BOUNCE PATH for remapped, speed != 1, or reverse
+						const cacheKey = `${seqId}:${clip.id}:${clip.speed ?? 1}:${clip.sourceIn}:${clip.duration}`;
+						let buffer = bouncedSequenceAudioCache.get(cacheKey);
+						const seqDur = sequenceDuration(project, seqId);
+						if (!buffer && seqDur > 0) {
+							buffer = await renderOfflineAudio({
+								project: nestedView,
+								durationUs: seqDur,
+								sampleRate: ctx.sampleRate
+							});
+							bouncedSequenceAudioCache.set(cacheKey, buffer);
+						}
+						if (!buffer) continue;
+						const srcNode = scheduleClip(clip, track, whenSec, offsetSec, durSec, buffer);
+						if (srcNode) sources.push(srcNode);
+						continue;
+					}
+				}
+
+				// Asset clip
+				let buffer: AudioBuffer | undefined;
+				if (clip.assetId) {
+					buffer = providedBuffers?.get(clip.assetId);
+					const ctxWithDecode = ctx as unknown as {
+						decodeAudioData?: (b: ArrayBuffer) => Promise<AudioBuffer>;
+					};
+					if (!buffer && typeof ctxWithDecode.decodeAudioData === 'function') {
+						buffer =
+							(await defaultAudioDecodeCache.getOrDecode(
+								clip.assetId,
+								project,
+								ctxWithDecode as Pick<AudioContext, 'decodeAudioData'>
+							)) ?? undefined;
+					}
+				}
+				if (!buffer) continue;
 
 				const srcNode = scheduleClip(clip, track, whenSec, offsetSec, durSec, buffer);
 				if (srcNode) sources.push(srcNode);

@@ -1,0 +1,365 @@
+import { describe, expect, it } from 'vitest';
+import {
+	ROOT_SEQUENCE_ID,
+	applyToSequence,
+	getSequence,
+	isRootSequence,
+	viewProject
+} from './access';
+import {
+	MAX_SEQUENCE_NESTING_DEPTH,
+	SequenceCycleError,
+	SequenceDepthError,
+	addSequenceInstance,
+	createSequence,
+	deleteSequence,
+	duplicateSequence,
+	expandSequenceInstance,
+	flattenForInterchange,
+	getDepthFromRoot,
+	getSequenceUsage,
+	makeInstanceUnique,
+	nestSelection,
+	renameSequence,
+	sequenceDuration,
+	wouldCreateCycle
+} from './operations';
+import type { AssetId, Clip, ClipId, Project, SequenceId } from '../types';
+import { createEmptyProject } from '../factory';
+
+const RED = { r: 1, g: 0, b: 0, a: 1 };
+
+function makeSolidClip(id: string, start: number, duration: number): Clip {
+	return {
+		id: id as ClipId,
+		start,
+		duration,
+		sourceIn: 0,
+		sourceOut: duration,
+		speed: 1,
+		volume: 1,
+		source: { type: 'solid', color: RED }
+	};
+}
+
+function makeEmptyProject(): Project {
+	return createEmptyProject({ name: 'Test Project' });
+}
+
+describe('Sequence Access & View Projection', () => {
+	it('identifies root sequence correctly', () => {
+		expect(isRootSequence(ROOT_SEQUENCE_ID)).toBe(true);
+		expect(isRootSequence(undefined)).toBe(true);
+		expect(isRootSequence(null)).toBe(true);
+		expect(isRootSequence('' as SequenceId)).toBe(true);
+		expect(isRootSequence('seq-1' as SequenceId)).toBe(false);
+	});
+
+	it('views root project as itself', () => {
+		const project = makeEmptyProject();
+		const view = viewProject(project, ROOT_SEQUENCE_ID);
+		expect(view.tracks).toBe(project.tracks);
+		expect(view.settings).toBe(project.settings);
+	});
+
+	it('creates a sequence and projects its view', () => {
+		let project = makeEmptyProject();
+		const { project: p2, sequenceId } = createSequence(project, 'Scene 1');
+		project = p2;
+
+		const seq = getSequence(project, sequenceId);
+		expect(seq).toBeDefined();
+		expect(seq?.name).toBe('Scene 1');
+
+		const view = viewProject(project, sequenceId);
+		expect(view.tracks).toEqual(seq?.tracks);
+		expect(view.settings).toEqual(project.settings); // inherited settings
+	});
+
+	it('applies operations to a nested sequence via viewProject & applyToSequence', () => {
+		let project = makeEmptyProject();
+		const { project: p2, sequenceId } = createSequence(project, 'Scene 1');
+		project = p2;
+
+		// Add a clip into the nested sequence using a standard Project operation
+		const clip = makeSolidClip('clip-inside', 0, 5_000_000);
+
+		const updatedProject = applyToSequence(project, sequenceId, (view) => {
+			const targetTrack = view.tracks.find((t) => t.kind === 'video')!;
+			return {
+				...view,
+				tracks: view.tracks.map((t) => (t.id === targetTrack.id ? { ...t, clips: [clip] } : t))
+			};
+		});
+
+		const seqTracks = updatedProject.sequences?.[sequenceId]?.tracks;
+		const vTrack = seqTracks?.find((t) => t.kind === 'video');
+		expect(vTrack?.clips.length).toBe(1);
+		expect(vTrack?.clips[0]!.id).toBe('clip-inside');
+		// Root tracks remain untouched
+		expect(updatedProject.tracks.find((t) => t.kind === 'video')?.clips.length).toBe(0);
+	});
+});
+
+describe('Cycle Detection & Nesting Depth', () => {
+	it('detects direct self-reference cycle', () => {
+		let project = makeEmptyProject();
+		const { project: p2, sequenceId } = createSequence(project, 'Seq A');
+		project = p2;
+
+		expect(wouldCreateCycle(project, sequenceId, sequenceId)).toBe(true);
+	});
+
+	it('detects indirect cycles A -> B -> A', () => {
+		let project = makeEmptyProject();
+		const { project: p1, sequenceId: seqA } = createSequence(project, 'Seq A');
+		const { project: p2, sequenceId: seqB } = createSequence(p1, 'Seq B');
+		project = p2;
+
+		// Add instance of Seq B inside Seq A
+		const { project: p3 } = addSequenceInstance(project, seqA, seqB, 0);
+		project = p3;
+
+		// Inserting Seq A into Seq B would create cycle
+		expect(wouldCreateCycle(project, seqB, seqA)).toBe(true);
+
+		// Throws when attempting addSequenceInstance
+		expect(() => addSequenceInstance(project, seqB, seqA, 0)).toThrow(SequenceCycleError);
+	});
+
+	it('enforces maximum nesting depth of 8', () => {
+		let project = makeEmptyProject();
+		let currentSeq: SequenceId = ROOT_SEQUENCE_ID;
+
+		// Chain sequences: root -> s1 -> s2 -> ... -> s8
+		for (let i = 1; i <= MAX_SEQUENCE_NESTING_DEPTH; i++) {
+			const { project: nextProj, sequenceId } = createSequence(project, `Seq ${i}`);
+			project = nextProj;
+			const { project: chainedProj } = addSequenceInstance(project, currentSeq, sequenceId, 0);
+			project = chainedProj;
+			currentSeq = sequenceId;
+		}
+
+		expect(getDepthFromRoot(project, currentSeq)).toBe(MAX_SEQUENCE_NESTING_DEPTH);
+
+		// Attempting to nest an 9th level sequence should throw SequenceDepthError
+		const { project: pExceed, sequenceId: sExceed } = createSequence(project, 'Exceed');
+		expect(() => addSequenceInstance(pExceed, currentSeq, sExceed, 0)).toThrow(SequenceDepthError);
+	});
+});
+
+describe('Sequence Duration & Sizing', () => {
+	it('calculates duration based on maximum clip end', () => {
+		let project = makeEmptyProject();
+		const { project: p2, sequenceId } = createSequence(project, 'Duration Test');
+		project = p2;
+
+		expect(sequenceDuration(project, sequenceId)).toBe(0);
+
+		const clip = makeSolidClip('clip-1', 1_000_000, 4_000_000);
+
+		project = applyToSequence(project, sequenceId, (view) => ({
+			...view,
+			tracks: view.tracks.map((t) => (t.kind === 'video' ? { ...t, clips: [clip] } : t))
+		}));
+
+		expect(sequenceDuration(project, sequenceId)).toBe(5_000_000);
+	});
+});
+
+describe('Sequence Operations (CRUD, Nest, Expand, Make Unique)', () => {
+	it('renames a sequence', () => {
+		const project = makeEmptyProject();
+		const { project: p2, sequenceId } = createSequence(project, 'Original Name');
+		const pRenamed = renameSequence(p2, sequenceId, 'New Name');
+		expect(pRenamed.sequences?.[sequenceId]?.name).toBe('New Name');
+	});
+
+	it('prevents deleting sequence when used, allows deletion with force', () => {
+		const project = makeEmptyProject();
+		const { project: p2, sequenceId } = createSequence(project, 'To Delete');
+		const { project: p3 } = addSequenceInstance(p2, ROOT_SEQUENCE_ID, sequenceId, 0);
+
+		// Should have usage
+		expect(getSequenceUsage(p3, sequenceId).length).toBeGreaterThan(0);
+
+		// Deleting without force throws
+		expect(() => deleteSequence(p3, sequenceId, false)).toThrow(/is used by/);
+
+		// Deleting with force removes instances
+		const pDeleted = deleteSequence(p3, sequenceId, true);
+		expect(pDeleted.sequences?.[sequenceId]).toBeUndefined();
+		expect(pDeleted.tracks.find((t) => t.kind === 'video')?.clips.length).toBe(0);
+	});
+
+	it('duplicates a sequence with deep copy of tracks and clips', () => {
+		const project = makeEmptyProject();
+		const { project: p2, sequenceId } = createSequence(project, 'Original');
+		const clip = makeSolidClip('orig-clip', 0, 2_000_000);
+		const pWithClip = applyToSequence(p2, sequenceId, (view) => ({
+			...view,
+			tracks: view.tracks.map((t) => (t.kind === 'video' ? { ...t, clips: [clip] } : t))
+		}));
+
+		const { project: pDup, newSequenceId } = duplicateSequence(pWithClip, sequenceId);
+		expect(pDup.sequences?.[newSequenceId]?.name).toBe('Original Copy');
+		const dupClips = pDup.sequences?.[newSequenceId]?.tracks.find((t) => t.kind === 'video')?.clips;
+		expect(dupClips?.length).toBe(1);
+		expect(dupClips?.[0]!.id).not.toBe('orig-clip'); // New IDs
+	});
+
+	it('nests a selection of clips and creates an instance on the timeline', () => {
+		let project = makeEmptyProject();
+		const clip1 = makeSolidClip('c1', 1_000_000, 2_000_000);
+		const clip2 = makeSolidClip('c2', 3_000_000, 2_000_000);
+		project = {
+			...project,
+			tracks: project.tracks.map((t) => (t.kind === 'video' ? { ...t, clips: [clip1, clip2] } : t))
+		};
+
+		const {
+			project: pNested,
+			newSequenceId,
+			videoInstanceClipId
+		} = nestSelection(project, ROOT_SEQUENCE_ID, ['c1' as ClipId, 'c2' as ClipId], 'Nested Scene');
+
+		const seq = pNested.sequences?.[newSequenceId];
+		expect(seq).toBeDefined();
+		expect(seq?.name).toBe('Nested Scene');
+		// Clips inside sequence should be normalized to start at 0
+		const innerClips = seq?.tracks.find((t) => t.kind === 'video')?.clips;
+		expect(innerClips?.length).toBe(2);
+		expect(innerClips?.[0]!.start).toBe(0);
+		expect(innerClips?.[1]!.start).toBe(2_000_000);
+
+		// Host track now contains the sequence instance clip spanning 1_000_000 to 5_000_000
+		const hostClips = pNested.tracks.find((t) => t.kind === 'video')?.clips;
+		expect(hostClips?.length).toBe(1);
+		expect(hostClips?.[0]!.id).toBe(videoInstanceClipId);
+		expect(hostClips?.[0]!.start).toBe(1_000_000);
+		expect(hostClips?.[0]!.duration).toBe(4_000_000);
+		expect(hostClips?.[0]!.source).toEqual({ type: 'sequence', sequenceId: newSequenceId });
+
+		// Test expandSequenceInstance (un-nest roundtrip)
+		const pExpanded = expandSequenceInstance(pNested, ROOT_SEQUENCE_ID, videoInstanceClipId!);
+		const unnestedClips = pExpanded.tracks.find((t) => t.kind === 'video')?.clips;
+		expect(unnestedClips?.length).toBe(2);
+		expect(unnestedClips?.[0]!.start).toBe(1_000_000);
+		expect(unnestedClips?.[1]!.start).toBe(3_000_000);
+		expect(unnestedClips?.[0]!.duration).toBe(2_000_000);
+		expect(unnestedClips?.[1]!.duration).toBe(2_000_000);
+	});
+
+	it('makes an instance unique', () => {
+		const project = makeEmptyProject();
+		const { project: p2, sequenceId } = createSequence(project, 'Shared Seq');
+		const { project: p3, videoClipId } = addSequenceInstance(p2, ROOT_SEQUENCE_ID, sequenceId, 0);
+
+		const { project: pUnique, newSequenceId } = makeInstanceUnique(p3, videoClipId!);
+		expect(newSequenceId).not.toBe(sequenceId);
+		expect(pUnique.sequences?.[newSequenceId]?.name).toBe('Shared Seq (Unique)');
+
+		const instance = pUnique.tracks
+			.find((t) => t.kind === 'video')
+			?.clips.find((c) => c.id === videoClipId);
+		expect(instance?.source).toEqual({ type: 'sequence', sequenceId: newSequenceId });
+	});
+
+	it('flattens nested sequences for interchange', () => {
+		let project = makeEmptyProject();
+		const clip1 = makeSolidClip('c1', 1_000_000, 2_000_000);
+		project = {
+			...project,
+			tracks: project.tracks.map((t) => (t.kind === 'video' ? { ...t, clips: [clip1] } : t))
+		};
+
+		const { project: pNested } = nestSelection(
+			project,
+			ROOT_SEQUENCE_ID,
+			['c1' as ClipId],
+			'To Flatten'
+		);
+
+		const { project: pFlattened, omissions } = flattenForInterchange(pNested);
+		expect(omissions.length).toBe(0);
+		expect(pFlattened.sequences).toBeUndefined();
+		const hostClips = pFlattened.tracks.find((t) => t.kind === 'video')?.clips ?? [];
+		expect(hostClips.length).toBe(1);
+		const firstHost = hostClips[0];
+		expect(firstHost).toBeDefined();
+		expect(firstHost?.source?.type).toBe('solid');
+		expect(firstHost?.start).toBe(1_000_000);
+	});
+
+	it('preserves invariants over 500 random operations applied to a nested sequence via applyToSequence', async () => {
+		const { addClipFromAsset, moveClips } = await import('../operations');
+		const { clipEnd } = await import('../timeline');
+		let project = makeEmptyProject();
+		const assetId = 'asset-nested-test' as AssetId;
+		project = {
+			...project,
+			assets: {
+				[assetId]: {
+					id: assetId,
+					name: 'test.mp4',
+					kind: 'video',
+					duration: 10_000_000,
+					width: 1920,
+					height: 1080,
+					fps: 30,
+					hasAudio: true,
+					size: 1000,
+					mimeType: 'video/mp4',
+					opfsPath: 'test.mp4'
+				}
+			}
+		};
+
+		const { project: pSeq, sequenceId } = createSequence(project, 'Stress Seq');
+		project = pSeq;
+
+		let seed = 98_765;
+		const random = () => {
+			seed = (seed * 16_807) % 2_147_483_647;
+			return seed / 2_147_483_647;
+		};
+
+		const assertInvariant = (p: Project) => {
+			const seqTracks = p.sequences?.[sequenceId]?.tracks ?? [];
+			for (const track of seqTracks) {
+				const clips = track.clips.toSorted((a, b) => a.start - b.start);
+				for (let i = 0; i < clips.length; i++) {
+					const clip = clips[i]!;
+					expect(clip.sourceIn).toBeLessThan(clip.sourceOut!);
+					const next = clips[i + 1];
+					if (next) expect(clipEnd(clip)).toBeLessThanOrEqual(next.start);
+				}
+			}
+		};
+
+		for (let step = 0; step < 500; step++) {
+			project = applyToSequence(project, sequenceId, (view) => {
+				const vTrack = view.tracks.find((t) => t.kind === 'video')!;
+				let updated = addClipFromAsset(view, {
+					assetId,
+					trackId: vTrack.id,
+					start: Math.floor(random() * 30_000_000)
+				});
+				if (step % 3 === 0) {
+					const currentClips = updated.tracks.find((t) => t.kind === 'video')!.clips;
+					const c = currentClips[Math.floor(random() * currentClips.length)]!;
+					try {
+						updated = moveClips(updated, {
+							clipIds: [c.id],
+							deltaTime: Math.floor(random() * 4_000_000) - 2_000_000
+						});
+					} catch {
+						// Expected if interval doesn't fit
+					}
+				}
+				return updated;
+			});
+			assertInvariant(project);
+		}
+	});
+});

@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
-import { timelineDuration, ticksToSeconds } from '../../core';
+import {
+	timelineDuration,
+	ticksToSeconds,
+	ROOT_SEQUENCE_ID,
+	viewProject,
+	flattenForInterchange,
+	type SequenceId
+} from '../../core';
 import type { Project } from '../../core';
 import { serializeSrt } from '../../core/captions/srt';
 import { serializeVtt } from '../../core/captions/vtt';
@@ -94,6 +101,7 @@ export default function ExportDialog() {
 	const dismissClosePrompt = useEditorStore((state) => state.dismissExportClosePrompt);
 	const confirmCancelAndContinue = useEditorStore((state) => state.confirmCancelExportAndContinue);
 	const [tab, setTab] = useState<ExportTab>('video');
+	const [selectedSequenceId, setSelectedSequenceId] = useState<SequenceId>(ROOT_SEQUENCE_ID);
 	const [videoFormat, setVideoFormat] = useState<ExportSettings['format']>('mp4');
 	const [preset, setPreset] = useState<ResolutionPreset>('project');
 	const [quality, setQuality] = useState<ExportQuality>('high');
@@ -120,45 +128,51 @@ export default function ExportDialog() {
 	const cancelConfirmRef = useRef<HTMLButtonElement>(null);
 	const cancelRef = useRef<AbortController | null>(null);
 
+	const exportProject = useMemo(() => {
+		if (!project) return null;
+		return viewProject(project, selectedSequenceId);
+	}, [project, selectedSequenceId]);
+
 	const offlineAssets = useMemo(
-		() => (project ? Object.values(project.assets).filter((asset) => asset.offline) : []),
-		[project]
+		() =>
+			exportProject ? Object.values(exportProject.assets).filter((asset) => asset.offline) : [],
+		[exportProject]
 	);
 	const undecodableAudioAssets = useMemo(() => {
-		if (!project) return [];
+		if (!exportProject) return [];
 		const scheduledAssets = new Set(
-			project.tracks
+			exportProject.tracks
 				.filter((track) => track.kind === 'audio' && !track.muted)
 				.flatMap((track) => track.clips.flatMap((clip) => (clip.assetId ? [clip.assetId] : [])))
 		);
-		return Object.values(project.assets).filter(
+		return Object.values(exportProject.assets).filter(
 			(asset) => asset.hasAudio && asset.audioDecodable === false && scheduledAssets.has(asset.id)
 		);
-	}, [project]);
+	}, [exportProject]);
 	const captionTracks = useMemo(
-		() => (project ? project.tracks.filter((t) => t.kind === 'caption') : []),
-		[project]
+		() => (exportProject ? exportProject.tracks.filter((t) => t.kind === 'caption') : []),
+		[exportProject]
 	);
 	const settings = useMemo(
 		() =>
-			project
-				? makeVideoSettings(project, {
+			exportProject
+				? makeVideoSettings(exportProject, {
 						format: videoFormat,
 						preset,
 						quality,
 						audio: includeAudio,
-						filename: filename || project.name
+						filename: filename || exportProject.name
 					})
 				: null,
-		[filename, includeAudio, preset, project, quality, videoFormat]
+		[filename, includeAudio, preset, exportProject, quality, videoFormat]
 	);
-	const capabilityProjectId = project?.id;
+	const capabilityProjectId = exportProject?.id;
 	const capabilityFormat = settings?.format;
 	const capabilityWidth = settings?.width;
 	const capabilityHeight = settings?.height;
 	const capabilityFps = settings?.fps;
 	const capabilityAudio = settings?.audio;
-	const durationSeconds = project ? ticksToSeconds(timelineDuration(project)) : 0;
+	const durationSeconds = exportProject ? ticksToSeconds(timelineDuration(exportProject)) : 0;
 	const estimatedSize = settings
 		? Math.ceil(
 				((settings.videoBitrate + (settings.audio ? settings.audioBitrate : 0)) * durationSeconds) /
@@ -169,14 +183,14 @@ export default function ExportDialog() {
 		!supportsStreamingSave() && estimatedSize >= LARGE_IN_MEMORY_EXPORT_BYTES;
 
 	const interchangeOmissionWarning = useMemo(() => {
-		if (!project) return null;
+		if (!exportProject) return null;
 		let effectsCount = 0;
 		let adjustmentsCount = 0;
 		let solidsCount = 0;
 		let masksCount = 0;
 		let transitionsCount = 0;
 		let speedChangesCount = 0;
-		for (const track of project.tracks) {
+		for (const track of exportProject.tracks) {
 			if (track.transitions) {
 				transitionsCount += track.transitions.length;
 			}
@@ -227,9 +241,9 @@ export default function ExportDialog() {
 			parts.push(`${speedChangesCount} speed change${speedChangesCount === 1 ? '' : 's'}`);
 		}
 		return `${parts.join(', ')} are not included in project files; use Video export to render them.`;
-	}, [project]);
+	}, [exportProject]);
 	const canExport = Boolean(
-		project &&
+		exportProject &&
 		settings &&
 		runtime &&
 		durationSeconds > 0 &&
@@ -372,7 +386,8 @@ export default function ExportDialog() {
 			}
 			const currentProject = audioRepair.project ?? editorStore.getState().project;
 			if (!currentProject) throw new Error('The project closed before export could start.');
-			const snapshot = structuredClone(currentProject);
+			const currentView = viewProject(currentProject, selectedSequenceId);
+			const snapshot = structuredClone(currentView);
 			unregister = registerProjectExport(snapshot.id, controller);
 			if (mode === 'compatibility') {
 				exportRuntime.recordExportPath('compatibility');
@@ -503,7 +518,9 @@ export default function ExportDialog() {
 	async function runInterchangeExport(): Promise<void> {
 		if (!project || !runtime || isRunning) return;
 		const exportRuntime = runtime;
-		const snapshot = structuredClone(project);
+		const currentView = viewProject(project, selectedSequenceId);
+		const flattened = flattenForInterchange(currentView);
+		const snapshot = structuredClone(flattened.project);
 		const controller = new AbortController();
 		cancelRef.current = controller;
 		let unregister: (() => void) | null = null;
@@ -682,6 +699,25 @@ export default function ExportDialog() {
 					)}
 					{tab === 'video' ? (
 						<div id="video-export-panel" role="tabpanel" className="export-form">
+							{project && project.sequences && Object.keys(project.sequences).length > 0 && (
+								<label className="dialog-field">
+									<span>Sequence</span>
+									<select
+										value={selectedSequenceId}
+										disabled={isRunning}
+										onChange={(event) =>
+											setSelectedSequenceId(event.currentTarget.value as SequenceId)
+										}
+									>
+										<option value={ROOT_SEQUENCE_ID}>Main Timeline (Root)</option>
+										{Object.values(project.sequences).map((seq) => (
+											<option key={seq.id} value={seq.id}>
+												{seq.name}
+											</option>
+										))}
+									</select>
+								</label>
+							)}
 							<label className="dialog-field">
 								<span>Format</span>
 								<select
@@ -851,6 +887,25 @@ export default function ExportDialog() {
 						</div>
 					) : (
 						<div id="project-export-panel" role="tabpanel" className="export-form">
+							{project && project.sequences && Object.keys(project.sequences).length > 0 && (
+								<label className="dialog-field">
+									<span>Sequence</span>
+									<select
+										value={selectedSequenceId}
+										disabled={isRunning}
+										onChange={(event) =>
+											setSelectedSequenceId(event.currentTarget.value as SequenceId)
+										}
+									>
+										<option value={ROOT_SEQUENCE_ID}>Main Timeline (Root)</option>
+										{Object.values(project.sequences).map((seq) => (
+											<option key={seq.id} value={seq.id}>
+												{seq.name}
+											</option>
+										))}
+									</select>
+								</label>
+							)}
 							<label className="dialog-field">
 								<span>Format</span>
 								<select

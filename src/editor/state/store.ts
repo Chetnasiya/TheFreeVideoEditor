@@ -109,8 +109,25 @@ import {
 	type AnimatedValue,
 	type CaptionWord,
 	type CaptionStyle,
-	type ProjectProxySettings
+	type ProjectProxySettings,
+	type SequenceId
 } from '../core';
+import {
+	ROOT_SEQUENCE_ID,
+	viewProject,
+	applyToSequence,
+	isRootSequence
+} from '../core/sequences/access';
+import {
+	createSequence as createSequenceOp,
+	deleteSequence as deleteSequenceOp,
+	renameSequence as renameSequenceOp,
+	duplicateSequence as duplicateSequenceOp,
+	nestSelection as nestSelectionOp,
+	expandSequenceInstance as expandSequenceInstanceOp,
+	makeInstanceUnique as makeInstanceUniqueOp,
+	addSequenceInstance as addSequenceInstanceOp
+} from '../core/sequences/operations';
 import { shouldAutoGenerateProxy, shouldSuggestProxy } from '../core/proxy';
 import { proxyService } from '../services/media/proxyService';
 import { deleteProxyFile } from '../services/storage/opfs';
@@ -357,9 +374,14 @@ function createTimelineState(): TimelineState {
 	};
 }
 
-function projectClipPositions(project: Project, clipIds: readonly ClipId[]): DragPosition[] {
+function projectClipPositions(
+	project: Project,
+	clipIds: readonly ClipId[],
+	sequenceId: SequenceId = ROOT_SEQUENCE_ID
+): DragPosition[] {
 	const ids = new Set(clipIds);
-	return project.tracks.flatMap((track) =>
+	const activeProj = viewProject(project, sequenceId);
+	return activeProj.tracks.flatMap((track) =>
 		track.clips
 			.filter((clip) => ids.has(clip.id))
 			.map((clip) => ({
@@ -410,6 +432,10 @@ export interface EditorState {
 	scopes: ScopesUiState;
 	colorUi: ColorUiState;
 	effectsClipboard: EffectInstance[] | null;
+	activeSequenceId: SequenceId;
+	sequencePlayheads: Record<SequenceId, Time>;
+	isSequenceSettingsDialogOpen: boolean;
+	sequenceSettingsDialogId: SequenceId | null;
 	initialize: () => Promise<void>;
 	toggleTheme: () => void;
 	beginRename: () => void;
@@ -711,6 +737,20 @@ export interface EditorState {
 	retryProxyGeneration: (assetId: AssetId) => void;
 	dismissProxySuggestion: (neverAsk?: boolean) => void;
 	acceptProxySuggestion: () => void;
+	// Sequence actions
+	openSequence: (id: SequenceId) => void;
+	closeSequence: () => void;
+	createSequence: (name: string, settings?: ProjectSettings) => SequenceId | null;
+	deleteSequence: (id: SequenceId, removeInstances?: boolean) => boolean;
+	renameSequence: (id: SequenceId, name: string) => boolean;
+	duplicateSequence: (id: SequenceId) => SequenceId | null;
+	nestSelection: (name?: string) => ClipId | null;
+	expandSequenceInstance: (clipId: ClipId) => boolean;
+	makeInstanceUnique: (clipId: ClipId) => SequenceId | null;
+	addSequenceToTimeline: (sequenceId: SequenceId, time: Time, trackId?: TrackId) => ClipId | null;
+	openSequenceSettingsDialog: (sequenceId?: SequenceId) => void;
+	closeSequenceSettingsDialog: () => void;
+	updateSequenceSettings: (sequenceId: SequenceId, settings: ProjectSettings | undefined) => void;
 }
 
 function errorMessage(error: unknown): string {
@@ -794,9 +834,9 @@ export function createEditorStore() {
 				}
 				const selectionBefore = [...get().timeline.selection.clipIds];
 				const keyframeSelectionBefore = [...get().keyframes.selection];
+				const activeSequenceBefore = get().activeSequenceId;
 				const [updated, patches, inversePatches] = produceWithPatches(current, () => {
-					const res = recipe(current);
-					return normalizeProjectTransitions(res);
+					return normalizeProjectTransitions(recipe(current));
 				});
 				const dirty = options.dirty ?? true;
 				const shouldActivate = options.activate ?? get().project?.id === current.id;
@@ -815,7 +855,9 @@ export function createEditorStore() {
 							state.effectsUi.selectedEffectId = null;
 						} else {
 							const clipsMap = new Map<ClipId, Clip>();
-							for (const track of project.tracks) {
+							const activeSeqId = state.activeSequenceId;
+							const activeProj = viewProject(project, activeSeqId);
+							for (const track of activeProj.tracks) {
 								for (const clip of track.clips) {
 									clipsMap.set(clip.id, clip);
 								}
@@ -825,7 +867,7 @@ export function createEditorStore() {
 							);
 							if (
 								state.timeline.selection.trackId &&
-								!project.tracks.some((track) => track.id === state.timeline.selection.trackId)
+								!activeProj.tracks.some((track) => track.id === state.timeline.selection.trackId)
 							) {
 								delete state.timeline.selection.trackId;
 							}
@@ -851,7 +893,9 @@ export function createEditorStore() {
 							selectionBefore,
 							selectionAfter: [...state.timeline.selection.clipIds],
 							keyframeSelectionBefore,
-							keyframeSelectionAfter: [...state.keyframes.selection]
+							keyframeSelectionAfter: [...state.keyframes.selection],
+							activeSequenceIdBefore: activeSequenceBefore,
+							activeSequenceIdAfter: state.activeSequenceId
 						});
 					}
 					return get().project;
@@ -887,13 +931,14 @@ export function createEditorStore() {
 				keyframeRefs: readonly HistoryKeyframeRef[] | undefined,
 				project: Project
 			): void {
+				const activeProj = viewProject(project, get().activeSequenceId);
 				const clipsMap = new Map<ClipId, Clip>();
-				for (const track of project.tracks) {
+				for (const track of activeProj.tracks) {
 					for (const clip of track.clips) {
 						clipsMap.set(clip.id, clip);
 					}
 				}
-				const tracks = new Set(project.tracks.map((track) => track.id));
+				const tracks = new Set(activeProj.tracks.map((track) => track.id));
 				set((state) => {
 					state.timeline.selection.clipIds = ids.filter((id) => clipsMap.has(id));
 					if (state.timeline.selection.trackId && !tracks.has(state.timeline.selection.trackId)) {
@@ -1065,6 +1110,8 @@ export function createEditorStore() {
 				isExporting: false,
 				isSpeedDialogOpen: false,
 				speedDialogClipId: null,
+				isSequenceSettingsDialogOpen: false,
+				sequenceSettingsDialogId: null,
 				proxySuggestion: null,
 				recovery: null,
 				media: {
@@ -1099,6 +1146,8 @@ export function createEditorStore() {
 				},
 				isMixerOpen: false,
 				effectsClipboard: null,
+				activeSequenceId: ROOT_SEQUENCE_ID,
+				sequencePlayheads: {},
 				async initialize() {
 					if (get().isInitialized) return;
 					set((state) => {
@@ -2073,6 +2122,17 @@ export function createEditorStore() {
 					if (!result) return false;
 					const restored = { ...result.project, updatedAt: new Date().toISOString() };
 					mutateProject(`Undo ${result.entry.label}`, () => restored, { history: 'skip' });
+
+					// Restore active sequence
+					const targetSeqId = (result.entry.activeSequenceIdBefore ??
+						ROOT_SEQUENCE_ID) as SequenceId;
+					const seqExists =
+						isRootSequence(targetSeqId) || Boolean(restored.sequences?.[targetSeqId]);
+					const finalSeqId = seqExists ? targetSeqId : ROOT_SEQUENCE_ID;
+					if (get().activeSequenceId !== finalSeqId) {
+						get().openSequence(finalSeqId);
+					}
+
 					restoreHistorySelection(
 						result.entry.selectionBefore,
 						result.entry.keyframeSelectionBefore,
@@ -2090,6 +2150,17 @@ export function createEditorStore() {
 					if (!result) return false;
 					const restored = { ...result.project, updatedAt: new Date().toISOString() };
 					mutateProject(`Redo ${result.entry.label}`, () => restored, { history: 'skip' });
+
+					// Restore active sequence
+					const targetSeqId = (result.entry.activeSequenceIdAfter ??
+						ROOT_SEQUENCE_ID) as SequenceId;
+					const seqExists =
+						isRootSequence(targetSeqId) || Boolean(restored.sequences?.[targetSeqId]);
+					const finalSeqId = seqExists ? targetSeqId : ROOT_SEQUENCE_ID;
+					if (get().activeSequenceId !== finalSeqId) {
+						get().openSequence(finalSeqId);
+					}
+
 					restoreHistorySelection(
 						result.entry.selectionAfter,
 						result.entry.keyframeSelectionAfter,
@@ -2185,8 +2256,9 @@ export function createEditorStore() {
 				selectClips(ids, mode = 'replace') {
 					const project = get().project;
 					if (!project) return;
+					const activeProj = viewProject(project, get().activeSequenceId);
 					const available = new Set(
-						project.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
+						activeProj.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
 					);
 					const validIds = ids.filter((id) => available.has(id));
 					set((state) => {
@@ -2230,6 +2302,8 @@ export function createEditorStore() {
 					const drag = get().timeline.drag;
 					const project = get().project;
 					if (!drag || !project) return;
+					const activeSeqId = get().activeSequenceId;
+					const activeView = viewProject(project, activeSeqId);
 					const targetTrackId = options.targetTrackId ?? drag.targetTrackId;
 					const unlink = options.unlink ?? drag.unlink;
 					const snappedTime = snapToFrame(
@@ -2237,15 +2311,15 @@ export function createEditorStore() {
 						project.settings.fps
 					);
 					try {
-						let previewProject = project;
+						let previewProject = activeView;
 						if (drag.kind === 'asset' && drag.assetId && targetTrackId) {
-							previewProject = addClipFromAssetOperation(project, {
+							previewProject = addClipFromAssetOperation(activeView, {
 								assetId: drag.assetId,
 								trackId: targetTrackId,
 								start: snappedTime
 							});
 						} else if (drag.kind === 'move') {
-							previewProject = moveClipsOperation(project, {
+							previewProject = moveClipsOperation(activeView, {
 								clipIds: drag.clipIds,
 								deltaTime: snappedTime - drag.pointerStartTime,
 								targetTrackId,
@@ -2261,7 +2335,7 @@ export function createEditorStore() {
 										: undefined;
 							if (baseTime !== undefined) {
 								previewProject = trimClipOperation(
-									project,
+									activeView,
 									drag.clipIds[0],
 									drag.kind === 'trim-start' ? 'start' : 'end',
 									baseTime + snappedTime - drag.pointerStartTime,
@@ -2275,13 +2349,13 @@ export function createEditorStore() {
 										.flatMap((track) => track.clips)
 										.filter(
 											(clip) =>
-												!project.tracks.some((track) =>
+												!activeView.tracks.some((track) =>
 													track.clips.some((old) => old.id === clip.id)
 												)
 										)
 										.map((clip) => clip.id)
 								: drag.clipIds.flatMap((id) =>
-										drag.unlink ? [id] : groupOf(project, id).map((clip) => clip.id)
+										drag.unlink ? [id] : groupOf(activeView, id).map((clip) => clip.id)
 									);
 						set((state) => {
 							if (!state.timeline.drag) return;
@@ -2290,7 +2364,11 @@ export function createEditorStore() {
 							state.timeline.drag.unlink = unlink;
 							state.timeline.drag.allowed = true;
 							state.timeline.drag.snappedTo = options.snappedTo;
-							state.timeline.drag.preview = projectClipPositions(previewProject, previewIds);
+							state.timeline.drag.preview = projectClipPositions(
+								previewProject,
+								previewIds,
+								activeSeqId
+							);
 							state.timeline.message = '';
 						});
 					} catch (error) {
@@ -2322,8 +2400,10 @@ export function createEditorStore() {
 						return false;
 					}
 					try {
+						const activeSeqId = get().activeSequenceId;
+						const activeViewBefore = viewProject(get().project!, activeSeqId);
 						const previousClipIds = new Set(
-							get().project?.tracks.flatMap((track) => track.clips.map((clip) => clip.id)) ?? []
+							activeViewBefore.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
 						);
 						mutateProject(
 							drag.kind === 'asset'
@@ -2331,43 +2411,45 @@ export function createEditorStore() {
 								: drag.kind === 'move'
 									? 'Move clips'
 									: 'Trim clip',
-							(project) => {
-								if (drag.kind === 'asset' && drag.assetId && drag.targetTrackId) {
-									return addClipFromAssetOperation(project, {
-										assetId: drag.assetId,
-										trackId: drag.targetTrackId,
-										start: drag.pointerTime
-									});
-								}
-								if (drag.kind === 'move') {
-									return moveClipsOperation(project, {
-										clipIds: drag.clipIds,
-										deltaTime: drag.pointerTime - drag.pointerStartTime,
-										targetTrackId: drag.targetTrackId,
-										unlink: drag.unlink
-									});
-								}
-								const original = drag.original[0];
-								const baseTime =
-									drag.kind === 'trim-start'
-										? original?.start
-										: original
-											? original.start + original.duration
-											: undefined;
-								if (!drag.clipIds[0] || baseTime === undefined) return project;
-								return trimClipOperation(
-									project,
-									drag.clipIds[0],
-									drag.kind === 'trim-start' ? 'start' : 'end',
-									baseTime + drag.pointerTime - drag.pointerStartTime,
-									drag.unlink
-								);
-							},
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) => {
+									if (drag.kind === 'asset' && drag.assetId && drag.targetTrackId) {
+										return addClipFromAssetOperation(view, {
+											assetId: drag.assetId,
+											trackId: drag.targetTrackId,
+											start: drag.pointerTime
+										});
+									}
+									if (drag.kind === 'move') {
+										return moveClipsOperation(view, {
+											clipIds: drag.clipIds,
+											deltaTime: drag.pointerTime - drag.pointerStartTime,
+											targetTrackId: drag.targetTrackId,
+											unlink: drag.unlink
+										});
+									}
+									const original = drag.original[0];
+									const baseTime =
+										drag.kind === 'trim-start'
+											? original?.start
+											: original
+												? original.start + original.duration
+												: undefined;
+									if (!drag.clipIds[0] || baseTime === undefined) return view;
+									return trimClipOperation(
+										view,
+										drag.clipIds[0],
+										drag.kind === 'trim-start' ? 'start' : 'end',
+										baseTime + drag.pointerTime - drag.pointerStartTime,
+										drag.unlink
+									);
+								}),
 							{ history: 'record' }
 						);
 						const committed = get().project;
 						if (committed && drag.kind === 'asset') {
-							const added = committed.tracks
+							const activeViewAfter = viewProject(committed, activeSeqId);
+							const added = activeViewAfter.tracks
 								.flatMap((track) => track.clips)
 								.filter((clip) => !previousClipIds.has(clip.id));
 							get().selectClips(added.map((clip) => clip.id));
@@ -2388,22 +2470,27 @@ export function createEditorStore() {
 				},
 				addAssetToTimeline(assetId, trackId, time) {
 					try {
+						const activeSeqId = get().activeSequenceId;
+						const activeViewBefore = viewProject(get().project!, activeSeqId);
 						const beforeIds = new Set(
-							get().project?.tracks.flatMap((track) => track.clips.map((clip) => clip.id)) ?? []
+							activeViewBefore.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
 						);
 						mutateProject(
 							'Add clip',
 							(project) =>
-								addClipFromAssetOperation(project, {
-									assetId,
-									trackId,
-									start: snapToFrame(time, project.settings.fps)
-								}),
+								applyToSequence(project, activeSeqId, (view) =>
+									addClipFromAssetOperation(view, {
+										assetId,
+										trackId,
+										start: snapToFrame(time, project.settings.fps)
+									})
+								),
 							{ history: 'record' }
 						);
 						const project = get().project;
 						if (!project) return false;
-						const added = project.tracks.flatMap((track) =>
+						const activeViewAfter = viewProject(project, activeSeqId);
+						const added = activeViewAfter.tracks.flatMap((track) =>
 							track.clips.filter((clip) => !beforeIds.has(clip.id)).map((clip) => clip.id)
 						);
 						get().selectClips(added);
@@ -2421,36 +2508,40 @@ export function createEditorStore() {
 				},
 				addAssetOnNewTrack(assetId, kind, time) {
 					try {
+						const activeSeqId = get().activeSequenceId;
+						const activeViewBefore = viewProject(get().project!, activeSeqId);
 						const beforeIds = new Set(
-							get().project?.tracks.flatMap((track) => track.clips.map((clip) => clip.id)) ?? []
+							activeViewBefore.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
 						);
 						mutateProject(
 							`${kind === 'video' ? 'Add video' : 'Add audio'} track`,
-							(project) => {
-								const asset = project.assets[assetId];
-								if (!asset) throw new Error(`Media asset “${assetId}” does not exist.`);
-								if (
-									(kind === 'video' && asset.kind === 'audio') ||
-									(kind === 'audio' && asset.kind !== 'audio')
-								) {
-									throw new Error('The media asset is not compatible with this track.');
-								}
-								const withTrack = addTrackOperation(project, kind);
-								const track = withTrack.tracks.find(
-									(candidate) => !project.tracks.some((existing) => existing.id === candidate.id)
-								);
-								if (!track) throw new Error('Could not create a timeline track.');
-								return addClipFromAssetOperation(withTrack, {
-									assetId,
-									trackId: track.id,
-									start: snapToFrame(time, project.settings.fps)
-								});
-							},
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) => {
+									const asset = project.assets[assetId];
+									if (!asset) throw new Error(`Media asset “${assetId}” does not exist.`);
+									if (
+										(kind === 'video' && asset.kind === 'audio') ||
+										(kind === 'audio' && asset.kind !== 'audio')
+									) {
+										throw new Error('The media asset is not compatible with this track.');
+									}
+									const withTrack = addTrackOperation(view, kind);
+									const track = withTrack.tracks.find(
+										(candidate) => !view.tracks.some((existing) => existing.id === candidate.id)
+									);
+									if (!track) throw new Error('Could not create a timeline track.');
+									return addClipFromAssetOperation(withTrack, {
+										assetId,
+										trackId: track.id,
+										start: snapToFrame(time, project.settings.fps)
+									});
+								}),
 							{ history: 'record' }
 						);
 						const project = get().project;
 						if (project) {
-							const added = project.tracks.flatMap((track) =>
+							const activeViewAfter = viewProject(project, activeSeqId);
+							const added = activeViewAfter.tracks.flatMap((track) =>
 								track.clips.filter((clip) => !beforeIds.has(clip.id)).map((clip) => clip.id)
 							);
 							get().selectClips(added);
@@ -2466,15 +2557,18 @@ export function createEditorStore() {
 				},
 				moveClips(ids, deltaTime, targetTrackId, unlink = false) {
 					try {
+						const activeSeqId = get().activeSequenceId;
 						mutateProject(
 							'Move clips',
 							(project) =>
-								moveClipsOperation(project, {
-									clipIds: ids,
-									deltaTime: snapToFrame(deltaTime, project.settings.fps),
-									targetTrackId,
-									unlink
-								}),
+								applyToSequence(project, activeSeqId, (view) =>
+									moveClipsOperation(view, {
+										clipIds: ids,
+										deltaTime: snapToFrame(deltaTime, project.settings.fps),
+										targetTrackId,
+										unlink
+									})
+								),
 							{ history: 'record', mergeKey: `move:${[...ids].toSorted().join(',')}` }
 						);
 						return true;
@@ -2487,15 +2581,12 @@ export function createEditorStore() {
 				},
 				trimClip(id, edge, time, unlink = false) {
 					try {
+						const activeSeqId = get().activeSequenceId;
 						mutateProject(
 							'Trim clip',
 							(project) =>
-								trimClipOperation(
-									project,
-									id,
-									edge,
-									snapToFrame(time, project.settings.fps),
-									unlink
+								applyToSequence(project, activeSeqId, (view) =>
+									trimClipOperation(view, id, edge, snapToFrame(time, project.settings.fps), unlink)
 								),
 							{ history: 'record', mergeKey: `trim:${id}:${edge}` }
 						);
@@ -2514,11 +2605,13 @@ export function createEditorStore() {
 					if (sel.clipIds.length === 0 && sel.captionId && sel.trackId) {
 						return get().splitCaptionSegmentAt(sel.trackId, sel.captionId, get().timeline.playhead);
 					}
+					const activeSeqId = get().activeSequenceId;
+					const activeView = viewProject(project, activeSeqId);
 					const selection = sel.clipIds;
 					const ids =
 						selection.length > 0
 							? selection
-							: project.tracks
+							: activeView.tracks
 									.filter((track) => !track.locked)
 									.flatMap((track) =>
 										track.clips
@@ -2530,16 +2623,25 @@ export function createEditorStore() {
 											.map((clip) => clip.id)
 									);
 					try {
-						const result = splitClipsAt(project, get().timeline.playhead, ids, unlink);
-						if (result.splitClipIds.length === 0) {
+						let splitResultIds: ClipId[] = [];
+						mutateProject(
+							'Split clip',
+							(p) =>
+								applyToSequence(p, activeSeqId, (view) => {
+									const result = splitClipsAt(view, get().timeline.playhead, ids, unlink);
+									splitResultIds = result.splitClipIds;
+									return result.project;
+								}),
+							{ history: 'record' }
+						);
+						if (splitResultIds.length === 0) {
 							set((state) => {
 								state.timeline.message = 'No selected clips cross the playhead.';
 							});
 							return false;
 						}
-						mutateProject('Split clip', () => result.project, { history: 'record' });
-						get().selectClips(result.splitClipIds);
-						projectHistory.updateSelectionAfter(result.splitClipIds);
+						get().selectClips(splitResultIds);
+						projectHistory.updateSelectionAfter(splitResultIds);
 						set((state) => {
 							state.timeline.message = 'Split clip.';
 						});
@@ -2560,10 +2662,16 @@ export function createEditorStore() {
 						return false;
 					}
 					const ids = sel.clipIds;
+					const activeSeqId = get().activeSequenceId;
 					try {
-						mutateProject('Delete clips', (project) => deleteClipsOperation(project, ids, unlink), {
-							history: 'record'
-						});
+						mutateProject(
+							'Delete clips',
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) =>
+									deleteClipsOperation(view, ids, unlink)
+								),
+							{ history: 'record' }
+						);
 						get().clearSelection();
 						set((state) => {
 							state.timeline.message = 'Deleted selected clips.';
@@ -2579,10 +2687,16 @@ export function createEditorStore() {
 				rippleDeleteSelection() {
 					const ids = get().timeline.selection.clipIds;
 					if (ids.length === 0) return false;
+					const activeSeqId = get().activeSequenceId;
 					try {
-						mutateProject('Ripple delete', (project) => rippleDeleteClipsOperation(project, ids), {
-							history: 'record'
-						});
+						mutateProject(
+							'Ripple delete',
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) =>
+									rippleDeleteClipsOperation(view, ids)
+								),
+							{ history: 'record' }
+						);
 						get().clearSelection();
 						set((state) => {
 							state.timeline.message = 'Ripple deleted selected clips.';
@@ -2598,16 +2712,22 @@ export function createEditorStore() {
 				duplicateSelection() {
 					const ids = get().timeline.selection.clipIds;
 					if (ids.length === 0) return false;
+					const activeSeqId = get().activeSequenceId;
 					try {
+						const activeViewBefore = viewProject(get().project!, activeSeqId);
 						const beforeIds = new Set(
-							get().project?.tracks.flatMap((track) => track.clips.map((clip) => clip.id)) ?? []
+							activeViewBefore.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
 						);
-						mutateProject('Duplicate clips', (project) => duplicateClipsOperation(project, ids), {
-							history: 'record'
-						});
+						mutateProject(
+							'Duplicate clips',
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) => duplicateClipsOperation(view, ids)),
+							{ history: 'record' }
+						);
 						const project = get().project;
 						if (project) {
-							const added = project.tracks.flatMap((track) =>
+							const activeViewAfter = viewProject(project, activeSeqId);
+							const added = activeViewAfter.tracks.flatMap((track) =>
 								track.clips.filter((clip) => !beforeIds.has(clip.id)).map((clip) => clip.id)
 							);
 							get().selectClips(added);
@@ -2623,9 +2743,13 @@ export function createEditorStore() {
 				},
 				addTimelineTrack(kind) {
 					try {
-						mutateProject(`Add ${kind} track`, (project) => addTrackOperation(project, kind), {
-							history: 'record'
-						});
+						const activeSeqId = get().activeSequenceId;
+						mutateProject(
+							`Add ${kind} track`,
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) => addTrackOperation(view, kind)),
+							{ history: 'record' }
+						);
 					} catch (error) {
 						set((state) => {
 							state.timeline.message = errorMessage(error);
@@ -2976,15 +3100,27 @@ export function createEditorStore() {
 				},
 				removeTimelineTrack(id, options = {}) {
 					const project = get().project;
-					const track = project?.tracks.find((item) => item.id === id);
-					if (!project || !track) return { removed: false, clipCount: 0 };
+					if (!project) return { removed: false, clipCount: 0 };
+					const activeSeqId = get().activeSequenceId;
+					const activeView = viewProject(project, activeSeqId);
+					const track = activeView.tracks.find((item) => item.id === id);
+					if (!track) return { removed: false, clipCount: 0 };
 					if (track.clips.length > 0 && !options.force) {
 						return { removed: false, clipCount: track.clips.length };
 					}
 					try {
-						const result = removeTrackOperation(project, id);
-						mutateProject('Remove track', () => result.project, { history: 'record' });
-						return { removed: true, clipCount: result.clipCount };
+						let clipCount = track.clips.length;
+						mutateProject(
+							'Remove track',
+							(p) =>
+								applyToSequence(p, activeSeqId, (view) => {
+									const result = removeTrackOperation(view, id);
+									clipCount = result.clipCount;
+									return result.project;
+								}),
+							{ history: 'record' }
+						);
+						return { removed: true, clipCount };
 					} catch (error) {
 						set((state) => {
 							state.timeline.message = errorMessage(error);
@@ -2994,9 +3130,13 @@ export function createEditorStore() {
 				},
 				reorderTimelineTrack(id, targetIndex) {
 					try {
+						const activeSeqId = get().activeSequenceId;
 						mutateProject(
 							'Reorder track',
-							(project) => reorderTrackOperation(project, id, targetIndex),
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) =>
+									reorderTrackOperation(view, id, targetIndex)
+								),
 							{ history: 'record' }
 						);
 						return true;
@@ -3009,10 +3149,18 @@ export function createEditorStore() {
 				},
 				renameTimelineTrack(id, name) {
 					try {
-						mutateProject('Rename track', (project) => renameTrackOperation(project, id, name), {
-							history: 'record',
-							mergeKey: `track-name:${id}`
-						});
+						const activeSeqId = get().activeSequenceId;
+						mutateProject(
+							'Rename track',
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) =>
+									renameTrackOperation(view, id, name)
+								),
+							{
+								history: 'record',
+								mergeKey: `track-name:${id}`
+							}
+						);
 						return true;
 					} catch (error) {
 						set((state) => {
@@ -3023,9 +3171,13 @@ export function createEditorStore() {
 				},
 				setTimelineTrackFlags(id, flags) {
 					try {
+						const activeSeqId = get().activeSequenceId;
 						mutateProject(
 							flags.muted !== undefined ? 'Mute track' : 'Change track settings',
-							(project) => setTrackFlagsOperation(project, id, flags),
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) =>
+									setTrackFlagsOperation(view, id, flags)
+								),
 							{ history: 'record' }
 						);
 						return true;
@@ -3040,9 +3192,13 @@ export function createEditorStore() {
 					const ids = get().timeline.selection.clipIds;
 					if (ids.length < 2) return false;
 					try {
-						mutateProject('Link clips', (project) => linkClipsOperation(project, ids), {
-							history: 'record'
-						});
+						const activeSeqId = get().activeSequenceId;
+						mutateProject(
+							'Link clips',
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) => linkClipsOperation(view, ids)),
+							{ history: 'record' }
+						);
 						return true;
 					} catch (error) {
 						set((state) => {
@@ -3055,9 +3211,13 @@ export function createEditorStore() {
 					const ids = get().timeline.selection.clipIds;
 					if (!ids.length) return false;
 					try {
-						mutateProject('Unlink clips', (project) => unlinkClipsOperation(project, ids), {
-							history: 'record'
-						});
+						const activeSeqId = get().activeSequenceId;
+						mutateProject(
+							'Unlink clips',
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) => unlinkClipsOperation(view, ids)),
+							{ history: 'record' }
+						);
 						return true;
 					} catch (error) {
 						set((state) => {
@@ -3949,9 +4109,11 @@ export function createEditorStore() {
 				addSolidLayer(color = '#000000', trackId, start, duration) {
 					const project = get().project;
 					if (!project) return null;
-					const clipStart = snapToFrame(start ?? get().timeline.playhead, project.settings.fps);
+					const activeSeqId = get().activeSequenceId;
+					const activeView = viewProject(project, activeSeqId);
+					const clipStart = snapToFrame(start ?? get().timeline.playhead, activeView.settings.fps);
 					const clipDuration =
-						duration ?? framesToTicks(5 * project.settings.fps, project.settings.fps);
+						duration ?? framesToTicks(5 * activeView.settings.fps, activeView.settings.fps);
 
 					let rgba: ColorRgba = { r: 0, g: 0, b: 0, a: 1 };
 					if (typeof color === 'string') {
@@ -3971,13 +4133,13 @@ export function createEditorStore() {
 					let targetTrackId = trackId;
 					if (!targetTrackId) {
 						const selTrackId = get().timeline.selection.trackId;
-						const selTrack = project.tracks.find(
+						const selTrack = activeView.tracks.find(
 							(t) => t.id === selTrackId && t.kind === 'video' && !t.locked
 						);
 						if (selTrack) {
 							targetTrackId = selTrack.id;
 						} else {
-							const videoTracks = project.tracks.filter((t) => t.kind === 'video' && !t.locked);
+							const videoTracks = activeView.tracks.filter((t) => t.kind === 'video' && !t.locked);
 							if (videoTracks.length > 0) {
 								targetTrackId = videoTracks[0]!.id;
 							}
@@ -3989,27 +4151,29 @@ export function createEditorStore() {
 						mutateProject(
 							'Add solid color',
 							(proj) => {
-								let currentProj = proj;
-								let trackToUse = targetTrackId
-									? currentProj.tracks.find(
-											(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
-										)
-									: undefined;
-								if (!trackToUse) {
-									const prevIds = new Set(currentProj.tracks.map((t) => t.id));
-									currentProj = addTrackOperation(currentProj, 'video');
-									trackToUse = currentProj.tracks.find(
-										(t) => !prevIds.has(t.id) && t.kind === 'video'
-									);
-								}
-								const clip = createSolidClip(clipStart, clipDuration, {
-									r: rgba.r,
-									g: rgba.g,
-									b: rgba.b,
-									a: rgba.a ?? 1
+								return applyToSequence(proj, activeSeqId, (view) => {
+									let currentView = view;
+									let trackToUse = targetTrackId
+										? currentView.tracks.find(
+												(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
+											)
+										: undefined;
+									if (!trackToUse) {
+										const prevIds = new Set(currentView.tracks.map((t) => t.id));
+										currentView = addTrackOperation(currentView, 'video');
+										trackToUse = currentView.tracks.find(
+											(t) => !prevIds.has(t.id) && t.kind === 'video'
+										);
+									}
+									const clip = createSolidClip(clipStart, clipDuration, {
+										r: rgba.r,
+										g: rgba.g,
+										b: rgba.b,
+										a: rgba.a ?? 1
+									});
+									createdClipId = clip.id;
+									return insertClip(currentView, trackToUse!.id, clip);
 								});
-								createdClipId = clip.id;
-								return insertClip(currentProj, trackToUse!.id, clip);
 							},
 							{ history: 'record' }
 						);
@@ -4721,19 +4885,21 @@ export function createEditorStore() {
 				addTextClip(options) {
 					const project = get().project;
 					if (!project) return null;
+					const activeSeqId = get().activeSequenceId;
+					const activeView = viewProject(project, activeSeqId);
 					const clipStart = get().timeline.playhead;
 					const clipDuration = 5_000_000; // 5s default
 
 					const selTrackId = get().timeline.selection.trackId;
 					let targetTrackId: TrackId | null = null;
 					if (selTrackId) {
-						const selectedTrack = project.tracks.find(
+						const selectedTrack = activeView.tracks.find(
 							(t) => t.id === selTrackId && t.kind === 'video' && !t.locked
 						);
 						if (selectedTrack) targetTrackId = selectedTrack.id;
 					}
 					if (!targetTrackId) {
-						const videoTracks = project.tracks.filter((t) => t.kind === 'video' && !t.locked);
+						const videoTracks = activeView.tracks.filter((t) => t.kind === 'video' && !t.locked);
 						if (videoTracks.length > 0) {
 							targetTrackId = videoTracks[0]!.id;
 						}
@@ -4744,22 +4910,28 @@ export function createEditorStore() {
 						mutateProject(
 							'Add text clip',
 							(proj) => {
-								let currentProj = proj;
-								let trackToUse = targetTrackId
-									? currentProj.tracks.find(
-											(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
-										)
-									: undefined;
-								if (!trackToUse) {
-									const prevIds = new Set(currentProj.tracks.map((t) => t.id));
-									currentProj = addTrackOperation(currentProj, 'video');
-									trackToUse = currentProj.tracks.find(
-										(t) => !prevIds.has(t.id) && t.kind === 'video'
+								return applyToSequence(proj, activeSeqId, (view) => {
+									let currentView = view;
+									let trackToUse = targetTrackId
+										? currentView.tracks.find(
+												(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
+											)
+										: undefined;
+									if (!trackToUse) {
+										const prevIds = new Set(currentView.tracks.map((t) => t.id));
+										currentView = addTrackOperation(currentView, 'video');
+										trackToUse = currentView.tracks.find(
+											(t) => !prevIds.has(t.id) && t.kind === 'video'
+										);
+									}
+									const clip = createTextClip(
+										clipStart,
+										clipDuration,
+										options?.text ?? 'Title Text'
 									);
-								}
-								const clip = createTextClip(clipStart, clipDuration, options?.text ?? 'Title Text');
-								createdClipId = clip.id;
-								return insertClip(currentProj, trackToUse!.id, clip);
+									createdClipId = clip.id;
+									return insertClip(currentView, trackToUse!.id, clip);
+								});
 							},
 							{ history: 'record' }
 						);
@@ -5156,6 +5328,276 @@ export function createEditorStore() {
 					set((state) => {
 						state.proxySuggestion = null;
 					});
+				},
+
+				openSequence(id) {
+					const project = get().project;
+					if (!project) return;
+					if (id !== ROOT_SEQUENCE_ID && (!project.sequences || !project.sequences[id])) {
+						return;
+					}
+					const currentActive = get().activeSequenceId;
+					if (currentActive === id) return;
+					const currentPlayhead = get().timeline.playhead;
+					const savedPlayheads: Record<SequenceId, Time> = {
+						...get().sequencePlayheads,
+						[currentActive]: currentPlayhead
+					};
+					const targetPlayhead = savedPlayheads[id] ?? 0;
+					const targetName =
+						id === ROOT_SEQUENCE_ID
+							? project.name || 'Main Timeline'
+							: (project.sequences?.[id]?.name ?? 'Nested Sequence');
+					set((state) => {
+						state.activeSequenceId = id;
+						state.sequencePlayheads = savedPlayheads;
+						state.timeline.playhead = targetPlayhead;
+						state.timeline.selection = { clipIds: [] };
+						state.timeline.drag = null;
+						state.timeline.message = `Opened sequence "${targetName}".`;
+					});
+				},
+
+				closeSequence() {
+					get().openSequence(ROOT_SEQUENCE_ID);
+				},
+
+				createSequence(name, settings) {
+					const project = get().project;
+					if (!project) return null;
+					try {
+						let createdId: SequenceId | null = null;
+						mutateProject(
+							'Create sequence',
+							(p) => {
+								const result = createSequenceOp(p, name, settings);
+								createdId = result.sequenceId;
+								return result.project;
+							},
+							{ history: 'record' }
+						);
+						return createdId;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				deleteSequence(id, removeInstances = false) {
+					const project = get().project;
+					if (!project) return false;
+					if (id === ROOT_SEQUENCE_ID) return false;
+					if (get().activeSequenceId === id) {
+						get().closeSequence();
+					}
+					try {
+						mutateProject('Delete sequence', (p) => deleteSequenceOp(p, id, removeInstances), {
+							history: 'record'
+						});
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+
+				renameSequence(id, name) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject('Rename sequence', (p) => renameSequenceOp(p, id, name), {
+							history: 'record'
+						});
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+
+				duplicateSequence(id) {
+					const project = get().project;
+					if (!project) return null;
+					try {
+						let duplicatedId: SequenceId | null = null;
+						mutateProject(
+							'Duplicate sequence',
+							(p) => {
+								const result = duplicateSequenceOp(p, id);
+								duplicatedId = result.newSequenceId;
+								return result.project;
+							},
+							{ history: 'record' }
+						);
+						return duplicatedId;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				nestSelection(name) {
+					const project = get().project;
+					if (!project) return null;
+					const clipIds = get().timeline.selection.clipIds;
+					if (clipIds.length === 0) return null;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						let instanceClipId: ClipId | null = null;
+						mutateProject(
+							'Nest clips',
+							(p) => {
+								const result = nestSelectionOp(p, activeSeqId, clipIds, name);
+								instanceClipId = result.videoInstanceClipId ?? result.audioInstanceClipId ?? null;
+								return result.project;
+							},
+							{ history: 'record' }
+						);
+						if (instanceClipId) {
+							get().selectClips([instanceClipId]);
+						}
+						return instanceClipId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				expandSequenceInstance(clipId) {
+					const project = get().project;
+					if (!project) return false;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Expand sequence',
+							(p) => expandSequenceInstanceOp(p, activeSeqId, clipId),
+							{ history: 'record' }
+						);
+						get().clearSelection();
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return false;
+					}
+				},
+
+				makeInstanceUnique(clipId) {
+					const project = get().project;
+					if (!project) return null;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						let newSeqId: SequenceId | null = null;
+						mutateProject(
+							'Make sequence unique',
+							(p) => {
+								const result = makeInstanceUniqueOp(p, activeSeqId, clipId);
+								newSeqId = result.newSequenceId;
+								return result.project;
+							},
+							{ history: 'record' }
+						);
+						return newSeqId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				addSequenceToTimeline(sequenceId, time, trackId) {
+					const project = get().project;
+					if (!project) return null;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						let createdClipId: ClipId | null = null;
+						mutateProject(
+							'Add sequence to timeline',
+							(p) => {
+								const result = addSequenceInstanceOp(
+									p,
+									activeSeqId,
+									sequenceId,
+									snapToFrame(time, p.settings.fps),
+									trackId
+								);
+								createdClipId = result.videoClipId ?? result.audioClipId ?? null;
+								return result.project;
+							},
+							{ history: 'record' }
+						);
+						if (createdClipId) {
+							get().selectClips([createdClipId]);
+						}
+						return createdClipId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				openSequenceSettingsDialog(sequenceId) {
+					const targetId = sequenceId ?? get().activeSequenceId;
+					set((state) => {
+						state.isSequenceSettingsDialogOpen = true;
+						state.sequenceSettingsDialogId = targetId;
+					});
+				},
+
+				closeSequenceSettingsDialog() {
+					set((state) => {
+						state.isSequenceSettingsDialogOpen = false;
+						state.sequenceSettingsDialogId = null;
+					});
+				},
+
+				updateSequenceSettings(sequenceId, settings) {
+					const project = get().project;
+					if (!project) return;
+					try {
+						mutateProject(
+							'Update sequence settings',
+							(p) => {
+								if (isRootSequence(sequenceId)) {
+									if (!settings) return p;
+									return { ...p, settings: { ...p.settings, ...settings } };
+								}
+								const seq = p.sequences?.[sequenceId];
+								if (!seq) return p;
+								return {
+									...p,
+									sequences: {
+										...p.sequences,
+										[sequenceId]: {
+											...seq,
+											settings: settings
+												? { ...(seq.settings ?? p.settings), ...settings }
+												: undefined
+										}
+									}
+								};
+							},
+							{ history: 'record' }
+						);
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
 				}
 			};
 		})

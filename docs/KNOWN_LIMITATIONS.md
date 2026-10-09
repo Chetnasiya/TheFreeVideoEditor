@@ -118,3 +118,11 @@ limitations are intentional at this stage:
 - **Model Accuracy & Noise**: Speech recognition accuracy depends on audio quality, acoustic noise, accents, and model size (Tiny vs Base vs Small). Speaker diarization (identifying distinct speakers) is not supported automatically and must be assigned manually.
 - **Reversed Audio**: Time-reversed audio clips are not automatically transcribed in reverse; non-reversed ranges or manual cue entry should be used.
 - **Interchange Formats**: Professional interchange formats (EDL, FCPXML, xmeml, OTIO) omit dedicated subtitle tracks; sidecar SubRip (`.srt`) or WebVTT (`.vtt`) files should be exported alongside the video. Burn-in subtitles are rendered directly into video frames on export when the caption track is visible.
+
+## Gate R (Nested Sequences)
+
+- **Transparency Beyond Duration**: In accordance with non-looping window semantics, sampling a nested sequence instance at a nested time earlier than 0 or past the sequence's total timeline duration renders as transparent pixels and digital silence.
+- **Nested Audio Bounce Latency**: Previewing and exporting multi-track nested sequence audio uses an asynchronous offline audio bounce pass (`renderOfflineAudio`). Complex multi-layer nested audio graphs take a brief moment to bounce during preview initialization.
+- **Interchange Flattening Limits**: Professional interchange formats (EDL, FCPXML, xmeml, OTIO) do not support arbitrary nested timelines with nested speed ramps or overlapping composite tracks. Interchange export applies `flattenForInterchange`, resolving leaf media clips onto the host tracks; any nested tracks that cannot be cleanly mapped onto standard timeline tracks are omitted with explicit warning dialog notices.
+- **Transitions In Nested Sequences**: Track transitions remain parked behind the development flag `?labs=transitions` across all sequences. Sequence instances themselves composite via standard opacity, blend modes, transforms, and masks.
+

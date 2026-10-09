@@ -25,7 +25,13 @@ function requireAsset(project: Project, assetId: AssetId): Asset {
 
 export function getAssetUsage(project: Project, assetId: AssetId): Clip[] {
 	requireAsset(project, assetId);
-	return project.tracks.flatMap((track) => track.clips.filter((clip) => clip.assetId === assetId));
+	const rootClips = project.tracks.flatMap((track) =>
+		track.clips.filter((clip) => clip.assetId === assetId)
+	);
+	const seqClips = Object.values(project.sequences ?? {}).flatMap((seq) =>
+		seq.tracks.flatMap((track) => track.clips.filter((clip) => clip.assetId === assetId))
+	);
+	return [...rootClips, ...seqClips];
 }
 
 export function addAsset(project: Project, args: { asset: Asset }): Project {
@@ -45,25 +51,42 @@ export function removeAsset(
 	const removedClipIds = new Set(clips.map((clip) => clip.id));
 	if (args.force) {
 		const linkedIds = new Set(clips.flatMap((clip) => (clip.linkId ? [clip.linkId] : [])));
-		for (const track of project.tracks) {
+		const allTracks = [
+			...project.tracks,
+			...Object.values(project.sequences ?? {}).flatMap((seq) => seq.tracks)
+		];
+		for (const track of allTracks) {
 			for (const clip of track.clips) {
 				if (clip.linkId && linkedIds.has(clip.linkId)) removedClipIds.add(clip.id);
 			}
 		}
 	}
 
+	const filterClips = (tracks: typeof project.tracks) =>
+		args.force && removedClipIds.size > 0
+			? tracks.map((track) => ({
+					...track,
+					clips: track.clips.filter((clip) => !removedClipIds.has(clip.id))
+				}))
+			: tracks;
+
 	const assets = { ...project.assets };
 	delete assets[asset.id];
+
+	const updatedSequences = project.sequences
+		? Object.fromEntries(
+				Object.entries(project.sequences).map(([seqId, seq]) => [
+					seqId,
+					{ ...seq, tracks: filterClips(seq.tracks) }
+				])
+			)
+		: undefined;
+
 	return {
 		...project,
 		assets,
-		tracks:
-			args.force && removedClipIds.size > 0
-				? project.tracks.map((track) => ({
-						...track,
-						clips: track.clips.filter((clip) => !removedClipIds.has(clip.id))
-					}))
-				: project.tracks
+		tracks: filterClips(project.tracks),
+		...(updatedSequences ? { sequences: updatedSequences } : {})
 	};
 }
 

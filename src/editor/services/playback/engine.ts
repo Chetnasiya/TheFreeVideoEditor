@@ -1,5 +1,6 @@
 import { nextBoundary, resolveFrame, type ActiveLayer } from '../../core/playback';
 import { framesToTicks, ticksToTimecode, timelineDuration } from '../../core';
+import { viewProject } from '../../core/sequences/access';
 import type { AssetId, ClipId, Project, Time, TrackId } from '../../core';
 import type { EditorStore } from '../../state/store';
 import { AudioEngine } from './audioEngine';
@@ -140,6 +141,12 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		}
 	};
 
+	private get activeProject(): Project {
+		const storeProj = this.store.getState().project ?? this.project;
+		const activeSeqId = this.store.getState().activeSequenceId;
+		return viewProject(storeProj, activeSeqId);
+	}
+
 	constructor(
 		private readonly store: EditorStore,
 		project: Project,
@@ -181,12 +188,26 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		});
 		this.storeUnsubscribe = store.subscribe((state, previous) => {
 			if (this.disposed || this.writingPlayhead) return;
+			if (state.project && state.project !== this.project) {
+				this.project = state.project;
+			}
 			if (state.isExporting && !previous.isExporting) {
 				this.resumeAfterStall = false;
 				clock.pause();
 				void audio
 					.sync([], this.project, false, clock.rate)
 					.catch((error: unknown) => this.reportError(error));
+			}
+			if (state.activeSequenceId !== previous.activeSequenceId) {
+				const currentProj = state.project ?? this.project;
+				const activeProject = viewProject(currentProj, state.activeSequenceId);
+				const duration = timelineDuration(activeProject);
+				clock.setDuration(duration);
+				clock.seek(state.timeline.playhead);
+				this.updateSnapshot({ duration });
+				this.resizeCanvas();
+				this.syncAndRender();
+				return;
 			}
 			if (state.timeline.playhead !== previous.timeline.playhead) {
 				clock.seek(state.timeline.playhead);
@@ -326,7 +347,8 @@ class PlaybackEngineImpl implements PlaybackEngine {
 
 	stepFrames(count: number): void {
 		if (!Number.isSafeInteger(count)) throw new RangeError('Frame step must be an integer.');
-		const delta = Math.sign(count) * framesToTicks(Math.abs(count), this.project.settings.fps);
+		const delta =
+			Math.sign(count) * framesToTicks(Math.abs(count), this.activeProject.settings.fps);
 		this.seek(Math.max(0, this.clock.time + delta));
 	}
 
@@ -334,7 +356,11 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		if (target === 'start') this.seek(0);
 		else if (target === 'end') this.seek(this.snapshotValue.duration);
 		else {
-			const boundary = nextBoundary(this.project, this.clock.time, target === 'nextEdge' ? 1 : -1);
+			const boundary = nextBoundary(
+				this.activeProject,
+				this.clock.time,
+				target === 'nextEdge' ? 1 : -1
+			);
 			if (boundary !== null) this.seek(boundary);
 		}
 	}
@@ -448,7 +474,8 @@ class PlaybackEngineImpl implements PlaybackEngine {
 
 	private syncAndRender(): void {
 		if (this.disposed) return;
-		const resolved = resolveFrame(this.project, this.clock.time);
+		const proj = this.activeProject;
+		const resolved = resolveFrame(proj, this.clock.time);
 		const missing = new Set([...resolved.missing, ...this.runtimeMissing]);
 		this.updateSnapshot({
 			missing: [...missing]
@@ -457,7 +484,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			.reconcile(resolved, this.clock.time, this.clock.playing, this.clock.rate)
 			.catch((error: unknown) => this.reportError(error));
 		void this.audio
-			.sync(resolved.audioSources, this.project, this.clock.playing, this.clock.rate)
+			.sync(resolved.audioSources, proj, this.clock.playing, this.clock.rate)
 			.catch((error: unknown) => this.reportError(error));
 		this.requestRender();
 	}
@@ -474,14 +501,23 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		const renderer = this.renderer;
 		const canvas = this.canvas;
 		if (!renderer || !canvas || this.disposed) return;
-		const resolved = resolveFrame(this.project, this.clock.time);
-		const projectClipIds = new Set(
-			this.project.tracks.flatMap((track) => track.clips.map((clip) => clip.id))
-		);
-		for (const clipId of this.lastGoodFrames.keys()) {
-			if (!projectClipIds.has(clipId)) this.lastGoodFrames.delete(clipId);
+		const proj = this.activeProject;
+		const resolved = resolveFrame(proj, this.clock.time);
+		const allClips = [
+			...this.project.tracks.flatMap((track) => track.clips),
+			...Object.values(this.project.sequences ?? {}).flatMap((seq) =>
+				seq.tracks.flatMap((track) => track.clips)
+			)
+		];
+		const liveKeys = new Set<string>(allClips.map((clip) => clip.id));
+		for (const layer of resolved.videoLayers) {
+			const k = layer.instanceKey ?? layer.clipId;
+			liveKeys.add(k);
 		}
-		renderer.releaseUnused(projectClipIds);
+		for (const key of this.lastGoodFrames.keys()) {
+			if (!liveKeys.has(key)) this.lastGoodFrames.delete(key);
+		}
+		renderer.releaseUnused(liveKeys);
 		const missing = new Set([...resolved.missing, ...this.runtimeMissing]);
 		const layers = resolved.videoLayers.filter((layer) => {
 			if (layer.transition) {
@@ -498,7 +534,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		const scopesOpen = this.store.getState().scopes?.open ?? false;
 		renderer.enableScopes?.(scopesOpen);
 		renderer.render(
-			{ width: this.project.settings.width, height: this.project.settings.height },
+			{ width: proj.settings.width, height: proj.settings.height },
 			layers,
 			(layer: ActiveLayer): FrameSource | null => {
 				if (layer.kind === 'text' && layer.textData) {
@@ -540,7 +576,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		this.updateSnapshot({ proxyActive });
 		canvas.setAttribute(
 			'aria-label',
-			`Preview, ${ticksToTimecode(this.clock.time, this.project.settings.fps)}`
+			`Preview, ${ticksToTimecode(this.clock.time, proj.settings.fps)}`
 		);
 		if (loading) {
 			if (this.loadingTimer === null) {
@@ -558,7 +594,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 
 	private resizeCanvas(): void {
 		if (!this.canvas) return;
-		const { width, height } = this.project.settings;
+		const { width, height } = this.activeProject.settings;
 		if (this.canvas.width !== width) this.canvas.width = width;
 		if (this.canvas.height !== height) this.canvas.height = height;
 	}

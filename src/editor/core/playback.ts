@@ -8,6 +8,7 @@ import { evaluateMask, type EvaluatedMask } from './masks';
 import { transitionWindow, transitionProgress, transitionGain } from './transitions';
 import { DEFAULT_CAPTION_STYLE } from './captions/presets';
 import { findWordSpanInText } from './captions/operations';
+import { viewProject, getSequence } from './sequences/access';
 import type {
 	AnimatedValue,
 	AssetId,
@@ -87,11 +88,12 @@ export function evaluateLayerProperties(
 
 export interface ActiveLayer {
 	clipId: Clip['id'];
+	instanceKey?: string;
 	assetId?: AssetId;
 	trackId: TrackId;
 	trackOrder: number;
 	sourceTime: Time;
-	kind: 'video' | 'image' | 'solid' | 'adjustment' | 'text';
+	kind: 'video' | 'image' | 'solid' | 'adjustment' | 'text' | 'sequence';
 	opacity: number;
 	transform?: Clip['transform'];
 	/** Pivot offset from the layer center, in composition pixels. */
@@ -138,6 +140,13 @@ export interface ActiveLayer {
 		toLayer: ActiveLayer;
 		params: Record<string, JsonValue>;
 	};
+	/** Nested sequence details when kind === 'sequence' */
+	nested?: {
+		sequenceId: import('./types').SequenceId;
+		nestedTime: Time;
+		size: { width: number; height: number };
+		layers: ActiveLayer[];
+	};
 }
 
 export interface ActiveAudio {
@@ -158,7 +167,13 @@ export interface ResolvedFrame {
 
 import { resolveAudibleTracks, clipGainAt } from './audioMath';
 
-export function resolveFrame(project: Project, time: Time): ResolvedFrame {
+export function resolveFrame(
+	project: Project,
+	time: Time,
+	depth = 0,
+	maxDepth = 8,
+	instancePrefix = ''
+): ResolvedFrame {
 	if (!Number.isSafeInteger(time) || time < 0) {
 		throw new RangeError('Playback time must be a non-negative integer tick value.');
 	}
@@ -414,6 +429,49 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 				};
 			}
 
+			const hostInstanceKey = instancePrefix ? `${instancePrefix}/${clip.id}` : clip.id;
+
+			if (clip.source?.type === 'sequence') {
+				const nestedSeqId = clip.source.sequenceId;
+				const nestedSeq = getSequence(project, nestedSeqId);
+				if (!nestedSeq || depth >= maxDepth) return null;
+
+				const rawSource = timelineToSource(clip, t);
+				const seqDur = nestedSeq.tracks.reduce((d, trk) => {
+					const cMax = trk.clips.reduce((lat, c) => Math.max(lat, clipEnd(c)), d);
+					return (trk.captions ?? []).reduce((lat, cap) => Math.max(lat, cap.end), cMax);
+				}, 0);
+
+				// Past sequence end renders transparent (empty layers)
+				const isPastEnd = rawSource < 0 || (seqDur > 0 && rawSource >= seqDur);
+				const nestedView = viewProject(project, nestedSeqId);
+				const childResolved = isPastEnd
+					? { videoLayers: [], audioSources: [], duration: seqDur, missing: [] }
+					: resolveFrame(nestedView, rawSource, depth + 1, maxDepth, hostInstanceKey);
+
+				for (const m of childResolved.missing) missing.add(m);
+
+				const seqSettings = nestedView.settings;
+				return {
+					clipId: clip.id,
+					instanceKey: hostInstanceKey,
+					trackId: track.id,
+					trackOrder,
+					sourceTime: rawSource,
+					kind: 'sequence',
+					opacity: 1,
+					nested: {
+						sequenceId: nestedSeqId,
+						nestedTime: rawSource,
+						size: { width: seqSettings.width, height: seqSettings.height },
+						layers: childResolved.videoLayers
+					},
+					masks: evaluatedMasks,
+					effects: evaluatedEffects,
+					...evaluateLayerProperties(clip, localTime)
+				};
+			}
+
 			if (!clip.assetId) return null;
 			const asset = project.assets[clip.assetId];
 			if (!asset) return null;
@@ -648,6 +706,39 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 				continue;
 			}
 
+			if (clip.source?.type === 'sequence') {
+				if (track.kind === 'video') {
+					const seqLayer = makeClipLayer(clip, time);
+					if (seqLayer) videoLayers.push(seqLayer);
+				} else if (track.kind === 'audio') {
+					// Audio instance on an audio track
+					const nestedSeqId = clip.source.sequenceId;
+					const nestedSeq = getSequence(project, nestedSeqId);
+					if (nestedSeq && depth < maxDepth) {
+						const rawSource = timelineToSource(clip, time);
+						const hostInstanceKey = instancePrefix ? `${instancePrefix}/${clip.id}` : clip.id;
+						const nestedView = viewProject(project, nestedSeqId);
+						const childResolved = resolveFrame(
+							nestedView,
+							rawSource,
+							depth + 1,
+							maxDepth,
+							hostInstanceKey
+						);
+						const hostGain = clipGainAt(clip, time);
+						for (const src of childResolved.audioSources) {
+							audioSources.push({
+								...src,
+								trackId: track.id,
+								trackOrder,
+								volume: src.volume * hostGain
+							});
+						}
+					}
+				}
+				continue;
+			}
+
 			if (!clip.assetId) continue;
 			const asset = project.assets[clip.assetId];
 			if (!asset) continue;
@@ -693,12 +784,37 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 	};
 }
 
-export function nextBoundary(project: Project, time: Time, direction: 1 | -1): Time | null {
+export function nextBoundary(
+	project: Project,
+	time: Time,
+	direction: 1 | -1,
+	depth = 0,
+	maxDepth = 8
+): Time | null {
 	if (!Number.isSafeInteger(time) || time < 0) {
 		throw new RangeError('Playback time must be a non-negative integer tick value.');
 	}
 	const boundaries = project.tracks.flatMap((track) => [
-		...track.clips.flatMap((clip) => [clip.start, clipEnd(clip)]),
+		...track.clips.flatMap((clip) => {
+			const clipBounds = [clip.start, clipEnd(clip)];
+			if (clip.source?.type === 'sequence' && depth < maxDepth) {
+				const nestedSeq = getSequence(project, clip.source.sequenceId);
+				if (nestedSeq) {
+					const nestedView = viewProject(project, clip.source.sequenceId);
+					for (const nTrack of nestedView.tracks) {
+						for (const nClip of nTrack.clips) {
+							// Map nested clip boundaries to host time
+							const bStart = clip.start + (nClip.start - clip.sourceIn) / (clip.speed || 1);
+							const bEnd = clip.start + (clipEnd(nClip) - clip.sourceIn) / (clip.speed || 1);
+							if (bStart >= clip.start && bStart <= clipEnd(clip))
+								clipBounds.push(Math.round(bStart));
+							if (bEnd >= clip.start && bEnd <= clipEnd(clip)) clipBounds.push(Math.round(bEnd));
+						}
+					}
+				}
+			}
+			return clipBounds;
+		}),
 		...(track.captions ?? []).flatMap((cap) => [cap.start, cap.end])
 	]);
 	if (direction === 1) {

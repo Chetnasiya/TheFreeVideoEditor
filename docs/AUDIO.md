@@ -111,3 +111,13 @@ When resolving audible audio tracks (`resolveAudibleTracks`):
 - `Alt+0` (`⌥0`): Reset active track/master fader to $0\text{ dB}$.
 - `Alt+Shift+M` (`⌥⇧M`): Toggle mute on selected audio track.
 - `Alt+Shift+S` (`⌥⇧S`): Toggle solo on selected audio track.
+
+---
+
+## 6. Nested Sequence Audio Routing (Gate R)
+
+Nested sequence instances act as multi-track audio sub-busses:
+- **Live Sub-Graph (Speed = 1)**: For normal speed instances, `scheduleProject` connects the child sequence's individual audio track chains (including track fader, EQ, dynamics, and mute/solo logic) directly through a dedicated instance sub-bus into the host track input. Adjusting volume, pan, EQ, or mute inside the sequence updates host preview live with zero latency.
+- **Offline Bounce (Speed $\ne$ 1 / Remap)**: When an instance has speed $\ne 1$ or custom time remapping, it is rendered via `renderOfflineAudio` with WSOLA and scheduled into the host track as an audio buffer. The rendered buffer is cached and invalidated on child edits (`invalidateBouncedAudioCache`).
+- **Export & Preview Parity**: Both preview and export pipelines maintain identical DSP routing and mathematical gain/pan curves, guaranteeing bit-accurate mixdown consistency.
+

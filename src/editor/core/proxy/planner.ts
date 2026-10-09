@@ -95,9 +95,39 @@ export function planProxy(
 		settings.targetHeight
 	);
 
-	// Bitrate chosen from pixels * fps * 0.08 bits/pixel (bounded minimum 800 kbps, maximum 4 Mbps)
-	const rawBitrate = Math.round(targetWidth * targetHeight * fps * 0.08);
-	const bitrate = Math.max(800_000, Math.min(4_000_000, rawBitrate));
+	// Estimate source bitrate if available from size and duration
+	const durationSec = (asset.duration ?? 0) > 0 ? (asset.duration ?? 0) / 1_000_000 : 0;
+	const sourceBitrate =
+		durationSec > 0 && (asset.size ?? 0) > 0
+			? Math.round(((asset.size ?? 0) * 8) / durationSec)
+			: 0;
+
+	// Bitrate chosen from resolution * fps * 0.07 bits/pixel, with floor of 400 kbps and ceiling of 3.5 Mbps
+	const rawBitrate = Math.round(targetWidth * targetHeight * fps * 0.07);
+	let bitrate = Math.max(400_000, Math.min(3_500_000, rawBitrate));
+
+	// If source bitrate is known, cap proxy bitrate relative to source bitrate (e.g., at most 75% of source bitrate, floor 350 kbps)
+	if (sourceBitrate > 0) {
+		const relativeCap = Math.max(350_000, Math.round(sourceBitrate * 0.75));
+		bitrate = Math.min(bitrate, relativeCap);
+	}
+
+	// Sizing rule: skip if estimated proxy size >= source size when source size is known
+	if (durationSec > 0 && (asset.size ?? 0) > 0) {
+		const estimatedProxyBytes = Math.round((bitrate * durationSec) / 8);
+		if (estimatedProxyBytes >= (asset.size ?? 0)) {
+			return {
+				needed: false,
+				targetWidth,
+				targetHeight,
+				fps,
+				bitrate,
+				codec: codecChoice,
+				container: codecChoice === 'avc' ? 'mp4' : 'webm',
+				reason: `Proxy not beneficial: estimated proxy size (${estimatedProxyBytes} B) is greater than or equal to source size (${asset.size} B).`
+			};
+		}
+	}
 
 	return {
 		needed: true,

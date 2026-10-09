@@ -21,6 +21,7 @@ import {
 	timelineDuration,
 	isTransitionsEnabled
 } from '../../core';
+import { isRootSequence, viewProject } from '../../core/sequences/access';
 import type {
 	AssetId,
 	Clip,
@@ -28,6 +29,7 @@ import type {
 	DragPosition,
 	DragSession,
 	Project,
+	SequenceId,
 	Time,
 	Track,
 	TrackId
@@ -462,11 +464,24 @@ function ActiveTimeline({ project }: { project: Project }) {
 				setContext(null);
 			}
 		};
+		const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				setContext(null);
+			}
+		};
 		window.addEventListener('pointerdown', dismiss);
-		return () => window.removeEventListener('pointerdown', dismiss);
+		window.addEventListener('keydown', handleKeyDown);
+		return () => {
+			window.removeEventListener('pointerdown', dismiss);
+			window.removeEventListener('keydown', handleKeyDown);
+		};
 	}, [context]);
 
-	const activeProject = project;
+	const activeSequenceId = useEditorStore((state) => state.activeSequenceId);
+	const activeProject = useMemo(
+		() => viewProject(project, activeSequenceId),
+		[project, activeSequenceId]
+	);
 
 	function pointerTime(clientX: number): Time {
 		const scroller = scrollerRef.current;
@@ -707,6 +722,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 		}
 	}
 
+	function sequenceFromData(dataTransfer: DataTransfer): SequenceId | null {
+		const seqId = dataTransfer.getData('application/x-tfve-sequence');
+		return seqId ? (seqId as SequenceId) : null;
+	}
+
 	function assetFromData(dataTransfer: DataTransfer): AssetId | null {
 		const assetId = dataTransfer.getData('application/x-tfve-asset');
 		if (assetId) return assetId as AssetId;
@@ -754,6 +774,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 
 	function handleTrackDragOver(event: DragEvent<HTMLDivElement>, track: Track): void {
 		if (event.dataTransfer.types.includes('application/x-tfve-transition')) {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'copy';
+			return;
+		}
+		if (event.dataTransfer.types.includes('application/x-tfve-sequence')) {
 			event.preventDefault();
 			event.dataTransfer.dropEffect = 'copy';
 			return;
@@ -855,6 +880,13 @@ function ActiveTimeline({ project }: { project: Project }) {
 			event.preventDefault();
 			const time = pointerTime(event.clientX);
 			applyTransitionDrop(track, time, transitionType);
+			return;
+		}
+		const sequenceId = sequenceFromData(event.dataTransfer);
+		if (sequenceId) {
+			event.preventDefault();
+			const time = pointerTime(event.clientX);
+			store.getState().addSequenceToTimeline(sequenceId, time, track.id);
 			return;
 		}
 		const assetId = assetFromData(event.dataTransfer);
@@ -1064,9 +1096,35 @@ function ActiveTimeline({ project }: { project: Project }) {
 		>
 			<div className="timeline-topbar">
 				<div className="timeline-tabs" role="group" aria-label="Timeline sequences">
-					<span className="panel-tab is-active" aria-current="page">
-						Sequence 01
-					</span>
+					<button
+						type="button"
+						className={`panel-tab ${isRootSequence(activeSequenceId) ? 'is-active' : ''}`}
+						aria-current={isRootSequence(activeSequenceId) ? 'page' : undefined}
+						onClick={() => store.getState().closeSequence()}
+					>
+						Main
+					</button>
+					{!isRootSequence(activeSequenceId) && (
+						<>
+							<span
+								className="panel-tab-separator"
+								aria-hidden="true"
+								style={{ padding: '0 4px', opacity: 0.6 }}
+							>
+								›
+							</span>
+							<button
+								type="button"
+								className="panel-tab is-active"
+								aria-current="page"
+								onClick={() => store.getState().openSequenceSettingsDialog(activeSequenceId)}
+								title="Click to view or edit Sequence Settings"
+								style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+							>
+								{project.sequences?.[activeSequenceId]?.name ?? 'Nested Sequence'} ⚙
+							</button>
+						</>
+					)}
 				</div>
 				<ConnectedToolbar
 					project={activeProject}
@@ -1552,49 +1610,130 @@ function ActiveTimeline({ project }: { project: Project }) {
 						</svg>
 						<span>Freeze frame to end of clip</span>
 					</button>
-					<hr />
-					{context.clip.linkId ? (
-						<button
-							type="button"
-							onClick={() => {
-								unlinkSelection();
-								closeContextMenu();
-							}}
-						>
-							<svg
-								className="menu-icon"
-								viewBox="0 0 16 16"
-								width="14"
-								height="14"
-								fill="currentColor"
-								aria-hidden="true"
+					{(selection.clipIds.length >= 2 ||
+						Boolean(context.clip.linkId) ||
+						activeProject.tracks.some((t) =>
+							t.clips.some((c) => selection.clipIds.includes(c.id) && c.linkId)
+						)) && (
+						<>
+							<hr />
+							{selection.clipIds.length >= 2 && (
+								<button
+									type="button"
+									onClick={() => {
+										linkSelection();
+										closeContextMenu();
+									}}
+								>
+									<svg
+										className="menu-icon"
+										viewBox="0 0 16 16"
+										width="14"
+										height="14"
+										fill="currentColor"
+										aria-hidden="true"
+									>
+										<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
+										<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
+									</svg>
+									<span>Link selected clips</span>
+								</button>
+							)}
+							{(Boolean(context.clip.linkId) ||
+								activeProject.tracks.some((t) =>
+									t.clips.some((c) => selection.clipIds.includes(c.id) && c.linkId)
+								)) && (
+								<button
+									type="button"
+									onClick={() => {
+										unlinkSelection();
+										closeContextMenu();
+									}}
+								>
+									<svg
+										className="menu-icon"
+										viewBox="0 0 16 16"
+										width="14"
+										height="14"
+										fill="currentColor"
+										aria-hidden="true"
+									>
+										<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
+										<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
+									</svg>
+									<span>Unlink clips</span>
+								</button>
+							)}
+						</>
+					)}
+					{context.clip.source?.type === 'sequence' && (
+						<>
+							<hr />
+							<button
+								type="button"
+								onClick={() => {
+									if (context.clip.source?.type === 'sequence') {
+										store.getState().openSequence(context.clip.source.sequenceId);
+									}
+									closeContextMenu();
+								}}
 							>
-								<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
-								<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
-							</svg>
-							<span>Unlink clips</span>
-						</button>
-					) : (
-						<button
-							type="button"
-							onClick={() => {
-								linkSelection();
-								closeContextMenu();
-							}}
-						>
-							<svg
-								className="menu-icon"
-								viewBox="0 0 16 16"
-								width="14"
-								height="14"
-								fill="currentColor"
-								aria-hidden="true"
+								<span>Open in Timeline</span>
+							</button>
+							<button
+								type="button"
+								disabled={context.clip.speed !== 1 || Boolean(context.clip.timeRemap)}
+								title={
+									context.clip.speed !== 1 || context.clip.timeRemap
+										? 'Cannot expand sequence with remapped speed or speed curve'
+										: 'Un-nest sequence clips into timeline'
+								}
+								onClick={() => {
+									store.getState().expandSequenceInstance(context.clip.id);
+									closeContextMenu();
+								}}
 							>
-								<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
-								<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
-							</svg>
-							<span>Link selected clips</span>
-						</button>
+								<span>Expand Sequence</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									store.getState().makeInstanceUnique(context.clip.id);
+									closeContextMenu();
+								}}
+							>
+								<span>Make Unique</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									if (context.clip.source?.type === 'sequence') {
+										store.getState().openSequenceSettingsDialog(context.clip.source.sequenceId);
+									}
+									closeContextMenu();
+								}}
+							>
+								<span>Sequence Settings…</span>
+							</button>
+						</>
+					)}
+					{selection.clipIds.length > 0 && (
+						<>
+							<hr />
+							<button
+								type="button"
+								onClick={() => {
+									const defaultName = `Sequence ${Object.keys(project.sequences ?? {}).length + 1}`;
+									const name = window.prompt('Name for nested sequence:', defaultName);
+									if (name) {
+										store.getState().nestSelection(name);
+									}
+									closeContextMenu();
+								}}
+							>
+								<span>Nest Selection…</span>
+							</button>
+						</>
 					)}
 				</div>
 			)}

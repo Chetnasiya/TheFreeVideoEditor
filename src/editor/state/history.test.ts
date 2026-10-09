@@ -107,4 +107,20 @@ describe('project history', () => {
 		expect(history.canUndo()).toBe(false);
 		expect(history.canRedo()).toBe(false);
 	});
+
+	it('preserves activeSequenceId across history recording and coalescing', () => {
+		const initial = createEmptyProject({ name: 'Initial' });
+		const changed = { ...initial, name: 'Changed' };
+		const history = createHistory();
+		const entry = {
+			...entryFor('Edit in nested sequence', initial, changed),
+			activeSequenceIdBefore: 'nested-seq-1',
+			activeSequenceIdAfter: 'nested-seq-1'
+		};
+		history.record(entry);
+		const undone = history.undo(changed);
+		expect(undone?.entry.activeSequenceIdBefore).toBe('nested-seq-1');
+		const redone = history.redo(initial);
+		expect(redone?.entry.activeSequenceIdAfter).toBe('nested-seq-1');
+	});
 });

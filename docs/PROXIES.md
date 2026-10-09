@@ -26,6 +26,11 @@ Proxies in The Free Video Editor provide smooth preview playback, responsive scr
    - Dimensions are strictly even (e.g. 960×540 for 16:9, 540×540 for 1:1).
    - GOP is short (~0.5 seconds keyframe interval) to ensure instantaneous seek and scrub response.
 
+5. **Nested Sequence Transparency (Gate R)**:
+   - Proxies apply seamlessly to media inside nested sequences.
+   - `MediaPool` and `GlCompositor` identify elements using hierarchical `instanceKey` paths (e.g. `root/seq-1:clip-a`) paired with the underlying `assetId`.
+   - When proxies are enabled, child sequence layers resolve proxy video streams identically to root clips, while export strictly preserves original media.
+
 ---
 
 ## 2. Data Model & Schema

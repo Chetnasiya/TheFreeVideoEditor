@@ -1,7 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 
-declare const process: { platform?: string } | undefined;
-
 async function createProject(page: Page, name: string): Promise<void> {
 	await page.goto('/editor');
 	await page

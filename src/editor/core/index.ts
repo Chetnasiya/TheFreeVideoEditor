@@ -30,3 +30,4 @@ export * from './masks';
 export * from './text/layout';
 export * from './text/presets';
 export * from './proxy';
+export * from './sequences';

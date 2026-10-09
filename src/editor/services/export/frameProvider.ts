@@ -1,6 +1,6 @@
 import { ALL_FORMATS, BlobSource, Input, VideoSampleSink } from 'mediabunny';
 import type { ActiveLayer, Project } from '../../core';
-import type { AssetId, ClipId } from '../../core';
+import type { AssetId } from '../../core';
 import { getMediaFile } from '../storage/opfs';
 import { rasterizeText } from '../render/text/rasterizer';
 import { ensureFontLoaded } from '../render/text/fontLoader';
@@ -28,8 +28,8 @@ export class FrameProviderError extends Error {
 export class ExportFrameProvider {
 	private readonly decoders = new Map<AssetId, VideoDecoderEntry>();
 	private readonly images = new Map<AssetId, ImageBitmap>();
-	private readonly canvases = new Map<ClipId, OffscreenCanvas>();
-	private readonly prepared = new Map<ClipId, CanvasImageSource>();
+	private readonly canvases = new Map<string, OffscreenCanvas>();
+	private readonly prepared = new Map<string, CanvasImageSource>();
 	private readonly frameCache = new Map<string, ImageBitmap>();
 	private readonly cacheKeys: string[] = [];
 	private clock = 0;
@@ -43,16 +43,23 @@ export class ExportFrameProvider {
 	async prepare(layers: readonly ActiveLayer[], signal?: AbortSignal): Promise<void> {
 		this.prepared.clear();
 		const allLayers: ActiveLayer[] = [];
-		for (const layer of layers) {
-			if (layer.transition) {
-				allLayers.push(layer.transition.fromLayer);
-				allLayers.push(layer.transition.toLayer);
-			} else {
-				allLayers.push(layer);
+		const collect = (layerList: readonly ActiveLayer[]) => {
+			for (const layer of layerList) {
+				if (layer.transition) {
+					allLayers.push(layer.transition.fromLayer);
+					allLayers.push(layer.transition.toLayer);
+				} else {
+					allLayers.push(layer);
+				}
+				if (layer.nested?.layers) {
+					collect(layer.nested.layers);
+				}
 			}
-		}
+		};
+		collect(layers);
 
 		for (const layer of allLayers) {
+			const layerKey = layer.instanceKey ?? layer.clipId;
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
 			if (layer.kind === 'text' && layer.textData) {
 				const data = layer.textData;
@@ -81,7 +88,7 @@ export class ExportFrameProvider {
 					colorRuns: data.colorRuns,
 					scale
 				});
-				this.prepared.set(layer.clipId, textCanvas);
+				this.prepared.set(layerKey, textCanvas);
 				continue;
 			}
 			if (!layer.assetId) continue;
@@ -94,14 +101,14 @@ export class ExportFrameProvider {
 						image = await createImageBitmap(await this.getFile(this.project.id, asset));
 						this.images.set(asset.id, image);
 					}
-					this.prepared.set(layer.clipId, image);
+					this.prepared.set(layerKey, image);
 					continue;
 				}
 				const timeSec = Math.max(0, layer.sourceTime / 1_000_000);
 				const cacheKey = `${asset.id}:${Math.round(timeSec * (asset.fps ?? 30))}`;
 				const cached = this.frameCache.get(cacheKey);
 				if (cached) {
-					this.prepared.set(layer.clipId, cached);
+					this.prepared.set(layerKey, cached);
 					continue;
 				}
 
@@ -114,14 +121,14 @@ export class ExportFrameProvider {
 					);
 				}
 				if (!sample) continue;
-				let canvas = this.canvases.get(layer.clipId);
+				let canvas = this.canvases.get(layerKey);
 				if (
 					!canvas ||
 					canvas.width !== sample.displayWidth ||
 					canvas.height !== sample.displayHeight
 				) {
 					canvas = new OffscreenCanvas(sample.displayWidth, sample.displayHeight);
-					this.canvases.set(layer.clipId, canvas);
+					this.canvases.set(layerKey, canvas);
 				}
 				const context = canvas.getContext('2d');
 				if (!context) throw new Error('Offscreen canvas 2D rendering is unavailable.');
@@ -138,7 +145,7 @@ export class ExportFrameProvider {
 							this.frameCache.delete(evict);
 						}
 					}
-					this.prepared.set(layer.clipId, bitmap);
+					this.prepared.set(layerKey, bitmap);
 				} finally {
 					sample.close();
 				}
@@ -150,7 +157,7 @@ export class ExportFrameProvider {
 	}
 
 	getFrame(layer: ActiveLayer): CanvasImageSource | null {
-		return this.prepared.get(layer.clipId) ?? null;
+		return this.prepared.get(layer.instanceKey ?? layer.clipId) ?? null;
 	}
 
 	async dispose(): Promise<void> {

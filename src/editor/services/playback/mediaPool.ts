@@ -34,6 +34,7 @@ export interface MediaPoolOptions {
 }
 
 interface PoolEntryBase {
+	entryKey: string;
 	clipId: Clip['id'];
 	assetId: AssetId;
 	isProxy?: boolean;
@@ -122,6 +123,7 @@ export class MediaPool {
 			clip: Clip;
 			asset: Asset;
 			kind: 'video' | 'audio';
+			entryKey: string;
 			prewarm?: boolean;
 		}> = [];
 		for (const layer of resolved.videoLayers) {
@@ -131,24 +133,32 @@ export class MediaPool {
 				if (fromL.assetId) {
 					const clip = findClip(this.project, fromL.clipId);
 					const asset = this.project.assets[fromL.assetId];
-					if (clip && asset) desired.push({ clip, asset, kind: 'video' });
+					if (clip && asset)
+						desired.push({
+							clip,
+							asset,
+							kind: 'video',
+							entryKey: fromL.instanceKey ?? fromL.clipId
+						});
 				}
 				if (toL.assetId) {
 					const clip = findClip(this.project, toL.clipId);
 					const asset = this.project.assets[toL.assetId];
-					if (clip && asset) desired.push({ clip, asset, kind: 'video' });
+					if (clip && asset)
+						desired.push({ clip, asset, kind: 'video', entryKey: toL.instanceKey ?? toL.clipId });
 				}
 				continue;
 			}
 			if (!layer.assetId) continue;
 			const clip = findClip(this.project, layer.clipId);
 			const asset = this.project.assets[layer.assetId];
-			if (clip && asset) desired.push({ clip, asset, kind: 'video' });
+			if (clip && asset)
+				desired.push({ clip, asset, kind: 'video', entryKey: layer.instanceKey ?? layer.clipId });
 		}
 		for (const source of resolved.audioSources) {
 			const clip = findClip(this.project, source.clipId);
 			const asset = this.project.assets[source.assetId];
-			if (clip && asset) desired.push({ clip, asset, kind: 'audio' });
+			if (clip && asset) desired.push({ clip, asset, kind: 'audio', entryKey: source.clipId });
 		}
 
 		const currentSeconds = time / 1_000_000;
@@ -173,11 +183,11 @@ export class MediaPool {
 							this.reportError(error, asset.id)
 						);
 					} else {
-						desired.push({ clip, asset, kind: 'video', prewarm: true });
+						desired.push({ clip, asset, kind: 'video', entryKey: clip.id, prewarm: true });
 					}
 				}
 				if (track.kind === 'audio' && asset.hasAudio) {
-					desired.push({ clip, asset, kind: 'audio', prewarm: true });
+					desired.push({ clip, asset, kind: 'audio', entryKey: clip.id, prewarm: true });
 				}
 			}
 		}
@@ -185,9 +195,9 @@ export class MediaPool {
 		const pending: Promise<void>[] = [];
 		for (const item of desired) {
 			if (item.asset.offline || item.asset.kind === 'image') continue;
-			const key = poolKey(item.clip.id, item.kind);
+			const key = poolKey(item.entryKey, item.kind);
 			wanted.add(key);
-			const entry = this.ensureEntry(item.clip, item.asset, item.kind);
+			const entry = this.ensureEntry(item.clip, item.asset, item.kind, item.entryKey);
 			if (entry) {
 				if (!item.prewarm) entry.lastUsed = this.now();
 				if (entry.idleTimer !== null) {
@@ -206,7 +216,7 @@ export class MediaPool {
 		}
 
 		for (const entry of this.entries.values()) {
-			if (wanted.has(poolKey(entry.clipId, entry.kind))) {
+			if (wanted.has(poolKey(entry.entryKey, entry.kind))) {
 				if (entry.kind === 'audio') {
 					const isActive = resolved.audioSources.some((source) => source.clipId === entry.clipId);
 					if (!isActive || !playing || rate !== 1) entry.element.pause();
@@ -231,7 +241,8 @@ export class MediaPool {
 			void this.getImageSource(asset).catch((error: unknown) => this.reportError(error, asset.id));
 			return null;
 		}
-		const entry = this.ensureEntry(clip, asset, 'video');
+		const entryKey = layer.instanceKey ?? layer.clipId;
+		const entry = this.ensureEntry(clip, asset, 'video', entryKey);
 		if (!entry || entry.kind !== 'video') return null;
 		const video = entry.element;
 		entry.lastUsed = this.now();
@@ -260,7 +271,8 @@ export class MediaPool {
 		if (!layer.assetId) return false;
 		const clip = findClip(this.project, layer.clipId);
 		if (!clip) return false;
-		const entry = this.entries.get(poolKey(clip.id, 'video'));
+		const entryKey = layer.instanceKey ?? layer.clipId;
+		const entry = this.entries.get(poolKey(entryKey, 'video'));
 		return entry?.isProxy ?? false;
 	}
 
@@ -319,13 +331,19 @@ export class MediaPool {
 		return promise;
 	}
 
-	private ensureEntry(clip: Clip, asset: Asset, kind: 'video' | 'audio'): PoolEntry | null {
+	private ensureEntry(
+		clip: Clip,
+		asset: Asset,
+		kind: 'video' | 'audio',
+		keyPrefix: string = clip.id
+	): PoolEntry | null {
 		if (this.disposed || asset.offline) return null;
-		const key = poolKey(clip.id, kind);
+		const key = poolKey(keyPrefix, kind);
 		const existing = this.entries.get(key);
 		if (existing && existing.assetId === asset.id) return existing;
 		if (existing) this.removeEntry(existing);
 		const common = {
+			entryKey: keyPrefix,
 			clipId: clip.id,
 			assetId: asset.id,
 			ready: Promise.resolve(),
@@ -464,14 +482,15 @@ export class MediaPool {
 		while (this.entries.size > this.liveLimit) {
 			const candidates = [...this.entries.values()].toSorted((a, b) => a.lastUsed - b.lastUsed);
 			const victim =
-				candidates.find((entry) => !wanted.has(poolKey(entry.clipId, entry.kind))) ?? candidates[0];
+				candidates.find((entry) => !wanted.has(poolKey(entry.entryKey, entry.kind))) ??
+				candidates[0];
 			if (!victim) return;
 			this.removeEntry(victim);
 		}
 	}
 
 	private removeEntry(entry: PoolEntry): void {
-		const key = poolKey(entry.clipId, entry.kind);
+		const key = poolKey(entry.entryKey, entry.kind);
 		if (this.entries.get(key) === entry) this.entries.delete(key);
 		if (entry.idleTimer !== null) clearTimeout(entry.idleTimer);
 		entry.element.pause();
@@ -502,10 +521,16 @@ export class MediaPool {
 	}
 }
 
-function poolKey(clipId: Clip['id'], kind: 'video' | 'audio'): string {
-	return `${clipId}:${kind}`;
+function poolKey(key: string, kind: 'video' | 'audio'): string {
+	return `${key}:${kind}`;
 }
 
 function findClip(project: Project, clipId: Clip['id']): Clip | undefined {
-	return project.tracks.flatMap((track) => track.clips).find((clip) => clip.id === clipId);
+	const inRoot = project.tracks.flatMap((track) => track.clips).find((clip) => clip.id === clipId);
+	if (inRoot) return inRoot;
+	for (const seq of Object.values(project.sequences ?? {})) {
+		const inSeq = seq.tracks.flatMap((track) => track.clips).find((clip) => clip.id === clipId);
+		if (inSeq) return inSeq;
+	}
+	return undefined;
 }

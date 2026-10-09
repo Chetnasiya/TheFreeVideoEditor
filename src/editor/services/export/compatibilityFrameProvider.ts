@@ -1,4 +1,4 @@
-import type { ActiveLayer, AssetId, ClipId, Project } from '../../core';
+import type { ActiveLayer, AssetId, Project } from '../../core';
 import { getMediaFile } from '../storage/opfs';
 import { rasterizeText } from '../render/text/rasterizer';
 import { ensureFontLoaded } from '../render/text/fontLoader';
@@ -12,7 +12,7 @@ interface VideoEntry {
 export class CompatibilityFrameProvider {
 	private readonly videos = new Map<AssetId, VideoEntry>();
 	private readonly images = new Map<AssetId, ImageBitmap>();
-	private readonly prepared = new Map<ClipId, CanvasImageSource>();
+	private readonly prepared = new Map<string, CanvasImageSource>();
 
 	constructor(
 		private readonly project: Project,
@@ -26,16 +26,23 @@ export class CompatibilityFrameProvider {
 		this.prepared.clear();
 
 		const allLayers: ActiveLayer[] = [];
-		for (const layer of layers) {
-			if (layer.transition) {
-				allLayers.push(layer.transition.fromLayer);
-				allLayers.push(layer.transition.toLayer);
-			} else {
-				allLayers.push(layer);
+		const collect = (layerList: readonly ActiveLayer[]) => {
+			for (const layer of layerList) {
+				if (layer.transition) {
+					allLayers.push(layer.transition.fromLayer);
+					allLayers.push(layer.transition.toLayer);
+				} else {
+					allLayers.push(layer);
+				}
+				if (layer.nested?.layers) {
+					collect(layer.nested.layers);
+				}
 			}
-		}
+		};
+		collect(layers);
 
 		for (const layer of allLayers) {
+			const layerKey = layer.instanceKey ?? layer.clipId;
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
 			if (layer.kind === 'text' && layer.textData) {
 				const data = layer.textData;
@@ -77,7 +84,7 @@ export class CompatibilityFrameProvider {
 						image = await createImageBitmap(await this.getFile(this.project.id, asset));
 						this.images.set(asset.id, image);
 					}
-					this.prepared.set(layer.clipId, image);
+					this.prepared.set(layerKey, image);
 					continue;
 				}
 				const entry = await this.getVideo(asset.id);
@@ -107,7 +114,7 @@ export class CompatibilityFrameProvider {
 						entry.video.currentTime = time;
 					});
 				}
-				this.prepared.set(layer.clipId, entry.video);
+				this.prepared.set(layerKey, entry.video);
 			} catch (error) {
 				if (error instanceof DOMException && error.name === 'AbortError') throw error;
 				throw new Error(`Could not decode “${asset.name}” for compatibility export.`, {
@@ -118,7 +125,7 @@ export class CompatibilityFrameProvider {
 	}
 
 	getFrame(layer: ActiveLayer): CanvasImageSource | null {
-		return this.prepared.get(layer.clipId) ?? null;
+		return this.prepared.get(layer.instanceKey ?? layer.clipId) ?? null;
 	}
 
 	dispose(): void {

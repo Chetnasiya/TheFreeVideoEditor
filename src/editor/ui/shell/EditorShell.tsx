@@ -33,6 +33,7 @@ import PreviewWorkspace from '../preview/PreviewWorkspace';
 import SourceMonitor from '../preview/SourceMonitor';
 import ExportDialog from '../export/ExportDialog';
 import SpeedDurationDialog from '../dialogs/SpeedDurationDialog';
+import SequenceSettingsDialog from '../dialogs/SequenceSettingsDialog';
 import EffectsLibrary from '../effects/EffectsLibrary';
 import ColorPanel from '../color/ColorPanel';
 import { MixerPanel } from '../audio/MixerPanel';
@@ -412,6 +413,36 @@ function EditorShell() {
 				const current = state();
 				const trackId = current.timeline.selection.trackId;
 				if (trackId) current.setTrackAudioSolo(trackId);
+			},
+			'nest-selection': () => {
+				const current = state();
+				const clipIds = current.timeline.selection.clipIds;
+				if (clipIds.length > 0) {
+					const defaultName = `Sequence ${Object.keys(current.project?.sequences ?? {}).length + 1}`;
+					const name = window.prompt('Name for nested sequence:', defaultName);
+					if (name) {
+						current.nestSelection(name);
+					}
+				}
+			},
+			'open-sequence-instance': () => {
+				const current = state();
+				const project = current.project;
+				if (!project) return;
+				const clipIds = current.timeline.selection.clipIds;
+				if (clipIds.length === 0) return;
+				const allClips = [
+					...project.tracks.flatMap((t) => t.clips),
+					...Object.values(project.sequences ?? {}).flatMap((s) => s.tracks.flatMap((t) => t.clips))
+				];
+				const selectedClip = allClips.find((c) => clipIds.includes(c.id));
+				if (selectedClip?.source?.type === 'sequence') {
+					current.openSequence(selectedClip.source.sequenceId);
+				}
+			},
+			'go-up-sequence': () => {
+				const current = state();
+				current.closeSequence();
 			}
 		});
 	}, [editorStore, openShortcutsDialog]);
@@ -1310,6 +1341,7 @@ function EditorShell() {
 			<SaveCopyPrompt />
 			<ExportDialog />
 			<SpeedDurationDialog />
+			<SequenceSettingsDialog />
 			{isShortcutsOpen && (
 				<KeyboardShortcutsDialog entries={shortcutEntries} onClose={closeShortcutsDialog} />
 			)}

@@ -1,6 +1,6 @@
 import { fitRect } from '../../core/composition';
 import type { ActiveLayer } from '../../core/playback';
-import type { BlendMode, ClipId } from '../../core/types';
+import type { BlendMode } from '../../core/types';
 
 const CANVAS_BLEND: Record<BlendMode, GlobalCompositeOperation> = {
 	normal: 'source-over',
@@ -11,7 +11,7 @@ const CANVAS_BLEND: Record<BlendMode, GlobalCompositeOperation> = {
 
 export type FrameSource = CanvasImageSource | VideoFrame;
 export type FrameProvider = (layer: ActiveLayer) => FrameSource | null;
-export type LastGoodFrames = Map<ClipId, FrameSource>;
+export type LastGoodFrames = Map<string, FrameSource>;
 
 export interface CompositionSize {
 	width: number;

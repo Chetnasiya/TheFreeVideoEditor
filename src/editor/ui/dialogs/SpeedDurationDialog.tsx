@@ -58,8 +58,8 @@ export default function SpeedDurationDialog() {
 		setDurationError('');
 		if (newPercent > 0) {
 			const multiplier = newPercent / 100;
-			const rawTicks = sourceRangeTicks / multiplier;
-			const snappedFrames = Math.max(1, Math.round(ticksToFrames(rawTicks, fps)));
+			const rawTicks = Math.round(Math.max(0, sourceRangeTicks / multiplier));
+			const snappedFrames = Math.max(1, ticksToFrames(rawTicks, fps));
 			const snappedTicks = framesToTicks(snappedFrames, fps);
 			setDurationStr(ticksToTimecode(snappedTicks, fps));
 		}

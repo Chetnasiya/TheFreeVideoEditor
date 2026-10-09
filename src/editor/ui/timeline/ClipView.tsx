@@ -259,26 +259,45 @@ export default function ClipView({
 	const isAdjustment = clip.source?.type === 'adjustment';
 	const isSolid = clip.source?.type === 'solid';
 	const isText = clip.source?.type === 'text';
+	const isSequence = clip.source?.type === 'sequence';
+	const nestedSeqId = clip.source?.type === 'sequence' ? clip.source.sequenceId : null;
+	const nestedSeq = nestedSeqId ? project.sequences?.[nestedSeqId] : null;
+	const sequenceName = nestedSeq?.name ?? (isSequence ? 'Nested Sequence' : '');
+	const nestedDuration = nestedSeq
+		? nestedSeq.tracks.reduce((max, t) => {
+				const cMax = t.clips.reduce((cm, c) => Math.max(cm, c.start + c.duration), max);
+				return (t.captions ?? []).reduce((cam, cap) => Math.max(cam, cap.end), cMax);
+			}, 0)
+		: 0;
+	const isSequenceEmpty = isSequence && nestedDuration === 0;
+	const isPastSequenceEnd =
+		isSequence &&
+		!isSequenceEmpty &&
+		clip.sourceIn + clip.duration * (clip.speed || 1) > nestedDuration;
 	const textContent = clip.source?.type === 'text' ? clip.source.text : '';
 	const clipName =
 		asset?.name ??
-		(isText
-			? `T ${textContent || 'Text'}`
-			: isAdjustment
-				? 'Adjustment Layer'
-				: isSolid
-					? 'Solid'
-					: 'Clip');
+		(isSequence
+			? `▸ ${sequenceName}`
+			: isText
+				? `T ${textContent || 'Text'}`
+				: isAdjustment
+					? 'Adjustment Layer'
+					: isSolid
+						? 'Solid'
+						: 'Clip');
 	const kindClass =
 		track.kind === 'audio'
 			? 'is-audio'
-			: isText
-				? 'is-text'
-				: isAdjustment
-					? 'is-adjustment'
-					: isSolid
-						? 'is-solid'
-						: 'is-video';
+			: isSequence
+				? 'is-sequence'
+				: isText
+					? 'is-text'
+					: isAdjustment
+						? 'is-adjustment'
+						: isSolid
+							? 'is-solid'
+							: 'is-video';
 
 	return (
 		<div
@@ -293,9 +312,25 @@ export default function ClipView({
 			style={{ left: start, width }}
 			onPointerDown={(event) => {
 				if (ghost) return;
+				if (event.button === 2) {
+					// Right-click: if not already selected, select this clip so the context menu targets it.
+					// If already selected (e.g. part of a multi-selection), preserve the existing selection.
+					if (!selected) {
+						onSelect(clip.id, event);
+					}
+					return;
+				}
+				if (event.button !== 0) return;
 				onSelect(clip.id, event);
 				if (!(event.target instanceof HTMLElement && event.target.closest('.clip-trim-handle'))) {
 					onPointerDown(event, clip);
+				}
+			}}
+			onDoubleClick={(event) => {
+				if (ghost) return;
+				if (clip.source?.type === 'sequence') {
+					event.stopPropagation();
+					store.getState().openSequence(clip.source.sequenceId);
 				}
 			}}
 			onContextMenu={(event) => {
@@ -417,6 +452,48 @@ export default function ClipView({
 					title="Time Remapped"
 				>
 					Remap
+				</span>
+			)}
+			{isSequenceEmpty && (
+				<span
+					className="clip-sequence-badge clip-empty-sequence-badge"
+					data-testid="empty-sequence-badge"
+					style={{
+						position: 'relative',
+						zIndex: 1,
+						marginLeft: 'var(--spacing-xxs)',
+						padding: '1px 4px',
+						borderRadius: 'var(--radius-sm, 2px)',
+						background: 'color-mix(in srgb, var(--color-amber, #f59e0b) 25%, transparent)',
+						color: 'var(--color-ink)',
+						fontFamily: 'var(--font-mono)',
+						fontSize: '0.625rem',
+						lineHeight: 1
+					}}
+					title="Empty sequence"
+				>
+					Empty
+				</span>
+			)}
+			{isPastSequenceEnd && (
+				<span
+					className="clip-sequence-badge clip-past-end-badge"
+					data-testid="past-sequence-end-badge"
+					style={{
+						position: 'relative',
+						zIndex: 1,
+						marginLeft: 'var(--spacing-xxs)',
+						padding: '1px 4px',
+						borderRadius: 'var(--radius-sm, 2px)',
+						background: 'color-mix(in srgb, var(--color-rose, #f43f5e) 25%, transparent)',
+						color: 'var(--color-ink)',
+						fontFamily: 'var(--font-mono)',
+						fontSize: '0.625rem',
+						lineHeight: 1
+					}}
+					title="Extends past sequence end (renders transparent)"
+				>
+					Past End
 				</span>
 			)}
 			{asset && !ghost && isSpeedExceedingMedia(clip, asset) && (

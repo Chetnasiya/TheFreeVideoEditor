@@ -1,0 +1,5 @@
+**/*.glsl
+dist
+.astro
+node_modules
+

@@ -56,8 +56,30 @@ describe('core/proxy planner & logic', () => {
 		expect(plan.targetWidth).toBe(960);
 		expect(plan.targetHeight).toBe(540);
 		expect(plan.fps).toBe(30);
-		expect(plan.bitrate).toBeGreaterThanOrEqual(800_000);
-		expect(plan.bitrate).toBeLessThanOrEqual(4_000_000);
+		expect(plan.bitrate).toBeGreaterThanOrEqual(400_000);
+		expect(plan.bitrate).toBeLessThanOrEqual(3_500_000);
+	});
+
+	it('caps proxy bitrate relative to source bitrate', () => {
+		const lowBitrateSource: Asset = {
+			...baseAsset,
+			size: 500_000, // 500 KB over 10s = 400 kbps
+			duration: 10_000_000
+		};
+		const plan = planProxy(lowBitrateSource, { enabled: true, targetHeight: 540, auto: 'large' });
+		// 75% of 400 kbps = 300 kbps, capped at floor 350 kbps
+		expect(plan.bitrate).toBe(350_000);
+	});
+
+	it('skips proxy with "not beneficial" when estimated proxy size >= source size', () => {
+		const tinySource: Asset = {
+			...baseAsset,
+			size: 100_000, // 100 KB over 10s = 80 kbps
+			duration: 10_000_000
+		};
+		const plan = planProxy(tinySource, { enabled: true, targetHeight: 540, auto: 'large' });
+		expect(plan.needed).toBe(false);
+		expect(plan.reason).toContain('Proxy not beneficial');
 	});
 
 	it('suggests proxy for large assets (> 1080p, > 60fps, HEVC)', () => {
