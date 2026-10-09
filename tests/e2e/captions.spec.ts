@@ -89,7 +89,9 @@ test.describe('Gate P: Captions System E2E', () => {
 		await autoCaptionBtn.click();
 
 		// 3. Verify modal opens with privacy guarantee and consent or controls
-		const modal = page.locator('dialog.editor-dialog').filter({ hasText: 'Local AI Speech-to-Text' });
+		const modal = page
+			.locator('dialog.editor-dialog')
+			.filter({ hasText: 'Local AI Speech-to-Text' });
 		await expect(modal).toBeVisible();
 		await expect(modal).toContainText('100% Private');
 
@@ -114,7 +116,9 @@ test.describe('Gate P: Captions System E2E', () => {
 		await expect(modal).not.toBeVisible();
 	});
 
-	test('executes search & replace across caption cues and verifies one-step undo', async ({ page }) => {
+	test('executes search & replace across caption cues and verifies one-step undo', async ({
+		page
+	}) => {
 		// 1. Add caption cue
 		await page.getByRole('button', { name: '+ Caption' }).click();
 		const captionsTab = page.locator('#captions-panel-title');
@@ -126,7 +130,11 @@ test.describe('Gate P: Captions System E2E', () => {
 
 		// 2. Seek playhead forward and add second cue
 		await page.evaluate(() => {
-			const s = (window as unknown as { __TFVE_STORE__?: { getState: () => { setPlayhead: (t: number) => void } } }).__TFVE_STORE__;
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: { getState: () => { setPlayhead: (t: number) => void } };
+				}
+			).__TFVE_STORE__;
 			s?.getState().setPlayhead(3_000_000);
 		});
 		await page.getByRole('button', { name: '+ Add Cue' }).click();
@@ -160,7 +168,11 @@ test.describe('Gate P: Captions System E2E', () => {
 		const externalRequests: string[] = [];
 		await page.route('**/*', (route) => {
 			const url = route.request().url();
-			if (!url.startsWith('http://localhost:4321') && !url.startsWith('data:') && !url.startsWith('blob:')) {
+			if (
+				!url.startsWith('http://localhost:4321') &&
+				!url.startsWith('data:') &&
+				!url.startsWith('blob:')
+			) {
 				externalRequests.push(url);
 			}
 			return route.continue();
@@ -178,7 +190,9 @@ test.describe('Gate P: Captions System E2E', () => {
 		const autoCaptionBtn = page.getByRole('button', { name: /Auto-Caption/i });
 		await autoCaptionBtn.click();
 
-		const modal = page.locator('dialog.editor-dialog').filter({ hasText: 'Local AI Speech-to-Text' });
+		const modal = page
+			.locator('dialog.editor-dialog')
+			.filter({ hasText: 'Local AI Speech-to-Text' });
 		await expect(modal).toBeVisible();
 
 		// Click Start Auto-Caption
@@ -193,5 +207,76 @@ test.describe('Gate P: Captions System E2E', () => {
 
 		// Verify zero network leaks
 		expect(externalRequests).toEqual([]);
+	});
+
+	test('dragging or trimming caption segment clamps to neighbors and never overlaps adjacent captions', async ({
+		page
+	}) => {
+		// 1. Add caption cue 1 at 0
+		await page.getByRole('button', { name: '+ Caption' }).click();
+
+		// 2. Seek to 4s and add caption cue 2
+		await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: { getState: () => { setPlayhead: (t: number) => void } };
+				}
+			).__TFVE_STORE__;
+			s?.getState().setPlayhead(4_000_000);
+		});
+		await page.getByRole('button', { name: '+ Caption' }).click();
+
+		const cues = page.locator('.caption-segment-view');
+		await expect(cues).toHaveCount(2);
+
+		// Verify initial times: cue 1 ends before cue 2 starts
+		const trackCaptions = await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						getState: () => {
+							project: {
+								tracks: Array<{ kind: string; captions?: Array<{ start: number; end: number }> }>;
+							};
+						};
+					};
+				}
+			).__TFVE_STORE__;
+			const capTrack = s?.getState().project.tracks.find((t) => t.kind === 'caption');
+			return capTrack?.captions ?? [];
+		});
+		expect(trackCaptions.length).toBe(2);
+		const initialCue1End = trackCaptions[0]?.end ?? 0;
+		const initialCue2Start = trackCaptions[1]?.start ?? 0;
+		expect(initialCue1End).toBeLessThanOrEqual(initialCue2Start);
+
+		// Drag cue 1 right trim handle far to the right (attempting to overlap cue 2)
+		const cue1EndHandle = cues.first().locator('.caption-trim-end');
+		const handleBox = await cue1EndHandle.boundingBox();
+		if (handleBox) {
+			await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+			await page.mouse.down();
+			await page.mouse.move(handleBox.x + 500, handleBox.y + handleBox.height / 2);
+			await page.mouse.up();
+		}
+
+		// Verify cue 1 was strictly clamped at cue 2 start without overlapping or corrupting cue 2
+		const updatedCaptions = await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						getState: () => {
+							project: {
+								tracks: Array<{ kind: string; captions?: Array<{ start: number; end: number }> }>;
+							};
+						};
+					};
+				}
+			).__TFVE_STORE__;
+			const capTrack = s?.getState().project.tracks.find((t) => t.kind === 'caption');
+			return capTrack?.captions ?? [];
+		});
+		expect(updatedCaptions.length).toBe(2);
+		expect(updatedCaptions[0]!.end).toBeLessThanOrEqual(updatedCaptions[1]!.start);
 	});
 });

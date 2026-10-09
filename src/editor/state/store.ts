@@ -2830,10 +2830,33 @@ export function createEditorStore() {
 						trackId = get().addCaptionTrack() ?? undefined;
 					}
 					if (!trackId) return null;
+
+					const track = get().project?.tracks.find((t) => t.id === trackId);
+					const captions = (track?.captions ?? []).slice().sort((a, b) => a.start - b.start);
 					const playhead = get().timeline.playhead;
+					let start = playhead;
+
+					// If playhead is inside an existing segment, place immediately after it
+					const covering = captions.find((c) => c.start <= playhead && playhead < c.end);
+					if (covering) {
+						start = covering.end;
+					}
+
+					// Fit in the gap before the next segment
+					const next = captions.find((c) => c.start > start);
+					const defaultDur = 2_000_000;
+					let end = next ? Math.min(start + defaultDur, next.start) : start + defaultDur;
+
+					// If the gap is too narrow (< 200ms) and another segment follows, advance past it
+					if (end - start < 200_000 && next) {
+						start = next.end;
+						const following = captions.find((c) => c.start > start);
+						end = following ? Math.min(start + defaultDur, following.start) : start + defaultDur;
+					}
+
 					const segId = get().addCaptionSegment(trackId, {
-						start: playhead,
-						end: playhead + 2_000_000,
+						start,
+						end,
 						text
 					});
 					if (segId) {

@@ -89,22 +89,7 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 	};
 
 	const handleAddCue = () => {
-		let trackId: TrackId | undefined = activeTrackId;
-		if (!trackId) {
-			trackId = store.getState().addCaptionTrack() ?? undefined;
-		}
-		if (!trackId) return;
-
-		const start = playhead;
-		const end = playhead + 2_000_000;
-		const newId = store.getState().addCaptionSegment(trackId, {
-			start,
-			end,
-			text: 'New Caption'
-		});
-		if (newId) {
-			store.getState().selectCaption(trackId, newId);
-		}
+		store.getState().addCaptionAtPlayhead('New Caption');
 	};
 
 	const handleUpdateText = (captionId: string, newText: string) => {

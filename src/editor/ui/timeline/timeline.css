@@ -109,7 +109,7 @@
 
 .timeline-ruler-row {
 	position: sticky;
-	z-index: 5;
+	z-index: 8;
 	top: 0;
 	display: grid;
 	height: 2rem;
@@ -120,7 +120,7 @@
 
 .timeline-ruler-corner {
 	position: sticky;
-	z-index: 6;
+	z-index: 9;
 	left: 0;
 	display: flex;
 	align-items: center;
@@ -183,7 +183,7 @@
 
 .timeline-track-header {
 	position: sticky;
-	z-index: 3;
+	z-index: 7;
 	left: 0;
 	display: grid;
 	min-width: 0;
