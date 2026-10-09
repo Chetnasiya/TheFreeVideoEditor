@@ -1,6 +1,13 @@
 import { layout, revealCount, getGraphemes, type MeasureFunction } from '../../../core/text/layout';
 import type { TextStyle, TextBox } from '../../../core/types';
 
+export interface TextColorRun {
+	startIndex: number;
+	endIndex: number;
+	fillColor?: { r: number; g: number; b: number; a: number };
+	strokeColor?: { r: number; g: number; b: number; a: number };
+}
+
 export interface TextRasterConfig {
 	text: string;
 	style: TextStyle;
@@ -20,6 +27,7 @@ export interface TextRasterConfig {
 	backgroundBoxColor?: { r: number; g: number; b: number; a: number };
 	backgroundBoxPadding?: number;
 	backgroundBoxRadius?: number;
+	colorRuns?: TextColorRun[];
 	scale?: number;
 }
 
@@ -252,6 +260,63 @@ export function rasterizeText(
 
 		if (lineSubstring.length === 0) continue;
 
+		// If color runs are specified (e.g. caption word highlighting), draw each word run individually
+		if (config.colorRuns && config.colorRuns.length > 0 && line.words && line.words.length > 0) {
+			for (const word of line.words) {
+				if (word.lineStartIndex !== undefined && word.lineStartIndex >= charsToTake) continue;
+
+				let wordText = word.text;
+				if (word.lineEndIndex !== undefined && word.lineEndIndex > charsToTake) {
+					const avail = Math.max(0, charsToTake - (word.lineStartIndex ?? 0));
+					wordText = word.text.slice(0, avail);
+				}
+				if (!wordText) continue;
+
+				const run = config.colorRuns.find(
+					(r) => r.startIndex < word.endIndex && r.endIndex > word.startIndex
+				);
+
+				const curFill = run?.fillColor ?? fillColor;
+				const curFillStr = `rgba(${Math.round(curFill.r * 255)}, ${Math.round(curFill.g * 255)}, ${Math.round(curFill.b * 255)}, ${curFill.a})`;
+				const curStroke = run?.strokeColor ?? strokeColor;
+				const curHasStroke = Boolean(curStroke && strokeWidth > 0 && curStroke.a > 0);
+
+				const wordX = line.x + word.x;
+
+				// Shadow
+				if (
+					config.shadowColor &&
+					(config.shadowBlur || config.shadowOffsetX || config.shadowOffsetY)
+				) {
+					ctx.save();
+					const sColor = config.shadowColor;
+					ctx.shadowColor = `rgba(${Math.round(sColor.r * 255)}, ${Math.round(sColor.g * 255)}, ${Math.round(sColor.b * 255)}, ${sColor.a})`;
+					ctx.shadowBlur = (config.shadowBlur ?? 4) * scale;
+					ctx.shadowOffsetX = (config.shadowOffsetX ?? 2) * scale;
+					ctx.shadowOffsetY = (config.shadowOffsetY ?? 2) * scale;
+					ctx.fillStyle = curFillStr;
+					renderString(wordText, wordX, line.y, false);
+					ctx.restore();
+				}
+
+				// Stroke
+				if (curHasStroke && curStroke) {
+					ctx.save();
+					ctx.strokeStyle = `rgba(${Math.round(curStroke.r * 255)}, ${Math.round(curStroke.g * 255)}, ${Math.round(curStroke.b * 255)}, ${curStroke.a})`;
+					ctx.lineWidth = strokeWidth * 2;
+					ctx.lineJoin = 'round';
+					ctx.lineCap = 'round';
+					renderString(wordText, wordX, line.y, true);
+					ctx.restore();
+				}
+
+				// Fill
+				ctx.fillStyle = curFillStr;
+				renderString(wordText, wordX, line.y, false);
+			}
+			continue;
+		}
+
 		// 4. Shadow
 		if (config.shadowColor && (config.shadowBlur || config.shadowOffsetX || config.shadowOffsetY)) {
 			ctx.save();
@@ -310,5 +375,11 @@ export function hashTextConfig(config: TextRasterConfig): string {
 	const bg = config.backgroundBoxColor
 		? `${Math.round(config.backgroundBoxColor.r * 255)},${Math.round(config.backgroundBoxColor.g * 255)},${Math.round(config.backgroundBoxColor.b * 255)},${Math.round(config.backgroundBoxColor.a * 255)},${config.backgroundBoxRadius || 0}`
 		: '0';
-	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${revealUnit}#${shadow}#${bg}#${text}`;
+	const runsKey = (config.colorRuns ?? [])
+		.map(
+			(r) =>
+				`${r.startIndex}-${r.endIndex}:${r.fillColor ? `${Math.round(r.fillColor.r * 255)},${Math.round(r.fillColor.g * 255)},${Math.round(r.fillColor.b * 255)},${r.fillColor.a}` : ''}`
+		)
+		.join(';');
+	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${revealUnit}#${shadow}#${bg}#${runsKey}#${text}`;
 }

@@ -17,11 +17,10 @@ export function clipEnd(clip: Clip): Time {
 }
 
 export function timelineDuration(project: Project): Time {
-	return project.tracks.reduce(
-		(duration, track) =>
-			track.clips.reduce((latest, clip) => Math.max(latest, clipEnd(clip)), duration),
-		0
-	);
+	return project.tracks.reduce((duration, track) => {
+		const clipMax = track.clips.reduce((latest, clip) => Math.max(latest, clipEnd(clip)), duration);
+		return (track.captions ?? []).reduce((latest, cap) => Math.max(latest, cap.end), clipMax);
+	}, 0);
 }
 
 export function clipAt(track: Track, time: Time): Clip | undefined {

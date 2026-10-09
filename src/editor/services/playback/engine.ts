@@ -513,6 +513,14 @@ class PlaybackEngineImpl implements PlaybackEngine {
 						letterSpacing: data.letterSpacing,
 						lineHeight: data.lineHeight,
 						reveal: data.reveal,
+						shadowColor: data.shadowColor,
+						shadowBlur: data.shadowBlur,
+						shadowOffsetX: data.shadowOffsetX,
+						shadowOffsetY: data.shadowOffsetY,
+						backgroundBoxColor: data.backgroundBoxColor,
+						backgroundBoxPadding: data.backgroundBoxPadding,
+						backgroundBoxRadius: data.backgroundBoxRadius,
+						colorRuns: data.colorRuns,
 						scale
 					});
 				}

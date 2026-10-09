@@ -48,3 +48,10 @@ The Free Video Editor features a high-performance, non-destructive text system i
    - Timeline shortcut: `T` inserts a new text clip at the playhead on the selected or primary video track.
    - Double-clicking text on the preview canvas opens the on-canvas inline editor with IME safety, auto-focus, commit on blur, and `Esc` cancel.
    - Transform gizmo calculates exact text layout bounding box for intuitive direct manipulation on canvas.
+
+## Captions & Subtitles Integration (Gate P)
+
+Caption segments on dedicated caption tracks (`kind: 'caption'`) leverage the text layout engine:
+- **Layout Mapping**: Track-level `captionStyle` is mapped into `TextStyle` and `TextBox` constraints (max width with margin padding, vertical anchor `bottom` | `center` | `top`, alignment `left` | `center` | `right`).
+- **Word-Level Highlighting**: For karaoke and social pop styles (`highlightMode: 'word' | 'progressive'`), active word spans are computed from segment word timestamps and rendered through character-range styling runs during layout.
+- **Bit-Accurate Compositing**: Both Canvas2D and WebGL2 render active caption layers through the shared `TextRasterCache`, ensuring identical pixel presentation in preview monitor and export workers.

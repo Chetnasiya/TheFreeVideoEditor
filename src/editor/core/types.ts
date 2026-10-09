@@ -230,9 +230,61 @@ export interface Clip {
 	fadeCurve?: 'equalPower' | 'linear';
 }
 
+export type TrackKind = 'video' | 'audio' | 'caption';
+
+export type CaptionPositionPreset = 'bottom' | 'center' | 'top';
+export type CaptionHighlightMode = 'none' | 'word' | 'progressive';
+
+export interface RgbaColor {
+	r: number;
+	g: number;
+	b: number;
+	a: number;
+}
+
+export interface CaptionWord {
+	text: string;
+	start: Time;
+	end: Time;
+	confidence?: number;
+}
+
+export interface CaptionSegment {
+	id: string;
+	start: Time;
+	end: Time;
+	text: string;
+	words?: CaptionWord[];
+	speaker?: string;
+}
+
+export interface CaptionStyle {
+	fontFamily: string;
+	fontSize: number;
+	fontWeight?:
+		'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
+	fontStyle?: 'normal' | 'italic';
+	color: RgbaColor;
+	backgroundColor?: RgbaColor;
+	strokeColor?: RgbaColor;
+	strokeWidth?: number;
+	shadowColor?: RgbaColor;
+	shadowBlur?: number;
+	shadowOffsetX?: number;
+	shadowOffsetY?: number;
+	positionPreset: CaptionPositionPreset;
+	alignment: 'left' | 'center' | 'right';
+	marginPercent?: number;
+	maxLines: number;
+	maxCharsPerLine: number;
+	highlightMode?: CaptionHighlightMode;
+	highlightColor?: RgbaColor;
+	fadeMs?: number;
+}
+
 export interface Track {
 	id: TrackId;
-	kind: 'video' | 'audio';
+	kind: TrackKind;
 	name: string;
 	muted: boolean;
 	locked: boolean;
@@ -240,6 +292,8 @@ export interface Track {
 	clips: Clip[];
 	transitions?: Transition[];
 	audio?: TrackAudio;
+	captions?: CaptionSegment[];
+	captionStyle?: CaptionStyle;
 }
 
 export interface Marker {

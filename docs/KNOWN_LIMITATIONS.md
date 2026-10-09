@@ -111,3 +111,10 @@ limitations are intentional at this stage:
 - **Letter Spacing Support**: `letterSpacing` uses the standard Canvas2D `ctx.letterSpacing` property when supported, and falls back gracefully to manual grapheme layout spacing in older browser engines.
 - **Interchange Export**: Custom text styling, font selections, and animation presets cannot be fully represented in EDL/xmeml and are flattened or omitted with an explicit export notice.
 - **Raster Resolution Cap**: Dynamic text rasterization is capped at 2× composition resolution to balance sharp zoom fidelity against texture memory consumption.
+
+## Gate P (Captions & Subtitles System)
+
+- **Speech Recognition Engine & Privacy**: Speech-to-text runs 100% locally on-device using `@huggingface/transformers` and ONNX Runtime Web via WebGPU (when supported) with WASM CPU fallback. Audio samples and transcribed text never leave the device. A one-time network download of ONNX model weights (39 MB to 240 MB) from Hugging Face is required before offline use.
+- **Model Accuracy & Noise**: Speech recognition accuracy depends on audio quality, acoustic noise, accents, and model size (Tiny vs Base vs Small). Speaker diarization (identifying distinct speakers) is not supported automatically and must be assigned manually.
+- **Reversed Audio**: Time-reversed audio clips are not automatically transcribed in reverse; non-reversed ranges or manual cue entry should be used.
+- **Interchange Formats**: Professional interchange formats (EDL, FCPXML, xmeml, OTIO) omit dedicated subtitle tracks; sidecar SubRip (`.srt`) or WebVTT (`.vtt`) files should be exported alongside the video. Burn-in subtitles are rendered directly into video frames on export when the caption track is visible.

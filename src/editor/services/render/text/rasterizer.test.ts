@@ -38,5 +38,19 @@ describe('hashTextConfig', () => {
 		});
 		expect(key1).not.toBe(key3);
 	});
-});
 
+	it('changes hash when colorRuns change', () => {
+		const key1 = hashTextConfig(baseConfig);
+		const key2 = hashTextConfig({
+			...baseConfig,
+			colorRuns: [
+				{
+					startIndex: 0,
+					endIndex: 5,
+					fillColor: { r: 1, g: 1, b: 0, a: 1 }
+				}
+			]
+		});
+		expect(key1).not.toBe(key2);
+	});
+});

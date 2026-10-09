@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { timelineDuration, ticksToSeconds } from '../../core';
 import type { Project } from '../../core';
+import { serializeSrt } from '../../core/captions/srt';
+import { serializeVtt } from '../../core/captions/vtt';
 import type { ExportProgress } from '../../services/export/exporter';
 import { getExportCapabilities, type EncoderSupport } from '../../services/export/capabilities';
 import { registerProjectExport } from '../../services/export/session';
@@ -100,6 +102,8 @@ export default function ExportDialog() {
 	const [mode, setMode] = useState<ExportMode>('webcodecs');
 	const [interchangeFormat, setInterchangeFormat] = useState<InterchangeFormat>('xmeml');
 	const [includeMedia, setIncludeMedia] = useState(true);
+	const [exportSidecar, setExportSidecar] = useState(false);
+	const [sidecarFormat, setSidecarFormat] = useState<'srt' | 'vtt'>('srt');
 	const [offlineConfirmed, setOfflineConfirmed] = useState(false);
 	const [capabilities, setCapabilities] = useState<EncoderSupport | null>(null);
 	const [runtime, setRuntime] = useState<ExportRuntime | null>(null);
@@ -131,6 +135,10 @@ export default function ExportDialog() {
 			(asset) => asset.hasAudio && asset.audioDecodable === false && scheduledAssets.has(asset.id)
 		);
 	}, [project]);
+	const captionTracks = useMemo(
+		() => (project ? project.tracks.filter((t) => t.kind === 'caption') : []),
+		[project]
+	);
 	const settings = useMemo(
 		() =>
 			project
@@ -392,6 +400,29 @@ export default function ExportDialog() {
 				} else {
 					await saveFile(result.blob, result.filename, types);
 				}
+
+				if (exportSidecar && captionTracks.length > 0) {
+					const activeCapTrack = captionTracks[0];
+					if (activeCapTrack && activeCapTrack.captions && activeCapTrack.captions.length > 0) {
+						const subContent =
+							sidecarFormat === 'vtt'
+								? serializeVtt(activeCapTrack.captions)
+								: serializeSrt(activeCapTrack.captions);
+						const subBlob = new Blob([subContent], {
+							type: sidecarFormat === 'vtt' ? 'text/vtt;charset=utf-8' : 'text/plain;charset=utf-8'
+						});
+						const subFilename = settings.filename.replace(/\.[^.]+$/, `.${sidecarFormat}`);
+						await saveFile(subBlob, subFilename, [
+							{
+								description:
+									sidecarFormat === 'vtt' ? 'WebVTT Subtitles (*.vtt)' : 'SubRip Subtitles (*.srt)',
+								accept: {
+									[sidecarFormat === 'vtt' ? 'text/vtt' : 'text/plain']: [`.${sidecarFormat}`]
+								}
+							}
+						]);
+					}
+				}
 				setNotice(
 					[
 						'Compatibility export uses real-time browser recording. Some frames may be dropped on slower devices.',
@@ -421,6 +452,29 @@ export default function ExportDialog() {
 					}
 				];
 				await saveFile(result.blob, settings.filename, types);
+			}
+
+			if (exportSidecar && captionTracks.length > 0) {
+				const activeCapTrack = captionTracks[0];
+				if (activeCapTrack && activeCapTrack.captions && activeCapTrack.captions.length > 0) {
+					const subContent =
+						sidecarFormat === 'vtt'
+							? serializeVtt(activeCapTrack.captions)
+							: serializeSrt(activeCapTrack.captions);
+					const subBlob = new Blob([subContent], {
+						type: sidecarFormat === 'vtt' ? 'text/vtt;charset=utf-8' : 'text/plain;charset=utf-8'
+					});
+					const subFilename = settings.filename.replace(/\.[^.]+$/, `.${sidecarFormat}`);
+					await saveFile(subBlob, subFilename, [
+						{
+							description:
+								sidecarFormat === 'vtt' ? 'WebVTT Subtitles (*.vtt)' : 'SubRip Subtitles (*.srt)',
+							accept: {
+								[sidecarFormat === 'vtt' ? 'text/vtt' : 'text/plain']: [`.${sidecarFormat}`]
+							}
+						}
+					]);
+				}
 			}
 			const completionNotice =
 				result.path === 'main-webcodecs'
@@ -701,6 +755,32 @@ export default function ExportDialog() {
 								/>
 								<span>Include audio</span>
 							</label>
+							{captionTracks.length > 0 && (
+								<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+									<label className="export-checkbox">
+										<input
+											type="checkbox"
+											checked={exportSidecar}
+											disabled={isRunning}
+											onChange={(event) => setExportSidecar(event.currentTarget.checked)}
+										/>
+										<span>Export sidecar subtitle file</span>
+									</label>
+									{exportSidecar && (
+										<label className="dialog-field" style={{ marginLeft: '24px' }}>
+											<span>Subtitle format</span>
+											<select
+												value={sidecarFormat}
+												disabled={isRunning}
+												onChange={(e) => setSidecarFormat(e.currentTarget.value as 'srt' | 'vtt')}
+											>
+												<option value="srt">SubRip (.srt)</option>
+												<option value="vtt">WebVTT (.vtt)</option>
+											</select>
+										</label>
+									)}
+								</div>
+							)}
 							<div className="export-capability" role="status" aria-live="polite">
 								{capabilities === null ? (
 									'Checking browser export support…'

@@ -1,10 +1,23 @@
 import type { TextStyle, TextBox } from '../types';
 
+export interface LayoutWordRun {
+	text: string;
+	x: number;
+	width: number;
+	startIndex: number;
+	endIndex: number;
+	lineStartIndex?: number;
+	lineEndIndex?: number;
+}
+
 export interface LayoutLine {
 	text: string;
 	x: number;
 	y: number;
 	width: number;
+	startIndex?: number;
+	endIndex?: number;
+	words?: LayoutWordRun[];
 }
 
 export interface LayoutResult {
@@ -215,6 +228,8 @@ export function layout(
 	}
 
 	const lines: LayoutLine[] = [];
+	let currentTextOffset = 0;
+
 	for (let i = 0; i < measuredLines.length; i++) {
 		const item = measuredLines[i]!;
 		let lineX = paddingX;
@@ -224,11 +239,44 @@ export function layout(
 			lineX = paddingX + (usableWidth - item.width);
 		}
 		const lineY = startY + i * lineStep;
+
+		// Track line position within original text
+		const lineTextIdx = text.indexOf(item.text, currentTextOffset);
+		const lineStart = lineTextIdx !== -1 ? lineTextIdx : currentTextOffset;
+		currentTextOffset = lineStart + item.text.length;
+
+		// Compute word runs on this line
+		const words: LayoutWordRun[] = [];
+		const lineTokens = item.text.split(/(\s+)/);
+		let charOffsetInLine = 0;
+
+		for (const token of lineTokens) {
+			if (token.length > 0) {
+				if (token.trim().length > 0) {
+					const wordX = measureWithSpacing(item.text.slice(0, charOffsetInLine));
+					const wordW = measureWithSpacing(token);
+					words.push({
+						text: token,
+						x: wordX,
+						width: wordW,
+						startIndex: lineStart + charOffsetInLine,
+						endIndex: lineStart + charOffsetInLine + token.length,
+						lineStartIndex: charOffsetInLine,
+						lineEndIndex: charOffsetInLine + token.length
+					});
+				}
+				charOffsetInLine += token.length;
+			}
+		}
+
 		lines.push({
 			text: item.text,
 			x: lineX,
 			y: lineY,
-			width: item.width
+			width: item.width,
+			startIndex: lineStart,
+			endIndex: lineStart + item.text.length,
+			words
 		});
 	}
 

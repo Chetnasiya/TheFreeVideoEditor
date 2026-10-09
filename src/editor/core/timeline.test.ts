@@ -433,4 +433,46 @@ describe('timeline queries and clip operations', () => {
 			assertInvariant(project);
 		}
 	});
+
+	it('preserves the no-overlap invariant on caption tracks across 500 random operations', async () => {
+		const { createCaptionTrack, addCaptionSegment, retimeCaptionSegment } =
+			await import('./captions/operations');
+		const captionTrack = createCaptionTrack('Test Captions');
+		let seed = 42_137;
+		const random = () => {
+			seed = (seed * 16_807) % 2_147_483_647;
+			return seed / 2_147_483_647;
+		};
+
+		const assertCaptionInvariant = (track: typeof captionTrack) => {
+			const cues = (track.captions ?? []).toSorted((a, b) => a.start - b.start);
+			for (let i = 0; i < cues.length; i++) {
+				const cue = cues[i]!;
+				expect(cue.start).toBeLessThan(cue.end);
+				const next = cues[i + 1];
+				if (next) {
+					expect(cue.end).toBeLessThanOrEqual(next.start);
+				}
+			}
+		};
+
+		for (let step = 0; step < 500; step++) {
+			const start = Math.floor(random() * 20_000_000);
+			const duration = Math.floor(random() * 3_000_000) + 500_000;
+			addCaptionSegment(captionTrack, {
+				start,
+				end: start + duration,
+				text: `Cue ${step}`
+			});
+
+			if (step % 4 === 0 && captionTrack.captions && captionTrack.captions.length > 0) {
+				const cue = captionTrack.captions[Math.floor(random() * captionTrack.captions.length)]!;
+				const newStart = Math.floor(random() * 15_000_000);
+				const newDur = Math.floor(random() * 2_000_000) + 400_000;
+				retimeCaptionSegment(captionTrack, cue.id, newStart, newStart + newDur);
+			}
+
+			assertCaptionInvariant(captionTrack);
+		}
+	});
 });

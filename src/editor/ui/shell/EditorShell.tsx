@@ -36,6 +36,7 @@ import SpeedDurationDialog from '../dialogs/SpeedDurationDialog';
 import EffectsLibrary from '../effects/EffectsLibrary';
 import ColorPanel from '../color/ColorPanel';
 import { MixerPanel } from '../audio/MixerPanel';
+import { CaptionsPanel } from '../captions/CaptionsPanel';
 
 interface PanelLayoutStyle extends CSSProperties {
 	'--media-panel-width': string;
@@ -91,7 +92,7 @@ function EditorShell() {
 	const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
 	const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
 	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-	const [leftTab, setLeftTab] = useState<'project' | 'effects'>('project');
+	const [leftTab, setLeftTab] = useState<'project' | 'effects' | 'captions'>('project');
 	const [inspectorTab, setInspectorTab] = useState<'properties' | 'color'>('properties');
 	const shortcutReturnFocusRef = useRef<HTMLElement | null>(null);
 	const shortcutPlatform = detectShortcutPlatform();
@@ -325,6 +326,7 @@ function EditorShell() {
 			'add-video-track': () => state().addTimelineTrack('video'),
 			'add-audio-track': () => state().addTimelineTrack('audio'),
 			'new-text-clip': () => state().addTextClip(),
+			'add-caption': () => state().addCaptionAtPlayhead(),
 			undo: () => state().undo(),
 			redo: () => state().redo(),
 			'new-project': () => state().openNewProjectDialog(),
@@ -1201,9 +1203,23 @@ function EditorShell() {
 						>
 							Effects
 						</button>
+						<button
+							type="button"
+							className={`panel-tab ${leftTab === 'captions' ? 'is-active' : ''}`}
+							id="captions-panel-title"
+							onClick={() => setLeftTab('captions')}
+						>
+							Captions
+						</button>
 					</div>
 					<div className="project-panel-content">
-						{leftTab === 'project' ? <MediaLibrary /> : <EffectsLibrary />}
+						{leftTab === 'project' ? (
+							<MediaLibrary />
+						) : leftTab === 'effects' ? (
+							<EffectsLibrary />
+						) : (
+							<CaptionsPanel />
+						)}
 					</div>
 				</section>
 

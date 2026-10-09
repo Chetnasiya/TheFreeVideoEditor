@@ -1,26 +1,35 @@
 import { createAssetId } from '../ids';
 import type { Project, Track, TrackId } from '../types';
 import { TrackLockedError, TrackNotFoundError } from './errors';
+import { DEFAULT_CAPTION_STYLE } from '../captions/presets';
 
 export function addTrack(project: Project, kind: Track['kind'], index?: number): Project {
 	const count = project.tracks.filter((track) => track.kind === kind).length + 1;
+	const trackName =
+		kind === 'video'
+			? `Video ${count}`
+			: kind === 'caption'
+				? `Captions ${count}`
+				: `Audio ${count}`;
 	const track: Track = {
 		id: createAssetId().toString() as TrackId,
 		kind,
-		name: `${kind === 'video' ? 'Video' : 'Audio'} ${count}`,
+		name: trackName,
 		muted: false,
 		locked: false,
 		hidden: false,
-		clips: []
+		clips: [],
+		captions: kind === 'caption' ? [] : undefined,
+		captionStyle: kind === 'caption' ? { ...DEFAULT_CAPTION_STYLE } : undefined
 	};
 	const tracks = [...project.tracks];
 	const videoTrackCount = tracks.filter((item) => item.kind === 'video').length;
 	const target =
 		index === undefined
-			? kind === 'video'
+			? kind === 'caption' || kind === 'video'
 				? 0
 				: tracks.length
-			: kind === 'video'
+			: kind === 'video' || kind === 'caption'
 				? Math.max(0, Math.min(index, videoTrackCount))
 				: Math.max(videoTrackCount, Math.min(index, tracks.length));
 	tracks.splice(target, 0, track);

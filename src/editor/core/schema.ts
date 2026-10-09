@@ -267,16 +267,62 @@ export const assetSchema = z.object({
 	proxy: proxyInfoSchema.optional()
 });
 
+export const captionWordSchema = z.object({
+	text: z.string(),
+	start: timeSchema,
+	end: timeSchema,
+	confidence: z.number().min(0).max(1).optional()
+});
+
+export const captionSegmentSchema = z.object({
+	id: z.string().min(1),
+	start: timeSchema,
+	end: timeSchema,
+	text: z.string(),
+	words: z.array(captionWordSchema).optional(),
+	speaker: z.string().optional()
+});
+
+export const captionPositionPresetSchema = z.enum(['bottom', 'center', 'top']);
+export const captionHighlightModeSchema = z.enum(['none', 'word', 'progressive']);
+
+export const captionStyleSchema = z.object({
+	fontFamily: z.string().min(1),
+	fontSize: z.number().positive(),
+	fontWeight: z
+		.enum(['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'])
+		.optional(),
+	fontStyle: z.enum(['normal', 'italic']).optional(),
+	color: colorSchema,
+	backgroundColor: colorSchema.optional(),
+	strokeColor: colorSchema.optional(),
+	strokeWidth: z.number().nonnegative().optional(),
+	shadowColor: colorSchema.optional(),
+	shadowBlur: z.number().nonnegative().optional(),
+	shadowOffsetX: z.number().optional(),
+	shadowOffsetY: z.number().optional(),
+	positionPreset: captionPositionPresetSchema,
+	alignment: z.enum(['left', 'center', 'right']),
+	marginPercent: z.number().min(0).max(50).optional(),
+	maxLines: z.number().int().min(1).max(5),
+	maxCharsPerLine: z.number().int().min(10).max(120),
+	highlightMode: captionHighlightModeSchema.optional(),
+	highlightColor: colorSchema.optional(),
+	fadeMs: z.number().nonnegative().optional()
+});
+
 export const trackSchema = z.object({
 	id: trackIdSchema,
-	kind: z.enum(['video', 'audio']),
+	kind: z.enum(['video', 'audio', 'caption']),
 	name: z.string().min(1),
 	muted: z.boolean(),
 	locked: z.boolean(),
 	hidden: z.boolean(),
 	clips: z.array(clipSchema),
 	transitions: z.array(transitionSchema).optional(),
-	audio: trackAudioSchema.optional()
+	audio: trackAudioSchema.optional(),
+	captions: z.array(captionSegmentSchema).optional(),
+	captionStyle: captionStyleSchema.optional()
 });
 
 export const markerSchema = z.object({
@@ -384,6 +430,35 @@ export const projectSchema = z
 							path: [...clipPath, 'sourceOut'],
 							message: 'Clip sourceOut must be greater than sourceIn.'
 						});
+					}
+				}
+				for (const [captionIndex, caption] of (track.captions ?? []).entries()) {
+					const captionPath = [...trackPath, 'captions', captionIndex];
+					if (ids.has(caption.id)) {
+						context.addIssue({
+							code: 'custom',
+							path: [...captionPath, 'id'],
+							message: 'Project entity ids must be unique.'
+						});
+					}
+					ids.add(caption.id);
+					if (caption.end <= caption.start) {
+						context.addIssue({
+							code: 'custom',
+							path: [...captionPath, 'end'],
+							message: 'Caption end time must be greater than start time.'
+						});
+					}
+				}
+				const sortedCaptions = [...(track.captions ?? [])].sort((a, b) => a.start - b.start);
+				for (let i = 1; i < sortedCaptions.length; i++) {
+					if (sortedCaptions[i]!.start < sortedCaptions[i - 1]!.end) {
+						context.addIssue({
+							code: 'custom',
+							path: [...trackPath, 'captions'],
+							message: 'Caption segments must not overlap.'
+						});
+						break;
 					}
 				}
 			}

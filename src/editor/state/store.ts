@@ -106,8 +106,22 @@ import {
 	type TrackId,
 	type TrackEq,
 	type TrackCompressor,
-	type AnimatedValue
+	type AnimatedValue,
+	type CaptionWord,
+	type CaptionStyle
 } from '../core';
+import {
+	addCaptionSegment as addCaptionSegmentOp,
+	splitCaptionSegment as splitCaptionSegmentOp,
+	mergeCaptionSegments as mergeCaptionSegmentsOp,
+	deleteCaptionSegment as deleteCaptionSegmentOp,
+	retimeCaptionSegment as retimeCaptionSegmentOp,
+	setCaptionText as setCaptionTextOp,
+	createCaptionTrack as createCaptionTrackOp
+} from '../core/captions/operations';
+import { parseSrt, serializeSrt } from '../core/captions/srt';
+import { parseVtt, serializeVtt } from '../core/captions/vtt';
+import { DEFAULT_CAPTION_STYLE } from '../core/captions/presets';
 import { defaultTrackAudio } from '../core/audioMath';
 import { ensureLutLoaded, storeParsedLut } from '../services/media/lutCache';
 import type { ScopeFrameData } from '../services/render/passes/scopes';
@@ -200,6 +214,7 @@ export interface TimelineSelection {
 	clipIds: ClipId[];
 	trackId?: TrackId;
 	transitionId?: string;
+	captionId?: string;
 }
 
 export interface TimelineState {
@@ -480,6 +495,30 @@ export interface EditorState {
 	rippleDeleteSelection: () => boolean;
 	duplicateSelection: () => boolean;
 	addTimelineTrack: (kind: Track['kind']) => void;
+	addCaptionTrack: (name?: string) => TrackId | null;
+	addCaptionSegment: (
+		trackId: TrackId,
+		segment: {
+			start: Time;
+			end: Time;
+			text: string;
+			words?: CaptionWord[];
+			speaker?: string;
+		}
+	) => string | null;
+	updateCaptionSegment: (
+		trackId: TrackId,
+		segmentId: string,
+		updates: Partial<{ start: Time; end: Time; text: string; speaker?: string }>
+	) => boolean;
+	deleteCaptionSegment: (trackId: TrackId, segmentId: string) => boolean;
+	splitCaptionSegmentAt: (trackId: TrackId, segmentId: string, splitTime?: Time) => boolean;
+	mergeCaptionSegmentsWith: (trackId: TrackId, firstId: string, secondId: string) => boolean;
+	setCaptionTrackStyle: (trackId: TrackId, style: Partial<CaptionStyle>) => boolean;
+	importCaptionsToTrack: (trackId: TrackId, content: string, format?: 'srt' | 'vtt') => boolean;
+	exportCaptionsFromTrack: (trackId: TrackId, format?: 'srt' | 'vtt') => string;
+	selectCaption: (trackId?: TrackId | null, captionId?: string | null) => void;
+	addCaptionAtPlayhead: (text?: string) => string | null;
 	removeTimelineTrack: (id: TrackId, options?: { force?: boolean }) => TrackRemovalResult;
 	reorderTimelineTrack: (id: TrackId, targetIndex: number) => boolean;
 	renameTimelineTrack: (id: TrackId, name: string) => boolean;
@@ -2399,7 +2438,11 @@ export function createEditorStore() {
 				splitAtPlayhead(unlink = false) {
 					const project = get().project;
 					if (!project) return false;
-					const selection = get().timeline.selection.clipIds;
+					const sel = get().timeline.selection;
+					if (sel.clipIds.length === 0 && sel.captionId && sel.trackId) {
+						return get().splitCaptionSegmentAt(sel.trackId, sel.captionId, get().timeline.playhead);
+					}
+					const selection = sel.clipIds;
 					const ids =
 						selection.length > 0
 							? selection
@@ -2437,8 +2480,14 @@ export function createEditorStore() {
 					}
 				},
 				deleteSelection(unlink = false) {
-					const ids = get().timeline.selection.clipIds;
-					if (ids.length === 0) return false;
+					const sel = get().timeline.selection;
+					if (sel.clipIds.length === 0) {
+						if (sel.captionId && sel.trackId) {
+							return get().deleteCaptionSegment(sel.trackId, sel.captionId);
+						}
+						return false;
+					}
+					const ids = sel.clipIds;
 					try {
 						mutateProject('Delete clips', (project) => deleteClipsOperation(project, ids, unlink), {
 							history: 'record'
@@ -2510,6 +2559,287 @@ export function createEditorStore() {
 							state.timeline.message = errorMessage(error);
 						});
 					}
+				},
+				addCaptionTrack(name) {
+					const project = get().project;
+					if (!project) return null;
+					try {
+						const newTrack = createCaptionTrackOp(name ?? 'Captions', project.tracks);
+						mutateProject(
+							'Add caption track',
+							(p) => ({
+								...p,
+								tracks: [newTrack, ...p.tracks]
+							}),
+							{ history: 'record' }
+						);
+						return newTrack.id;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+				addCaptionSegment(trackId, segment) {
+					const project = get().project;
+					if (!project) return null;
+					let createdId: string | null = null;
+					try {
+						mutateProject(
+							'Add caption',
+							(p) => {
+								const trackIndex = p.tracks.findIndex((t) => t.id === trackId);
+								if (trackIndex === -1) throw new Error('Caption track not found.');
+								const track = { ...p.tracks[trackIndex]! };
+								const added = addCaptionSegmentOp(track, segment);
+								createdId = added.id;
+								const tracks = [...p.tracks];
+								tracks[trackIndex] = track;
+								return { ...p, tracks };
+							},
+							{ history: 'record' }
+						);
+						return createdId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+				updateCaptionSegment(trackId, segmentId, updates) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Update caption',
+							(p) => {
+								const trackIndex = p.tracks.findIndex((t) => t.id === trackId);
+								if (trackIndex === -1) throw new Error('Caption track not found.');
+								const origTrack = p.tracks[trackIndex]!;
+								const track = {
+									...origTrack,
+									captions: [...(origTrack.captions ?? [])]
+								};
+								const seg = track.captions.find((c) => c.id === segmentId);
+								if (!seg) throw new Error('Caption segment not found.');
+
+								if (updates.text !== undefined) {
+									setCaptionTextOp(track, segmentId, updates.text);
+								}
+								if (updates.speaker !== undefined) {
+									track.captions = track.captions.map((c) =>
+										c.id === segmentId ? { ...c, speaker: updates.speaker } : c
+									);
+								}
+								if (updates.start !== undefined || updates.end !== undefined) {
+									const newStart = updates.start ?? seg.start;
+									const newEnd = updates.end ?? seg.end;
+									retimeCaptionSegmentOp(track, segmentId, newStart, newEnd);
+								}
+								const tracks = [...p.tracks];
+								tracks[trackIndex] = track;
+								return { ...p, tracks };
+							},
+							{ history: 'record' }
+						);
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				deleteCaptionSegment(trackId, segmentId) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Delete caption',
+							(p) => {
+								const trackIndex = p.tracks.findIndex((t) => t.id === trackId);
+								if (trackIndex === -1) throw new Error('Caption track not found.');
+								const track = { ...p.tracks[trackIndex]! };
+								deleteCaptionSegmentOp(track, segmentId);
+								const tracks = [...p.tracks];
+								tracks[trackIndex] = track;
+								return { ...p, tracks };
+							},
+							{ history: 'record' }
+						);
+						set((state) => {
+							if (state.timeline.selection.captionId === segmentId) {
+								state.timeline.selection.captionId = undefined;
+							}
+						});
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				splitCaptionSegmentAt(trackId, segmentId, splitTime) {
+					const project = get().project;
+					if (!project) return false;
+					const time = splitTime ?? get().timeline.playhead;
+					try {
+						let splitSuccess = false;
+						mutateProject(
+							'Split caption',
+							(p) => {
+								const trackIndex = p.tracks.findIndex((t) => t.id === trackId);
+								if (trackIndex === -1) throw new Error('Caption track not found.');
+								const track = { ...p.tracks[trackIndex]! };
+								const res = splitCaptionSegmentOp(track, segmentId, time);
+								splitSuccess = res !== null;
+								const tracks = [...p.tracks];
+								tracks[trackIndex] = track;
+								return { ...p, tracks };
+							},
+							{ history: 'record' }
+						);
+						return splitSuccess;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				mergeCaptionSegmentsWith(trackId, firstId, secondId) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						let mergeSuccess = false;
+						mutateProject(
+							'Merge captions',
+							(p) => {
+								const trackIndex = p.tracks.findIndex((t) => t.id === trackId);
+								if (trackIndex === -1) throw new Error('Caption track not found.');
+								const track = { ...p.tracks[trackIndex]! };
+								const res = mergeCaptionSegmentsOp(track, firstId, secondId);
+								mergeSuccess = res !== null;
+								const tracks = [...p.tracks];
+								tracks[trackIndex] = track;
+								return { ...p, tracks };
+							},
+							{ history: 'record' }
+						);
+						return mergeSuccess;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				setCaptionTrackStyle(trackId, style) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Update caption style',
+							(p) => {
+								const trackIndex = p.tracks.findIndex((t) => t.id === trackId);
+								if (trackIndex === -1) throw new Error('Caption track not found.');
+								const track = {
+									...p.tracks[trackIndex]!,
+									captionStyle: {
+										...(p.tracks[trackIndex]!.captionStyle ?? DEFAULT_CAPTION_STYLE),
+										...style
+									}
+								};
+								const tracks = [...p.tracks];
+								tracks[trackIndex] = track;
+								return { ...p, tracks };
+							},
+							{ history: 'record' }
+						);
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				importCaptionsToTrack(trackId, content, format = 'srt') {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						const segments =
+							format === 'vtt' || content.includes('WEBVTT')
+								? parseVtt(content)
+								: parseSrt(content);
+						if (segments.length === 0) {
+							throw new Error('No valid subtitle cues found in content.');
+						}
+						mutateProject(
+							'Import captions',
+							(p) => {
+								const trackIndex = p.tracks.findIndex((t) => t.id === trackId);
+								if (trackIndex === -1) throw new Error('Caption track not found.');
+								const track = { ...p.tracks[trackIndex]!, captions: segments };
+								const tracks = [...p.tracks];
+								tracks[trackIndex] = track;
+								return { ...p, tracks };
+							},
+							{ history: 'record' }
+						);
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				exportCaptionsFromTrack(trackId, format = 'srt') {
+					const project = get().project;
+					if (!project) return '';
+					const track = project.tracks.find((t) => t.id === trackId);
+					if (!track || !track.captions) return '';
+					return format === 'vtt' ? serializeVtt(track.captions) : serializeSrt(track.captions);
+				},
+				selectCaption(trackId, captionId) {
+					set((state) => {
+						if (captionId && trackId) {
+							state.timeline.selection = {
+								clipIds: [],
+								trackId,
+								captionId
+							};
+						} else {
+							state.timeline.selection = {
+								clipIds: [],
+								trackId: trackId ?? undefined
+							};
+						}
+					});
+				},
+				addCaptionAtPlayhead(text = 'New Caption') {
+					const project = get().project;
+					if (!project) return null;
+					const capTrack = project.tracks.find((t) => t.kind === 'caption');
+					let trackId = capTrack?.id;
+					if (!trackId) {
+						trackId = get().addCaptionTrack() ?? undefined;
+					}
+					if (!trackId) return null;
+					const playhead = get().timeline.playhead;
+					const segId = get().addCaptionSegment(trackId, {
+						start: playhead,
+						end: playhead + 2_000_000,
+						text
+					});
+					if (segId) {
+						get().selectCaption(trackId, segId);
+					}
+					return segId;
 				},
 				removeTimelineTrack(id, options = {}) {
 					const project = get().project;

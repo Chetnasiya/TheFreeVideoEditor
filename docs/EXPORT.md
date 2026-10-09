@@ -91,8 +91,14 @@ Use xmeml or EDL in the meantime.
 
 ## Export dependency and credit
 
-Gate G added `mediabunny` 1.61.3 as the only new dependency. Its published npm
-package is 10,867,673 bytes unpacked (about 10.4 MiB) and is licensed under
-MPL-2.0. Mediabunny supplies browser-side media demuxing, decoding, encoding,
-and muxing; its license is included with the installed package. No other
-Gate G-specific dependencies were added.
+Gate G added `mediabunny` 1.61.3 as the media demuxing, decoding, encoding,
+and muxing engine (licensed under MPL-2.0).
+
+Gate P added `@huggingface/transformers` (Apache-2.0) for client-side ONNX Runtime Web
+speech recognition in `stt.worker.ts`. It is strictly dynamically imported inside the dedicated
+Worker thread so the main application bundle chunk size remains lean and unaffected.
+
+## Subtitles and Captions Export (Gate P)
+
+1. **Burn-in Video Subtitles**: When a caption track is not hidden (`hidden !== true`), caption segments are resolved into active text layers and baked directly into exported MP4 and WebM video frames using the Canvas2D/WebGL2 render pipeline.
+2. **Sidecar Subtitle Files**: The Export dialog offers `.srt` (SubRip) and `.vtt` (WebVTT) export buttons that format caption cues with proper timecodes (`HH:MM:SS,mmm` and `HH:MM:SS.mmm`), cue indices, and speaker prefixes without requiring video rendering.

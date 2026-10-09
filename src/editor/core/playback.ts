@@ -6,11 +6,14 @@ import { evaluateEffect } from './effects/instance';
 import type { EvaluatedEffect } from './effects/types';
 import { evaluateMask, type EvaluatedMask } from './masks';
 import { transitionWindow, transitionProgress, transitionGain } from './transitions';
+import { DEFAULT_CAPTION_STYLE } from './captions/presets';
+import { findWordSpanInText } from './captions/operations';
 import type {
 	AnimatedValue,
 	AssetId,
 	BlendMode,
 	Clip,
+	ClipId,
 	ClipTransform,
 	JsonValue,
 	Project,
@@ -111,6 +114,19 @@ export interface ActiveLayer {
 		letterSpacing: number;
 		lineHeight: number;
 		reveal: number;
+		shadowColor?: { r: number; g: number; b: number; a: number };
+		shadowBlur?: number;
+		shadowOffsetX?: number;
+		shadowOffsetY?: number;
+		backgroundBoxColor?: { r: number; g: number; b: number; a: number };
+		backgroundBoxPadding?: number;
+		backgroundBoxRadius?: number;
+		colorRuns?: Array<{
+			startIndex: number;
+			endIndex: number;
+			fillColor?: { r: number; g: number; b: number; a: number };
+			strokeColor?: { r: number; g: number; b: number; a: number };
+		}>;
 	};
 	masks?: EvaluatedMask[];
 	effects?: EvaluatedEffect[];
@@ -158,6 +174,138 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 			continue;
 		}
 		if (track.kind === 'audio' && !audibleAudioTracks.has(track.id)) {
+			continue;
+		}
+
+		if (track.kind === 'caption') {
+			if (track.hidden) continue;
+			const caption = (track.captions ?? []).find((c) => c.start <= time && time < c.end);
+			if (!caption) continue;
+
+			const cStyle = track.captionStyle ?? DEFAULT_CAPTION_STYLE;
+			const marginPct = (cStyle.marginPercent ?? 7) / 100;
+			let posY = 0;
+			if (cStyle.positionPreset === 'top') {
+				posY = -Math.round(project.settings.height * (0.5 - marginPct - 0.05));
+			} else if (cStyle.positionPreset === 'bottom') {
+				posY = Math.round(project.settings.height * (0.5 - marginPct - 0.05));
+			}
+
+			let opacity = 1;
+			if (cStyle.fadeMs && cStyle.fadeMs > 0) {
+				const elapsedMs = (time - caption.start) / 1000;
+				const remainMs = (caption.end - time) / 1000;
+				if (elapsedMs < cStyle.fadeMs) opacity = Math.min(opacity, elapsedMs / cStyle.fadeMs);
+				if (remainMs < cStyle.fadeMs) opacity = Math.min(opacity, remainMs / cStyle.fadeMs);
+				opacity = Math.max(0, Math.min(1, opacity));
+			}
+
+			let colorRuns:
+				| Array<{
+						startIndex: number;
+						endIndex: number;
+						fillColor?: { r: number; g: number; b: number; a: number };
+						strokeColor?: { r: number; g: number; b: number; a: number };
+				  }>
+				| undefined;
+
+			if (
+				cStyle.highlightMode &&
+				cStyle.highlightMode !== 'none' &&
+				cStyle.highlightColor &&
+				caption.words &&
+				caption.words.length > 0
+			) {
+				const hMode = cStyle.highlightMode;
+				const hColor = cStyle.highlightColor;
+				const words = caption.words;
+
+				if (hMode === 'word') {
+					const activeIdx = words.findIndex((w) => w.start <= time && time < w.end);
+					if (activeIdx !== -1) {
+						const span = findWordSpanInText(caption.text, words, activeIdx);
+						if (span) {
+							colorRuns = [
+								{
+									startIndex: span.start,
+									endIndex: span.end,
+									fillColor: hColor,
+									strokeColor: cStyle.strokeColor
+								}
+							];
+						}
+					}
+				} else if (hMode === 'progressive') {
+					let lastSpokenIdx = -1;
+					for (let wIdx = 0; wIdx < words.length; wIdx++) {
+						if (time >= words[wIdx]!.start) {
+							lastSpokenIdx = wIdx;
+						}
+					}
+					if (lastSpokenIdx !== -1) {
+						const span = findWordSpanInText(caption.text, words, lastSpokenIdx);
+						if (span) {
+							colorRuns = [
+								{
+									startIndex: 0,
+									endIndex: span.end,
+									fillColor: hColor,
+									strokeColor: cStyle.strokeColor
+								}
+							];
+						}
+					}
+				}
+			}
+
+			videoLayers.push({
+				clipId: caption.id as unknown as ClipId,
+				trackId: track.id,
+				trackOrder,
+				sourceTime: time - caption.start,
+				kind: 'text',
+				fit: 'none',
+				opacity,
+				transform: {
+					x: 0,
+					y: posY,
+					scaleX: 1,
+					scaleY: 1,
+					rotation: 0,
+					opacity: 1
+				},
+				textData: {
+					text: caption.text,
+					style: {
+						fontFamily: cStyle.fontFamily,
+						fontWeight: cStyle.fontWeight,
+						fontStyle: cStyle.fontStyle,
+						alignment: cStyle.alignment,
+						lineHeight: 1.25,
+						letterSpacing: 0
+					},
+					box: {
+						autoSize: true,
+						paddingX: cStyle.backgroundColor ? 24 : 0,
+						paddingY: cStyle.backgroundColor ? 14 : 0
+					},
+					fontSize: cStyle.fontSize,
+					fillColor: cStyle.color,
+					strokeColor: cStyle.strokeColor ?? { r: 0, g: 0, b: 0, a: 0 },
+					strokeWidth: cStyle.strokeWidth ?? 0,
+					letterSpacing: 0,
+					lineHeight: 1.25,
+					reveal: 1,
+					shadowColor: cStyle.shadowColor,
+					shadowBlur: cStyle.shadowBlur,
+					shadowOffsetX: cStyle.shadowOffsetX,
+					shadowOffsetY: cStyle.shadowOffsetY,
+					backgroundBoxColor: cStyle.backgroundColor,
+					backgroundBoxPadding: cStyle.backgroundColor ? 18 : 0,
+					backgroundBoxRadius: cStyle.backgroundColor ? 8 : 0,
+					colorRuns
+				}
+			});
 			continue;
 		}
 
@@ -545,9 +693,10 @@ export function nextBoundary(project: Project, time: Time, direction: 1 | -1): T
 	if (!Number.isSafeInteger(time) || time < 0) {
 		throw new RangeError('Playback time must be a non-negative integer tick value.');
 	}
-	const boundaries = project.tracks.flatMap((track) =>
-		track.clips.flatMap((clip) => [clip.start, clipEnd(clip)])
-	);
+	const boundaries = project.tracks.flatMap((track) => [
+		...track.clips.flatMap((clip) => [clip.start, clipEnd(clip)]),
+		...(track.captions ?? []).flatMap((cap) => [cap.start, cap.end])
+	]);
 	if (direction === 1) {
 		return boundaries.filter((boundary) => boundary > time).toSorted((a, b) => a - b)[0] ?? null;
 	}

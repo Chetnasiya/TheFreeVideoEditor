@@ -34,6 +34,7 @@ import type {
 } from '../../core';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import ClipView from './ClipView';
+import { CaptionSegmentView } from './CaptionSegmentView';
 import { TransitionBlock } from './TransitionBlock';
 import type { TransitionType } from '../../core/transitionsRegistry';
 import Playhead from './Playhead';
@@ -102,6 +103,7 @@ function ConnectedToolbar({
 			onAddAdjustment={() => store.getState().addAdjustmentLayer()}
 			onAddSolid={() => store.getState().addSolidLayer()}
 			onAddText={() => store.getState().addTextClip()}
+			onAddCaption={() => store.getState().addCaptionAtPlayhead()}
 		/>
 	);
 }
@@ -174,7 +176,7 @@ function TrackHeader({
 			}}
 		>
 			<span className="track-kind" aria-hidden="true">
-				{track.kind === 'video' ? 'V' : 'A'}
+				{track.kind === 'video' ? 'V' : track.kind === 'caption' ? 'CC' : 'A'}
 			</span>
 			{editing ? (
 				<input
@@ -234,7 +236,7 @@ function TrackHeader({
 				>
 					{track.locked ? 'L' : 'U'}
 				</button>
-				{track.kind === 'video' && (
+				{(track.kind === 'video' || track.kind === 'caption') && (
 					<button
 						type="button"
 						aria-label={`${track.hidden ? 'Show' : 'Hide'} ${track.name}`}
@@ -1153,54 +1155,83 @@ function ActiveTimeline({ project }: { project: Project }) {
 										onDrop={(event) => handleTrackDrop(event, track)}
 										onDragEnd={() => cancelTimelineDrag()}
 									>
-										{track.clips.length === 0 && (
-											<span className="timeline-empty-track">
-												Drop compatible media or press Enter to add selection
-											</span>
-										)}
-										{track.clips.map((clip) => {
-											const asset = clip.assetId ? activeProject.assets[clip.assetId] : undefined;
-											if (!asset && (!clip.source || clip.source.type === 'asset')) return null;
-											const position = drag?.preview.find((item) => item.clipId === clip.id);
-											if (position && position.trackId !== track.id) return null;
-											const clipStart = position?.start ?? clip.start;
-											const clipDuration = position?.duration ?? clip.duration;
-											if (
-												!intersectsPixelRange(
-													timeToPixels(clipStart, pixelsPerSecond),
-													timeToPixels(clipDuration, pixelsPerSecond),
-													visibleClipRange
-												)
-											) {
-												return null;
-											}
-											const isSelected = selection.clipIds.includes(clip.id);
-											const displayedClip = position
-												? {
-														...clip,
-														start: position.start,
-														duration: position.duration,
-														sourceIn: position.sourceIn,
-														sourceOut: position.sourceOut
+										{track.kind === 'caption' ? (
+											<>
+												{(track.captions ?? []).length === 0 && (
+													<span className="timeline-empty-track">
+														No captions yet. Click + Caption or auto-generate.
+													</span>
+												)}
+												{(track.captions ?? []).map((caption) => {
+													const isSelected = selection.captionId === caption.id;
+													return (
+														<CaptionSegmentView
+															key={caption.id}
+															segment={caption}
+															track={track}
+															pixelsPerSecond={pixelsPerSecond}
+															selected={isSelected}
+															onSelect={() => {
+																store.getState().selectCaption(track.id, caption.id);
+															}}
+														/>
+													);
+												})}
+											</>
+										) : (
+											<>
+												{track.clips.length === 0 && (
+													<span className="timeline-empty-track">
+														Drop compatible media or press Enter to add selection
+													</span>
+												)}
+												{track.clips.map((clip) => {
+													const asset = clip.assetId
+														? activeProject.assets[clip.assetId]
+														: undefined;
+													if (!asset && (!clip.source || clip.source.type === 'asset')) return null;
+													const position = drag?.preview.find((item) => item.clipId === clip.id);
+													if (position && position.trackId !== track.id) return null;
+													const clipStart = position?.start ?? clip.start;
+													const clipDuration = position?.duration ?? clip.duration;
+													if (
+														!intersectsPixelRange(
+															timeToPixels(clipStart, pixelsPerSecond),
+															timeToPixels(clipDuration, pixelsPerSecond),
+															visibleClipRange
+														)
+													) {
+														return null;
 													}
-												: clip;
-											return (
-												<ClipView
-													key={clip.id}
-													clip={displayedClip}
-													asset={asset}
-													track={track}
-													project={activeProject}
-													pixelsPerSecond={pixelsPerSecond}
-													selected={isSelected}
-													tabIndex={clip.id === firstTabStopClipId ? 0 : -1}
-													onPointerDown={beginClipDrag}
-													onKeyboardTrim={handleKeyboardTrim}
-													onSelect={handleClipSelect}
-													onContextMenu={openClipMenu}
-												/>
-											);
-										})}
+													const isSelected = selection.clipIds.includes(clip.id);
+													const displayedClip = position
+														? {
+																...clip,
+																start: position.start,
+																duration: position.duration,
+																sourceIn: position.sourceIn,
+																sourceOut: position.sourceOut
+															}
+														: clip;
+													return (
+														<ClipView
+															key={clip.id}
+															clip={displayedClip}
+															asset={asset}
+															track={track}
+															project={activeProject}
+															pixelsPerSecond={pixelsPerSecond}
+															selected={isSelected}
+															tabIndex={clip.id === firstTabStopClipId ? 0 : -1}
+															onPointerDown={beginClipDrag}
+															onKeyboardTrim={handleKeyboardTrim}
+															onSelect={handleClipSelect}
+															onContextMenu={openClipMenu}
+														/>
+													);
+												})}
+											</>
+										)}
 										{isTransitionsEnabled() &&
 											(track.transitions ?? []).map((tr) => (
 												<TransitionBlock

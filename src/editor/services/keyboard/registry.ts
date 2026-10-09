@@ -547,6 +547,15 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			preventDefault: true
 		},
 		{
+			id: 'add-caption',
+			keys: { mac: 'mod+shift+c', other: 'mod+shift+c' },
+			label: 'Add Caption / Subtitle Cue',
+			group: 'Timeline',
+			scope: 'editor',
+			handler: action('add-caption'),
+			preventDefault: true
+		},
+		{
 			id: 'undo',
 			keys: { mac: 'mod+z', other: 'mod+z' },
 			label: 'Undo',

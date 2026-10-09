@@ -50,9 +50,13 @@ an edit that would remove or modify its clips, including linked partners.
 - Ctrl/Command+wheel adjusts timeline zoom. The zoom slider and Fit action are
   available in the toolbar.
 
-## Scope
+## Caption Tracks (Gate P)
 
-Timeline editing, clip thumbnails/waveforms, snapping, and project persistence
-are active. Playback, audio mixing, preview compositing, undo/redo, and export
-are not part of this milestone. The monitor's playback controls remain disabled
-until those systems are implemented.
+Caption tracks (`Track.kind === 'caption'`) provide dedicated subtitle sequencing:
+- **Track Behavior**: Contains `captions?: CaptionSegment[]` with microsecond start and end points (`start`, `end`).
+- **Non-Overlapping Invariant**: Like clips on media tracks, caption cues within a single caption track can never overlap. Any split or insert automatically trims or partitions adjacent cues cleanly.
+- **Editing & Manipulation**: Cues support inline text editing, drag-to-move, and handle drag-to-trim adhering to timeline snapping rules.
+- **Controls & Shortcuts**:
+  - `+ Caption` in the timeline toolbar or `Mod+Shift+C` inserts a 3-second caption cue at the playhead position.
+  - Double-clicking or selecting a cue opens the Captions panel and syncs the playhead.
+  - Multi-track auto-captioning generates non-overlapping cues aligned to speech detection.

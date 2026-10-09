@@ -114,3 +114,10 @@ Text layers are treated as first-class visual clips:
 - **Raster Cache**: `TextRasterCache` retains rasterized textures on OffscreenCanvases, re-rasterizing only upon text, style, or quantized resolution change.
 - **Dual Pipeline**: Canvas2D renders text textures directly via `drawImage` with `fit: 'none'`; WebGL2 composites text textures through `layerAffine` and feeds them into masks, effects, and blend modes seamlessly.
 - **Crisp Dynamic Resolution**: Text is rasterized at `composition px × scale` capped at 2× composition size to prevent pixelation on zoom.
+
+## Captions Rendering (Gate P)
+
+Captions render through the same unified layer pipeline as Gate O text:
+- **Active Layer Resolution**: `resolveFrame(project, time)` evaluates active caption tracks (`hidden !== true`). The active caption segment within `[segment.start, segment.end)` is projected into an `ActiveLayer` of kind `'text'`.
+- **Word Highlights & Karaoke**: If `track.captionStyle.highlightMode` is active (`'word'` or `'progressive'`), word timestamps are matched to frame time $t$ to generate character-level color runs.
+- **Unified Pipeline Parity**: Preview and Worker Export use identical rasterization logic on both Canvas2D and WebGL2, ensuring bit-accurate subtitle alignment, shadows, outline strokes, and background bounding boxes.

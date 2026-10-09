@@ -114,4 +114,22 @@ describe('text layout engine', () => {
 		expect(double.lines[1]!.y - double.lines[0]!.y).toBe(40);
 		expect(double.boxHeight).toBeGreaterThan(standard.boxHeight);
 	});
+
+	it('computes word runs on each line with word boundaries and offsets', () => {
+		const result = layout('Hello world', { fontFamily: 'monospace' }, undefined, monoMeasure, 20);
+
+		expect(result.lines).toHaveLength(1);
+		const line = result.lines[0]!;
+		expect(line.words).toBeDefined();
+		expect(line.words).toHaveLength(2);
+
+		expect(line.words![0]!.text).toBe('Hello');
+		expect(line.words![0]!.startIndex).toBe(0);
+		expect(line.words![0]!.endIndex).toBe(5);
+
+		expect(line.words![1]!.text).toBe('world');
+		expect(line.words![1]!.startIndex).toBe(6);
+		expect(line.words![1]!.endIndex).toBe(11);
+		expect(line.words![1]!.x).toBeGreaterThan(line.words![0]!.x);
+	});
 });

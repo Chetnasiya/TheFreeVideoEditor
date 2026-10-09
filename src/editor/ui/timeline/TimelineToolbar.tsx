@@ -18,6 +18,7 @@ interface TimelineToolbarProps {
 	onAddAdjustment?: () => void;
 	onAddSolid?: () => void;
 	onAddText?: () => void;
+	onAddCaption?: () => void;
 }
 
 export default function TimelineToolbar({
@@ -39,7 +40,8 @@ export default function TimelineToolbar({
 	onAddTrack,
 	onAddAdjustment,
 	onAddSolid,
-	onAddText
+	onAddText,
+	onAddCaption
 }: TimelineToolbarProps) {
 	return (
 		<div className="timeline-toolbar-row">
@@ -135,6 +137,16 @@ export default function TimelineToolbar({
 						title="Add text layer across sequence"
 					>
 						+ Text
+					</button>
+				)}
+				{onAddCaption && (
+					<button
+						type="button"
+						className="tool-button"
+						onClick={onAddCaption}
+						title="Add caption track or subtitle cue"
+					>
+						+ Caption
 					</button>
 				)}
 			</div>

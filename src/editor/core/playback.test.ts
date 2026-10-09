@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createEmptyProject } from './factory';
 import { fitRect, previewScale } from './composition';
 import { nextBoundary, resolveFrame } from './playback';
-import type { Asset, AssetId, Clip, Project, Track } from './types';
+import type { Asset, AssetId, Clip, Project, Track, TrackId } from './types';
 
 function makeAsset(id: string, kind: Asset['kind'], overrides: Partial<Asset> = {}): Asset {
 	return {
@@ -193,6 +193,70 @@ describe('resolveFrame', () => {
 		expect(nextBoundary(project, 2_000_000, 1)).toBe(3_000_000);
 		expect(nextBoundary(project, 3_000_000, -1)).toBe(2_000_000);
 		expect(nextBoundary(project, 0, -1)).toBeNull();
+	});
+
+	it('resolves active caption tracks into ActiveLayer of kind "text" with word highlights', () => {
+		const captionTrack: Track = {
+			id: 'track-cap' as TrackId,
+			kind: 'caption',
+			name: 'Captions',
+			muted: false,
+			locked: false,
+			hidden: false,
+			clips: [],
+			captions: [
+				{
+					id: 'cap-1',
+					start: 1_000_000,
+					end: 4_000_000,
+					text: 'Hello world',
+					words: [
+						{ text: 'Hello', start: 1_000_000, end: 2_000_000 },
+						{ text: 'world', start: 2_000_000, end: 3_500_000 }
+					]
+				}
+			],
+			captionStyle: {
+				fontFamily: 'Inter',
+				fontSize: 40,
+				positionPreset: 'bottom',
+				alignment: 'center',
+				maxLines: 2,
+				maxCharsPerLine: 40,
+				color: { r: 1, g: 1, b: 1, a: 1 },
+				highlightMode: 'word',
+				highlightColor: { r: 1, g: 1, b: 0, a: 1 }
+			}
+		};
+
+		const project = projectWith([captionTrack], []);
+
+		// Before caption: no layers
+		const frameBefore = resolveFrame(project, 500_000);
+		expect(frameBefore.videoLayers).toHaveLength(0);
+
+		// During first word (1.5s): caption active with 'Hello' highlighted
+		const frameWord1 = resolveFrame(project, 1_500_000);
+		expect(frameWord1.videoLayers).toHaveLength(1);
+		const layer1 = frameWord1.videoLayers[0]!;
+		expect(layer1.kind).toBe('text');
+		expect(layer1.textData?.text).toBe('Hello world');
+		expect(layer1.textData?.fontSize).toBe(40);
+		expect(layer1.textData?.colorRuns).toBeDefined();
+		expect(layer1.textData?.colorRuns).toHaveLength(1);
+		expect(layer1.textData?.colorRuns![0]!.startIndex).toBe(0);
+		expect(layer1.textData?.colorRuns![0]!.endIndex).toBe(5);
+		expect(layer1.textData?.colorRuns![0]!.fillColor).toEqual({ r: 1, g: 1, b: 0, a: 1 });
+
+		// During second word (2.5s): 'world' highlighted
+		const frameWord2 = resolveFrame(project, 2_500_000);
+		const layer2 = frameWord2.videoLayers[0]!;
+		expect(layer2.textData?.colorRuns![0]!.startIndex).toBe(6);
+		expect(layer2.textData?.colorRuns![0]!.endIndex).toBe(11);
+
+		// After caption: no layers
+		const frameAfter = resolveFrame(project, 4_500_000);
+		expect(frameAfter.videoLayers).toHaveLength(0);
 	});
 });
 
