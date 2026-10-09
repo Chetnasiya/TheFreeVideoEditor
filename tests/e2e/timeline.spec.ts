@@ -319,6 +319,15 @@ test('resizes tracks and keeps video above audio tracks', async ({ page }) => {
 	const initialHeight = Number(await resizeHandle.getAttribute('aria-valuenow'));
 	const handleBox = await resizeHandle.boundingBox();
 	expect(handleBox).not.toBeNull();
+
+	// Regression assertion: verify resize handle is topmost element at mouse coordinates
+	// (not covered by sticky headers or lanes with improper z-index)
+	const hitTestTagName = await page.evaluate(
+		({ x, y }) => document.elementFromPoint(x, y)?.tagName,
+		{ x: handleBox!.x + 80, y: handleBox!.y + 3 }
+	);
+	expect(hitTestTagName).toBe('BUTTON');
+
 	await page.mouse.move(handleBox!.x + 80, handleBox!.y + 3);
 	await page.mouse.down();
 	await page.mouse.move(handleBox!.x + 80, handleBox!.y + 43, { steps: 4 });

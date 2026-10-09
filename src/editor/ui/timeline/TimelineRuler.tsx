@@ -8,6 +8,8 @@ interface TimelineRulerProps {
 	playhead: Time;
 	pixelsPerSecond: number;
 	headerWidth: number;
+	visibleStart?: number;
+	visibleEnd?: number;
 	onScrub: (event: PointerEvent<HTMLDivElement>) => void;
 	onScrubEnd: () => void;
 	onRulerKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
@@ -19,12 +21,30 @@ export default function TimelineRuler({
 	playhead,
 	pixelsPerSecond,
 	headerWidth,
+	visibleStart,
+	visibleEnd,
 	onScrub,
 	onScrubEnd,
 	onRulerKeyDown
 }: TimelineRulerProps) {
 	const step = rulerTickStep(pixelsPerSecond, project.settings.fps);
 	const count = Math.ceil(duration / step);
+
+	// Virtualize ruler ticks if visible pixel range is provided
+	let firstIndex = 0;
+	let lastIndex = count;
+	if (visibleStart !== undefined && visibleEnd !== undefined) {
+		const stepPixels = timeToPixels(step, pixelsPerSecond);
+		if (stepPixels > 0) {
+			firstIndex = Math.max(0, Math.floor(visibleStart / stepPixels) - 2);
+			lastIndex = Math.min(count, Math.ceil(visibleEnd / stepPixels) + 2);
+		}
+	}
+	const tickIndices: number[] = [];
+	for (let i = firstIndex; i <= lastIndex; i++) {
+		tickIndices.push(i);
+	}
+
 	return (
 		<div className="timeline-ruler-row">
 			<div className="timeline-ruler-corner" style={{ width: headerWidth }}>
@@ -48,10 +68,13 @@ export default function TimelineRuler({
 				}}
 				onPointerUp={onScrubEnd}
 				onPointerCancel={onScrubEnd}
+				onClick={(event) => {
+					onScrub(event as unknown as PointerEvent<HTMLDivElement>);
+				}}
 				onKeyDown={onRulerKeyDown}
 				style={{ width: Math.max(1, timeToPixels(duration, pixelsPerSecond)) }}
 			>
-				{Array.from({ length: count + 1 }, (_, index) => {
+				{tickIndices.map((index) => {
 					const time = index * step;
 					return (
 						<span

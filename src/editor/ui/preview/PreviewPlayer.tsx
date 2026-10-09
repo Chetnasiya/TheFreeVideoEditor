@@ -23,6 +23,7 @@ interface PreviewState {
 	loading: boolean;
 	error: string;
 	unsupported: string;
+	proxyActive: boolean;
 }
 
 export default function PreviewPlayer({
@@ -120,7 +121,8 @@ function PreviewNotice({
 		missing: [],
 		loading: false,
 		error: '',
-		unsupported: ''
+		unsupported: '',
+		proxyActive: false
 	});
 
 	useEffect(() => {
@@ -141,7 +143,8 @@ function PreviewNotice({
 				error: snapshot.error,
 				unsupported: unsupportedAsset
 					? `${unsupportedAsset.name}${unsupportedAsset.videoCodec ? ` (${unsupportedAsset.videoCodec})` : ''}`
-					: ''
+					: '',
+				proxyActive: snapshot.proxyActive ?? false
 			};
 			setState((previous) =>
 				previous.hasVideo === nextState.hasVideo &&
@@ -149,6 +152,7 @@ function PreviewNotice({
 				previous.loading === nextState.loading &&
 				previous.error === nextState.error &&
 				previous.unsupported === nextState.unsupported &&
+				previous.proxyActive === nextState.proxyActive &&
 				previous.missing.join('\0') === nextState.missing.join('\0')
 					? previous
 					: nextState
@@ -223,28 +227,54 @@ function PreviewNotice({
 				return false;
 			})
 		);
-	if (hasChoppySpeed) {
-		return (
-			<div
-				className="preview-choppy-speed-hint"
-				style={{
-					position: 'absolute',
-					bottom: '8px',
-					left: '50%',
-					transform: 'translateX(-50%)',
-					background: 'rgba(0, 0, 0, 0.75)',
-					color: '#f59e0b',
-					padding: '3px 8px',
-					borderRadius: '4px',
-					fontSize: '0.6875rem',
-					pointerEvents: 'none',
-					zIndex: 10
-				}}
-				role="status"
-			>
-				Preview may be choppy for this speed
-			</div>
-		);
-	}
-	return null;
+	return (
+		<>
+			{state.proxyActive && (
+				<div
+					className="preview-proxy-badge"
+					data-testid="preview-proxy-badge"
+					style={{
+						position: 'absolute',
+						top: '8px',
+						right: '8px',
+						background: 'var(--color-link, #0070f3)',
+						color: '#ffffff',
+						padding: '2px 6px',
+						borderRadius: '3px',
+						fontSize: '10px',
+						fontWeight: 600,
+						letterSpacing: '0.05em',
+						pointerEvents: 'none',
+						zIndex: 10,
+						boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)'
+					}}
+					role="status"
+					aria-label="Proxy media active"
+				>
+					PROXY
+				</div>
+			)}
+			{hasChoppySpeed && (
+				<div
+					className="preview-choppy-speed-hint"
+					style={{
+						position: 'absolute',
+						bottom: '8px',
+						left: '50%',
+						transform: 'translateX(-50%)',
+						background: 'rgba(0, 0, 0, 0.75)',
+						color: '#f59e0b',
+						padding: '3px 8px',
+						borderRadius: '4px',
+						fontSize: '0.6875rem',
+						pointerEvents: 'none',
+						zIndex: 10
+					}}
+					role="status"
+				>
+					Preview may be choppy for this speed
+				</div>
+			)}
+		</>
+	);
 }

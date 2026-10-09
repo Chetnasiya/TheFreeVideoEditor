@@ -108,8 +108,12 @@ import {
 	type TrackCompressor,
 	type AnimatedValue,
 	type CaptionWord,
-	type CaptionStyle
+	type CaptionStyle,
+	type ProjectProxySettings
 } from '../core';
+import { shouldAutoGenerateProxy, shouldSuggestProxy } from '../core/proxy';
+import { proxyService } from '../services/media/proxyService';
+import { deleteProxyFile } from '../services/storage/opfs';
 import {
 	addCaptionSegment as addCaptionSegmentOp,
 	splitCaptionSegment as splitCaptionSegmentOp,
@@ -396,6 +400,7 @@ export interface EditorState {
 	isExporting: boolean;
 	isSpeedDialogOpen: boolean;
 	speedDialogClipId: ClipId | null;
+	proxySuggestion: { assetId: AssetId; assetName: string } | null;
 	recovery: RecoveryState | null;
 	media: MediaState;
 	timeline: TimelineState;
@@ -506,6 +511,16 @@ export interface EditorState {
 			speaker?: string;
 		}
 	) => string | null;
+	addCaptionSegmentsBulk: (
+		segments: Array<{
+			start: Time;
+			end: Time;
+			text: string;
+			words?: CaptionWord[];
+			speaker?: string;
+		}>,
+		trackName?: string
+	) => TrackId | null;
 	updateCaptionSegment: (
 		trackId: TrackId,
 		segmentId: string,
@@ -685,6 +700,17 @@ export interface EditorState {
 		clipId: ClipId,
 		color: { r: number; g: number; b: number; a?: number }
 	) => boolean;
+	// Proxy actions
+	setProjectProxySettings: (settings: Partial<ProjectProxySettings>) => boolean;
+	toggleProxiesEnabled: () => boolean;
+	createProxy: (assetId: AssetId) => void;
+	createAllProxies: () => void;
+	deleteProxy: (assetId: AssetId) => Promise<boolean>;
+	deleteAllProxies: () => Promise<boolean>;
+	cancelProxyGeneration: (assetId: AssetId) => void;
+	retryProxyGeneration: (assetId: AssetId) => void;
+	dismissProxySuggestion: (neverAsk?: boolean) => void;
+	acceptProxySuggestion: () => void;
 }
 
 function errorMessage(error: unknown): string {
@@ -1039,6 +1065,7 @@ export function createEditorStore() {
 				isExporting: false,
 				isSpeedDialogOpen: false,
 				speedDialogClipId: null,
+				proxySuggestion: null,
 				recovery: null,
 				media: {
 					importQueue: [],
@@ -1591,6 +1618,24 @@ export function createEditorStore() {
 										? `Imported ${result.imported.length} media file(s).`
 										: `Imported ${result.imported.length} file(s); ${result.failed.length} failed.`;
 							});
+							const activeProject = get().project;
+							const autoMode = activeProject?.proxy?.auto ?? 'large';
+							const proxiesEnabled = activeProject?.proxy?.enabled ?? false;
+							for (const asset of result.imported) {
+								if (asset.kind !== 'video' || asset.offline) continue;
+								if (proxiesEnabled && shouldAutoGenerateProxy(asset, autoMode)) {
+									get().createProxy(asset.id);
+								} else if (!proxiesEnabled && autoMode !== 'off' && shouldSuggestProxy(asset)) {
+									set((state) => {
+										if (!state.proxySuggestion) {
+											state.proxySuggestion = {
+												assetId: asset.id,
+												assetName: asset.name
+											};
+										}
+									});
+								}
+							}
 						}
 						return result;
 					} catch (error) {
@@ -1698,6 +1743,33 @@ export function createEditorStore() {
 							{ history: 'skip' }
 						);
 						await deleteDerived(project.id, assetId);
+						if (asset.proxy) {
+							await deleteProxyFile(project.id, assetId);
+							mutateProject(
+								'Mark proxy stale',
+								(curr) => {
+									const a = curr.assets[assetId];
+									if (!a || !a.proxy) return curr;
+									return {
+										...curr,
+										assets: {
+											...curr.assets,
+											[assetId]: {
+												...a,
+												proxy: {
+													...a.proxy,
+													status: 'stale'
+												}
+											}
+										}
+									};
+								},
+								{ history: 'skip' }
+							);
+							if (project.proxy?.enabled && project.proxy?.auto !== 'off') {
+								get().createProxy(assetId);
+							}
+						}
 						set((state) => {
 							delete state.media.derivedStatus[assetId];
 							state.projectMessage = `${asset.name} was relinked.`;
@@ -2601,6 +2673,44 @@ export function createEditorStore() {
 							{ history: 'record' }
 						);
 						return createdId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+				addCaptionSegmentsBulk(segments, trackName = 'Auto Captions') {
+					const project = get().project;
+					if (!project || segments.length === 0) return null;
+					let targetTrackId: TrackId | null = null;
+					try {
+						mutateProject(
+							'Generate captions',
+							(p) => {
+								let existingTrackIndex = p.tracks.findIndex((t) => t.kind === 'caption');
+								let updatedTracks = [...p.tracks];
+								let targetTrack: Track;
+
+								if (existingTrackIndex === -1) {
+									targetTrack = createCaptionTrackOp(trackName, p.tracks);
+									updatedTracks = [targetTrack, ...updatedTracks];
+									existingTrackIndex = 0;
+								} else {
+									targetTrack = { ...p.tracks[existingTrackIndex]! };
+								}
+
+								for (const seg of segments) {
+									addCaptionSegmentOp(targetTrack, seg);
+								}
+
+								targetTrackId = targetTrack.id;
+								updatedTracks[existingTrackIndex] = targetTrack;
+								return { ...p, tracks: updatedTracks };
+							},
+							{ history: 'record' }
+						);
+						return targetTrackId;
 					} catch (error) {
 						set((state) => {
 							state.timeline.message = errorMessage(error);
@@ -4853,6 +4963,199 @@ export function createEditorStore() {
 					} catch {
 						return false;
 					}
+				},
+
+				setProjectProxySettings(settings) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Update proxy settings',
+							(proj) => ({
+								...proj,
+								proxy: {
+									...(proj.proxy ?? { enabled: false, targetHeight: 540, auto: 'large' }),
+									...settings
+								}
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+
+				toggleProxiesEnabled() {
+					const project = get().project;
+					if (!project) return false;
+					const currentlyEnabled = project.proxy?.enabled ?? false;
+					return get().setProjectProxySettings({ enabled: !currentlyEnabled });
+				},
+
+				createProxy(assetId) {
+					const project = get().project;
+					if (!project) return;
+					const asset = project.assets[assetId];
+					if (!asset || asset.offline || asset.kind !== 'video') return;
+
+					// Wire proxy service callbacks to mutateProject with history: 'skip'
+					proxyService.setProject(project, {
+						onStatusChange(id, proxyUpdates) {
+							mutateProject(
+								'Update proxy status',
+								(proj) => {
+									const currentAsset = proj.assets[id];
+									if (!currentAsset) return proj;
+									return {
+										...proj,
+										assets: {
+											...proj.assets,
+											[id]: {
+												...currentAsset,
+												proxy: {
+													...(currentAsset.proxy ?? {
+														opfsPath: '',
+														width: 0,
+														height: 0,
+														status: 'queued'
+													}),
+													...proxyUpdates
+												}
+											}
+										}
+									};
+								},
+								{ history: 'skip' }
+							);
+						}
+					});
+
+					proxyService.enqueue([assetId]);
+				},
+
+				createAllProxies() {
+					const project = get().project;
+					if (!project) return;
+					const videoAssetIds = Object.values(project.assets)
+						.filter((a) => a.kind === 'video' && !a.offline)
+						.map((a) => a.id);
+					if (videoAssetIds.length === 0) return;
+
+					proxyService.setProject(project, {
+						onStatusChange(id, proxyUpdates) {
+							mutateProject(
+								'Update proxy status',
+								(proj) => {
+									const currentAsset = proj.assets[id];
+									if (!currentAsset) return proj;
+									return {
+										...proj,
+										assets: {
+											...proj.assets,
+											[id]: {
+												...currentAsset,
+												proxy: {
+													...(currentAsset.proxy ?? {
+														opfsPath: '',
+														width: 0,
+														height: 0,
+														status: 'queued'
+													}),
+													...proxyUpdates
+												}
+											}
+										}
+									};
+								},
+								{ history: 'skip' }
+							);
+						}
+					});
+
+					proxyService.enqueue(videoAssetIds);
+				},
+
+				async deleteProxy(assetId) {
+					const project = get().project;
+					if (!project) return false;
+					proxyService.cancel(assetId);
+					await deleteProxyFile(project.id, assetId);
+					mutateProject(
+						'Delete proxy',
+						(proj) => {
+							const currentAsset = proj.assets[assetId];
+							if (!currentAsset) return proj;
+							const updated = { ...currentAsset };
+							delete updated.proxy;
+							return {
+								...proj,
+								assets: {
+									...proj.assets,
+									[assetId]: updated
+								}
+							};
+						},
+						{ history: 'skip' }
+					);
+					return true;
+				},
+
+				async deleteAllProxies() {
+					const project = get().project;
+					if (!project) return false;
+					proxyService.cancelAll();
+					for (const asset of Object.values(project.assets)) {
+						if (asset.proxy) {
+							await deleteProxyFile(project.id, asset.id);
+						}
+					}
+					mutateProject(
+						'Delete all proxies',
+						(proj) => {
+							const assets = { ...proj.assets };
+							for (const [id, a] of Object.entries(assets)) {
+								if (a.proxy) {
+									const clone = { ...a };
+									delete clone.proxy;
+									assets[id as AssetId] = clone;
+								}
+							}
+							return { ...proj, assets };
+						},
+						{ history: 'skip' }
+					);
+					return true;
+				},
+
+				cancelProxyGeneration(assetId) {
+					proxyService.cancel(assetId);
+				},
+
+				retryProxyGeneration(assetId) {
+					get().createProxy(assetId);
+				},
+
+				dismissProxySuggestion(neverAsk = false) {
+					if (neverAsk) {
+						get().setProjectProxySettings({ auto: 'off' });
+					}
+					set((state) => {
+						state.proxySuggestion = null;
+					});
+				},
+
+				acceptProxySuggestion() {
+					const suggestion = get().proxySuggestion;
+					if (suggestion) {
+						get().createProxy(suggestion.assetId);
+					}
+					set((state) => {
+						state.proxySuggestion = null;
+					});
 				}
 			};
 		})

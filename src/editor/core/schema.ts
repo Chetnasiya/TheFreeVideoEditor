@@ -161,11 +161,36 @@ export const transitionSchema = z.object({
 	params: z.record(z.string(), jsonValueSchema)
 });
 
+export const proxyStatusSchema = z.enum([
+	'none',
+	'queued',
+	'working',
+	'ready',
+	'failed',
+	'stale',
+	'pending'
+]);
+
 export const proxyInfoSchema = z.object({
-	opfsPath: z.string(),
-	width: z.number().int().positive(),
-	height: z.number().int().positive(),
-	status: z.enum(['pending', 'ready', 'failed'])
+	opfsPath: z.string().optional(),
+	width: z.number().int().positive().optional(),
+	height: z.number().int().positive().optional(),
+	status: proxyStatusSchema,
+	progress: z.number().min(0).max(1).optional(),
+	error: z.string().optional(),
+	codec: z.string().optional(),
+	container: z.string().optional(),
+	bytes: z.number().nonnegative().optional(),
+	fps: z.number().positive().optional(),
+	durationUs: timeSchema.optional(),
+	fingerprint: z.string().optional(),
+	createdAt: z.string().optional()
+});
+
+export const projectProxySettingsSchema = z.object({
+	enabled: z.boolean(),
+	targetHeight: z.union([z.literal(360), z.literal(540), z.literal(720)]),
+	auto: z.enum(['off', 'large', 'all'])
 });
 
 export const clipTransformSchema = z.object({
@@ -356,7 +381,8 @@ export const projectSchema = z
 				sequenceSchema
 			)
 			.optional(),
-		masterAudio: projectMasterSchema.optional()
+		masterAudio: projectMasterSchema.optional(),
+		proxy: projectProxySettingsSchema.optional()
 	})
 	.superRefine((project, context) => {
 		const ids = new Set<string>([project.id]);

@@ -97,6 +97,11 @@ async function mediaDirectory(projectId: ProjectId): Promise<FileSystemDirectory
 	return project.getDirectoryHandle('media', { create: true });
 }
 
+export async function proxiesDirectory(projectId: ProjectId): Promise<FileSystemDirectoryHandle> {
+	const project = await projectDirectory(projectId);
+	return project.getDirectoryHandle('proxies', { create: true });
+}
+
 function mediaFilename(asset: Asset): string {
 	const name = asset.opfsPath.split('/').at(-1) ?? '';
 	if (!name.startsWith(`${asset.id}.`) && name !== asset.id) {
@@ -316,6 +321,7 @@ export interface StoredMedia {
 export interface MediaGarbageCollectionReport {
 	removedFiles: string[];
 	removedCacheAssetIds: AssetId[];
+	removedProxyAssetIds: AssetId[];
 	foreignFiles: string[];
 }
 
@@ -324,6 +330,7 @@ export async function collectMediaGarbage(project: Project): Promise<MediaGarbag
 	const report: MediaGarbageCollectionReport = {
 		removedFiles: [],
 		removedCacheAssetIds: [],
+		removedProxyAssetIds: [],
 		foreignFiles: []
 	};
 	if (isSupported()) {
@@ -347,6 +354,30 @@ export async function collectMediaGarbage(project: Project): Promise<MediaGarbag
 				URL.revokeObjectURL(url.url);
 				objectUrls.delete(key);
 			}
+		}
+
+		// Also collect orphaned proxy files in projects/<id>/proxies/<assetId>.<ext>
+		try {
+			const pDir = await proxiesDirectory(project.id);
+			for await (const [filename, handle] of pDir.entries()) {
+				if (handle.kind !== 'file') continue;
+				const match =
+					/^([a-f0-9]{32}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})\.[a-z0-9]+$/i.exec(filename);
+				if (!match) continue;
+				const assetId = match[1] as AssetId;
+				if (!referenced.has(assetId)) {
+					await pDir.removeEntry(filename);
+					report.removedProxyAssetIds.push(assetId);
+					const proxyKey = `${project.id}:proxy:${assetId}`;
+					const url = objectUrls.get(proxyKey);
+					if (url) {
+						URL.revokeObjectURL(url.url);
+						objectUrls.delete(proxyKey);
+					}
+				}
+			}
+		} catch {
+			// proxies directory might not exist yet
 		}
 	}
 	report.removedCacheAssetIds = await collectOrphanedDerived(project.id, referenced);
@@ -458,6 +489,146 @@ export async function copyProjectMedia(source: Project, destination: Project): P
 		await deleteProjectDir(destination.id);
 		throw error;
 	}
+}
+
+export async function writeProxy(
+	projectId: ProjectId,
+	assetId: AssetId,
+	extension: string,
+	data: Blob | ArrayBuffer,
+	onProgress?: (loaded: number, total: number) => void,
+	signal?: AbortSignal
+): Promise<string> {
+	const directory = await proxiesDirectory(projectId);
+	const filename = `${assetId}.${extension.replace(/[^a-z0-9]/gi, '').toLowerCase()}`;
+	const path = `projects/${projectId}/proxies/${filename}`;
+	let handle: FileSystemFileHandle | null = null;
+	let writable: FileSystemWritableFileStream | null = null;
+	try {
+		if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
+		handle = await directory.getFileHandle(filename, { create: true });
+		writable = await handle.createWritable();
+		if (data instanceof Blob) {
+			const stream = data.stream();
+			const reader = stream.getReader();
+			let loaded = 0;
+			const total = data.size;
+			while (true) {
+				if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
+				const { done, value } = await reader.read();
+				if (done) break;
+				await writable.write(value);
+				loaded += value.byteLength;
+				onProgress?.(loaded, total);
+			}
+			reader.releaseLock();
+		} else {
+			await writable.write(data);
+			onProgress?.(data.byteLength, data.byteLength);
+		}
+		await writable.close();
+		writable = null;
+		return path;
+	} catch (error) {
+		if (writable) {
+			try {
+				await writable.abort();
+			} catch {}
+		}
+		if (handle) {
+			try {
+				await directory.removeEntry(filename);
+			} catch {}
+		}
+		throw error;
+	}
+}
+
+export async function getProxyFile(
+	projectId: ProjectId,
+	assetId: AssetId,
+	extension = 'mp4'
+): Promise<File> {
+	const directory = await proxiesDirectory(projectId);
+	const filename = `${assetId}.${extension.toLowerCase()}`;
+	const handle = await directory.getFileHandle(filename);
+	return await handle.getFile();
+}
+
+export async function getProxyObjectUrl(
+	projectId: ProjectId,
+	asset: Asset
+): Promise<{ url: string; release: () => void }> {
+	const key = `${projectId}:proxy:${asset.id}`;
+	let entry = objectUrls.get(key);
+	if (!entry) {
+		const ext = asset.proxy?.container ?? 'mp4';
+		const file = await getProxyFile(projectId, asset.id, ext);
+		entry = { url: URL.createObjectURL(file), refs: 0 };
+		objectUrls.set(key, entry);
+	}
+	entry.refs += 1;
+	let released = false;
+	return {
+		url: entry.url,
+		release() {
+			if (released) return;
+			released = true;
+			const current = objectUrls.get(key);
+			if (!current) return;
+			current.refs -= 1;
+			if (current.refs <= 0) {
+				URL.revokeObjectURL(current.url);
+				objectUrls.delete(key);
+			}
+		}
+	};
+}
+
+export async function deleteProxyFile(projectId: ProjectId, assetId: AssetId): Promise<void> {
+	const key = `${projectId}:proxy:${assetId}`;
+	const entry = objectUrls.get(key);
+	if (entry) {
+		URL.revokeObjectURL(entry.url);
+		objectUrls.delete(key);
+	}
+	try {
+		const directory = await proxiesDirectory(projectId);
+		for await (const [name] of directory.entries()) {
+			if (name === assetId || name.startsWith(`${assetId}.`)) {
+				await directory.removeEntry(name);
+				return;
+			}
+		}
+	} catch (error) {
+		if (error instanceof DOMException && error.name === 'NotFoundError') return;
+		throw error;
+	}
+}
+
+export async function listProxies(projectId: ProjectId): Promise<StoredMedia[]> {
+	try {
+		const directory = await proxiesDirectory(projectId);
+		const list: StoredMedia[] = [];
+		for await (const [filename, handle] of directory.entries()) {
+			if (handle.kind !== 'file') continue;
+			const file = await handle.getFile();
+			const match = /^([a-f0-9]{32}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})/i.exec(filename);
+			list.push({
+				filename,
+				assetId: (match ? match[1] : null) as AssetId | null,
+				size: file.size
+			});
+		}
+		return list;
+	} catch {
+		return [];
+	}
+}
+
+export async function projectProxyTotalSize(projectId: ProjectId): Promise<number> {
+	const list = await listProxies(projectId);
+	return list.reduce((sum, item) => sum + item.size, 0);
 }
 
 export function rebaseAssetPath(projectId: ProjectId, assetId: AssetId, path: string): string {

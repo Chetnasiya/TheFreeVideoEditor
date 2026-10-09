@@ -123,22 +123,17 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 			});
 
 			if (segments.length > 0) {
-				// Atomically create or append caption track
-				const capTrack = project.tracks.find((t) => t.kind === 'caption');
-				let capTrackId = capTrack?.id;
-				if (!capTrackId) {
-					capTrackId = store.getState().addCaptionTrack('Auto Captions') ?? undefined;
-				}
+				const capTrackId = store.getState().addCaptionSegmentsBulk(
+					segments.map((seg) => ({
+						start: seg.start,
+						end: seg.end,
+						text: seg.text,
+						words: seg.words
+					})),
+					'Auto Captions'
+				);
 
 				if (capTrackId) {
-					for (const seg of segments) {
-						store.getState().addCaptionSegment(capTrackId, {
-							start: seg.start,
-							end: seg.end,
-							text: seg.text,
-							words: seg.words
-						});
-					}
 					store.getState().selectCaption(capTrackId, segments[0]?.id);
 				}
 			}

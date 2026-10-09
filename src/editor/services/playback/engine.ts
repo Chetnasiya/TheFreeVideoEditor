@@ -28,6 +28,7 @@ export interface PlaybackSnapshot {
 	missing: AssetId[];
 	loading: boolean;
 	error: string;
+	proxyActive?: boolean;
 }
 
 export interface PlaybackDebugStats {
@@ -42,6 +43,7 @@ export interface PlaybackDebugStats {
 	looping: boolean;
 	activeVideoAssets: Array<{ id: AssetId; name: string; trackId: ActiveLayer['trackId'] }>;
 	render: RenderStats | null;
+	proxyActive?: boolean;
 }
 
 export interface PlaybackEngine {
@@ -188,7 +190,9 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			}
 			if (state.timeline.playhead !== previous.timeline.playhead) {
 				clock.seek(state.timeline.playhead);
-				void audio.unlock().catch((error: unknown) => this.reportError(error));
+				if (clock.playing) {
+					void audio.unlock().catch((error: unknown) => this.reportError(error));
+				}
 				this.syncAndRender();
 			}
 			if (state.scopes?.open !== previous.scopes?.open) {
@@ -490,6 +494,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			return !layer.assetId || !missing.has(layer.assetId);
 		});
 		let loading = false;
+		let proxyActive = false;
 		const scopesOpen = this.store.getState().scopes?.open ?? false;
 		renderer.enableScopes?.(scopesOpen);
 		renderer.render(
@@ -526,11 +531,13 @@ class PlaybackEngineImpl implements PlaybackEngine {
 				}
 				const source = this.pool.getFrameSource(layer, this.clock.playing, this.clock.rate);
 				if (!source) loading = true;
+				else if (this.pool.isUsingProxy(layer)) proxyActive = true;
 				return source;
 			},
 			this.lastGoodFrames,
 			{ playing: this.clock.playing }
 		);
+		this.updateSnapshot({ proxyActive });
 		canvas.setAttribute(
 			'aria-label',
 			`Preview, ${ticksToTimecode(this.clock.time, this.project.settings.fps)}`

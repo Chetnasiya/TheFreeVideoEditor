@@ -129,4 +129,58 @@ describe('media pool', () => {
 		pool.dispose();
 		expect(pool.elementCount).toBe(0);
 	});
+
+	it('routes to proxy URL when project proxy is enabled and asset proxy is ready', async () => {
+		const base = makeProject(1);
+		const targetAsset = base.assets['asset-0' as AssetId]!;
+		targetAsset.proxy = {
+			opfsPath: 'projects/p/proxies/asset-0.mp4',
+			width: 960,
+			height: 540,
+			status: 'ready'
+		};
+		const projectWithProxy: Project = {
+			...base,
+			proxy: {
+				enabled: true,
+				targetHeight: 540,
+				auto: 'large'
+			}
+		};
+
+		const urlsLoaded: string[] = [];
+		const pool = new MediaPool(projectWithProxy, {
+			maxElements: 2,
+			createVideo: () => fakeVideo(),
+			getUrl: async (_p, item) => {
+				urlsLoaded.push(`original:${item.id}`);
+				return { url: `blob:orig-${item.id}`, release: () => {} };
+			},
+			getProxyUrl: async (_p, item) => {
+				urlsLoaded.push(`proxy:${item.id}`);
+				return { url: `blob:proxy-${item.id}`, release: () => {} };
+			}
+		});
+
+		try {
+			const layer = layers(projectWithProxy, [0])[0]!;
+			pool.getFrameSource(layer, false, 1);
+			expect(pool.isUsingProxy(layer)).toBe(true);
+			expect(urlsLoaded).toEqual(['proxy:asset-0']);
+
+			// Now disable proxies and update project
+			const disabledProject: Project = {
+				...projectWithProxy,
+				proxy: { ...projectWithProxy.proxy!, enabled: false }
+			};
+			pool.setProject(disabledProject);
+
+			// Entry should be removed / re-created as original
+			pool.getFrameSource(layer, false, 1);
+			expect(pool.isUsingProxy(layer)).toBe(false);
+			expect(urlsLoaded).toEqual(['proxy:asset-0', 'original:asset-0']);
+		} finally {
+			pool.dispose();
+		}
+	});
 });

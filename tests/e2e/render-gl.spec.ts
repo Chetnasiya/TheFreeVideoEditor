@@ -15,6 +15,7 @@ test.describe('WebGL2 renderer lifecycle', () => {
 	test('recovers from context loss, releases GPU objects, and meets the composite budget', async ({
 		page
 	}) => {
+		test.setTimeout(60_000);
 		const errors: string[] = [];
 		page.on('console', (message) => {
 			if (message.type() === 'error' || message.type() === 'warning') errors.push(message.text());

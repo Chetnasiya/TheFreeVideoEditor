@@ -51,6 +51,19 @@ describe('keyboard shortcut registry', () => {
 		).toEqual([{ first: 'first', second: 'second', key: 'mod+z' }]);
 	});
 
+	it('contains no browser-reserved shortcut combinations', () => {
+		const registry = createEditorShortcutRegistry({});
+		const reservedCombos = new Set(['mod+shift+r', 'mod+shift+c', 'mod+shift+i', 'f12', 'mod+r']);
+		for (const item of registry) {
+			const macKeys = Array.isArray(item.keys.mac) ? item.keys.mac : [item.keys.mac];
+			const otherKeys = Array.isArray(item.keys.other) ? item.keys.other : [item.keys.other];
+			for (const k of [...macKeys, ...otherKeys]) {
+				expect(reservedCombos.has(k.toLowerCase())).toBe(false);
+				expect(k.toLowerCase().startsWith('ctrl+alt+')).toBe(false);
+			}
+		}
+	});
+
 	it('maps platform modifiers and Ctrl+Y redo correctly', () => {
 		expect(matchesShortcut(keyEvent('z', { metaKey: true }), 'mod+z')).toBe(true);
 		expect(matchesShortcut(keyEvent('z', { ctrlKey: true }), 'mod+z')).toBe(true);
@@ -83,6 +96,28 @@ describe('keyboard shortcut registry', () => {
 		}
 		vi.stubGlobal('HTMLElement', FakeHTMLElement);
 		expect(shouldSuppressShortcut(keyEvent('z'), new FakeHTMLElement(), false)).toBe(true);
+
+		// Alt+P (toggle proxy) and Alt+C (add caption) must not trigger while typing
+		// (on macOS Option+P produces π and Option+C produces ç)
+		expect(
+			shouldSuppressShortcut(keyEvent('p', { altKey: true }), new FakeHTMLElement(), false)
+		).toBe(true);
+		expect(
+			shouldSuppressShortcut(keyEvent('c', { altKey: true }), new FakeHTMLElement(), false)
+		).toBe(true);
+
+		class ContentEditableElement extends FakeHTMLElement {
+			override isContentEditable = true;
+			override closest(): Element | null {
+				return null;
+			}
+		}
+		expect(
+			shouldSuppressShortcut(keyEvent('p', { altKey: true }), new ContentEditableElement(), false)
+		).toBe(true);
+		expect(
+			shouldSuppressShortcut(keyEvent('c', { altKey: true }), new ContentEditableElement(), false)
+		).toBe(true);
 	});
 
 	it('generates grouped platform-specific cheat-sheet entries from the registry', () => {

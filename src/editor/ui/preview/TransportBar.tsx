@@ -33,6 +33,7 @@ export default function TransportBar({
 }: TransportBarProps) {
 	const store = useEditorStoreApi();
 	const scopesOpen = useEditorStore((state) => state.scopes.open);
+	const proxiesEnabled = useEditorStore((state) => state.project?.proxy?.enabled ?? false);
 	const [snapshot, setSnapshot] = useState<PlaybackSnapshot | null>(engine?.snapshot ?? null);
 	const [playAnnouncement, setPlayAnnouncement] = useState('');
 	const previousPlaying = useRef<boolean | null>(null);
@@ -227,6 +228,17 @@ export default function TransportBar({
 							</option>
 						))}
 					</select>
+					<button
+						type="button"
+						aria-label="Toggle proxy playback"
+						aria-pressed={proxiesEnabled}
+						title={proxiesEnabled ? 'Use Proxies (active)' : 'Use Proxies (inactive)'}
+						className={proxiesEnabled ? 'is-active' : ''}
+						data-testid="toggle-proxies-button"
+						onClick={() => store.getState().toggleProxiesEnabled()}
+					>
+						Proxies
+					</button>
 					<button
 						type="button"
 						aria-label="Toggle scopes"

@@ -1,6 +1,7 @@
 import type { ActiveAudio, ActiveLayer } from '../../core/playback';
 import type { Asset, AssetId, Clip, Project } from '../../core/types';
-import { getMediaFile, getMediaObjectUrl } from '../storage/opfs';
+import { isProxyStale } from '../../core/proxy';
+import { getMediaFile, getMediaObjectUrl, getProxyObjectUrl } from '../storage/opfs';
 import type { FrameSource } from './compositor';
 
 export const MEDIA_LOOKAHEAD_SECONDS = 1.5;
@@ -19,6 +20,7 @@ export interface MediaPoolOptions {
 	maxElements?: number;
 	now?: () => number;
 	getUrl?: (projectId: Project['id'], asset: Asset) => Promise<MediaUrlReference>;
+	getProxyUrl?: (projectId: Project['id'], asset: Asset) => Promise<MediaUrlReference>;
 	getFile?: typeof getMediaFile;
 	createVideo?: () => HTMLVideoElement;
 	createAudio?: () => HTMLAudioElement;
@@ -34,6 +36,7 @@ export interface MediaPoolOptions {
 interface PoolEntryBase {
 	clipId: Clip['id'];
 	assetId: AssetId;
+	isProxy?: boolean;
 	ready: Promise<void>;
 	releaseUrl?: () => void;
 	lastUsed: number;
@@ -78,11 +81,22 @@ export class MediaPool {
 
 	setProject(project: Project): void {
 		const previousAssets = this.project.assets;
+		const previousProxyEnabled = this.project.proxy?.enabled ?? false;
+		const nextProxyEnabled = project.proxy?.enabled ?? false;
+		const proxyEnabledChanged = previousProxyEnabled !== nextProxyEnabled;
 		this.project = project;
 		for (const entry of this.entries.values()) {
 			const asset = project.assets[entry.assetId];
 			const previous = previousAssets[entry.assetId];
-			if (!asset || asset.offline || asset.opfsPath !== previous?.opfsPath) this.removeEntry(entry);
+			const proxyChanged =
+				entry.kind === 'video' &&
+				(proxyEnabledChanged ||
+					entry.isProxy !==
+						(nextProxyEnabled && asset?.proxy?.status === 'ready' && !isProxyStale(asset)) ||
+					asset?.proxy?.opfsPath !== previous?.proxy?.opfsPath);
+			if (!asset || asset.offline || asset.opfsPath !== previous?.opfsPath || proxyChanged) {
+				this.removeEntry(entry);
+			}
 		}
 		for (const [assetId, bitmapPromise] of this.images) {
 			if (project.assets[assetId]?.opfsPath === previousAssets[assetId]?.opfsPath) continue;
@@ -242,6 +256,14 @@ export class MediaPool {
 		return video.readyState >= MEDIA_HAVE_CURRENT_DATA ? video : null;
 	}
 
+	isUsingProxy(layer: ActiveLayer): boolean {
+		if (!layer.assetId) return false;
+		const clip = findClip(this.project, layer.clipId);
+		if (!clip) return false;
+		const entry = this.entries.get(poolKey(clip.id, 'video'));
+		return entry?.isProxy ?? false;
+	}
+
 	getAudioElement(source: ActiveAudio): HTMLAudioElement | null {
 		const asset = this.project.assets[source.assetId];
 		const clip = findClip(this.project, source.clipId);
@@ -353,7 +375,19 @@ export class MediaPool {
 			this.reportError(new Error(`Browser could not decode “${asset.name}”.`), asset.id);
 		});
 		this.entries.set(key, entry);
-		entry.ready = (this.options.getUrl ?? getMediaObjectUrl)(this.project.id, asset)
+		const useProxy =
+			kind === 'video' &&
+			(this.project.proxy?.enabled ?? false) &&
+			asset.proxy?.status === 'ready' &&
+			Boolean(asset.proxy.opfsPath) &&
+			!isProxyStale(asset);
+		entry.isProxy = useProxy;
+
+		const fetchUrl = useProxy
+			? () => (this.options.getProxyUrl ?? getProxyObjectUrl)(this.project.id, asset)
+			: () => (this.options.getUrl ?? getMediaObjectUrl)(this.project.id, asset);
+
+		entry.ready = fetchUrl()
 			.then((reference) => {
 				if (this.disposed || this.entries.get(key) !== entry) {
 					reference.release();

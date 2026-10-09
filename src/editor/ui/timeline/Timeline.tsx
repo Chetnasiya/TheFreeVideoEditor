@@ -296,6 +296,7 @@ export default function Timeline() {
 function ActiveTimeline({ project }: { project: Project }) {
 	const store = useEditorStoreApi();
 	const pixelsPerSecond = useEditorStore((state) => state.timeline.pixelsPerSecond);
+	const playhead = useEditorStore((state) => state.timeline.playhead);
 	const scrollLeft = useEditorStore((state) => state.timeline.scrollLeft);
 	const scrollTop = useEditorStore((state) => state.timeline.scrollTop);
 	const selection = useEditorStore((state) => state.timeline.selection);
@@ -1114,9 +1115,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 					<TimelineRuler
 						project={activeProject}
 						duration={visibleDuration}
-						playhead={getPlayhead()}
+						playhead={playhead}
 						pixelsPerSecond={pixelsPerSecond}
 						headerWidth={HEADER_WIDTH}
+						visibleStart={visibleClipRange.start}
+						visibleEnd={visibleClipRange.end}
 						onScrub={scrubRuler}
 						onScrubEnd={endRulerScrub}
 						onRulerKeyDown={rulerKeyDown}

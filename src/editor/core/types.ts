@@ -152,11 +152,31 @@ export interface Sequence {
 	tracks: Track[];
 }
 
+export type ProxyStatus = 'none' | 'queued' | 'working' | 'ready' | 'failed' | 'stale' | 'pending';
+
 export interface ProxyInfo {
-	opfsPath: string;
-	width: number;
-	height: number;
-	status: 'pending' | 'ready' | 'failed';
+	opfsPath?: string;
+	width?: number;
+	height?: number;
+	status: ProxyStatus;
+	progress?: number;
+	error?: string;
+	codec?: string;
+	container?: string;
+	bytes?: number;
+	fps?: number;
+	durationUs?: Time;
+	fingerprint?: string;
+	createdAt?: string;
+}
+
+export type ProxyTargetHeight = 360 | 540 | 720;
+export type ProxyAutoMode = 'off' | 'large' | 'all';
+
+export interface ProjectProxySettings {
+	enabled: boolean;
+	targetHeight: ProxyTargetHeight;
+	auto: ProxyAutoMode;
 }
 
 export interface ClipTransform {
@@ -315,6 +335,7 @@ export interface Project {
 	markers: Marker[];
 	sequences?: Record<SequenceId, Sequence>;
 	masterAudio?: ProjectMaster;
+	proxy?: ProjectProxySettings;
 }
 
 export interface ProjectSummary {

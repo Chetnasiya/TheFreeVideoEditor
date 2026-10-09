@@ -89,6 +89,9 @@ function EditorShell() {
 	const keyframeClipboard = useEditorStore((state) => state.keyframes.clipboard);
 	const effectsClipboard = useEditorStore((state) => state.effectsClipboard);
 	const selectedClipIds = useEditorStore((state) => state.timeline.selection.clipIds);
+	const proxySuggestion = useEditorStore((state) => state.proxySuggestion);
+	const acceptProxySuggestion = useEditorStore((state) => state.acceptProxySuggestion);
+	const dismissProxySuggestion = useEditorStore((state) => state.dismissProxySuggestion);
 	const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
 	const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
 	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -381,6 +384,9 @@ function EditorShell() {
 			},
 			'toggle-scopes': () => {
 				state().toggleScopesOpen();
+			},
+			'toggle-proxies': () => {
+				state().toggleProxiesEnabled();
 			},
 			'toggle-mixer': () => {
 				state().toggleMixer();
@@ -1306,6 +1312,65 @@ function EditorShell() {
 			<SpeedDurationDialog />
 			{isShortcutsOpen && (
 				<KeyboardShortcutsDialog entries={shortcutEntries} onClose={closeShortcutsDialog} />
+			)}
+			{proxySuggestion && (
+				<div
+					className="editor-toast proxy-suggestion-toast"
+					role="status"
+					aria-live="polite"
+					data-testid="proxy-suggestion-toast"
+					style={{
+						position: 'fixed',
+						bottom: '24px',
+						right: '24px',
+						zIndex: 1000,
+						backgroundColor: 'var(--color-surface, #1e1e1e)',
+						border: '1px solid var(--color-hairline, #333333)',
+						borderRadius: '6px',
+						padding: '12px 16px',
+						boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+						display: 'flex',
+						flexDirection: 'column',
+						gap: '8px',
+						maxWidth: '380px',
+						fontSize: '12px',
+						color: 'var(--color-ink, #ffffff)'
+					}}
+				>
+					<div style={{ fontWeight: 500 }}>
+						High-resolution media imported: “{proxySuggestion.assetName}”
+					</div>
+					<div style={{ color: 'var(--color-mute, #888888)', fontSize: '11px' }}>
+						Create a proxy for smoother playback and scrubbing? The original file is always used for
+						export.
+					</div>
+					<div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+						<button
+							className="primary-button"
+							type="button"
+							style={{ fontSize: '11px', padding: '4px 10px' }}
+							onClick={acceptProxySuggestion}
+						>
+							Create Proxy
+						</button>
+						<button
+							className="secondary-button"
+							type="button"
+							style={{ fontSize: '11px', padding: '4px 10px' }}
+							onClick={() => dismissProxySuggestion(false)}
+						>
+							Not Now
+						</button>
+						<button
+							className="secondary-button"
+							type="button"
+							style={{ fontSize: '11px', padding: '4px 10px' }}
+							onClick={() => dismissProxySuggestion(true)}
+						>
+							Don't Ask Again
+						</button>
+					</div>
+				</div>
 			)}
 		</div>
 	);

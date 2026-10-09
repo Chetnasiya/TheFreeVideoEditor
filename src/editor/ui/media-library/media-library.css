@@ -208,6 +208,15 @@
 	color: var(--color-warning);
 }
 
+.media-chip.is-proxy {
+	color: var(--color-link);
+}
+
+.media-chip.is-proxy-ready {
+	color: var(--color-text);
+	opacity: 0.85;
+}
+
 .media-action-link {
 	border: 0;
 	background: transparent;

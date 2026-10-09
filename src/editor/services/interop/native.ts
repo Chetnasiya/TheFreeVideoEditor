@@ -8,6 +8,8 @@ import {
 	isSupported as isOpfsSupported,
 	deleteMedia,
 	writeMedia,
+	getProxyFile,
+	writeProxy,
 	UnsupportedMediaStorageError
 } from '../storage/opfs';
 
@@ -15,14 +17,16 @@ const manifestSchema = z.object({
 	format: z.literal('tfve'),
 	version: z.literal(1),
 	createdWith: z.literal('thefreevideoeditor.com'),
-	includesMedia: z.boolean()
+	includesMedia: z.boolean(),
+	includesProxies: z.boolean().optional()
 });
 
-const manifest = (includesMedia: boolean) => ({
+const manifest = (includesMedia: boolean, includesProxies = false) => ({
 	format: 'tfve' as const,
 	version: 1 as const,
 	createdWith: 'thefreevideoeditor.com' as const,
-	includesMedia
+	includesMedia,
+	includesProxies
 });
 
 function validatedProject(project: Project): Project {
@@ -38,7 +42,7 @@ function projectAssetFiles(project: Project): string[] {
 
 export async function exportTfve(
 	project: Project,
-	options: { includeMedia?: boolean } = {}
+	options: { includeMedia?: boolean; includeProxies?: boolean } = {}
 ): Promise<Blob> {
 	const chunks: Uint8Array[] = [];
 	await streamTfve(project, options, async (chunk) => {
@@ -54,11 +58,12 @@ export async function exportTfve(
 
 export async function streamTfve(
 	project: Project,
-	options: { includeMedia?: boolean } = {},
+	options: { includeMedia?: boolean; includeProxies?: boolean } = {},
 	write: (chunk: Uint8Array) => Promise<void>
 ): Promise<void> {
 	const validated = validatedProject(project);
 	const includeMedia = options.includeMedia ?? false;
+	const includeProxies = options.includeProxies ?? false;
 	const assets = includeMedia ? Object.values(validated.assets) : [];
 	let handles = new Map<string, FileSystemFileHandle>();
 	if (includeMedia && assets.length > 0) {
@@ -85,8 +90,14 @@ export async function streamTfve(
 	};
 
 	pushBytes('project.json', strToU8(JSON.stringify(validated, null, 2)));
-	pushBytes('manifest.json', strToU8(JSON.stringify(manifest(includeMedia), null, 2)));
+	pushBytes(
+		'manifest.json',
+		strToU8(JSON.stringify(manifest(includeMedia, includeProxies), null, 2))
+	);
 	pushBytes('assets/', new Uint8Array());
+	if (includeProxies) {
+		pushBytes('proxies/', new Uint8Array());
+	}
 	await outputQueue;
 
 	const archivePaths = projectAssetFiles(validated);
@@ -118,6 +129,33 @@ export async function streamTfve(
 			reader.releaseLock();
 		}
 	}
+
+	if (includeProxies) {
+		for (const asset of Object.values(validated.assets)) {
+			if (asset.proxy && asset.proxy.status === 'ready' && !asset.offline) {
+				try {
+					const ext = asset.proxy.container ?? 'mp4';
+					const pFile = await getProxyFile(validated.id, asset.id, ext);
+					const entry = new ZipPassThrough(`proxies/${asset.id}.${ext}`);
+					zip.add(entry);
+					const pReader = pFile.stream().getReader();
+					try {
+						while (true) {
+							const { done, value } = await pReader.read();
+							if (done) break;
+							entry.push(value);
+							if (streamError) throw streamError;
+							await outputQueue;
+						}
+						entry.push(new Uint8Array(), true);
+					} finally {
+						pReader.releaseLock();
+					}
+				} catch {}
+			}
+		}
+	}
+
 	zip.end();
 	await outputQueue;
 	if (streamError) throw streamError;
@@ -226,6 +264,43 @@ export async function importTfve(file: Blob): Promise<Project> {
 				);
 			}
 			throw error;
+		}
+
+		// Check if proxies were included in the archive
+		const proxyEntries = Object.keys(archive).filter(
+			(name) => name.startsWith('proxies/') && name !== 'proxies/'
+		);
+		for (const [assetId, asset] of Object.entries(assets)) {
+			const proxyEntry = proxyEntries.find((e) => e.startsWith(`proxies/${assetId}.`));
+			if (proxyEntry && archive[proxyEntry]) {
+				const bytes = archive[proxyEntry]!;
+				const ext = proxyEntry.split('.').at(-1) ?? 'mp4';
+				try {
+					const buffer = bytes.buffer.slice(
+						bytes.byteOffset,
+						bytes.byteOffset + bytes.byteLength
+					) as ArrayBuffer;
+					const opfsPath = await writeProxy(project.id, asset.id, ext, buffer);
+					assets[assetId as Asset['id']] = {
+						...asset,
+						proxy: {
+							opfsPath,
+							width: asset.proxy?.width ?? 960,
+							height: asset.proxy?.height ?? 540,
+							status: 'ready',
+							fps: asset.proxy?.fps ?? asset.fps ?? 30,
+							durationUs: asset.proxy?.durationUs ?? asset.duration,
+							codec: asset.proxy?.codec ?? 'avc',
+							container: ext
+						}
+					};
+				} catch {}
+			} else if (asset.proxy) {
+				// No proxy file included in zip; mark status none so it regenerates according to project settings
+				const clone = { ...asset };
+				delete clone.proxy;
+				assets[assetId as Asset['id']] = clone;
+			}
 		}
 	}
 

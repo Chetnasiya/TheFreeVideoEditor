@@ -548,7 +548,7 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		},
 		{
 			id: 'add-caption',
-			keys: { mac: 'mod+shift+c', other: 'mod+shift+c' },
+			keys: { mac: 'alt+c', other: 'alt+c' },
 			label: 'Add Caption / Subtitle Cue',
 			group: 'Timeline',
 			scope: 'editor',
@@ -688,6 +688,15 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			group: 'View',
 			scope: 'editor',
 			handler: action('toggle-scopes'),
+			preventDefault: true
+		},
+		{
+			id: 'toggle-proxies',
+			keys: { mac: 'alt+p', other: 'alt+p' },
+			label: 'Toggle Proxy Playback',
+			group: 'View',
+			scope: 'editor',
+			handler: action('toggle-proxies'),
 			preventDefault: true
 		},
 		{

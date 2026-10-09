@@ -147,7 +147,16 @@ export class LocalSttService {
 					options.onProgress?.(data.event);
 				} else if (data.type === 'result' && data.event) {
 					cleanup();
-					resolve(data.event.words ?? []);
+					const rawWords = data.event.words ?? [];
+					const offsetWords =
+						audio.startOffsetUs > 0
+							? rawWords.map((w) => ({
+									...w,
+									start: w.start + audio.startOffsetUs,
+									end: w.end + audio.startOffsetUs
+								}))
+							: rawWords;
+					resolve(offsetWords);
 				} else if (data.type === 'error' && data.event) {
 					cleanup();
 					reject(new Error(data.event.error ?? 'STT Worker transcription error'));

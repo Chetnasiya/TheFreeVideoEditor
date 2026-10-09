@@ -443,28 +443,32 @@ export function resolveFrame(project: Project, time: Time): ResolvedFrame {
 		};
 
 		// Check active transitions on this track at current time
-		const activeTransitions = (track.transitions ?? []).filter((tr) => {
-			let cutTime = 0;
-			if (tr.edge.kind === 'cut') {
-				const edge = tr.edge;
-				const cA = track.clips.find((c) => c.id === edge.fromClipId);
-				const cB = track.clips.find((c) => c.id === edge.toClipId);
-				if (!cA || !cB) return false;
-				cutTime = clipEnd(cA);
-			} else if (tr.edge.kind === 'head') {
-				const edge = tr.edge;
-				const c = track.clips.find((c) => c.id === edge.clipId);
-				if (!c) return false;
-				cutTime = c.start;
-			} else {
-				const edge = tr.edge;
-				const c = track.clips.find((c) => c.id === edge.clipId);
-				if (!c) return false;
-				cutTime = clipEnd(c);
-			}
-			const win = transitionWindow(cutTime, tr.duration, tr.alignment);
-			return time >= win.start && time < win.end;
-		});
+		const trackTransitions = track.transitions;
+		const activeTransitions =
+			trackTransitions && trackTransitions.length > 0
+				? trackTransitions.filter((tr) => {
+						let cutTime = 0;
+						if (tr.edge.kind === 'cut') {
+							const edge = tr.edge;
+							const cA = track.clips.find((c) => c.id === edge.fromClipId);
+							const cB = track.clips.find((c) => c.id === edge.toClipId);
+							if (!cA || !cB) return false;
+							cutTime = clipEnd(cA);
+						} else if (tr.edge.kind === 'head') {
+							const edge = tr.edge;
+							const c = track.clips.find((c) => c.id === edge.clipId);
+							if (!c) return false;
+							cutTime = c.start;
+						} else {
+							const edge = tr.edge;
+							const c = track.clips.find((c) => c.id === edge.clipId);
+							if (!c) return false;
+							cutTime = clipEnd(c);
+						}
+						const win = transitionWindow(cutTime, tr.duration, tr.alignment);
+						return time >= win.start && time < win.end;
+					})
+				: [];
 
 		if (activeTransitions.length > 0) {
 			const tr = activeTransitions[0];

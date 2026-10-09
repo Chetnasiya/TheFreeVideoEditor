@@ -12,7 +12,7 @@ import { ACCEPTED_TYPES, getAssetUsage, ticksToTimecode } from '../../core';
 import type { Asset, AssetId, ProjectId } from '../../core';
 import { useEditorStore } from '../../state/EditorProvider';
 import { getDerived, type DerivedData } from '../../services/storage/mediaCache';
-import { projectMediaSize } from '../../services/storage/opfs';
+import { projectMediaSize, projectProxyTotalSize } from '../../services/storage/opfs';
 import { openFiles } from '../../services/storage/fileAccess';
 import './media-library.css';
 
@@ -138,6 +138,7 @@ export default function MediaLibrary() {
 	const revision = useEditorStore((state) => state.revision);
 	const [isDragging, setIsDragging] = useState(false);
 	const [storageBytes, setStorageBytes] = useState(0);
+	const [proxyStorageBytes, setProxyStorageBytes] = useState(0);
 	const [renamingId, setRenamingId] = useState<AssetId | null>(null);
 	const [renameValue, setRenameValue] = useState('');
 	const [deleteId, setDeleteId] = useState<AssetId | null>(null);
@@ -147,7 +148,16 @@ export default function MediaLibrary() {
 	const [isImporting, setIsImporting] = useState(false);
 	const [activeAssetId, setActiveAssetId] = useState<AssetId | null>(null);
 	const [thumbnailHeight, setThumbnailHeight] = useState(40);
+	const [proxySettingsOpen, setProxySettingsOpen] = useState(false);
 	const generateAssetDerived = useEditorStore((state) => state.generateAssetDerived);
+	const createProxy = useEditorStore((state) => state.createProxy);
+	const createAllProxies = useEditorStore((state) => state.createAllProxies);
+	const deleteProxy = useEditorStore((state) => state.deleteProxy);
+	const deleteAllProxies = useEditorStore((state) => state.deleteAllProxies);
+	const retryProxyGeneration = useEditorStore((state) => state.retryProxyGeneration);
+	const cancelProxyGeneration = useEditorStore((state) => state.cancelProxyGeneration);
+	const setProjectProxySettings = useEditorStore((state) => state.setProjectProxySettings);
+	const proxyDialogRef = useRef<HTMLDialogElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const relinkInputRef = useRef<HTMLInputElement>(null);
 	const deleteDialogRef = useRef<HTMLDialogElement>(null);
@@ -171,6 +181,7 @@ export default function MediaLibrary() {
 	useEffect(() => {
 		if (!project) {
 			setStorageBytes(0);
+			setProxyStorageBytes(0);
 			return;
 		}
 		let active = true;
@@ -183,6 +194,13 @@ export default function MediaLibrary() {
 					setProjectMessage(
 						`Could not read media storage usage: ${error instanceof Error ? error.message : 'Unknown storage error.'}`
 					);
+			});
+		void projectProxyTotalSize(project.id)
+			.then((size) => {
+				if (active) setProxyStorageBytes(size);
+			})
+			.catch(() => {
+				// Non-fatal if proxy size fails
 			});
 		return () => {
 			active = false;
@@ -202,6 +220,13 @@ export default function MediaLibrary() {
 		if (pendingRelink && !dialog.open) dialog.showModal();
 		if (!pendingRelink && dialog.open) dialog.close();
 	}, [pendingRelink]);
+
+	useEffect(() => {
+		const dialog = proxyDialogRef.current;
+		if (!dialog) return;
+		if (proxySettingsOpen && !dialog.open) dialog.showModal();
+		if (!proxySettingsOpen && dialog.open) dialog.close();
+	}, [proxySettingsOpen]);
 
 	async function importFiles(files: File[]): Promise<void> {
 		if (!files.length || isImporting) return;
@@ -429,6 +454,16 @@ export default function MediaLibrary() {
 						▦
 					</button>
 				</div>
+				<button
+					className="secondary-button media-proxy-settings-btn"
+					type="button"
+					disabled={!project}
+					onClick={() => setProxySettingsOpen(true)}
+					title="Configure video proxy resolution and auto generation"
+					aria-label="Proxy settings"
+				>
+					Proxies…
+				</button>
 			</div>
 			<label className="media-thumbnail-size">
 				<span>Thumbnail height</span>
@@ -591,9 +626,104 @@ export default function MediaLibrary() {
 												Audio track unverified
 											</span>
 										) : null}
+										{asset.kind === 'video' && !asset.offline && (
+											<>
+												{asset.proxy?.status === 'working' && (
+													<span className="media-chip is-proxy" data-testid="proxy-status-working">
+														Proxy {Math.round(asset.proxy.progress ?? 0)}%
+														<button
+															className="media-action-link"
+															type="button"
+															onClick={() => cancelProxyGeneration(asset.id)}
+														>
+															Cancel
+														</button>
+													</span>
+												)}
+												{asset.proxy?.status === 'queued' && (
+													<span className="media-chip is-proxy" data-testid="proxy-status-queued">
+														Proxy queued
+														<button
+															className="media-action-link"
+															type="button"
+															onClick={() => cancelProxyGeneration(asset.id)}
+														>
+															Cancel
+														</button>
+													</span>
+												)}
+												{asset.proxy?.status === 'ready' && (
+													<span
+														className="media-chip is-proxy-ready"
+														data-testid="proxy-status-ready"
+														title={`Proxy: ${asset.proxy.width}×${asset.proxy.height} (${formatBytes(asset.proxy.bytes ?? 0)})`}
+													>
+														Proxy ready ({asset.proxy.height}p)
+														<button
+															className="media-action-link"
+															type="button"
+															title="Delete proxy"
+															onClick={() => void deleteProxy(asset.id)}
+														>
+															Delete
+														</button>
+													</span>
+												)}
+												{asset.proxy?.status === 'stale' && (
+													<span className="media-chip is-failed" data-testid="proxy-status-stale">
+														Proxy stale
+														<button
+															className="media-action-link"
+															type="button"
+															onClick={() => retryProxyGeneration(asset.id)}
+														>
+															Update
+														</button>
+													</span>
+												)}
+												{asset.proxy?.status === 'failed' && (
+													<span
+														className="media-chip is-failed"
+														data-testid="proxy-status-failed"
+														title={asset.proxy.error}
+													>
+														Proxy failed
+														<button
+															className="media-action-link"
+															type="button"
+															onClick={() => retryProxyGeneration(asset.id)}
+														>
+															Retry
+														</button>
+													</span>
+												)}
+												{(!asset.proxy || asset.proxy.status === 'none') && (
+													<button
+														className="media-action-link"
+														type="button"
+														data-testid="create-proxy-button"
+														onClick={() => createProxy(asset.id)}
+													>
+														Create proxy
+													</button>
+												)}
+											</>
+										)}
 									</div>
 								</div>
 								<div className="media-asset-actions">
+									{asset.kind === 'video' &&
+										!asset.offline &&
+										(!asset.proxy || asset.proxy.status === 'none') && (
+											<button
+												type="button"
+												aria-label={`Create proxy for ${asset.name}`}
+												title="Create proxy"
+												onClick={() => createProxy(asset.id)}
+											>
+												⚡
+											</button>
+										)}
 									<button
 										type="button"
 										aria-label={`Rename ${asset.name}`}
@@ -676,7 +806,10 @@ export default function MediaLibrary() {
 				<span>
 					{assets.length} {assets.length === 1 ? 'item' : 'items'}
 				</span>
-				<span>{formatBytes(storageBytes)} used</span>
+				<span>
+					{formatBytes(storageBytes)} used
+					{proxyStorageBytes > 0 && ` (${formatBytes(proxyStorageBytes)} proxies)`}
+				</span>
 			</footer>
 			<dialog
 				ref={deleteDialogRef}
@@ -760,6 +893,107 @@ export default function MediaLibrary() {
 									Relink Anyway
 								</button>
 							)}
+						</div>
+					</div>
+				)}
+			</dialog>
+			<dialog
+				ref={proxyDialogRef}
+				className="editor-dialog media-proxy-dialog"
+				aria-labelledby="media-proxy-title"
+				onCancel={(event) => {
+					event.preventDefault();
+					setProxySettingsOpen(false);
+				}}
+				onClick={(event: MouseEvent<HTMLDialogElement>) => {
+					if (event.target === event.currentTarget) setProxySettingsOpen(false);
+				}}
+			>
+				{project && (
+					<div className="dialog-content">
+						<h2 id="media-proxy-title">Proxy Settings</h2>
+						<p>
+							Proxies are lower-resolution video files generated locally in your browser for
+							smoother playback and scrubbing. Originals are always used for export and final
+							output.
+						</p>
+
+						<div className="dialog-field">
+							<label htmlFor="proxy-enabled-toggle">
+								<input
+									id="proxy-enabled-toggle"
+									type="checkbox"
+									checked={project.proxy?.enabled ?? false}
+									onChange={(e) => setProjectProxySettings({ enabled: e.currentTarget.checked })}
+								/>{' '}
+								Use proxies in preview and timeline
+							</label>
+						</div>
+
+						<div className="dialog-field">
+							<label htmlFor="proxy-target-height">Proxy resolution (height)</label>
+							<select
+								id="proxy-target-height"
+								value={project.proxy?.targetHeight ?? 540}
+								onChange={(e) =>
+									setProjectProxySettings({
+										targetHeight: Number(e.currentTarget.value) as 360 | 540 | 720
+									})
+								}
+							>
+								<option value={360}>360p (Fastest, low memory)</option>
+								<option value={540}>540p (Balanced, recommended)</option>
+								<option value={720}>720p (High clarity)</option>
+							</select>
+						</div>
+
+						<div className="dialog-field">
+							<label htmlFor="proxy-auto-mode">Automatic proxy generation</label>
+							<select
+								id="proxy-auto-mode"
+								value={project.proxy?.auto ?? 'large'}
+								onChange={(e) =>
+									setProjectProxySettings({
+										auto: e.currentTarget.value as 'off' | 'large' | 'all'
+									})
+								}
+							>
+								<option value="large">Large media only (&gt;1080p or &gt;60fps)</option>
+								<option value="all">All imported videos</option>
+								<option value="off">Off (manual only)</option>
+							</select>
+						</div>
+
+						<div className="media-proxy-dialog-stats">
+							<span>
+								Current proxy storage: <strong>{formatBytes(proxyStorageBytes)}</strong>
+							</span>
+						</div>
+
+						<div className="dialog-actions">
+							<button
+								className="secondary-button"
+								type="button"
+								onClick={() => void createAllProxies()}
+								title="Generate proxies for all video assets in this project"
+							>
+								Create All Proxies
+							</button>
+							<button
+								className="danger-button"
+								type="button"
+								onClick={() => void deleteAllProxies()}
+								title="Delete all generated proxies to free up local disk space"
+							>
+								Delete All Proxies
+							</button>
+							<button
+								className="primary-button"
+								type="button"
+								onClick={() => setProxySettingsOpen(false)}
+							>
+								Done
+							</button>
 						</div>
 					</div>
 				)}
