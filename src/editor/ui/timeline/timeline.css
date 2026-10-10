@@ -173,6 +173,7 @@
 
 .timeline-track-row {
 	position: relative;
+	z-index: 7;
 	display: grid;
 	height: var(--track-height, 5rem);
 	min-height: 3rem;

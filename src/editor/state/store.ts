@@ -180,6 +180,16 @@ import { projectNameSchema } from '../services/project/projectName';
 import { applyTheme, initializeTheme, type ThemeMode } from '../services/theme/theme';
 import { clampPanelSize } from '../ui/shell/panelSizing';
 import { createHistory, type HistorySnapshot, type HistoryKeyframeRef } from './history';
+import type { LayoutNode, PanelId, UserWorkspaceState, Workspace } from '../ui/layout/types';
+import {
+	loadUserWorkspaceState,
+	persistUserWorkspaceState,
+	resolveWorkspaceLayout,
+	validateAndNormalizeLayout,
+	setPanelVisible,
+	collectPanels,
+	migrateOldPanelSizes
+} from '../ui/layout/operations';
 
 enablePatches();
 
@@ -436,6 +446,12 @@ export interface EditorState {
 	sequencePlayheads: Record<SequenceId, Time>;
 	isSequenceSettingsDialogOpen: boolean;
 	sequenceSettingsDialogId: SequenceId | null;
+	// Workspace Layout State
+	workspaces: UserWorkspaceState;
+	activeWorkspaceId: string;
+	activeLayout: LayoutNode;
+	maximizedPanelId: PanelId | null;
+	workspaceMessage: string;
 	initialize: () => Promise<void>;
 	toggleTheme: () => void;
 	beginRename: () => void;
@@ -751,6 +767,16 @@ export interface EditorState {
 	openSequenceSettingsDialog: (sequenceId?: SequenceId) => void;
 	closeSequenceSettingsDialog: () => void;
 	updateSequenceSettings: (sequenceId: SequenceId, settings: ProjectSettings | undefined) => void;
+	// Workspace actions
+	switchWorkspace: (workspaceId: string) => void;
+	updateLayout: (layout: LayoutNode) => void;
+	resetWorkspaceLayout: (workspaceId?: string) => void;
+	saveAsNewWorkspace: (name: string) => string | null;
+	deleteCustomWorkspace: (workspaceId: string) => boolean;
+	renameCustomWorkspace: (workspaceId: string, newName: string) => boolean;
+	reorderWorkspaces: (order: string[]) => void;
+	togglePanelVisibility: (panelId: PanelId) => void;
+	toggleMaximizePanel: (panelId?: PanelId) => void;
 }
 
 function errorMessage(error: unknown): string {
@@ -1148,10 +1174,44 @@ export function createEditorStore() {
 				effectsClipboard: null,
 				activeSequenceId: ROOT_SEQUENCE_ID,
 				sequencePlayheads: {},
+				...(() => {
+					const loaded = loadUserWorkspaceState();
+					const activeId = loaded.activeWorkspaceId || 'editing';
+					const resolved = resolveWorkspaceLayout(activeId, loaded);
+					return {
+						workspaces: loaded,
+						activeWorkspaceId: activeId,
+						activeLayout: resolved.layout
+					};
+				})(),
+				maximizedPanelId: null,
+				workspaceMessage: '',
 				async initialize() {
 					if (get().isInitialized) return;
 					set((state) => {
 						state.isInitialized = true;
+					});
+					const loadedWorkspaces = loadUserWorkspaceState();
+					// If no editing override exists but old panel sizes are present, migrate them
+					if (!loadedWorkspaces.overrides['editing']) {
+						const currentMediaW = get().mediaWidth;
+						const currentInspW = get().inspectorWidth;
+						const currentTimeH = get().timelineHeight;
+						if (currentMediaW !== 264 || currentInspW !== 256 || currentTimeH !== 360) {
+							loadedWorkspaces.overrides['editing'] = migrateOldPanelSizes({
+								mediaWidth: currentMediaW,
+								inspectorWidth: currentInspW,
+								timelineHeight: currentTimeH
+							});
+							persistUserWorkspaceState(loadedWorkspaces);
+						}
+					}
+					const activeId = loadedWorkspaces.activeWorkspaceId || 'editing';
+					const resolved = resolveWorkspaceLayout(activeId, loadedWorkspaces);
+					set((state) => {
+						state.workspaces = loadedWorkspaces;
+						state.activeWorkspaceId = activeId;
+						state.activeLayout = resolved.layout;
 					});
 					const theme = initializeTheme();
 					set((state) => {
@@ -5598,6 +5658,182 @@ export function createEditorStore() {
 							state.projectMessage = errorMessage(error);
 						});
 					}
+				},
+
+				switchWorkspace(workspaceId) {
+					const currentWorkspaces = get().workspaces;
+					const { workspace, layout } = resolveWorkspaceLayout(workspaceId, currentWorkspaces);
+					const updatedState: UserWorkspaceState = {
+						...currentWorkspaces,
+						activeWorkspaceId: workspace.id
+					};
+					persistUserWorkspaceState(updatedState);
+
+					// Apply per-workspace timeline view prefs and inspector defaults if available
+					if (workspace.timelinePrefs) {
+						// Apply timeline prefs
+					}
+					let nextExpanded = get().inspector.expanded;
+					if (workspace.inspectorDefaults) {
+						nextExpanded = { ...get().inspector.expanded, ...workspace.inspectorDefaults.expanded };
+						persistInspectorPrefs({ ...get().inspector, expanded: nextExpanded });
+					}
+
+					set((state) => {
+						state.workspaces = updatedState;
+						state.activeWorkspaceId = workspace.id;
+						state.activeLayout = layout;
+						state.workspaceMessage = `Switched to ${workspace.name} workspace`;
+						if (workspace.inspectorDefaults) {
+							state.inspector.expanded = nextExpanded;
+						}
+					});
+				},
+
+				updateLayout(newLayout) {
+					const activeId = get().activeWorkspaceId;
+					const normalized = validateAndNormalizeLayout(newLayout);
+					const currentWorkspaces = get().workspaces;
+					const updatedOverrides = {
+						...currentWorkspaces.overrides,
+						[activeId]: normalized
+					};
+					const updatedState: UserWorkspaceState = {
+						...currentWorkspaces,
+						overrides: updatedOverrides
+					};
+					persistUserWorkspaceState(updatedState);
+					set((state) => {
+						state.workspaces = updatedState;
+						state.activeLayout = normalized;
+					});
+				},
+
+				resetWorkspaceLayout(workspaceId) {
+					const targetId = workspaceId ?? get().activeWorkspaceId;
+					const currentWorkspaces = get().workspaces;
+					const updatedOverrides = { ...currentWorkspaces.overrides };
+					delete updatedOverrides[targetId];
+					const updatedState: UserWorkspaceState = {
+						...currentWorkspaces,
+						overrides: updatedOverrides
+					};
+					persistUserWorkspaceState(updatedState);
+					const { layout } = resolveWorkspaceLayout(targetId, updatedState);
+					set((state) => {
+						state.workspaces = updatedState;
+						if (targetId === state.activeWorkspaceId) {
+							state.activeLayout = layout;
+							state.workspaceMessage = `Reset ${targetId} layout to default`;
+						}
+					});
+				},
+
+				saveAsNewWorkspace(name) {
+					const trimmed = name.trim();
+					if (!trimmed) return null;
+					const id = `custom-${Date.now()}`;
+					const currentLayout = get().activeLayout;
+					const newWs: Workspace = {
+						id,
+						name: trimmed,
+						builtIn: false,
+						layout: structuredClone(currentLayout)
+					};
+					const currentWorkspaces = get().workspaces;
+					const updatedState: UserWorkspaceState = {
+						...currentWorkspaces,
+						activeWorkspaceId: id,
+						custom: [...currentWorkspaces.custom, newWs],
+						order: [...currentWorkspaces.order, id]
+					};
+					persistUserWorkspaceState(updatedState);
+					set((state) => {
+						state.workspaces = updatedState;
+						state.activeWorkspaceId = id;
+						state.workspaceMessage = `Saved workspace ${trimmed}`;
+					});
+					return id;
+				},
+
+				deleteCustomWorkspace(workspaceId) {
+					const currentWorkspaces = get().workspaces;
+					const exists = currentWorkspaces.custom.some((w) => w.id === workspaceId);
+					if (!exists) return false;
+					const updatedCustom = currentWorkspaces.custom.filter((w) => w.id !== workspaceId);
+					const updatedOrder = currentWorkspaces.order.filter((id) => id !== workspaceId);
+					const updatedOverrides = { ...currentWorkspaces.overrides };
+					delete updatedOverrides[workspaceId];
+					const nextActive =
+						currentWorkspaces.activeWorkspaceId === workspaceId
+							? 'editing'
+							: currentWorkspaces.activeWorkspaceId;
+					const updatedState: UserWorkspaceState = {
+						...currentWorkspaces,
+						activeWorkspaceId: nextActive,
+						custom: updatedCustom,
+						order: updatedOrder,
+						overrides: updatedOverrides
+					};
+					persistUserWorkspaceState(updatedState);
+					const { layout } = resolveWorkspaceLayout(nextActive, updatedState);
+					set((state) => {
+						state.workspaces = updatedState;
+						state.activeWorkspaceId = nextActive;
+						state.activeLayout = layout;
+						state.workspaceMessage = `Deleted custom workspace`;
+					});
+					return true;
+				},
+
+				renameCustomWorkspace(workspaceId, newName) {
+					const trimmed = newName.trim();
+					if (!trimmed) return false;
+					const currentWorkspaces = get().workspaces;
+					const customWs = currentWorkspaces.custom.find((w) => w.id === workspaceId);
+					if (!customWs) return false;
+					const updatedCustom = currentWorkspaces.custom.map((w) =>
+						w.id === workspaceId ? { ...w, name: trimmed } : w
+					);
+					const updatedState: UserWorkspaceState = {
+						...currentWorkspaces,
+						custom: updatedCustom
+					};
+					persistUserWorkspaceState(updatedState);
+					set((state) => {
+						state.workspaces = updatedState;
+					});
+					return true;
+				},
+
+				reorderWorkspaces(order) {
+					const currentWorkspaces = get().workspaces;
+					const updatedState: UserWorkspaceState = {
+						...currentWorkspaces,
+						order
+					};
+					persistUserWorkspaceState(updatedState);
+					set((state) => {
+						state.workspaces = updatedState;
+					});
+				},
+
+				togglePanelVisibility(panelId) {
+					const currentLayout = get().activeLayout;
+					const panels = collectPanels(currentLayout);
+					const isVisible = panels.includes(panelId);
+					const updatedLayout = setPanelVisible(currentLayout, panelId, !isVisible);
+					get().updateLayout(updatedLayout);
+				},
+
+				toggleMaximizePanel(panelId) {
+					set((state) => {
+						if (!panelId || state.maximizedPanelId === panelId) {
+							state.maximizedPanelId = null;
+						} else {
+							state.maximizedPanelId = panelId;
+						}
+					});
 				}
 			};
 		})

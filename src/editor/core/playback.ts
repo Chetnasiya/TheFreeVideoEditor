@@ -483,9 +483,11 @@ export function resolveFrame(
 			const rawSource = timelineToSource(clip, t);
 			const maxSource = asset.duration > 0 ? asset.duration : rawSource;
 			const sourceTime = Math.max(0, Math.min(maxSource, rawSource));
+			const leafInstanceKey = instancePrefix ? `${instancePrefix}/${clip.id}` : clip.id;
 			if (track.kind === 'video' && (asset.kind === 'video' || asset.kind === 'image')) {
 				return {
 					clipId: clip.id,
+					instanceKey: leafInstanceKey,
 					assetId: asset.id,
 					trackId: track.id,
 					trackOrder,
@@ -750,9 +752,11 @@ export function resolveFrame(
 			const rawSource = timelineToSource(clip, time);
 			const maxSource = asset.duration > 0 ? asset.duration : rawSource;
 			const sourceTime = Math.max(0, Math.min(maxSource, rawSource));
+			const leafInstanceKey = instancePrefix ? `${instancePrefix}/${clip.id}` : clip.id;
 			if (track.kind === 'video' && (asset.kind === 'video' || asset.kind === 'image')) {
 				videoLayers.push({
 					clipId: clip.id,
+					instanceKey: leafInstanceKey,
 					assetId: asset.id,
 					trackId: track.id,
 					trackOrder,

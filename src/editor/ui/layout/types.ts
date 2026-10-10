@@ -1,0 +1,69 @@
+import type { ComponentType } from 'react';
+
+export type PanelId =
+	| 'media'
+	| 'effects'
+	| 'captions'
+	| 'source'
+	| 'program'
+	| 'inspector'
+	| 'color'
+	| 'mixer'
+	| 'timeline'
+	| 'graph';
+
+export type SplitDirection = 'horizontal' | 'vertical';
+
+export interface LayoutSplitNode {
+	type: 'split';
+	direction: SplitDirection;
+	sizes: number[]; // Relative weights or percentages, e.g. [264, 920, 256] or [60, 40]
+	children: LayoutNode[];
+}
+
+export interface LayoutStackNode {
+	type: 'stack';
+	panelIds: PanelId[];
+	activeId: PanelId;
+}
+
+export type LayoutNode = LayoutSplitNode | LayoutStackNode;
+
+export interface TimelineViewPrefs {
+	videoTrackHeight?: number;
+	audioTrackHeight?: number;
+	waveformEmphasis?: boolean;
+	keyframeLanesMode?: 'selected' | 'all' | 'off';
+}
+
+export interface InspectorDefaults {
+	expanded: Record<string, boolean>;
+	linkScale?: boolean;
+}
+
+export interface Workspace {
+	id: string;
+	name: string;
+	builtIn: boolean;
+	layout: LayoutNode;
+	timelinePrefs?: TimelineViewPrefs;
+	inspectorDefaults?: InspectorDefaults;
+}
+
+export interface UserWorkspaceState {
+	version: number;
+	activeWorkspaceId: string;
+	overrides: Record<string, LayoutNode>;
+	custom: Workspace[];
+	order: string[];
+}
+
+export interface PanelDefinition {
+	id: PanelId;
+	title: string;
+	component: ComponentType<{ [key: string]: unknown }>;
+	singleInstance: boolean;
+	keepAlive: boolean;
+	minSize: { width: number; height: number };
+	icon?: string;
+}

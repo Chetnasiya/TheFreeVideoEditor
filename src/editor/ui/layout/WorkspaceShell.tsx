@@ -1,0 +1,577 @@
+import {
+	useEffect,
+	useRef,
+	type CSSProperties,
+	type KeyboardEvent as ReactKeyboardEvent,
+	type PointerEvent,
+	type ReactNode
+} from 'react';
+import type { LayoutNode, LayoutSplitNode, LayoutStackNode, PanelId } from './types';
+import { collectPanels, resizeSplit } from './operations';
+import { PANEL_REGISTRY } from './registry';
+import './workspace-layout.css';
+
+interface WorkspaceShellProps {
+	layout: LayoutNode;
+	onLayoutChange: (newLayout: LayoutNode) => void;
+	/** Map of renderers for keepAlive components (program, timeline) */
+	keepAliveSlots: {
+		program: ReactNode;
+		timeline: ReactNode;
+	};
+	renderPanel?: (panelId: PanelId) => ReactNode;
+	maximizedPanelId?: PanelId | null;
+	onToggleMaximize?: (panelId: PanelId) => void;
+	onClosePanel?: (panelId: PanelId) => void;
+}
+
+export default function WorkspaceShell({
+	layout,
+	onLayoutChange,
+	keepAliveSlots,
+	renderPanel,
+	maximizedPanelId,
+	onToggleMaximize,
+	onClosePanel
+}: WorkspaceShellProps) {
+	const visiblePanels = collectPanels(layout);
+	const isProgramInLayout = visiblePanels.includes('program');
+	const isTimelineInLayout = visiblePanels.includes('timeline');
+
+	const programVaultRef = useRef<HTMLDivElement>(null);
+	const timelineVaultRef = useRef<HTMLDivElement>(null);
+
+	// Ensure persistent keepAlive DOM nodes are mounted once and reparented cleanly to whichever slot is active
+	useEffect(() => {
+		const programEl = programVaultRef.current;
+		const timelineEl = timelineVaultRef.current;
+
+		if (programEl) {
+			const target = document.querySelector<HTMLDivElement>('.keepalive-target-program');
+			if (target && isProgramInLayout && (!maximizedPanelId || maximizedPanelId === 'program')) {
+				if (programEl.parentElement !== target) {
+					target.appendChild(programEl);
+				}
+			} else {
+				const fallback = document.querySelector<HTMLDivElement>('.keepalive-hidden-vault');
+				if (fallback && programEl.parentElement !== fallback) {
+					fallback.appendChild(programEl);
+				}
+			}
+		}
+
+		if (timelineEl) {
+			const target = document.querySelector<HTMLDivElement>('.keepalive-target-timeline');
+			if (target && isTimelineInLayout && (!maximizedPanelId || maximizedPanelId === 'timeline')) {
+				if (timelineEl.parentElement !== target) {
+					target.appendChild(timelineEl);
+				}
+			} else {
+				const fallback = document.querySelector<HTMLDivElement>('.keepalive-hidden-vault');
+				if (fallback && timelineEl.parentElement !== fallback) {
+					fallback.appendChild(timelineEl);
+				}
+			}
+		}
+	});
+
+	// If a panel is maximized, render just that panel
+	if (maximizedPanelId) {
+		const def = PANEL_REGISTRY[maximizedPanelId];
+		return (
+			<div
+				className="workspace-shell-container workspace-root--maximized"
+				data-testid="workspace-shell"
+			>
+				<div className="layout-stack is-maximized">
+					<div className="layout-stack-header">
+						<div className="layout-tablist" role="tablist">
+							<span className="layout-tab is-active" role="tab" aria-selected="true">
+								{def?.title ?? maximizedPanelId}
+							</span>
+						</div>
+						<div className="layout-stack-actions">
+							<button
+								type="button"
+								className="layout-header-btn"
+								title="Restore"
+								onClick={() => onToggleMaximize?.(maximizedPanelId)}
+							>
+								Restore
+							</button>
+						</div>
+					</div>
+					<div className="layout-stack-content">
+						{maximizedPanelId === 'program' ? (
+							<div className="keepalive-slot keepalive-target-program" />
+						) : maximizedPanelId === 'timeline' ? (
+							<div className="keepalive-slot keepalive-target-timeline" />
+						) : renderPanel ? (
+							renderPanel(maximizedPanelId)
+						) : (
+							def && <def.component />
+						)}
+					</div>
+				</div>
+
+				{/* Keep alive persistent vaults so GL context / engine are never unmounted */}
+				<div className="keepalive-hidden-vault" aria-hidden="true">
+					<div
+						ref={programVaultRef}
+						className="keepalive-persistent-mount"
+						style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+					>
+						{keepAliveSlots.program}
+					</div>
+					<div
+						ref={timelineVaultRef}
+						className="keepalive-persistent-mount"
+						style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+					>
+						{keepAliveSlots.timeline}
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="workspace-shell-container" data-testid="workspace-shell">
+			<LayoutNodeRenderer
+				node={layout}
+				onNodeChange={onLayoutChange}
+				keepAliveSlots={keepAliveSlots}
+				renderPanel={renderPanel}
+				onToggleMaximize={onToggleMaximize}
+				onClosePanel={onClosePanel}
+			/>
+
+			{/* Keep alive persistent vaults so GL context / engine are never unmounted */}
+			<div className="keepalive-hidden-vault" aria-hidden="true">
+				<div
+					ref={programVaultRef}
+					className="keepalive-persistent-mount"
+					style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+				>
+					{keepAliveSlots.program}
+				</div>
+				<div
+					ref={timelineVaultRef}
+					className="keepalive-persistent-mount"
+					style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+				>
+					{keepAliveSlots.timeline}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function LayoutNodeRenderer({
+	node,
+	onNodeChange,
+	keepAliveSlots,
+	renderPanel,
+	onToggleMaximize,
+	onClosePanel
+}: {
+	node: LayoutNode;
+	onNodeChange: (newNode: LayoutNode) => void;
+	keepAliveSlots: { program: ReactNode; timeline: ReactNode };
+	renderPanel?: (panelId: PanelId) => ReactNode;
+	onToggleMaximize?: (panelId: PanelId) => void;
+	onClosePanel?: (panelId: PanelId) => void;
+}) {
+	if (node.type === 'stack') {
+		return (
+			<StackRenderer
+				node={node}
+				onNodeChange={onNodeChange}
+				renderPanel={renderPanel}
+				onToggleMaximize={onToggleMaximize}
+				onClosePanel={onClosePanel}
+			/>
+		);
+	}
+
+	return (
+		<SplitRenderer
+			node={node}
+			onNodeChange={onNodeChange}
+			keepAliveSlots={keepAliveSlots}
+			renderPanel={renderPanel}
+			onToggleMaximize={onToggleMaximize}
+			onClosePanel={onClosePanel}
+		/>
+	);
+}
+
+function SplitRenderer({
+	node,
+	onNodeChange,
+	keepAliveSlots,
+	renderPanel,
+	onToggleMaximize,
+	onClosePanel
+}: {
+	node: LayoutSplitNode;
+	onNodeChange: (newNode: LayoutNode) => void;
+	keepAliveSlots: { program: ReactNode; timeline: ReactNode };
+	renderPanel?: (panelId: PanelId) => ReactNode;
+	onToggleMaximize?: (panelId: PanelId) => void;
+	onClosePanel?: (panelId: PanelId) => void;
+}) {
+	const containerRef = useRef<HTMLDivElement>(null);
+
+	const handleChildChange = (index: number, newChild: LayoutNode) => {
+		const newChildren = [...node.children];
+		newChildren[index] = newChild;
+		onNodeChange({ ...node, children: newChildren });
+	};
+
+	const handleSplitResize = (index: number, delta: number) => {
+		const container = containerRef.current;
+		if (!container) return;
+		const totalPixels =
+			node.direction === 'horizontal' ? container.clientWidth : container.clientHeight;
+		const updated = resizeSplit(node, index, delta, totalPixels, 160);
+		onNodeChange(updated);
+	};
+
+	const childPanels = collectPanels(node);
+	const hasMonitors =
+		childPanels.includes('program') && (childPanels.includes('source') || childPanels.length <= 2);
+	const isMonitorSplit =
+		hasMonitors && !childPanels.includes('timeline') && !childPanels.includes('media');
+
+	return (
+		<div
+			ref={containerRef}
+			className={`layout-split is-${node.direction} ${isMonitorSplit ? 'monitor-panel' : ''}`}
+			style={{ width: '100%', height: '100%' }}
+		>
+			{node.children.map((child, idx) => {
+				const sizePct = node.sizes[idx] ?? 100 / node.children.length;
+				const style: CSSProperties = {
+					flex: `${sizePct} 1 0%`,
+					minWidth: 0,
+					minHeight: 0
+				};
+
+				const childPanelsSub = collectPanels(child);
+				const hasMedia = childPanelsSub.includes('media');
+				const hasInspector = childPanelsSub.includes('inspector');
+				const hasMonitorsSub =
+					childPanelsSub.includes('program') || childPanelsSub.includes('source');
+
+				return (
+					<div key={idx} style={{ display: 'contents' }}>
+						<div
+							className={`layout-split-child ${hasMedia ? 'has-media-panel' : ''} ${hasInspector ? 'has-inspector-panel' : ''} ${hasMonitorsSub ? 'has-monitors' : ''}`}
+							style={style}
+						>
+							<LayoutNodeRenderer
+								node={child}
+								onNodeChange={(newChild) => handleChildChange(idx, newChild)}
+								keepAliveSlots={keepAliveSlots}
+								renderPanel={renderPanel}
+								onToggleMaximize={onToggleMaximize}
+								onClosePanel={onClosePanel}
+							/>
+						</div>
+						{idx < node.children.length - 1 && (
+							<SplitterHandle
+								direction={node.direction}
+								sizeValue={Math.round(sizePct)}
+								onResize={(delta) => handleSplitResize(idx, delta)}
+							/>
+						)}
+					</div>
+				);
+			})}
+		</div>
+	);
+}
+
+function SplitterHandle({
+	direction,
+	sizeValue,
+	onResize
+}: {
+	direction: 'horizontal' | 'vertical';
+	sizeValue: number;
+	onResize: (delta: number) => void;
+}) {
+	const draggingRef = useRef(false);
+	const startPosRef = useRef(0);
+
+	const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+		draggingRef.current = true;
+		startPosRef.current = direction === 'horizontal' ? e.clientX : e.clientY;
+		e.currentTarget.setPointerCapture(e.pointerId);
+	};
+
+	const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+		if (!draggingRef.current) return;
+		const currentPos = direction === 'horizontal' ? e.clientX : e.clientY;
+		const delta = currentPos - startPosRef.current;
+		startPosRef.current = currentPos;
+		onResize(delta);
+	};
+
+	const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+		draggingRef.current = false;
+		try {
+			e.currentTarget.releasePointerCapture(e.pointerId);
+		} catch {}
+	};
+
+	const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+		const step = e.shiftKey ? 20 : 6;
+		if (direction === 'horizontal') {
+			if (e.key === 'ArrowLeft') {
+				e.preventDefault();
+				onResize(-step);
+			} else if (e.key === 'ArrowRight') {
+				e.preventDefault();
+				onResize(step);
+			}
+		} else {
+			if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				onResize(-step);
+			} else if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				onResize(step);
+			}
+		}
+	};
+
+	return (
+		<div
+			className={`layout-splitter is-${direction}`}
+			role="separator"
+			tabIndex={0}
+			aria-orientation={direction}
+			aria-valuenow={sizeValue}
+			aria-label={`Resize split ${direction}`}
+			onPointerDown={onPointerDown}
+			onPointerMove={onPointerMove}
+			onPointerUp={onPointerUp}
+			onPointerCancel={onPointerUp}
+			onKeyDown={onKeyDown}
+		/>
+	);
+}
+
+function StackRenderer({
+	node,
+	onNodeChange,
+	renderPanel,
+	onToggleMaximize,
+	onClosePanel
+}: {
+	node: LayoutStackNode;
+	onNodeChange: (newNode: LayoutNode) => void;
+	renderPanel?: (panelId: PanelId) => ReactNode;
+	onToggleMaximize?: (panelId: PanelId) => void;
+	onClosePanel?: (panelId: PanelId) => void;
+}) {
+	const activePanel = node.activeId;
+	const activeDef = PANEL_REGISTRY[activePanel];
+
+	const handleSelectTab = (panelId: PanelId) => {
+		onNodeChange({ ...node, activeId: panelId });
+	};
+
+	const onTabKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) => {
+		if (e.key === 'ArrowRight') {
+			e.preventDefault();
+			const next = (currentIndex + 1) % node.panelIds.length;
+			handleSelectTab(node.panelIds[next]!);
+		} else if (e.key === 'ArrowLeft') {
+			e.preventDefault();
+			const prev = (currentIndex - 1 + node.panelIds.length) % node.panelIds.length;
+			handleSelectTab(node.panelIds[prev]!);
+		} else if (e.key === 'Home') {
+			e.preventDefault();
+			handleSelectTab(node.panelIds[0]!);
+		} else if (e.key === 'End') {
+			e.preventDefault();
+			handleSelectTab(node.panelIds[node.panelIds.length - 1]!);
+		}
+	};
+
+	const canClose = activePanel !== 'program' && activePanel !== 'timeline';
+
+	return (
+		<div className="layout-stack" data-testid={`stack-${activePanel}`}>
+			<div className="layout-stack-header">
+				<div className="layout-tablist" role="tablist" aria-label="Panel tabs">
+					{node.panelIds.map((panelId, idx) => {
+						const def = PANEL_REGISTRY[panelId];
+						const isActive = panelId === activePanel;
+						const tabId =
+							panelId === 'media'
+								? 'project-panel-title'
+								: panelId === 'effects'
+									? 'effects-panel-title'
+									: panelId === 'captions'
+										? 'captions-panel-title'
+										: panelId === 'inspector'
+											? 'inspector-title'
+											: panelId === 'color'
+												? 'color-panel-title'
+												: undefined;
+
+						return (
+							<button
+								key={panelId}
+								id={tabId}
+								type="button"
+								role="tab"
+								aria-selected={isActive}
+								className={`layout-tab ${isActive ? 'is-active' : ''}`}
+								tabIndex={isActive ? 0 : -1}
+								onClick={() => handleSelectTab(panelId)}
+								onKeyDown={(e) => onTabKeyDown(e, idx)}
+								data-testid={`tab-${panelId}`}
+							>
+								{def?.title ?? panelId}
+							</button>
+						);
+					})}
+				</div>
+				<div className="layout-stack-actions">
+					<button
+						type="button"
+						className="layout-header-btn"
+						title="Maximize panel"
+						aria-label={`Maximize ${activeDef?.title ?? activePanel}`}
+						onClick={() => onToggleMaximize?.(activePanel)}
+					>
+						⤢
+					</button>
+					{canClose && (
+						<button
+							type="button"
+							className="layout-header-btn"
+							title="Close panel"
+							aria-label={`Close ${activeDef?.title ?? activePanel}`}
+							onClick={() => onClosePanel?.(activePanel)}
+						>
+							✕
+						</button>
+					)}
+				</div>
+			</div>
+
+			<div className="layout-stack-content">
+				{node.panelIds.map((panelId) => {
+					const isActive = panelId === activePanel;
+					const isKeepAlive = panelId === 'program' || panelId === 'timeline';
+
+					if (!isActive && !isKeepAlive) {
+						return null;
+					}
+
+					const panelStyle: CSSProperties = isActive
+						? { width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }
+						: { display: 'none' };
+
+					const panelClassMap: Record<PanelId, string> = {
+						media: 'media-panel',
+						effects: 'effects-panel',
+						captions: 'captions-panel',
+						source: 'source-panel',
+						program: 'program-panel',
+						inspector: 'inspector-panel',
+						color: 'color-panel',
+						mixer: 'mixer-panel',
+						timeline: 'timeline-panel',
+						graph: 'graph-panel'
+					};
+
+					const Tag =
+						panelId === 'timeline' || panelId === 'media'
+							? 'section'
+							: panelId === 'inspector'
+								? 'aside'
+								: 'div';
+					const ariaLabelledby =
+						panelId === 'timeline'
+							? 'timeline-title'
+							: panelId === 'media'
+								? 'project-panel-title'
+								: panelId === 'inspector'
+									? 'inspector-title'
+									: undefined;
+
+					return (
+						<Tag
+							key={panelId}
+							id={
+								panelId === 'media'
+									? 'media-panel'
+									: panelId === 'inspector'
+										? 'inspector-panel'
+										: panelId === 'timeline'
+											? 'timeline-panel'
+											: undefined
+							}
+							className={`layout-panel-body ${panelClassMap[panelId] ?? ''}`}
+							style={panelStyle}
+							aria-hidden={!isActive}
+							aria-labelledby={ariaLabelledby}
+						>
+							{panelId === 'timeline' && (
+								<h2 id="timeline-title" className="sr-only">
+									Timeline
+								</h2>
+							)}
+							{panelId === 'media' && (
+								<h2 id="project-panel-title" className="sr-only">
+									Project
+								</h2>
+							)}
+							{panelId === 'inspector' && (
+								<h2 id="inspector-title" className="sr-only">
+									Properties
+								</h2>
+							)}
+							{panelId === 'program' ? (
+								<div className="keepalive-slot keepalive-target-program monitor-program" />
+							) : panelId === 'timeline' ? (
+								<div className="keepalive-slot keepalive-target-timeline" />
+							) : panelId === 'source' ? (
+								<div
+									className="monitor monitor-source"
+									style={{
+										width: '100%',
+										height: '100%',
+										display: 'flex',
+										flexDirection: 'column'
+									}}
+								>
+									{renderPanel
+										? renderPanel(panelId)
+										: (() => {
+												const Comp = PANEL_REGISTRY[panelId]?.component;
+												return Comp ? <Comp /> : null;
+											})()}
+								</div>
+							) : (
+								(() => {
+									const customRender = renderPanel ? renderPanel(panelId) : undefined;
+									if (customRender !== undefined && customRender !== null) return customRender;
+									const Comp = PANEL_REGISTRY[panelId]?.component;
+									return Comp ? <Comp /> : null;
+								})()
+							)}
+						</Tag>
+					);
+				})}
+			</div>
+		</div>
+	);
+}

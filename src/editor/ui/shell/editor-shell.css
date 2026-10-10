@@ -443,16 +443,10 @@
 }
 
 .editor-workspace {
-	display: grid;
+	display: flex;
+	flex-direction: column;
 	min-height: 0;
 	flex: 1;
-	grid-template-columns:
-		minmax(12.5rem, var(--media-panel-width))
-		6px
-		minmax(20rem, 1fr)
-		6px
-		minmax(13.125rem, var(--inspector-panel-width));
-	grid-template-rows: minmax(15rem, 1fr) 6px minmax(15rem, var(--timeline-panel-height));
 	overflow: hidden;
 }
 

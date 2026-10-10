@@ -24,7 +24,7 @@ import {
 	sequenceDuration,
 	wouldCreateCycle
 } from './operations';
-import type { AssetId, Clip, ClipId, Project, SequenceId } from '../types';
+import type { Asset, AssetId, Clip, ClipId, Project, SequenceId, Track } from '../types';
 import { createEmptyProject } from '../factory';
 
 const RED = { r: 1, g: 0, b: 0, a: 1 };
@@ -361,5 +361,99 @@ describe('Sequence Operations (CRUD, Nest, Expand, Make Unique)', () => {
 			});
 			assertInvariant(project);
 		}
+	});
+
+	it('resolves distinct instanceKeys and sourceTimes for two overlapping clips of the same asset in one nested sequence', async () => {
+		const { resolveFrame } = await import('../playback');
+		const { insertClip } = await import('../operations/clips');
+		let project = makeEmptyProject();
+		const assetId = 'colors-asset' as AssetId;
+		const asset: Asset = {
+			id: assetId,
+			name: 'colors.mp4',
+			kind: 'video',
+			duration: 10_000_000,
+			fps: 25,
+			width: 1920,
+			height: 1080,
+			mimeType: 'video/mp4',
+			size: 39579,
+			hasAudio: true,
+			opfsPath: 'media/colors.mp4'
+		};
+		project = {
+			...project,
+			assets: {
+				[assetId]: asset
+			}
+		};
+
+		// Create nested sequence with 2 video tracks
+		const { project: pWithSeq, sequenceId } = createSequence(project, 'Nested Color Seq');
+		let pNested = pWithSeq;
+
+		const clip1: Clip = {
+			id: 'clip-nested-1' as ClipId,
+			assetId,
+			start: 0,
+			duration: 4_000_000,
+			sourceIn: 1_000_000,
+			sourceOut: 5_000_000,
+			speed: 1,
+			volume: 1
+		};
+		const clip2: Clip = {
+			id: 'clip-nested-2' as ClipId,
+			assetId,
+			start: 0,
+			duration: 4_000_000,
+			sourceIn: 3_000_000,
+			sourceOut: 7_000_000,
+			speed: 1,
+			volume: 1
+		};
+
+		pNested = applyToSequence(pNested, sequenceId, (view) => {
+			const track1 = view.tracks.find((t) => t.kind === 'video')!;
+			const track2 = {
+				id: 'vtrack-2' as Track['id'],
+				kind: 'video' as const,
+				name: 'Video 2',
+				muted: false,
+				locked: false,
+				hidden: false,
+				clips: []
+			};
+			const withTrack2 = { ...view, tracks: [...view.tracks, track2] };
+			const withClip1 = insertClip(withTrack2, track1.id, clip1);
+			return insertClip(withClip1, track2.id, clip2);
+		});
+
+		// Add instance of sequence to root timeline
+		const rootVTrack = pNested.tracks.find((t) => t.kind === 'video')!;
+		const { project: pWithInst, videoClipId } = addSequenceInstance(
+			pNested,
+			ROOT_SEQUENCE_ID,
+			sequenceId,
+			0,
+			rootVTrack.id
+		);
+
+		const resolved = resolveFrame(pWithInst, 1_000_000);
+		expect(resolved.videoLayers.length).toBe(1);
+		const seqLayer = resolved.videoLayers[0]!;
+		expect(seqLayer.kind).toBe('sequence');
+		expect(seqLayer.nested).toBeDefined();
+
+		const childLayers = seqLayer.nested!.layers;
+		expect(childLayers.length).toBe(2);
+
+		// Verify distinct keys and distinct sourceTimes
+		expect(childLayers[0]!.instanceKey).not.toEqual(childLayers[1]!.instanceKey);
+		expect(childLayers[0]!.instanceKey).toBe(`${videoClipId}/clip-nested-2`);
+		expect(childLayers[1]!.instanceKey).toBe(`${videoClipId}/clip-nested-1`);
+		expect(childLayers[0]!.sourceTime).not.toEqual(childLayers[1]!.sourceTime);
+		expect(childLayers[1]!.sourceTime).toBe(2_000_000); // 1s into clip1 (sourceIn 1s -> 2s)
+		expect(childLayers[0]!.sourceTime).toBe(4_000_000); // 1s into clip2 (sourceIn 3s -> 4s)
 	});
 });

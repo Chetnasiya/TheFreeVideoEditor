@@ -1190,7 +1190,12 @@ function ActiveTimeline({ project }: { project: Project }) {
 									className={`timeline-track-row track-${track.kind}`}
 									role="row"
 									key={track.id}
-									style={{ '--track-height': `${trackHeights[track.id] ?? 45}px` } as CSSProperties}
+									style={
+										{
+											'--track-height': `${trackHeights[track.id] ?? 45}px`,
+											zIndex: activeProject.tracks.length - index
+										} as CSSProperties
+									}
 								>
 									<TrackHeader
 										track={track}

@@ -5,8 +5,6 @@ import {
 	useRef,
 	useState,
 	type CSSProperties,
-	type KeyboardEvent as ReactKeyboardEvent,
-	type PointerEvent,
 	type SyntheticEvent
 } from 'react';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
@@ -16,9 +14,16 @@ import NewProjectDialog from '../project/NewProjectDialog';
 import RecoveryDialog from '../project/RecoveryDialog';
 import SaveCopyPrompt from '../project/SaveCopyPrompt';
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog';
-import MediaLibrary from '../media-library/MediaLibrary';
+import SpeedDurationDialog from '../dialogs/SpeedDurationDialog';
+import SequenceSettingsDialog from '../dialogs/SequenceSettingsDialog';
+import ExportDialog from '../export/ExportDialog';
+import PreviewWorkspace from '../preview/PreviewWorkspace';
+import SourceMonitor from '../preview/SourceMonitor';
 import Timeline from '../timeline/Timeline';
-import Inspector from '../inspector/Inspector';
+import { MixerPanel } from '../audio/MixerPanel';
+import WorkspaceShell from '../layout/WorkspaceShell';
+import EditWorkspacesDialog from '../dialogs/EditWorkspacesDialog';
+import { collectPanels } from '../layout/operations';
 import { importTfve } from '../../services/interop/native';
 import {
 	createEditorShortcutRegistry,
@@ -28,28 +33,12 @@ import {
 import { openFile } from '../../services/storage/fileAccess';
 import { clipEnd, framesToTicks, timelineDuration, isTransitionsEnabled } from '../../core';
 import type { PlaybackEngine } from '../../services/playback/engine';
-import type { ResizeHandle } from '../../state/store';
-import PreviewWorkspace from '../preview/PreviewWorkspace';
-import SourceMonitor from '../preview/SourceMonitor';
-import ExportDialog from '../export/ExportDialog';
-import SpeedDurationDialog from '../dialogs/SpeedDurationDialog';
-import SequenceSettingsDialog from '../dialogs/SequenceSettingsDialog';
-import EffectsLibrary from '../effects/EffectsLibrary';
-import ColorPanel from '../color/ColorPanel';
-import { MixerPanel } from '../audio/MixerPanel';
-import { CaptionsPanel } from '../captions/CaptionsPanel';
 
 interface PanelLayoutStyle extends CSSProperties {
 	'--media-panel-width': string;
 	'--inspector-panel-width': string;
 	'--timeline-panel-height': string;
 }
-
-const PANEL_LIMITS = {
-	media: { min: 200, max: 420 },
-	inspector: { min: 210, max: 400 },
-	timeline: { min: 170, max: 460 }
-} as const;
 
 function EditorShell() {
 	const editorStore = useEditorStoreApi();
@@ -75,7 +64,6 @@ function EditorShell() {
 	const closeFileMenu = useEditorStore((state) => state.closeFileMenu);
 	const setProjectNameDraft = useEditorStore((state) => state.setProjectNameDraft);
 	const saveProjectName = useEditorStore((state) => state.saveProjectName);
-	const resizePanel = useEditorStore((state) => state.resizePanel);
 	const openProjectManager = useEditorStore((state) => state.openProjectManager);
 	const openNewProjectDialog = useEditorStore((state) => state.openNewProjectDialog);
 	const openExportDialog = useEditorStore((state) => state.openExportDialog);
@@ -93,19 +81,34 @@ function EditorShell() {
 	const proxySuggestion = useEditorStore((state) => state.proxySuggestion);
 	const acceptProxySuggestion = useEditorStore((state) => state.acceptProxySuggestion);
 	const dismissProxySuggestion = useEditorStore((state) => state.dismissProxySuggestion);
+	const activeLayout = useEditorStore((state) => state.activeLayout);
+	const updateLayout = useEditorStore((state) => state.updateLayout);
+	const maximizedPanelId = useEditorStore((state) => state.maximizedPanelId);
+	const toggleMaximizePanel = useEditorStore((state) => state.toggleMaximizePanel);
+	const togglePanelVisibility = useEditorStore((state) => state.togglePanelVisibility);
+	const workspaces = useEditorStore((state) => state.workspaces);
+	const activeWorkspaceId = useEditorStore((state) => state.activeWorkspaceId);
+	const switchWorkspace = useEditorStore((state) => state.switchWorkspace);
+	const resetWorkspaceLayout = useEditorStore((state) => state.resetWorkspaceLayout);
+	const saveAsNewWorkspace = useEditorStore((state) => state.saveAsNewWorkspace);
+	const workspaceMessage = useEditorStore((state) => state.workspaceMessage);
+
 	const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
+	const [isWindowMenuOpen, setIsWindowMenuOpen] = useState(false);
 	const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
 	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-	const [leftTab, setLeftTab] = useState<'project' | 'effects' | 'captions'>('project');
-	const [inspectorTab, setInspectorTab] = useState<'properties' | 'color'>('properties');
+	const [isEditWorkspacesOpen, setIsEditWorkspacesOpen] = useState(false);
+	const [isWorkspaceOverflowOpen, setIsWorkspaceOverflowOpen] = useState(false);
 	const shortcutReturnFocusRef = useRef<HTMLElement | null>(null);
 	const shortcutPlatform = detectShortcutPlatform();
 	const undoShortcut = shortcutPlatform === 'mac' ? '⌘Z' : 'Ctrl+Z';
 	const redoShortcut = shortcutPlatform === 'mac' ? '⌘⇧Z' : 'Ctrl+Shift+Z';
 	const fileMenuButtonRef = useRef<HTMLButtonElement>(null);
 	const editMenuButtonRef = useRef<HTMLButtonElement>(null);
+	const windowMenuButtonRef = useRef<HTMLButtonElement>(null);
 	const helpMenuButtonRef = useRef<HTMLButtonElement>(null);
 	const menuBarRef = useRef<HTMLElement>(null);
+	const workspaceOverflowRef = useRef<HTMLDivElement>(null);
 	const projectNameButtonRef = useRef<HTMLButtonElement>(null);
 	const projectNameInputRef = useRef<HTMLInputElement>(null);
 	const playbackRef = useRef<PlaybackEngine | null>(null);
@@ -136,15 +139,27 @@ function EditorShell() {
 	const closeAllMenus = useCallback(() => {
 		closeFileMenu();
 		setIsEditMenuOpen(false);
+		setIsWindowMenuOpen(false);
 		setIsHelpMenuOpen(false);
+		setIsWorkspaceOverflowOpen(false);
 	}, [closeFileMenu]);
 
 	useEffect(() => {
-		if (!isFileMenuOpen && !isEditMenuOpen && !isHelpMenuOpen) return;
+		if (
+			!isFileMenuOpen &&
+			!isEditMenuOpen &&
+			!isWindowMenuOpen &&
+			!isHelpMenuOpen &&
+			!isWorkspaceOverflowOpen
+		)
+			return;
 
 		const handlePointerDown = (event: globalThis.PointerEvent) => {
 			const target = event.target;
-			if (target instanceof Node && menuBarRef.current?.contains(target)) {
+			if (
+				target instanceof Node &&
+				(menuBarRef.current?.contains(target) || workspaceOverflowRef.current?.contains(target))
+			) {
 				return;
 			}
 			closeAllMenus();
@@ -154,7 +169,14 @@ function EditorShell() {
 		return () => {
 			window.removeEventListener('pointerdown', handlePointerDown);
 		};
-	}, [isFileMenuOpen, isEditMenuOpen, isHelpMenuOpen, closeAllMenus]);
+	}, [
+		isFileMenuOpen,
+		isEditMenuOpen,
+		isWindowMenuOpen,
+		isHelpMenuOpen,
+		isWorkspaceOverflowOpen,
+		closeAllMenus
+	]);
 
 	useEffect(() => {
 		if (isRenaming && projectMessage) projectNameInputRef.current?.focus();
@@ -443,6 +465,29 @@ function EditorShell() {
 			'go-up-sequence': () => {
 				const current = state();
 				current.closeSequence();
+			},
+			'workspace-1': () => {
+				state().switchWorkspace('assembly');
+			},
+			'workspace-2': () => {
+				state().switchWorkspace('editing');
+			},
+			'workspace-3': () => {
+				state().switchWorkspace('color');
+			},
+			'workspace-4': () => {
+				state().switchWorkspace('effects');
+			},
+			'workspace-5': () => {
+				state().switchWorkspace('audio');
+			},
+			'workspace-6': () => {
+				state().switchWorkspace('graphics');
+			},
+			'toggle-maximize-panel': () => {
+				const current = state();
+				// Toggle maximize active or program panel
+				current.toggleMaximizePanel(current.maximizedPanelId ?? 'program');
 			}
 		});
 	}, [editorStore, openShortcutsDialog]);
@@ -468,79 +513,8 @@ function EditorShell() {
 		closeFileMenu();
 	}
 
-	function startResize(event: PointerEvent<HTMLDivElement>): void {
-		event.currentTarget.setPointerCapture(event.pointerId);
-	}
-
-	function resizeWithPointer(handle: ResizeHandle, event: PointerEvent<HTMLDivElement>): void {
-		if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-
-		if (handle === 'media') {
-			resizePanel('media', event.movementX);
-		} else if (handle === 'inspector') {
-			resizePanel('inspector', -event.movementX);
-		} else {
-			resizePanel('timeline', -event.movementY);
-		}
-	}
-
-	function resizeWithKeyboard(
-		handle: ResizeHandle,
-		event: ReactKeyboardEvent<HTMLDivElement>
-	): void {
-		const step = event.shiftKey ? 32 : 12;
-		let delta = 0;
-
-		if (handle === 'media' && event.key === 'ArrowRight') delta = step;
-		if (handle === 'media' && event.key === 'ArrowLeft') delta = -step;
-		if (handle === 'inspector' && event.key === 'ArrowLeft') delta = step;
-		if (handle === 'inspector' && event.key === 'ArrowRight') delta = -step;
-		if (handle === 'timeline' && event.key === 'ArrowUp') delta = step;
-		if (handle === 'timeline' && event.key === 'ArrowDown') delta = -step;
-
-		if (delta === 0) return;
-		event.preventDefault();
-
-		resizePanel(handle, delta);
-	}
-
-	function resizeHandle(
-		handle: ResizeHandle,
-		label: string,
-		orientation: 'vertical' | 'horizontal'
-	) {
-		const value =
-			handle === 'media' ? mediaWidth : handle === 'inspector' ? inspectorWidth : timelineHeight;
-		const limits = PANEL_LIMITS[handle];
-
-		return (
-			<div
-				className={`resize-handle resize-handle-${orientation}`}
-				role="separator"
-				tabIndex={0}
-				aria-label={label}
-				aria-orientation={orientation}
-				aria-controls={
-					handle === 'media'
-						? 'media-panel'
-						: handle === 'inspector'
-							? 'inspector-panel'
-							: 'timeline-panel'
-				}
-				aria-valuemin={limits.min}
-				aria-valuemax={limits.max}
-				aria-valuenow={value}
-				onPointerDown={startResize}
-				onPointerMove={(event) => resizeWithPointer(handle, event)}
-				onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
-				onPointerCancel={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
-				onKeyDown={(event) => resizeWithKeyboard(handle, event)}
-			/>
-		);
-	}
-
 	return (
-		<div className="editor-app" style={layoutStyle}>
+		<div className="editor-app editor-shell" style={layoutStyle}>
 			<a className="skip-link" href="#editor-workspace">
 				Skip to editor
 			</a>
@@ -995,6 +969,122 @@ function EditorShell() {
 						</div>
 						<div className="application-menu">
 							<button
+								ref={windowMenuButtonRef}
+								className="menu-button"
+								type="button"
+								aria-haspopup="menu"
+								aria-expanded={isWindowMenuOpen}
+								onClick={() => {
+									closeFileMenu();
+									setIsEditMenuOpen(false);
+									setIsHelpMenuOpen(false);
+									setIsWindowMenuOpen((open) => !open);
+								}}
+							>
+								Window
+							</button>
+							{isWindowMenuOpen && (
+								<div
+									className="file-menu-items application-menu-items"
+									role="menu"
+									aria-label="Window actions"
+									onKeyDown={(event) => {
+										if (event.key === 'Escape') {
+											setIsWindowMenuOpen(false);
+											windowMenuButtonRef.current?.focus();
+											event.preventDefault();
+										}
+									}}
+								>
+									<div
+										style={{
+											padding: '4px 12px',
+											fontSize: '11px',
+											color: 'var(--color-mute, #888)',
+											fontWeight: 600
+										}}
+									>
+										WORKSPACES
+									</div>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() => {
+											setIsWindowMenuOpen(false);
+											resetWorkspaceLayout();
+										}}
+									>
+										Reset to Saved Layout
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() => {
+											setIsWindowMenuOpen(false);
+											const name = window.prompt('Enter name for new workspace:');
+											if (name) saveAsNewWorkspace(name);
+										}}
+									>
+										Save as New Workspace…
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() => {
+											setIsWindowMenuOpen(false);
+											setIsEditWorkspacesOpen(true);
+										}}
+									>
+										Edit Workspaces…
+									</button>
+									<hr />
+									<div
+										style={{
+											padding: '4px 12px',
+											fontSize: '11px',
+											color: 'var(--color-mute, #888)',
+											fontWeight: 600
+										}}
+									>
+										PANELS
+									</div>
+									{(
+										[
+											['media', 'Project / Media Library'],
+											['effects', 'Effects'],
+											['captions', 'Captions'],
+											['source', 'Source Monitor'],
+											['program', 'Program Monitor'],
+											['inspector', 'Properties / Inspector'],
+											['color', 'Color'],
+											['mixer', 'Audio Mixer'],
+											['timeline', 'Timeline'],
+											['graph', 'Graph Editor']
+										] as const
+									).map(([panelId, title]) => {
+										const visiblePanels = collectPanels(activeLayout);
+										const isVisible = visiblePanels.includes(panelId);
+										return (
+											<button
+												key={panelId}
+												type="button"
+												role="menuitem"
+												onClick={() => {
+													setIsWindowMenuOpen(false);
+													togglePanelVisibility(panelId);
+												}}
+												style={{ display: 'flex', justifyContent: 'space-between' }}
+											>
+												<span>{title}</span>
+												<span>{isVisible ? '✓' : ''}</span>
+											</button>
+										);
+									})}
+								</div>
+							)}
+						</div>
+						<div className="application-menu">
+							<button
 								ref={helpMenuButtonRef}
 								className="menu-button"
 								type="button"
@@ -1003,6 +1093,7 @@ function EditorShell() {
 								onClick={() => {
 									closeFileMenu();
 									setIsEditMenuOpen(false);
+									setIsWindowMenuOpen(false);
 									setIsHelpMenuOpen((open) => !open);
 								}}
 							>
@@ -1199,10 +1290,119 @@ function EditorShell() {
 					</div>
 				</div>
 
-				<nav className="workspace-bar" aria-label="Workspace layout">
-					<span className="workspace-tab is-active" aria-current="page">
-						Editing
-					</span>
+				<nav className="workspace-bar" aria-label="Workspace layout" role="tablist">
+					{workspaces.order.map((wsId, idx) => {
+						const customWs = workspaces.custom.find((c) => c.id === wsId);
+						const nameMap: Record<string, string> = {
+							assembly: 'Assembly',
+							editing: 'Editing',
+							color: 'Color',
+							effects: 'Effects',
+							audio: 'Audio',
+							graphics: 'Graphics'
+						};
+						const name = customWs ? customWs.name : (nameMap[wsId] ?? wsId);
+						const isActive = wsId === activeWorkspaceId;
+
+						return (
+							<button
+								key={wsId}
+								type="button"
+								role="tab"
+								aria-selected={isActive}
+								data-active={isActive ? 'true' : undefined}
+								className={`workspace-tab ${isActive ? 'is-active' : ''}`}
+								tabIndex={isActive ? 0 : -1}
+								onClick={() => switchWorkspace(wsId)}
+								onKeyDown={(e) => {
+									if (e.key === 'ArrowRight') {
+										e.preventDefault();
+										const next = workspaces.order[(idx + 1) % workspaces.order.length]!;
+										switchWorkspace(next);
+									} else if (e.key === 'ArrowLeft') {
+										e.preventDefault();
+										const prev =
+											workspaces.order[
+												(idx - 1 + workspaces.order.length) % workspaces.order.length
+											]!;
+										switchWorkspace(prev);
+									} else if (e.key === 'Home') {
+										e.preventDefault();
+										switchWorkspace(workspaces.order[0]!);
+									} else if (e.key === 'End') {
+										e.preventDefault();
+										switchWorkspace(workspaces.order[workspaces.order.length - 1]!);
+									}
+								}}
+							>
+								{name}
+							</button>
+						);
+					})}
+					<div
+						ref={workspaceOverflowRef}
+						style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
+					>
+						<button
+							type="button"
+							className="workspace-overflow-btn"
+							aria-label="More workspaces and layout options"
+							title="More workspaces"
+							aria-haspopup="menu"
+							aria-expanded={isWorkspaceOverflowOpen}
+							onClick={() => setIsWorkspaceOverflowOpen((open) => !open)}
+						>
+							»
+						</button>
+						{isWorkspaceOverflowOpen && (
+							<div
+								className="workspace-overflow-menu"
+								role="menu"
+								aria-label="Workspace options"
+								onKeyDown={(e) => {
+									if (e.key === 'Escape') {
+										setIsWorkspaceOverflowOpen(false);
+										e.preventDefault();
+									}
+								}}
+							>
+								<button
+									type="button"
+									role="menuitem"
+									className="workspace-overflow-item"
+									onClick={() => {
+										setIsWorkspaceOverflowOpen(false);
+										resetWorkspaceLayout();
+									}}
+								>
+									Reset to Saved Layout
+								</button>
+								<button
+									type="button"
+									role="menuitem"
+									className="workspace-overflow-item"
+									onClick={() => {
+										setIsWorkspaceOverflowOpen(false);
+										const name = window.prompt('Enter name for new workspace:');
+										if (name) saveAsNewWorkspace(name);
+									}}
+								>
+									Save as New Workspace…
+								</button>
+								<button
+									type="button"
+									role="menuitem"
+									className="workspace-overflow-item"
+									onClick={() => {
+										setIsWorkspaceOverflowOpen(false);
+										setIsEditWorkspacesOpen(true);
+									}}
+								>
+									Edit Workspaces…
+								</button>
+							</div>
+						)}
+					</div>
 					<span className="workspace-spacer" />
 					{project && (
 						<span className="workspace-resolution">
@@ -1215,122 +1415,37 @@ function EditorShell() {
 			<main
 				id="editor-workspace"
 				className="editor-workspace"
-				style={layoutStyle}
+				style={{ width: '100%', height: '100%', flex: 1, minHeight: 0, overflow: 'hidden' }}
 				aria-label="Video editing workspace"
 			>
-				<section
-					id="media-panel"
-					className="workspace-panel media-panel"
-					aria-labelledby="project-panel-title"
-				>
-					<div className="panel-tabs" role="group" aria-label="Project panel">
-						<button
-							type="button"
-							className={`panel-tab ${leftTab === 'project' ? 'is-active' : ''}`}
-							id="project-panel-title"
-							onClick={() => setLeftTab('project')}
-						>
-							Project
-						</button>
-						<button
-							type="button"
-							className={`panel-tab ${leftTab === 'effects' ? 'is-active' : ''}`}
-							id="effects-panel-title"
-							onClick={() => setLeftTab('effects')}
-						>
-							Effects
-						</button>
-						<button
-							type="button"
-							className={`panel-tab ${leftTab === 'captions' ? 'is-active' : ''}`}
-							id="captions-panel-title"
-							onClick={() => setLeftTab('captions')}
-						>
-							Captions
-						</button>
-					</div>
-					<div className="project-panel-content">
-						{leftTab === 'project' ? (
-							<MediaLibrary />
-						) : leftTab === 'effects' ? (
-							<EffectsLibrary />
-						) : (
-							<CaptionsPanel />
-						)}
-					</div>
-				</section>
-
-				{resizeHandle('media', 'Resize media library panel', 'vertical')}
-
-				<section className="monitor-panel" aria-label="Video monitors">
-					<div className="monitor monitor-source" aria-labelledby="source-title">
-						<div className="monitor-heading">
-							<h2 id="source-title">Source</h2>
-							<span className="panel-meta">Project media</span>
-						</div>
-						<div className="monitor-stage">
-							<SourceMonitor engine={playbackEngine} />
-						</div>
-					</div>
-
-					<div className="monitor monitor-program" aria-labelledby="program-title">
-						<div className="monitor-heading">
-							<h2 id="program-title">Program</h2>
-							<span className="panel-meta">
-								{project ? `${project.settings.width} × ${project.settings.height}` : 'No sequence'}
-							</span>
-						</div>
-						<div className="monitor-stage">
+				<WorkspaceShell
+					layout={activeLayout}
+					onLayoutChange={updateLayout}
+					maximizedPanelId={maximizedPanelId}
+					onToggleMaximize={toggleMaximizePanel}
+					onClosePanel={togglePanelVisibility}
+					keepAliveSlots={{
+						program: (
 							<PreviewWorkspace
 								project={project}
 								revision={revision}
 								onEngineChange={onPlaybackEngineChange}
 							/>
-						</div>
-					</div>
-				</section>
-
-				{resizeHandle('inspector', 'Resize inspector panel', 'vertical')}
-
-				<aside
-					id="inspector-panel"
-					className="workspace-panel inspector-panel"
-					aria-labelledby="inspector-title"
-				>
-					<div className="panel-tabs" role="group" aria-label="Utility panel">
-						<button
-							type="button"
-							className={`panel-tab ${inspectorTab === 'properties' ? 'is-active' : ''}`}
-							id="inspector-title"
-							onClick={() => setInspectorTab('properties')}
-						>
-							Properties
-						</button>
-						<button
-							type="button"
-							className={`panel-tab ${inspectorTab === 'color' ? 'is-active' : ''}`}
-							id="color-panel-title"
-							onClick={() => setInspectorTab('color')}
-						>
-							Color
-						</button>
-					</div>
-					{inspectorTab === 'properties' ? <Inspector /> : <ColorPanel />}
-				</aside>
-
-				{resizeHandle('timeline', 'Resize timeline height', 'horizontal')}
-
-				<section id="timeline-panel" className="timeline-panel" aria-labelledby="timeline-title">
-					<h2 id="timeline-title" className="sr-only">
-						Timeline
-					</h2>
-					<Timeline />
-				</section>
+						),
+						timeline: <Timeline />
+					}}
+					renderPanel={(panelId) => {
+						if (panelId === 'source') {
+							return <SourceMonitor engine={playbackEngine} />;
+						}
+						return undefined;
+					}}
+				/>
 				<MixerPanel />
 			</main>
 
 			<p id="project-name-message" className="sr-only" role="status" aria-live="polite">
-				{projectMessage || themeMessage}
+				{projectMessage || themeMessage || workspaceMessage}
 			</p>
 			<p className="sr-only" role="status" aria-live="polite">
 				{historyMessage}
@@ -1342,6 +1457,10 @@ function EditorShell() {
 			<ExportDialog />
 			<SpeedDurationDialog />
 			<SequenceSettingsDialog />
+			<EditWorkspacesDialog
+				isOpen={isEditWorkspacesOpen}
+				onClose={() => setIsEditWorkspacesOpen(false)}
+			/>
 			{isShortcutsOpen && (
 				<KeyboardShortcutsDialog entries={shortcutEntries} onClose={closeShortcutsDialog} />
 			)}

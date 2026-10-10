@@ -61,7 +61,30 @@ function parseCombo(combo: string): { key: string; modifiers: Set<string> } {
 export function matchesShortcut(event: KeyboardEvent, combo: ShortcutKey): boolean {
 	const { key, modifiers } = parseCombo(combo);
 	const pressed = normalizeKey(event.key);
-	if (pressed !== key) return false;
+
+	// Map shifted symbols back to digits if shift is active (e.g. Shift+3 produces #)
+	const SHIFT_DIGIT_MAP: Record<string, string> = {
+		'!': '1',
+		'@': '2',
+		'#': '3',
+		$: '4',
+		'%': '5',
+		'^': '6',
+		'&': '7',
+		'*': '8',
+		'(': '9',
+		')': '0'
+	};
+
+	let matchesKey = pressed === key;
+	if (!matchesKey && modifiers.has('shift') && SHIFT_DIGIT_MAP[pressed] === key) {
+		matchesKey = true;
+	}
+	if (!matchesKey && event.code && event.code.toLowerCase() === `digit${key}`) {
+		matchesKey = true;
+	}
+
+	if (!matchesKey) return false;
 	if (
 		event.altKey !== modifiers.has('alt') ||
 		event.shiftKey !== (modifiers.has('shift') || key === '?')
@@ -760,6 +783,69 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			group: 'Sequences',
 			scope: 'editor',
 			handler: action('go-up-sequence'),
+			preventDefault: true
+		},
+		{
+			id: 'workspace-1',
+			keys: { mac: 'alt+shift+1', other: 'alt+shift+1' },
+			label: 'Switch to Assembly Workspace',
+			group: 'Workspaces',
+			scope: 'editor',
+			handler: action('workspace-1'),
+			preventDefault: true
+		},
+		{
+			id: 'workspace-2',
+			keys: { mac: 'alt+shift+2', other: 'alt+shift+2' },
+			label: 'Switch to Editing Workspace',
+			group: 'Workspaces',
+			scope: 'editor',
+			handler: action('workspace-2'),
+			preventDefault: true
+		},
+		{
+			id: 'workspace-3',
+			keys: { mac: 'alt+shift+3', other: 'alt+shift+3' },
+			label: 'Switch to Color Workspace',
+			group: 'Workspaces',
+			scope: 'editor',
+			handler: action('workspace-3'),
+			preventDefault: true
+		},
+		{
+			id: 'workspace-4',
+			keys: { mac: 'alt+shift+4', other: 'alt+shift+4' },
+			label: 'Switch to Effects Workspace',
+			group: 'Workspaces',
+			scope: 'editor',
+			handler: action('workspace-4'),
+			preventDefault: true
+		},
+		{
+			id: 'workspace-5',
+			keys: { mac: 'alt+shift+5', other: 'alt+shift+5' },
+			label: 'Switch to Audio Workspace',
+			group: 'Workspaces',
+			scope: 'editor',
+			handler: action('workspace-5'),
+			preventDefault: true
+		},
+		{
+			id: 'workspace-6',
+			keys: { mac: 'alt+shift+6', other: 'alt+shift+6' },
+			label: 'Switch to Graphics Workspace',
+			group: 'Workspaces',
+			scope: 'editor',
+			handler: action('workspace-6'),
+			preventDefault: true
+		},
+		{
+			id: 'toggle-maximize-panel',
+			keys: { mac: '`', other: '`' },
+			label: 'Maximize / Restore Active Panel',
+			group: 'Workspaces',
+			scope: 'editor',
+			handler: action('toggle-maximize-panel'),
 			preventDefault: true
 		}
 	];

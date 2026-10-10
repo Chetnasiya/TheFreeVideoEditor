@@ -154,4 +154,61 @@ describe('interchange serializers', () => {
 			'AUDIO-NOTE.txt'
 		]);
 	});
+
+	it('flattens projects with nested sequences for xmeml, edl, fcpxml, and otio output and lists omissions', async () => {
+		const { createSequence, addSequenceInstance, flattenForInterchange } =
+			await import('../../core/sequences/operations');
+		const { ROOT_SEQUENCE_ID } = await import('../../core/sequences/access');
+		const base = fixture();
+		const { project: pWithSeq, sequenceId } = createSequence(base, 'Nested B-Roll');
+		const rootVTrack = pWithSeq.tracks.find((t) => t.kind === 'video')!;
+		// Add valid sequence instance
+		const { project: pWithInst } = addSequenceInstance(
+			pWithSeq,
+			ROOT_SEQUENCE_ID,
+			sequenceId,
+			2_000_000,
+			rootVTrack.id
+		);
+
+		// Add a speed-altered instance that cannot be flattened
+		const speedClip: import('../../core/types').Clip = {
+			id: 'clip-speed-inst' as import('../../core/types').ClipId,
+			start: 8_000_000,
+			duration: 2_000_000,
+			sourceIn: 0,
+			sourceOut: 2_000_000,
+			speed: 2,
+			volume: 1,
+			source: { type: 'sequence', sequenceId }
+		};
+		const pWithSpeedInst = {
+			...pWithInst,
+			tracks: pWithInst.tracks.map((t) =>
+				t.id === rootVTrack.id ? { ...t, clips: [...t.clips, speedClip] } : t
+			)
+		};
+
+		const { project: flattened, omissions } = flattenForInterchange(pWithSpeedInst);
+		expect(omissions.length).toBeGreaterThan(0);
+		expect(omissions[0]).toContain('has speed 2 or time remap and was omitted');
+
+		// Check xmeml serialization
+		const xmemlStr = exportXmeml(flattened);
+		expect(xmemlStr).toContain('<xmeml version="4">');
+
+		// Check EDL serialization
+		const edlDocs = exportEdlTracks(flattened);
+		expect(edlDocs.length).toBeGreaterThan(0);
+		expect(edlDocs[0]!.content).toContain('FCM: NON-DROP FRAME');
+
+		// Check FCPXML serialization
+		const fcpxmlStr = exportFcpxml(flattened);
+		expect(fcpxmlStr).toContain('<fcpxml version="1.10">');
+
+		// Check OTIO serialization
+		const otioStr = exportOtio(flattened);
+		const parsedOtio = JSON.parse(otioStr);
+		expect(parsedOtio.OTIO_SCHEMA).toContain('Timeline');
+	});
 });
