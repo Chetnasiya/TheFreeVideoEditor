@@ -1,5 +1,7 @@
 import type { Project, Time } from '../../core/types';
 import { buildAudioGraph } from './graph';
+import { analyzeAudioLoudness } from '../../core/audio/loudness';
+import { dbToGain } from '../../core/audioMath';
 
 export interface RenderOfflineAudioOptions {
 	project: Project;
@@ -8,15 +10,48 @@ export interface RenderOfflineAudioOptions {
 	sampleRate?: number;
 	buffers?: ReadonlyMap<string, AudioBuffer>;
 	onProgress?: (ratio: number) => void;
+	normalizeToTargetLufs?: boolean;
 }
 
 // 256 MB buffer cap (~11 minutes of 48 kHz stereo 32-bit float audio: 48000 * 2 * 4 bytes/sec = 384 KB/sec -> 256 MB is ~666 sec ≈ 11.1 min)
 const MAX_SINGLE_PASS_FRAMES = 32 * 1024 * 1024; // 32M frames = 256 MB in stereo f32
 
+function applyLoudnessNormalization(buffer: AudioBuffer, targetLufs?: number): void {
+	if (targetLufs === undefined) return;
+
+	const channels: Float32Array[] = [];
+	for (let c = 0; c < buffer.numberOfChannels; c++) {
+		channels.push(buffer.getChannelData(c));
+	}
+
+	const analysis = analyzeAudioLoudness(channels, buffer.sampleRate);
+	if (analysis.integratedLufs <= -70) {
+		return; // Audio is practically silence, do not boost noise floor
+	}
+
+	const deltaDb = targetLufs - analysis.integratedLufs;
+	const gain = dbToGain(deltaDb);
+
+	for (let c = 0; c < buffer.numberOfChannels; c++) {
+		const data = buffer.getChannelData(c);
+		for (let i = 0; i < data.length; i++) {
+			data[i] = data[i]! * gain;
+		}
+	}
+}
+
 export async function renderOfflineAudio(options: RenderOfflineAudioOptions): Promise<AudioBuffer> {
-	const { project, startUs = 0, durationUs = 10_000_000, buffers } = options;
+	const {
+		project,
+		startUs = 0,
+		durationUs = 10_000_000,
+		buffers,
+		normalizeToTargetLufs = true
+	} = options;
 	const sampleRate = options.sampleRate ?? project.settings.sampleRate ?? 48000;
 	const totalFrames = Math.max(1, Math.ceil((durationUs * sampleRate) / 1_000_000));
+
+	const targetLufs = normalizeToTargetLufs ? project.masterAudio?.loudnessTargetLufs : undefined;
 
 	if (totalFrames <= MAX_SINGLE_PASS_FRAMES) {
 		const ctx = new OfflineAudioContext(2, totalFrames, sampleRate);
@@ -24,6 +59,9 @@ export async function renderOfflineAudio(options: RenderOfflineAudioOptions): Pr
 		await graph.scheduleProject({ startUs, durationUs }, buffers);
 		const rendered = await ctx.startRendering();
 		graph.dispose();
+
+		applyLoudnessNormalization(rendered, targetLufs);
+
 		options.onProgress?.(1.0);
 		return rendered;
 	}
@@ -68,6 +106,8 @@ export async function renderOfflineAudio(options: RenderOfflineAudioOptions): Pr
 		frameOffset += currentChunkFrames;
 		options.onProgress?.(frameOffset / totalFrames);
 	}
+
+	applyLoudnessNormalization(resultBuffer, targetLufs);
 
 	return resultBuffer;
 }

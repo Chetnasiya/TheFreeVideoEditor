@@ -41,7 +41,9 @@ test.describe('Gate N: Audio Architecture & Mixer E2E Tests', () => {
 		await expect(mixer).toBeVisible();
 	});
 
-	test('2. Channel strip fader, pan, mute, and solo controls update store and UI', async ({ page }) => {
+	test('2. Channel strip fader, pan, mute, and solo controls update store and UI', async ({
+		page
+	}) => {
 		await page.goto('/editor');
 		await page
 			.getByRole('dialog', { name: 'Your Projects' })
@@ -193,5 +195,49 @@ test.describe('Gate N: Audio Architecture & Mixer E2E Tests', () => {
 		await expect(audioSection.locator('.property-label', { hasText: 'Pan' })).toBeVisible();
 		await expect(audioSection.getByText('Fade In (s)')).toBeVisible();
 		await expect(audioSection.getByText('Fade Out (s)')).toBeVisible();
+	});
+
+	test('5. Submix bus can be added and deleted in the mixer', async ({ page }) => {
+		await page.goto('/editor');
+		await page
+			.getByRole('dialog', { name: 'Your Projects' })
+			.getByRole('button', { name: 'New project' })
+			.click();
+		const createDialog = page.getByRole('dialog', { name: 'Create a Project' });
+		await createDialog.getByRole('textbox', { name: 'Project name' }).fill('Submix Delete Test');
+		await createDialog.getByRole('button', { name: 'Create project' }).click();
+		await expect(createDialog).not.toBeVisible();
+
+		// Open mixer
+		await page.keyboard.press('Alt+m');
+		const mixer = page.locator('aside[aria-label="Audio Mixer"]');
+		await expect(mixer).toBeVisible();
+
+		// Click "+ Add Submix" button
+		await mixer.getByRole('button', { name: '+ Add Submix' }).click();
+
+		// Verify Submix strip is rendered
+		const submixStrip = mixer.locator('.bus-strip').first();
+		await expect(submixStrip).toBeVisible();
+		await expect(submixStrip.getByText(/Submix 1/i)).toBeVisible();
+
+		// Verify in store
+		const busCountBefore = await page.evaluate(() => {
+			return (window as any).__TFVE_STORE__.getState().project.audioBuses?.length ?? 0;
+		});
+		expect(busCountBefore).toBe(1);
+
+		// Click delete (✕) button on the submix strip
+		const deleteBtn = submixStrip.getByRole('button', { name: /Delete Submix 1/i });
+		await deleteBtn.click();
+
+		// Verify submix strip is removed from UI
+		await expect(submixStrip).not.toBeVisible();
+
+		// Verify in store
+		const busCountAfter = await page.evaluate(() => {
+			return (window as any).__TFVE_STORE__.getState().project.audioBuses?.length ?? 0;
+		});
+		expect(busCountAfter).toBe(0);
 	});
 });

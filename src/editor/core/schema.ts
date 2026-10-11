@@ -202,6 +202,25 @@ export const clipTransformSchema = z.object({
 	opacity: z.number().min(0).max(1)
 });
 
+export const audioParamValueSchema = z.union([
+	z.number(),
+	z.string(),
+	z.boolean(),
+	animatedValueSchema
+]);
+
+export const audioEffectInstanceSchema = z.object({
+	id: z.string().min(1),
+	type: z.string().min(1),
+	name: z.string().optional(),
+	version: z.number().int().nonnegative().optional(),
+	enabled: z.boolean().optional(),
+	bypass: z.boolean().optional(),
+	mix: z.number().min(0).max(1).optional(),
+	params: z.record(z.string(), audioParamValueSchema),
+	managedBy: z.enum(['user', 'essential', 'ducking']).optional()
+});
+
 export const clipSchema = z.object({
 	id: clipIdSchema,
 	assetId: assetIdSchema.optional(),
@@ -213,6 +232,11 @@ export const clipSchema = z.object({
 	volume: z.number().nonnegative(),
 	linkId: z.string().min(1).optional(),
 	effects: z.array(effectSchema).optional(),
+	audioEffects: z.array(audioEffectInstanceSchema).optional(),
+	audioTag: z.enum(['dialogue', 'music', 'sfx', 'ambience']).optional(),
+	channelRouting: z
+		.enum(['stereo', 'mono-left', 'mono-right', 'mono-sum', 'swap', 'invert-lr'])
+		.optional(),
 	transform: clipTransformSchema.optional(),
 	text: z.string().optional(),
 	source: clipSourceSchema.optional(),
@@ -256,10 +280,42 @@ export const trackCompressorSchema = z.object({
 	makeupDb: z.number().min(0).max(24)
 });
 
+export const automationModeSchema = z.enum(['off', 'read', 'write', 'touch', 'latch']);
+
+export const trackSendSchema = z.object({
+	busId: z.string().min(1),
+	levelDb: z.number().min(-96).max(24),
+	pre: z.boolean(),
+	enabled: z.boolean()
+});
+
+export const audioBusSchema = z.object({
+	id: z.string().min(1),
+	name: z.string().min(1),
+	gainDb: z.number().min(-96).max(24),
+	pan: z.number().min(-1).max(1),
+	muted: z.boolean(),
+	solo: z.boolean(),
+	output: z.string().min(1), // 'master' or target busId
+	effects: z.array(audioEffectInstanceSchema).optional(),
+	automation: z
+		.record(z.string(), animatedValueSchema as unknown as z.ZodType<AnimatedValue<number>>)
+		.optional(),
+	automationMode: automationModeSchema.optional()
+});
+
 export const trackAudioSchema = z.object({
 	gainDb: z.number().min(-96).max(24),
 	pan: z.number().min(-1).max(1),
 	solo: z.boolean(),
+	output: z.string().optional(),
+	sends: z.array(trackSendSchema).optional(),
+	effects: z.array(audioEffectInstanceSchema).optional(),
+	automation: z
+		.record(z.string(), animatedValueSchema as unknown as z.ZodType<AnimatedValue<number>>)
+		.optional(),
+	automationMode: automationModeSchema.optional(),
+	channelMode: z.enum(['stereo', 'mono']).optional(),
 	eq: trackEqSchema.optional(),
 	compressor: trackCompressorSchema.optional()
 });
@@ -267,7 +323,12 @@ export const trackAudioSchema = z.object({
 export const projectMasterSchema = z.object({
 	gainDb: z.number().min(-96).max(24),
 	limiter: z.boolean(),
-	loudnessTargetLufs: z.number().optional()
+	loudnessTargetLufs: z.number().optional(),
+	effects: z.array(audioEffectInstanceSchema).optional(),
+	automation: z
+		.record(z.string(), animatedValueSchema as unknown as z.ZodType<AnimatedValue<number>>)
+		.optional(),
+	automationMode: automationModeSchema.optional()
 });
 
 export const assetSchema = z.object({
@@ -382,9 +443,39 @@ export const projectSchema = z
 			)
 			.optional(),
 		masterAudio: projectMasterSchema.optional(),
-		proxy: projectProxySettingsSchema.optional()
+		proxy: projectProxySettingsSchema.optional(),
+		audioBuses: z.array(audioBusSchema).optional()
 	})
 	.superRefine((project, context) => {
+		// Validate routing cycles for buses and tracks
+		if (project.audioBuses && project.audioBuses.length > 0) {
+			const busIds = new Set(project.audioBuses.map((b) => b.id));
+			for (const bus of project.audioBuses) {
+				let current = bus.output;
+				const visited = new Set<string>([bus.id]);
+				while (current !== 'master') {
+					if (!busIds.has(current)) {
+						context.addIssue({
+							code: 'custom',
+							path: ['audioBuses'],
+							message: `Bus "${bus.name}" routes to non-existent bus "${current}".`
+						});
+						break;
+					}
+					if (visited.has(current)) {
+						context.addIssue({
+							code: 'custom',
+							path: ['audioBuses'],
+							message: `Audio routing cycle detected involving bus "${bus.name}".`
+						});
+						break;
+					}
+					visited.add(current);
+					const nextBus = project.audioBuses.find((b) => b.id === current);
+					current = nextBus ? nextBus.output : 'master';
+				}
+			}
+		}
 		const ids = new Set<string>([project.id]);
 		for (const [assetKey, asset] of Object.entries(project.assets)) {
 			if (assetKey !== asset.id) {

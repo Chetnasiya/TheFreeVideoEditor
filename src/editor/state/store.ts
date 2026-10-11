@@ -27,6 +27,7 @@ import {
 	setTrackFlags as setTrackFlagsOperation,
 	splitClipsAt,
 	trimClip as trimClipOperation,
+	rippleTrimClip,
 	unlinkClips as unlinkClipsOperation,
 	timelineDuration,
 	groupOf,
@@ -143,6 +144,7 @@ import {
 import { parseSrt, serializeSrt } from '../core/captions/srt';
 import { parseVtt, serializeVtt } from '../core/captions/vtt';
 import { DEFAULT_CAPTION_STYLE } from '../core/captions/presets';
+import { detectVoiceActivity, generateDuckingKeyframes } from '../core/audio/ducking';
 import { defaultTrackAudio } from '../core/audioMath';
 import { ensureLutLoaded, storeParsedLut } from '../services/media/lutCache';
 import type { ScopeFrameData } from '../services/render/passes/scopes';
@@ -187,6 +189,7 @@ import {
 	resolveWorkspaceLayout,
 	validateAndNormalizeLayout,
 	setPanelVisible,
+	activateTab,
 	collectPanels,
 	migrateOldPanelSizes
 } from '../ui/layout/operations';
@@ -248,6 +251,9 @@ export interface TimelineSelection {
 	captionId?: string;
 }
 
+export type TimelineTool =
+	'select' | 'track-select' | 'ripple' | 'razor' | 'slip' | 'pen' | 'rect' | 'hand' | 'type';
+
 export interface TimelineState {
 	pixelsPerSecond: number;
 	scrollLeft: number;
@@ -259,6 +265,7 @@ export interface TimelineState {
 	rippleMode: false;
 	message: string;
 	followPlayhead: boolean;
+	activeTool: TimelineTool;
 }
 
 export interface TimelineZoomAnchor {
@@ -380,7 +387,8 @@ function createTimelineState(): TimelineState {
 		snapEnabled: true,
 		rippleMode: false,
 		message: '',
-		followPlayhead: false
+		followPlayhead: false,
+		activeTool: 'select'
 	};
 }
 
@@ -526,6 +534,7 @@ export interface EditorState {
 	selectClips: (ids: ClipId[], mode?: 'replace' | 'toggle' | 'add') => void;
 	clearSelection: () => void;
 	toggleSnap: () => void;
+	setActiveTimelineTool: (tool: TimelineTool) => void;
 	beginTimelineDrag: (session: DragSession) => void;
 	updateTimelineDrag: (
 		pointerTime: Time,
@@ -537,6 +546,7 @@ export interface EditorState {
 	addAssetOnNewTrack: (assetId: AssetId, kind: Track['kind'], time: Time) => boolean;
 	moveClips: (ids: ClipId[], deltaTime: Time, targetTrackId?: TrackId, unlink?: boolean) => boolean;
 	trimClip: (id: ClipId, edge: 'start' | 'end', time: Time, unlink?: boolean) => boolean;
+	splitClipAt: (clipId: ClipId, time: Time, unlink?: boolean) => ClipId[];
 	splitAtPlayhead: (unlink?: boolean) => boolean;
 	deleteSelection: (unlink?: boolean) => boolean;
 	rippleDeleteSelection: () => boolean;
@@ -724,6 +734,30 @@ export interface EditorState {
 	resetTrackAudio: (trackId: TrackId) => boolean;
 	setMasterAudioGain: (gainDb: number, coalesce?: boolean) => boolean;
 	setMasterAudioLimiter: (limiter: boolean) => boolean;
+	addAudioBus: (name?: string, output?: 'master' | string) => string | null;
+	removeAudioBus: (busId: string) => boolean;
+	setBusAudioGain: (busId: string, gainDb: number, coalesce?: boolean) => boolean;
+	setBusAudioPan: (busId: string, pan: number, coalesce?: boolean) => boolean;
+	setBusAudioMute: (busId: string, muted?: boolean) => boolean;
+	setBusAudioSolo: (busId: string, solo?: boolean) => boolean;
+	setTrackSend: (
+		trackId: TrackId,
+		send: { busId: string; levelDb: number; pre: boolean; enabled: boolean }
+	) => boolean;
+	setAutomationMode: (
+		targetType: 'track' | 'bus' | 'master',
+		targetId: string,
+		mode: 'off' | 'read' | 'write' | 'touch' | 'latch'
+	) => boolean;
+	setClipAudioTag: (
+		clipId: ClipId,
+		tag: 'dialogue' | 'music' | 'sfx' | 'ambience' | undefined
+	) => boolean;
+	setClipAudioEffects: (
+		clipId: ClipId,
+		effects: import('../core/types').AudioEffectInstance[]
+	) => boolean;
+	applyAutoDucking: (targetClipId: ClipId) => boolean;
 	setClipFade: (
 		clipId: ClipId,
 		fade: { fadeInUs?: Time; fadeOutUs?: Time; fadeCurve?: 'equalPower' | 'linear' }
@@ -2352,6 +2386,21 @@ export function createEditorStore() {
 						state.timeline.snapEnabled = !state.timeline.snapEnabled;
 					});
 				},
+				setActiveTimelineTool(tool) {
+					set((state) => {
+						state.timeline.activeTool = tool;
+						if (tool === 'pen') {
+							state.maskTool.activeTool = 'pen';
+						} else if (tool === 'rect') {
+							state.maskTool.activeTool = 'rect';
+						} else if (tool === 'select') {
+							state.maskTool.activeTool = 'select';
+						}
+					});
+					if (tool === 'type') {
+						get().addTextClip();
+					}
+				},
 				beginTimelineDrag(session) {
 					set((state) => {
 						state.timeline.drag = session;
@@ -2385,6 +2434,24 @@ export function createEditorStore() {
 								targetTrackId,
 								unlink
 							});
+						} else if (drag.kind === 'slip' && drag.clipIds[0]) {
+							const original = drag.original[0];
+							if (original) {
+								const delta = snappedTime - drag.pointerStartTime;
+								const candidateIn = Math.max(0, original.sourceIn + delta);
+								const candidateOut = candidateIn + original.duration;
+								previewProject = {
+									...activeView,
+									tracks: activeView.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) =>
+											c.id === drag.clipIds[0]
+												? { ...c, sourceIn: candidateIn, sourceOut: candidateOut }
+												: c
+										)
+									}))
+								};
+							}
 						} else if (drag.clipIds[0]) {
 							const original = drag.original[0];
 							const baseTime =
@@ -2487,6 +2554,24 @@ export function createEditorStore() {
 											targetTrackId: drag.targetTrackId,
 											unlink: drag.unlink
 										});
+									}
+									if (drag.kind === 'slip' && drag.clipIds[0]) {
+										const original = drag.original[0];
+										if (!original) return view;
+										const delta = drag.pointerTime - drag.pointerStartTime;
+										const candidateIn = Math.max(0, original.sourceIn + delta);
+										const candidateOut = candidateIn + original.duration;
+										return {
+											...view,
+											tracks: view.tracks.map((t) => ({
+												...t,
+												clips: t.clips.map((c) =>
+													c.id === drag.clipIds[0]
+														? { ...c, sourceIn: candidateIn, sourceOut: candidateOut }
+														: c
+												)
+											}))
+										};
 									}
 									const original = drag.original[0];
 									const baseTime =
@@ -2642,11 +2727,26 @@ export function createEditorStore() {
 				trimClip(id, edge, time, unlink = false) {
 					try {
 						const activeSeqId = get().activeSequenceId;
+						const isRipple = get().timeline.activeTool === 'ripple';
 						mutateProject(
-							'Trim clip',
+							isRipple ? 'Ripple trim clip' : 'Trim clip',
 							(project) =>
 								applyToSequence(project, activeSeqId, (view) =>
-									trimClipOperation(view, id, edge, snapToFrame(time, project.settings.fps), unlink)
+									isRipple
+										? rippleTrimClip(
+												view,
+												id,
+												edge,
+												snapToFrame(time, project.settings.fps),
+												unlink
+											)
+										: trimClipOperation(
+												view,
+												id,
+												edge,
+												snapToFrame(time, project.settings.fps),
+												unlink
+											)
 								),
 							{ history: 'record', mergeKey: `trim:${id}:${edge}` }
 						);
@@ -2656,6 +2756,42 @@ export function createEditorStore() {
 							state.timeline.message = errorMessage(error);
 						});
 						return false;
+					}
+				},
+				splitClipAt(clipId, time, unlink = false) {
+					const project = get().project;
+					if (!project) return [];
+					const activeSeqId = get().activeSequenceId;
+					try {
+						let splitResultIds: ClipId[] = [];
+						mutateProject(
+							'Split clip',
+							(p) =>
+								applyToSequence(p, activeSeqId, (view) => {
+									const result = splitClipsAt(
+										view,
+										snapToFrame(time, project.settings.fps),
+										[clipId],
+										unlink
+									);
+									splitResultIds = result.splitClipIds;
+									return result.project;
+								}),
+							{ history: 'record' }
+						);
+						if (splitResultIds.length > 0) {
+							get().selectClips(splitResultIds);
+							projectHistory.updateSelectionAfter(splitResultIds);
+							set((state) => {
+								state.timeline.message = 'Split clip.';
+							});
+						}
+						return splitResultIds;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return [];
 					}
 				},
 				splitAtPlayhead(unlink = false) {
@@ -4725,9 +4861,24 @@ export function createEditorStore() {
 				},
 
 				toggleMixer() {
+					const nextOpen = !get().isMixerOpen;
 					set((state) => {
-						state.isMixerOpen = !state.isMixerOpen;
+						state.isMixerOpen = nextOpen;
 					});
+					const currentLayout = get().activeLayout;
+					const panels = collectPanels(currentLayout);
+					if (nextOpen) {
+						if (panels.includes('mixer')) {
+							get().updateLayout(activateTab(currentLayout, 'mixer'));
+						} else {
+							// Show mixer panel beside preview / in inspector stack
+							get().updateLayout(setPanelVisible(currentLayout, 'mixer', true, 'program'));
+						}
+					} else {
+						if (panels.includes('mixer')) {
+							get().updateLayout(setPanelVisible(currentLayout, 'mixer', false));
+						}
+					}
 				},
 
 				setTrackAudioGain(trackId, gainDb, coalesce = false) {
@@ -4899,6 +5050,310 @@ export function createEditorStore() {
 									limiter,
 									loudnessTargetLufs: proj.masterAudio?.loudnessTargetLufs
 								}
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				addAudioBus(name = 'Submix', output = 'master') {
+					try {
+						const busId = crypto.randomUUID();
+						mutateProject(
+							'Add audio bus',
+							(proj) => {
+								const buses = proj.audioBuses ? [...proj.audioBuses] : [];
+								buses.push({
+									id: busId,
+									name,
+									gainDb: 0,
+									pan: 0,
+									muted: false,
+									solo: false,
+									output,
+									effects: [],
+									automationMode: 'read'
+								});
+								return {
+									...proj,
+									audioBuses: buses
+								};
+							},
+							{ history: 'record' }
+						);
+						return busId;
+					} catch {
+						return null;
+					}
+				},
+
+				removeAudioBus(busId) {
+					try {
+						mutateProject(
+							'Remove audio bus',
+							(proj) => {
+								const filteredBuses = (proj.audioBuses ?? [])
+									.filter((b) => b.id !== busId)
+									.map((b) => (b.output === busId ? { ...b, output: 'master' as const } : b));
+
+								const updatedTracks = proj.tracks.map((t) => {
+									if (!t.audio) return t;
+									const nextOutput = t.audio.output === busId ? 'master' : t.audio.output;
+									const nextSends = (t.audio.sends ?? []).filter((s) => s.busId !== busId);
+									return {
+										...t,
+										audio: {
+											...t.audio,
+											output: nextOutput,
+											sends: nextSends
+										}
+									};
+								});
+
+								return {
+									...proj,
+									audioBuses: filteredBuses,
+									tracks: updatedTracks
+								};
+							},
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setBusAudioGain(busId, gainDb, coalesce = false) {
+					try {
+						mutateProject(
+							'Change bus gain',
+							(proj) => ({
+								...proj,
+								audioBuses: (proj.audioBuses ?? []).map((b) =>
+									b.id === busId ? { ...b, gainDb: Math.max(-96, Math.min(24, gainDb)) } : b
+								)
+							}),
+							{ history: 'record', mergeKey: coalesce ? `bus-gain-${busId}` : undefined }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setBusAudioPan(busId, pan, coalesce = false) {
+					try {
+						mutateProject(
+							'Change bus pan',
+							(proj) => ({
+								...proj,
+								audioBuses: (proj.audioBuses ?? []).map((b) =>
+									b.id === busId ? { ...b, pan: Math.max(-1, Math.min(1, pan)) } : b
+								)
+							}),
+							{ history: 'record', mergeKey: coalesce ? `bus-pan-${busId}` : undefined }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setBusAudioMute(busId, muted) {
+					try {
+						mutateProject(
+							'Toggle bus mute',
+							(proj) => ({
+								...proj,
+								audioBuses: (proj.audioBuses ?? []).map((b) =>
+									b.id === busId ? { ...b, muted: muted !== undefined ? muted : !b.muted } : b
+								)
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setBusAudioSolo(busId, solo) {
+					try {
+						mutateProject(
+							'Toggle bus solo',
+							(proj) => ({
+								...proj,
+								audioBuses: (proj.audioBuses ?? []).map((b) =>
+									b.id === busId ? { ...b, solo: solo !== undefined ? solo : !b.solo } : b
+								)
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackSend(trackId, send) {
+					try {
+						mutateProject(
+							'Update track send',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									const sends = curAudio.sends ? [...curAudio.sends] : [];
+									const existingIdx = sends.findIndex((s) => s.busId === send.busId);
+									if (existingIdx >= 0) {
+										sends[existingIdx] = send;
+									} else {
+										sends.push(send);
+									}
+									return {
+										...t,
+										audio: { ...curAudio, sends }
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setAutomationMode(targetType, targetId, mode) {
+					try {
+						mutateProject(
+							'Set automation mode',
+							(proj) => {
+								if (targetType === 'master') {
+									return {
+										...proj,
+										masterAudio: {
+											...(proj.masterAudio ?? { gainDb: 0, limiter: false }),
+											automationMode: mode
+										}
+									};
+								} else if (targetType === 'bus') {
+									return {
+										...proj,
+										audioBuses: (proj.audioBuses ?? []).map((b) =>
+											b.id === targetId ? { ...b, automationMode: mode } : b
+										)
+									};
+								} else {
+									return {
+										...proj,
+										tracks: proj.tracks.map((t) => {
+											if (t.id !== targetId) return t;
+											const curAudio = t.audio ?? defaultTrackAudio();
+											return {
+												...t,
+												audio: { ...curAudio, automationMode: mode }
+											};
+										})
+									};
+								}
+							},
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setClipAudioTag(clipId, tag) {
+					try {
+						mutateProject(
+							'Set audio tag',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId ? { ...clip, audioTag: tag } : clip
+									)
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setClipAudioEffects(clipId, effects) {
+					try {
+						mutateProject(
+							'Update clip audio effects',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId ? { ...clip, audioEffects: effects } : clip
+									)
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				applyAutoDucking(targetClipId) {
+					const project = get().project;
+					if (!project) return false;
+
+					let targetClip: Clip | null = null;
+					const dialogueClips: Clip[] = [];
+
+					for (const track of project.tracks) {
+						for (const clip of track.clips) {
+							if (clip.id === targetClipId) {
+								targetClip = clip;
+							}
+							if (clip.audioTag === 'dialogue') {
+								dialogueClips.push(clip);
+							}
+						}
+					}
+
+					if (!targetClip || dialogueClips.length === 0) return false;
+
+					const vadSegments = detectVoiceActivity(dialogueClips);
+					const keyframes = generateDuckingKeyframes(targetClip, vadSegments);
+
+					try {
+						mutateProject(
+							'Apply auto-ducking',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (clip.id !== targetClipId) return clip;
+										return {
+											...clip,
+											properties: {
+												...(clip.properties ?? {}),
+												'audio.volume': { keyframes }
+											}
+										};
+									})
+								}))
 							}),
 							{ history: 'record' }
 						);

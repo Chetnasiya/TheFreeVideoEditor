@@ -11,6 +11,7 @@ import {
 	renameTrack,
 	reorderTrack,
 	rippleDeleteClips,
+	rippleTrimClip,
 	setTrackFlags,
 	splitClipsAt,
 	trimClip,
@@ -227,6 +228,29 @@ describe('timeline queries and clip operations', () => {
 			)
 		};
 		expect(() => rippleDeleteClips(locked, [first.id])).toThrow('locked');
+	});
+
+	it('ripple trims a clip and shifts following clips across tracks', () => {
+		let project = addVideo();
+		const assetId = Object.keys(project.assets)[0] as AssetId;
+		const videoTrack = project.tracks.find((track) => track.kind === 'video')!;
+		// add a second video clip
+		project = addClipFromAsset(project, { assetId, trackId: videoTrack.id, start: 10_000_000 });
+		const videoClips = project.tracks.find((track) => track.kind === 'video')!.clips;
+		const first = videoClips[0]!;
+		const second = videoClips[1]!;
+		const oldSecondStart = second.start;
+
+		// Shorten first clip by 2 seconds from the end
+		const newEnd = first.start + first.duration - 2_000_000;
+		const rippled = rippleTrimClip(project, first.id, 'end', newEnd);
+
+		const updatedClips = rippled.tracks.find((track) => track.kind === 'video')!.clips;
+		const updatedFirst = updatedClips.find((c) => c.id === first.id)!;
+		const updatedSecond = updatedClips.find((c) => c.id === second.id)!;
+
+		expect(updatedFirst.duration).toBe(first.duration - 2_000_000);
+		expect(updatedSecond.start).toBe(oldSecondStart - 2_000_000);
 	});
 
 	it('protects linked clips on locked tracks when removing a track', () => {

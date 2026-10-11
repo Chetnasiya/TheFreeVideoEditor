@@ -3,6 +3,9 @@ import { dbToGain, resolveAudibleTracks, fadeGain } from '../../core/audioMath';
 import { renderRemappedAudio } from './renderRemappedAudio';
 import { defaultAudioDecodeCache } from './decode';
 import { renderOfflineAudio } from './offlineRender';
+import { computeGraphPdc } from './pdc';
+import { buildAudioRack, type BuiltAudioRack } from './rack';
+import { migrateLegacyAudioRack } from '../../core/audio/rackMigration';
 
 export interface AudioGraphMeterNodes {
 	analyserL: AnalyserNode;
@@ -11,6 +14,7 @@ export interface AudioGraphMeterNodes {
 
 export interface TrackAudioNodes {
 	input: GainNode;
+	delayNode?: DelayNode;
 	eqNodes?: BiquadFilterNode[];
 	compressorNode?: DynamicsCompressorNode;
 	faderGain: GainNode;
@@ -22,6 +26,19 @@ export interface TrackAudioNodes {
 	muteGain: GainNode;
 	meters?: AudioGraphMeterNodes;
 	output: GainNode;
+	sendGains?: Map<string, GainNode>;
+	rack?: BuiltAudioRack;
+}
+
+export interface BusAudioNodes {
+	input: GainNode;
+	delayNode?: DelayNode;
+	faderGain: GainNode;
+	panPanner?: StereoPannerNode;
+	muteGain: GainNode;
+	meters?: AudioGraphMeterNodes;
+	output: GainNode;
+	rack?: BuiltAudioRack;
 }
 
 export interface MasterAudioNodes {
@@ -30,10 +47,12 @@ export interface MasterAudioNodes {
 	limiterNode?: DynamicsCompressorNode;
 	meters?: AudioGraphMeterNodes;
 	output: GainNode;
+	rack?: BuiltAudioRack;
 }
 
 export interface BuiltAudioGraph {
 	trackNodes: Map<string, TrackAudioNodes>;
+	busNodes: Map<string, BusAudioNodes>;
 	masterNodes: MasterAudioNodes;
 	scheduleClip: (
 		clip: Clip,
@@ -41,13 +60,20 @@ export interface BuiltAudioGraph {
 		whenSeconds: number,
 		offsetSeconds: number,
 		durationSeconds: number,
-		buffer?: AudioBuffer
+		buffer?: AudioBuffer,
+		targetNode?: AudioNode
 	) => AudioBufferSourceNode | null;
 	scheduleProject: (
 		timeRange?: { startUs: number; durationUs: number },
 		buffers?: ReadonlyMap<string, AudioBuffer>
 	) => Promise<AudioBufferSourceNode[]>;
 	getTrackMeterLevels: (trackId: string) => {
+		peakL: number;
+		peakR: number;
+		rmsL: number;
+		rmsR: number;
+	};
+	getBusMeterLevels: (busId: string) => {
 		peakL: number;
 		peakR: number;
 		rmsL: number;
@@ -114,13 +140,23 @@ function buildSingleTrackChain(
 	track: Track,
 	destination: AudioNode,
 	isAudible: boolean,
-	enableMeters: boolean
+	enableMeters: boolean,
+	pdcDelaySamples = 0
 ): TrackAudioNodes {
 	const tAudio = track.audio ?? { gainDb: 0, pan: 0, solo: false };
 	const trackIn = ctx.createGain();
 	let trackTail: AudioNode = trackIn;
 
-	// 1. EQ
+	// PDC Delay Node if compensation is needed
+	let delayNode: DelayNode | undefined;
+	if (pdcDelaySamples > 0 && typeof ctx.createDelay === 'function') {
+		delayNode = ctx.createDelay(Math.max(1, (pdcDelaySamples + 100) / ctx.sampleRate));
+		delayNode.delayTime.value = pdcDelaySamples / ctx.sampleRate;
+		trackTail.connect(delayNode);
+		trackTail = delayNode;
+	}
+
+	// 1. Legacy EQ (if not using rack)
 	let eqFilters: BiquadFilterNode[] | undefined;
 	if (tAudio.eq?.enabled) {
 		eqFilters = tAudio.eq.bands.map((band) => {
@@ -137,7 +173,7 @@ function buildSingleTrackChain(
 		}
 	}
 
-	// 2. Compressor
+	// 2. Legacy Compressor (if not using rack)
 	let compNode: DynamicsCompressorNode | undefined;
 	if (tAudio.compressor?.enabled) {
 		compNode = ctx.createDynamicsCompressor();
@@ -188,6 +224,7 @@ function buildSingleTrackChain(
 
 	return {
 		input: trackIn,
+		delayNode,
 		eqNodes: eqFilters,
 		compressorNode: compNode,
 		faderGain: fader,
@@ -200,11 +237,15 @@ function buildSingleTrackChain(
 
 export function buildAudioGraph(
 	ctx: BaseAudioContext,
-	project: Project,
+	rawProject: Project,
 	options: BuildAudioGraphOptions = {}
 ): BuiltAudioGraph {
+	const project = migrateLegacyAudioRack(rawProject);
 	const enableMeters = options.enableMeters ?? false;
 	const destination = options.destination ?? ctx.destination;
+
+	// Compute PDC across project
+	const pdc = computeGraphPdc(project);
 
 	// Master Chain
 	const masterInput = ctx.createGain();
@@ -243,27 +284,134 @@ export function buildAudioGraph(
 	currentMasterTail.connect(masterOutput);
 	masterOutput.connect(destination);
 
+	const masterRack = buildAudioRack(project.masterAudio?.effects, ctx.sampleRate, 2);
+
 	const masterNodes: MasterAudioNodes = {
 		input: masterInput,
 		faderGain: masterFader,
 		limiterNode: masterLimiter,
 		meters: masterMeters,
-		output: masterOutput
+		output: masterOutput,
+		rack: masterRack
 	};
 
-	// Track Chains for root project
+	// 1. Build Bus Chains
+	const busNodes = new Map<string, BusAudioNodes>();
+	for (const bus of project.audioBuses ?? []) {
+		const busIn = ctx.createGain();
+		let busTail: AudioNode = busIn;
+
+		// PDC Delay Node for bus
+		const pdcDelay = pdc.busCompensations.get(bus.id) ?? 0;
+		let delayNode: DelayNode | undefined;
+		if (pdcDelay > 0 && typeof ctx.createDelay === 'function') {
+			delayNode = ctx.createDelay(Math.max(1, (pdcDelay + 100) / ctx.sampleRate));
+			delayNode.delayTime.value = pdcDelay / ctx.sampleRate;
+			busTail.connect(delayNode);
+			busTail = delayNode;
+		}
+
+		const busFader = ctx.createGain();
+		busFader.gain.value = dbToGain(bus.gainDb);
+		busTail.connect(busFader);
+		busTail = busFader;
+
+		let busPanner: StereoPannerNode | undefined;
+		if (typeof ctx.createStereoPanner === 'function') {
+			busPanner = ctx.createStereoPanner();
+			busPanner.pan.value = bus.pan;
+			busTail.connect(busPanner);
+			busTail = busPanner;
+		}
+
+		const busMute = ctx.createGain();
+		busMute.gain.value = bus.muted ? 0.0 : 1.0;
+		busTail.connect(busMute);
+		busTail = busMute;
+
+		let busMeters: AudioGraphMeterNodes | undefined;
+		if (enableMeters) {
+			busMeters = createMeterPair(ctx);
+			const splitter = ctx.createChannelSplitter(2);
+			busTail.connect(splitter);
+			splitter.connect(busMeters.analyserL, 0);
+			splitter.connect(busMeters.analyserR, 1);
+		}
+
+		const busOut = ctx.createGain();
+		busTail.connect(busOut);
+
+		const busRack = buildAudioRack(bus.effects, ctx.sampleRate, 2);
+
+		busNodes.set(bus.id, {
+			input: busIn,
+			delayNode,
+			faderGain: busFader,
+			panPanner: busPanner,
+			muteGain: busMute,
+			meters: busMeters,
+			output: busOut,
+			rack: busRack
+		});
+	}
+
+	// Connect buses to output target (master or downstream bus)
+	for (const bus of project.audioBuses ?? []) {
+		const bNode = busNodes.get(bus.id);
+		if (!bNode) continue;
+		if (bus.output === 'master') {
+			bNode.output.connect(masterInput);
+		} else {
+			const targetBus = busNodes.get(bus.output);
+			if (targetBus) {
+				bNode.output.connect(targetBus.input);
+			} else {
+				bNode.output.connect(masterInput);
+			}
+		}
+	}
+
+	// 2. Build Track Chains
 	const trackNodes = new Map<string, TrackAudioNodes>();
 	const audibleTracks = resolveAudibleTracks(project.tracks);
 
 	for (const track of project.tracks) {
 		if (track.kind !== 'audio') continue;
+		const trackDest =
+			track.audio?.output && track.audio.output !== 'master' && busNodes.has(track.audio.output)
+				? busNodes.get(track.audio.output)!.input
+				: masterInput;
+
+		const pdcDelay = pdc.trackCompensations.get(track.id) ?? 0;
 		const nodes = buildSingleTrackChain(
 			ctx,
 			track,
-			masterInput,
+			trackDest,
 			audibleTracks.has(track.id),
-			enableMeters
+			enableMeters,
+			pdcDelay
 		);
+
+		// Connect Auxiliary Sends
+		if (track.audio?.sends && track.audio.sends.length > 0) {
+			const sendGains = new Map<string, GainNode>();
+			for (const send of track.audio.sends) {
+				if (!send.enabled) continue;
+				const targetBus = busNodes.get(send.busId);
+				if (!targetBus) continue;
+
+				const sendGain = ctx.createGain();
+				sendGain.gain.value = dbToGain(send.levelDb);
+				// Pre vs post-fader send
+				const sourceNode = send.pre ? nodes.input : nodes.faderGain;
+				sourceNode.connect(sendGain);
+				sendGain.connect(targetBus.input);
+				sendGains.set(send.busId, sendGain);
+			}
+			nodes.sendGains = sendGains;
+		}
+
+		nodes.rack = buildAudioRack(track.audio?.effects, ctx.sampleRate, 2);
 		trackNodes.set(track.id, nodes);
 	}
 
@@ -306,6 +454,18 @@ export function buildAudioGraph(
 				playRate = 1.0;
 				offsetSeconds = 0;
 			}
+		}
+
+		// Apply clip-level DSP rack if present
+		if (clip.audioEffects && clip.audioEffects.length > 0) {
+			const rack = buildAudioRack(clip.audioEffects, ctx.sampleRate, playBuffer.numberOfChannels);
+			const numChannels = playBuffer.numberOfChannels;
+			const frameCount = playBuffer.length;
+			const channels: Float32Array[] = [];
+			for (let c = 0; c < numChannels; c++) {
+				channels.push(playBuffer.getChannelData(c));
+			}
+			rack.process(channels, frameCount);
 		}
 
 		// Clip-level chain: source -> clipGain -> clipPan -> destInput
@@ -384,7 +544,6 @@ export function buildAudioGraph(
 
 					if (isConstantSpeed1) {
 						// LIVE SUB-GRAPH (Decision 6):
-						// Construct instance bus driven by host clip volume, pan, and fades
 						const instanceBusIn = ctx.createGain();
 						const instanceFader = ctx.createGain();
 						const volProp = clip.properties?.['audio.volume'];
@@ -423,7 +582,6 @@ export function buildAudioGraph(
 							instanceTail = instancePanner;
 						}
 
-						// Connect instance bus tail into host track input
 						const hostTrackNode = trackNodes.get(track.id);
 						if (hostTrackNode) {
 							instanceTail.connect(hostTrackNode.input);
@@ -444,7 +602,6 @@ export function buildAudioGraph(
 							nestedTrackNodes.set(nTrack.id, nNode);
 						}
 
-						// Schedule nested clips into their respective nestedTrackNodes
 						const nestedWindowStartUs = clip.sourceIn + (overlapStartUs - clip.start);
 						const nestedWindowEndUs = nestedWindowStartUs + overlapDurUs;
 
@@ -551,6 +708,14 @@ export function buildAudioGraph(
 		return { peakL: l.peak, peakR: r.peak, rmsL: l.rms, rmsR: r.rms };
 	};
 
+	const getBusMeterLevels = (busId: string) => {
+		const node = busNodes.get(busId);
+		if (!node?.meters) return { peakL: 0, peakR: 0, rmsL: 0, rmsR: 0 };
+		const l = calculateMeterLevels(node.meters.analyserL);
+		const r = calculateMeterLevels(node.meters.analyserR);
+		return { peakL: l.peak, peakR: r.peak, rmsL: l.rms, rmsR: r.rms };
+	};
+
 	const getMasterMeterLevels = () => {
 		if (!masterNodes.meters) return { peakL: 0, peakR: 0, rmsL: 0, rmsR: 0 };
 		const l = calculateMeterLevels(masterNodes.meters.analyserL);
@@ -589,6 +754,12 @@ export function buildAudioGraph(
 			tNode.output.disconnect();
 		}
 		trackNodes.clear();
+		for (const bNode of busNodes.values()) {
+			bNode.input.disconnect();
+			bNode.faderGain.disconnect();
+			bNode.output.disconnect();
+		}
+		busNodes.clear();
 		masterInput.disconnect();
 		masterFader.disconnect();
 		masterOutput.disconnect();
@@ -596,10 +767,12 @@ export function buildAudioGraph(
 
 	return {
 		trackNodes,
+		busNodes,
 		masterNodes,
 		scheduleClip,
 		scheduleProject,
 		getTrackMeterLevels,
+		getBusMeterLevels,
 		getMasterMeterLevels,
 		updateTrackParams,
 		updateMasterParams,

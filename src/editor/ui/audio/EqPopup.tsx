@@ -54,31 +54,49 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 		onChange({ ...currentEq, bands });
 	};
 
+	const resetFlat = () => {
+		const bands = currentEq.bands.map((b) => ({ ...b, gainDb: 0 })) as TrackEq['bands'];
+		onChange({ ...currentEq, bands });
+	};
+
 	return (
 		<div
-			className="eq-popup fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+			className="eq-popup fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md"
 			role="dialog"
 			aria-labelledby={titleId}
 			aria-modal="true"
 		>
-			<div className="relative w-full max-w-lg rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] p-6 text-[var(--color-text-primary)] shadow-2xl">
-				<div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3">
-					<h3 id={titleId} className="text-base font-semibold">
-						Track EQ — {trackName}
-					</h3>
+			<div className="relative w-full max-w-xl overflow-hidden rounded-lg border border-[#26262e] bg-[#141418] text-[#ededed] shadow-2xl">
+				{/* Premiere Pro Style Title Bar */}
+				<div className="flex items-center justify-between border-b border-[#24242c] bg-[#1a1a22] px-5 py-3">
+					<div className="flex items-center gap-2.5">
+						<span className="h-2.5 w-2.5 rounded-full bg-[#0070f3] shadow-[0_0_8px_rgba(0,112,243,0.6)]" />
+						<h3 id={titleId} className="text-sm font-semibold tracking-tight text-[#f1f5f9]">
+							Track Parametric EQ — {trackName}
+						</h3>
+					</div>
 					<div className="flex items-center gap-3">
-						<label className="flex cursor-pointer items-center gap-2 text-xs select-none">
-							<input
-								type="checkbox"
-								checked={currentEq.enabled}
-								onChange={toggleEnabled}
-								className="rounded border-[var(--color-border-default)] accent-[var(--color-accent)]"
-							/>
-							<span>Enabled</span>
-						</label>
 						<button
+							type="button"
+							onClick={toggleEnabled}
+							className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+								currentEq.enabled
+									? 'border border-[#166534] bg-[#143322] text-[#4ade80]'
+									: 'border border-[#32323e] bg-[#202028] text-[#94a3b8]'
+							}`}
+							title="Toggle EQ processing bypass"
+						>
+							<span
+								className={`h-2 w-2 rounded-full ${
+									currentEq.enabled ? 'bg-[#22c55e] shadow-[0_0_6px_#22c55e]' : 'bg-[#64748b]'
+								}`}
+							/>
+							<span>{currentEq.enabled ? 'Active' : 'Bypassed'}</span>
+						</button>
+						<button
+							type="button"
 							onClick={onClose}
-							className="rounded-lg p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+							className="rounded p-1 text-[#94a3b8] transition-colors hover:bg-[#252530] hover:text-[#f1f5f9]"
 							aria-label="Close EQ popup"
 						>
 							✕
@@ -86,68 +104,120 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 					</div>
 				</div>
 
-				{/* Visual Curve */}
-				<div className="my-4 overflow-hidden rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-2">
-					<svg
-						viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-						className="h-36 w-full"
-						preserveAspectRatio="none"
-					>
-						{/* Grid lines */}
-						<line
-							x1="0"
-							y1={dbToY(0)}
-							x2={svgWidth}
-							y2={dbToY(0)}
-							stroke="var(--color-border-default)"
-							strokeDasharray="4 4"
-						/>
-						<line
-							x1={freqToX(100)}
-							y1="0"
-							x2={freqToX(100)}
-							y2={svgHeight}
-							stroke="var(--color-border-subtle)"
-						/>
-						<line
-							x1={freqToX(1000)}
-							y1="0"
-							x2={freqToX(1000)}
-							y2={svgHeight}
-							stroke="var(--color-border-subtle)"
-						/>
-						<line
-							x1={freqToX(10000)}
-							y1="0"
-							x2={freqToX(10000)}
-							y2={svgHeight}
-							stroke="var(--color-border-subtle)"
-						/>
-
-						{/* Magnitude Response Curve */}
-						<path
-							d={pathD}
-							fill="none"
-							stroke={currentEq.enabled ? 'var(--color-accent)' : 'var(--color-text-muted)'}
-							strokeWidth="2.5"
-						/>
-					</svg>
-				</div>
-
-				{/* 4 Bands Control Sliders */}
-				<div className="grid grid-cols-4 gap-3 text-xs">
-					{currentEq.bands.map((band, idx) => (
-						<div
-							key={idx}
-							className="flex flex-col gap-1.5 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] p-2.5"
+				<div className="p-5">
+					{/* Visual Frequency Response Display */}
+					<div className="relative overflow-hidden rounded border border-[#22222a] bg-[#09090d] p-3 shadow-inner">
+						<svg
+							viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+							className="h-40 w-full"
+							preserveAspectRatio="none"
 						>
-							<div className="font-medium text-[var(--color-text-secondary)]">
-								Band {idx + 1} (
-								{band.type === 'peaking' ? 'Peak' : band.type === 'lowshelf' ? 'Low' : 'High'})
-							</div>
-							<div>
-								<div className="text-[10px] text-[var(--color-text-muted)]">Gain</div>
-								<div className="flex items-center justify-between">
+							<defs>
+								<linearGradient id="eqAreaGrad" x1="0" y1="0" x2="0" y2="1">
+									<stop offset="0%" stopColor="#38bdf8" stopOpacity="0.25" />
+									<stop offset="100%" stopColor="#38bdf8" stopOpacity="0.02" />
+								</linearGradient>
+							</defs>
+
+							{/* dB Reference Grid Lines */}
+							<line
+								x1="0"
+								y1={dbToY(12)}
+								x2={svgWidth}
+								y2={dbToY(12)}
+								stroke="#1c1c24"
+								strokeDasharray="2 4"
+							/>
+							<line
+								x1="0"
+								y1={dbToY(0)}
+								x2={svgWidth}
+								y2={dbToY(0)}
+								stroke="#333342"
+								strokeWidth="1"
+							/>
+							<line
+								x1="0"
+								y1={dbToY(-12)}
+								x2={svgWidth}
+								y2={dbToY(-12)}
+								stroke="#1c1c24"
+								strokeDasharray="2 4"
+							/>
+
+							{/* Frequency Reference Grid Lines */}
+							<line
+								x1={freqToX(100)}
+								y1="0"
+								x2={freqToX(100)}
+								y2={svgHeight}
+								stroke="#1c1c24"
+								strokeDasharray="2 4"
+							/>
+							<line
+								x1={freqToX(1000)}
+								y1="0"
+								x2={freqToX(1000)}
+								y2={svgHeight}
+								stroke="#282836"
+								strokeDasharray="2 4"
+							/>
+							<line
+								x1={freqToX(10000)}
+								y1="0"
+								x2={freqToX(10000)}
+								y2={svgHeight}
+								stroke="#1c1c24"
+								strokeDasharray="2 4"
+							/>
+
+							{/* Fill area under curve */}
+							<path
+								d={`${pathD} L ${svgWidth} ${dbToY(0)} L 0 ${dbToY(0)} Z`}
+								fill="url(#eqAreaGrad)"
+								opacity={currentEq.enabled ? '1' : '0.3'}
+							/>
+
+							{/* Magnitude Response Curve */}
+							<path
+								d={pathD}
+								fill="none"
+								stroke={currentEq.enabled ? '#38bdf8' : '#64748b'}
+								strokeWidth="2.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+						</svg>
+
+						{/* Overlay Grid Labels */}
+						<div className="pointer-events-none absolute inset-x-3 bottom-1.5 flex justify-between font-mono text-[10px] text-[#64748b]">
+							<span>100 Hz</span>
+							<span>1 kHz</span>
+							<span>10 kHz</span>
+						</div>
+					</div>
+
+					{/* 4 Bands Control Strips */}
+					<div className="mt-4 grid grid-cols-4 gap-2.5 text-xs">
+						{currentEq.bands.map((band, idx) => (
+							<div
+								key={idx}
+								className="flex flex-col gap-2 rounded border border-[#22222a] bg-[#16161d] p-3 shadow-sm"
+							>
+								<div className="flex items-center justify-between text-[11px] font-semibold text-[#cbd5e1]">
+									<span>Band {idx + 1}</span>
+									<span className="rounded bg-[#101016] px-1 py-0.5 font-mono text-[10px] text-[#94a3b8] uppercase">
+										{band.type === 'peaking' ? 'Peak' : band.type === 'lowshelf' ? 'Low' : 'High'}
+									</span>
+								</div>
+
+								<div>
+									<div className="mb-1 flex justify-between font-mono text-[10px] text-[#94a3b8]">
+										<span>Gain</span>
+										<span className={band.gainDb !== 0 ? 'font-bold text-[#38bdf8]' : ''}>
+											{band.gainDb > 0 ? `+${band.gainDb}` : band.gainDb} dB
+										</span>
+									</div>
 									<input
 										type="range"
 										min="-24"
@@ -155,16 +225,20 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 										step="0.5"
 										value={band.gainDb}
 										onChange={(e) => updateBand(idx, { gainDb: parseFloat(e.target.value) })}
-										className="w-full accent-[var(--color-accent)]"
+										className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
 									/>
-									<span className="ml-1 w-8 text-right font-mono text-[10px]">
-										{band.gainDb > 0 ? `+${band.gainDb}` : band.gainDb}
-									</span>
 								</div>
-							</div>
-							<div>
-								<div className="text-[10px] text-[var(--color-text-muted)]">Freq (Hz)</div>
-								<div className="flex items-center justify-between">
+
+								<div>
+									<div className="mb-1 flex justify-between font-mono text-[10px] text-[#94a3b8]">
+										<span>Freq</span>
+										<span>
+											{band.frequencyHz >= 1000
+												? `${(band.frequencyHz / 1000).toFixed(1)}k`
+												: Math.round(band.frequencyHz)}{' '}
+											Hz
+										</span>
+									</div>
 									<input
 										type="range"
 										min="20"
@@ -172,18 +246,15 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 										step="10"
 										value={band.frequencyHz}
 										onChange={(e) => updateBand(idx, { frequencyHz: parseFloat(e.target.value) })}
-										className="w-full accent-[var(--color-accent)]"
+										className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
 									/>
-									<span className="ml-1 w-8 text-right font-mono text-[10px]">
-										{band.frequencyHz >= 1000
-											? `${(band.frequencyHz / 1000).toFixed(1)}k`
-											: Math.round(band.frequencyHz)}
-									</span>
 								</div>
-							</div>
-							<div>
-								<div className="text-[10px] text-[var(--color-text-muted)]">Q</div>
-								<div className="flex items-center justify-between">
+
+								<div>
+									<div className="mb-1 flex justify-between font-mono text-[10px] text-[#94a3b8]">
+										<span>Q</span>
+										<span>{band.q.toFixed(1)}</span>
+									</div>
 									<input
 										type="range"
 										min="0.1"
@@ -191,21 +262,27 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 										step="0.1"
 										value={band.q}
 										onChange={(e) => updateBand(idx, { q: parseFloat(e.target.value) })}
-										className="w-full accent-[var(--color-accent)]"
+										className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
 									/>
-									<span className="ml-1 w-8 text-right font-mono text-[10px]">
-										{band.q.toFixed(1)}
-									</span>
 								</div>
 							</div>
-						</div>
-					))}
+						))}
+					</div>
 				</div>
 
-				<div className="mt-5 flex justify-end">
+				{/* Premiere Pro Dialog Footer */}
+				<div className="flex items-center justify-between border-t border-[#22222c] bg-[#111116] px-5 py-3">
 					<button
+						type="button"
+						onClick={resetFlat}
+						className="rounded border border-[#2c2c36] bg-[#1a1a22] px-3 py-1.5 text-xs font-medium text-[#94a3b8] transition-colors hover:bg-[#252530] hover:text-[#f1f5f9]"
+					>
+						Reset to Flat
+					</button>
+					<button
+						type="button"
 						onClick={onClose}
-						className="rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-xs font-medium text-[var(--color-accent-contrast)] hover:opacity-90"
+						className="rounded bg-[#0070f3] px-5 py-1.5 text-xs font-semibold text-white shadow transition-colors hover:bg-[#0060df]"
 					>
 						Done
 					</button>

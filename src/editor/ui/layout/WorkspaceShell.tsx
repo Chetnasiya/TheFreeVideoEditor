@@ -488,6 +488,8 @@ function StackRenderer({
 						inspector: 'inspector-panel',
 						color: 'color-panel',
 						mixer: 'mixer-panel',
+						loudness: 'loudness-panel',
+						'essential-sound': 'essential-sound-panel',
 						timeline: 'timeline-panel',
 						graph: 'graph-panel'
 					};

@@ -561,6 +561,69 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			preventDefault: true
 		},
 		{
+			id: 'tool-select',
+			keys: { mac: 'v', other: 'v' },
+			label: 'Selection Tool',
+			group: 'Tools',
+			scope: 'editor',
+			handler: action('tool-select'),
+			preventDefault: true
+		},
+		{
+			id: 'tool-track-select',
+			keys: { mac: 'a', other: 'a' },
+			label: 'Track Select Forward Tool',
+			group: 'Tools',
+			scope: 'editor',
+			handler: action('tool-track-select'),
+			preventDefault: true
+		},
+		{
+			id: 'tool-ripple',
+			keys: { mac: 'b', other: 'b' },
+			label: 'Ripple Edit Tool',
+			group: 'Tools',
+			scope: 'editor',
+			handler: action('tool-ripple'),
+			preventDefault: true
+		},
+		{
+			id: 'tool-razor',
+			keys: { mac: 'c', other: 'c' },
+			label: 'Razor Tool',
+			group: 'Tools',
+			scope: 'editor',
+			handler: action('tool-razor'),
+			preventDefault: true
+		},
+		{
+			id: 'tool-slip',
+			keys: { mac: 'y', other: 'y' },
+			label: 'Slip Tool',
+			group: 'Tools',
+			scope: 'editor',
+			handler: action('tool-slip'),
+			preventDefault: true
+		},
+		{
+			id: 'tool-pen',
+			keys: { mac: 'p', other: 'p' },
+			label: 'Pen Tool',
+			group: 'Tools',
+			scope: 'editor',
+			handler: action('tool-pen'),
+			preventDefault: true
+		},
+		{
+			id: 'tool-hand',
+			keys: { mac: 'h', other: 'h' },
+			label: 'Hand Tool',
+			group: 'Tools',
+			scope: 'editor',
+			handler: action('tool-hand'),
+			preventDefault: true
+		},
+		{
 			id: 'new-text-clip',
 			keys: { mac: 't', other: 't' },
 			label: 'New Text Clip',

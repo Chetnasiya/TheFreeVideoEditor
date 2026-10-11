@@ -8,6 +8,8 @@ import PreviewWorkspace from '../preview/PreviewWorkspace';
 import Inspector from '../inspector/Inspector';
 import ColorPanel from '../color/ColorPanel';
 import { MixerPanel } from '../audio/MixerPanel';
+import { LoudnessPanel } from '../audio/LoudnessPanel';
+import { EssentialSoundPanel } from '../audio/EssentialSoundPanel';
 import Timeline from '../timeline/Timeline';
 import GraphEditor from '../graph/GraphEditor';
 
@@ -75,6 +77,22 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
 		singleInstance: true,
 		keepAlive: false,
 		minSize: { width: 240, height: 180 }
+	},
+	loudness: {
+		id: 'loudness',
+		title: 'Loudness Meter',
+		component: LoudnessPanel as ComponentType<{ [key: string]: unknown }>,
+		singleInstance: true,
+		keepAlive: false,
+		minSize: { width: 220, height: 180 }
+	},
+	'essential-sound': {
+		id: 'essential-sound',
+		title: 'Essential Sound',
+		component: EssentialSoundPanel as ComponentType<{ [key: string]: unknown }>,
+		singleInstance: true,
+		keepAlive: false,
+		minSize: { width: 220, height: 180 }
 	},
 	timeline: {
 		id: 'timeline',

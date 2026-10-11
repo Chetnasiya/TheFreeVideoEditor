@@ -338,6 +338,52 @@ export function trimClip(
 	}));
 }
 
+export function rippleTrimClip(
+	project: Project,
+	clipId: ClipId,
+	edge: TrimEdge,
+	requestedTime: Time,
+	unlink = false
+): Project {
+	const { clip } = findClip(project, clipId);
+	const group = unlink ? [clip] : groupOf(project, clipId);
+	for (const member of group) {
+		const track = project.tracks.find((row) => row.clips.some((c) => c.id === member.id))!;
+		if (track.locked) throw new TrackLockedError(track.id);
+	}
+
+	const oldEnd = clipEnd(clip);
+	const oldStart = clip.start;
+	const trimmedProject = trimClip(project, clipId, edge, requestedTime, unlink);
+	const { clip: newClip } = findClip(trimmedProject, clipId);
+	const newEnd = clipEnd(newClip);
+	const newStart = newClip.start;
+	const durationDelta = edge === 'end' ? newEnd - oldEnd : -(newStart - oldStart);
+
+	if (durationDelta === 0) return trimmedProject;
+
+	const groupIds = new Set(group.map((m) => m.id));
+	const tracks = trimmedProject.tracks.map((track) => {
+		const hasEditedMember = track.clips.some((c) => groupIds.has(c.id));
+		if (!hasEditedMember || track.locked) return track;
+		const refPoint = edge === 'end' ? oldEnd : oldStart;
+		return {
+			...track,
+			clips: track.clips
+				.map((c) => {
+					if (groupIds.has(c.id)) return c;
+					if (c.start >= refPoint - 1) {
+						return { ...c, start: Math.max(0, c.start + durationDelta) };
+					}
+					return c;
+				})
+				.toSorted((a, b) => a.start - b.start)
+		};
+	});
+
+	return { ...trimmedProject, tracks };
+}
+
 export interface SplitResult {
 	project: Project;
 	splitClipIds: ClipId[];

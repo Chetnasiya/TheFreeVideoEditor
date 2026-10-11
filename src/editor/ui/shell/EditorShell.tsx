@@ -20,7 +20,6 @@ import ExportDialog from '../export/ExportDialog';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
 import SourceMonitor from '../preview/SourceMonitor';
 import Timeline from '../timeline/Timeline';
-import { MixerPanel } from '../audio/MixerPanel';
 import WorkspaceShell from '../layout/WorkspaceShell';
 import EditWorkspacesDialog from '../dialogs/EditWorkspacesDialog';
 import { collectPanels } from '../layout/operations';
@@ -351,7 +350,14 @@ function EditorShell() {
 			'nudge-second-forward': () => nudge(1, true),
 			'add-video-track': () => state().addTimelineTrack('video'),
 			'add-audio-track': () => state().addTimelineTrack('audio'),
-			'new-text-clip': () => state().addTextClip(),
+			'tool-select': () => state().setActiveTimelineTool('select'),
+			'tool-track-select': () => state().setActiveTimelineTool('track-select'),
+			'tool-ripple': () => state().setActiveTimelineTool('ripple'),
+			'tool-razor': () => state().setActiveTimelineTool('razor'),
+			'tool-slip': () => state().setActiveTimelineTool('slip'),
+			'tool-pen': () => state().setActiveTimelineTool('pen'),
+			'tool-hand': () => state().setActiveTimelineTool('hand'),
+			'new-text-clip': () => state().setActiveTimelineTool('type'),
 			'add-caption': () => state().addCaptionAtPlayhead(),
 			undo: () => state().undo(),
 			redo: () => state().redo(),
@@ -1441,7 +1447,6 @@ function EditorShell() {
 						return undefined;
 					}}
 				/>
-				<MixerPanel />
 			</main>
 
 			<p id="project-name-message" className="sr-only" role="status" aria-live="polite">

@@ -1,3 +1,6 @@
+import type { AudioEffectInstance } from './audio/effects/registry';
+export type { AudioEffectInstance } from './audio/effects/registry';
+
 export type Brand<Value, Name extends string> = Value & { readonly __brand: Name };
 
 export type ProjectId = Brand<string, 'ProjectId'>;
@@ -210,10 +213,38 @@ export interface TrackCompressor {
 	makeupDb: number;
 }
 
+export type AutomationMode = 'off' | 'read' | 'write' | 'touch' | 'latch';
+
+export interface TrackSend {
+	busId: string;
+	levelDb: number;
+	pre: boolean;
+	enabled: boolean;
+}
+
+export interface AudioBus {
+	id: string;
+	name: string;
+	gainDb: number;
+	pan: number;
+	muted: boolean;
+	solo: boolean;
+	output: 'master' | string; // target busId
+	effects?: AudioEffectInstance[];
+	automation?: Record<string, AnimatedValue<number>>;
+	automationMode?: AutomationMode;
+}
+
 export interface TrackAudio {
 	gainDb: number;
 	pan: number;
 	solo: boolean;
+	output?: 'master' | string; // master or busId
+	sends?: TrackSend[];
+	effects?: AudioEffectInstance[];
+	automation?: Record<string, AnimatedValue<number>>;
+	automationMode?: AutomationMode;
+	channelMode?: 'stereo' | 'mono';
 	eq?: TrackEq;
 	compressor?: TrackCompressor;
 }
@@ -222,6 +253,9 @@ export interface ProjectMaster {
 	gainDb: number;
 	limiter: boolean;
 	loudnessTargetLufs?: number;
+	effects?: AudioEffectInstance[];
+	automation?: Record<string, AnimatedValue<number>>;
+	automationMode?: AutomationMode;
 }
 
 export interface Clip {
@@ -235,6 +269,9 @@ export interface Clip {
 	volume: number;
 	linkId?: string;
 	effects?: EffectInstance[];
+	audioEffects?: AudioEffectInstance[];
+	audioTag?: 'dialogue' | 'music' | 'sfx' | 'ambience';
+	channelRouting?: 'stereo' | 'mono-left' | 'mono-right' | 'mono-sum' | 'swap' | 'invert-lr';
 	transform?: ClipTransform;
 	text?: string;
 	source?: ClipSource;
@@ -336,6 +373,7 @@ export interface Project {
 	sequences?: Record<SequenceId, Sequence>;
 	masterAudio?: ProjectMaster;
 	proxy?: ProjectProxySettings;
+	audioBuses?: AudioBus[];
 }
 
 export interface ProjectSummary {
@@ -346,7 +384,7 @@ export interface ProjectSummary {
 	assetCount: number;
 }
 
-export type TimelineDragKind = 'move' | 'trim-start' | 'trim-end' | 'asset';
+export type TimelineDragKind = 'move' | 'trim-start' | 'trim-end' | 'asset' | 'slip';
 
 export interface DragPosition {
 	clipId: ClipId;

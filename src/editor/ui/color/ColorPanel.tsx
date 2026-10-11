@@ -149,6 +149,7 @@ export default function ColorPanel() {
 							min={-5}
 							max={5}
 							step={0.05}
+							defaultValue={0}
 							unit="EV"
 							onChange={(v) => setCcParam('exposure', v)}
 						/>
@@ -158,6 +159,7 @@ export default function ColorPanel() {
 							min={-1}
 							max={1}
 							step={0.01}
+							defaultValue={0}
 							onChange={(v) => setCcParam('contrast', v)}
 						/>
 						<ColorSlider
@@ -166,6 +168,7 @@ export default function ColorPanel() {
 							min={-1}
 							max={1}
 							step={0.01}
+							defaultValue={0}
 							onChange={(v) => setCcParam('highlights', v)}
 						/>
 						<ColorSlider
@@ -174,6 +177,7 @@ export default function ColorPanel() {
 							min={-1}
 							max={1}
 							step={0.01}
+							defaultValue={0}
 							onChange={(v) => setCcParam('shadows', v)}
 						/>
 						<ColorSlider
@@ -182,6 +186,7 @@ export default function ColorPanel() {
 							min={-1}
 							max={1}
 							step={0.01}
+							defaultValue={0}
 							onChange={(v) => setCcParam('whites', v)}
 						/>
 						<ColorSlider
@@ -190,6 +195,7 @@ export default function ColorPanel() {
 							min={-1}
 							max={1}
 							step={0.01}
+							defaultValue={0}
 							onChange={(v) => setCcParam('blacks', v)}
 						/>
 						<ColorSlider
@@ -198,6 +204,7 @@ export default function ColorPanel() {
 							min={-1}
 							max={1}
 							step={0.01}
+							defaultValue={0}
 							onChange={(v) => setCcParam('temperature', v)}
 						/>
 						<ColorSlider
@@ -206,6 +213,7 @@ export default function ColorPanel() {
 							min={-1}
 							max={1}
 							step={0.01}
+							defaultValue={0}
 							onChange={(v) => setCcParam('tint', v)}
 						/>
 						<ColorSlider
@@ -214,6 +222,7 @@ export default function ColorPanel() {
 							min={0}
 							max={2}
 							step={0.01}
+							defaultValue={1}
 							unit="×"
 							onChange={(v) => setCcParam('saturation', v)}
 						/>
@@ -223,6 +232,7 @@ export default function ColorPanel() {
 							min={-1}
 							max={1}
 							step={0.01}
+							defaultValue={0}
 							onChange={(v) => setCcParam('vibrance', v)}
 						/>
 					</div>
@@ -376,28 +386,60 @@ interface ColorSliderProps {
 	min: number;
 	max: number;
 	step: number;
+	defaultValue?: number;
 	unit?: string;
 	onChange: (v: number) => void;
 }
 
-function ColorSlider({ label, value, min, max, step, unit = '', onChange }: ColorSliderProps) {
+function ColorSlider({
+	label,
+	value,
+	min,
+	max,
+	step,
+	defaultValue = 0,
+	unit = '',
+	onChange
+}: ColorSliderProps) {
+	const isTemp = label === 'Temperature';
+	const isTint = label === 'Tint';
+	const rangeClass = isTemp
+		? 'color-range-input color-range-temp'
+		: isTint
+			? 'color-range-input color-range-tint'
+			: 'color-range-input';
+
 	return (
 		<div className="color-slider-row">
 			<div className="color-slider-label">
-				<span>{label}</span>
-				<span className="color-slider-val">
+				<span
+					onDoubleClick={() => onChange(defaultValue)}
+					title="Double-click to reset"
+					style={{ cursor: 'pointer' }}
+				>
+					{label}
+				</span>
+				<span
+					className="color-slider-val"
+					onDoubleClick={() => onChange(defaultValue)}
+					title="Double-click to reset"
+					style={{ cursor: 'pointer' }}
+				>
+					{value > 0 && !unit && '+'}
 					{value.toFixed(2)}
 					{unit}
 				</span>
 			</div>
 			<input
 				type="range"
-				className="color-range-input"
+				className={rangeClass}
 				min={min}
 				max={max}
 				step={step}
 				value={value}
 				onChange={(e) => onChange(parseFloat(e.target.value))}
+				onDoubleClick={() => onChange(defaultValue)}
+				title={`${label}: ${value.toFixed(2)}${unit} (Double-click to reset)`}
 			/>
 		</div>
 	);
@@ -536,13 +578,21 @@ function ColorWheel({ title, r, g, b, onChange }: ColorWheelProps) {
 	const svgRef = useRef<SVGSVGElement>(null);
 	const [isDragging, setIsDragging] = useState(false);
 
-	// Convert RGB offsets to 2D disc coordinates (x, y)
-	const discX = (r - b) * 0.5;
-	const discY = -(g - (r + b) * 0.5) * 0.5;
+	// Map RGB offsets to 2D disc coordinates (normalized [-1, 1])
+	// With 3 color axes at 120° (Green at 90°/top, Red at -30°/bottom-right, Blue at 210°/bottom-left):
+	// x = (r - b) * cos(30°) = (r - b) * 0.866
+	// y = -g + 0.5 * (r + b)
+	// Or directly tracking the puck vector:
+	const discX = (r - b) * 0.57735; // (r - b) / sqrt(3)
+	const discY = -(g - (r + b) * 0.5);
 
 	const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
 		setIsDragging(true);
-		(e.target as Element).setPointerCapture(e.pointerId);
+		try {
+			(e.target as Element).setPointerCapture(e.pointerId);
+		} catch {
+			// ignore
+		}
 		updateFromPointer(e);
 	};
 
@@ -551,11 +601,16 @@ function ColorWheel({ title, r, g, b, onChange }: ColorWheelProps) {
 		updateFromPointer(e);
 	};
 
-	const handlePointerUp = () => {
+	const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
 		setIsDragging(false);
+		try {
+			(e.target as Element).releasePointerCapture(e.pointerId);
+		} catch {
+			// ignore
+		}
 	};
 
-	const handleDoubleClick = () => {
+	const handleReset = () => {
 		onChange(0, 0, 0); // Reset puck
 	};
 
@@ -564,7 +619,8 @@ function ColorWheel({ title, r, g, b, onChange }: ColorWheelProps) {
 		if (!rect) return;
 		const centerX = rect.left + rect.width / 2;
 		const centerY = rect.top + rect.height / 2;
-		const radius = rect.width / 2;
+		// Active interactive radius inside SVG (up to 44px out of 50px SVG half-width)
+		const radius = (rect.width / 2) * 0.88;
 
 		let dx = (e.clientX - centerX) / radius;
 		let dy = (e.clientY - centerY) / radius;
@@ -574,44 +630,136 @@ function ColorWheel({ title, r, g, b, onChange }: ColorWheelProps) {
 			dy /= dist;
 		}
 
-		// Convert dx, dy back to RGB deltas
-		const angle = Math.atan2(-dy, dx);
-		const sat = Math.min(1, dist);
-		const newR = Math.max(-1, Math.min(1, Math.cos(angle) * sat));
-		const newG = Math.max(-1, Math.min(1, Math.sin(angle) * sat));
-		const newB = Math.max(-1, Math.min(1, -Math.cos(angle) * sat));
-		onChange(newR, newG, newB);
+		// Standard color grading wheel formula:
+		// Top (dy < 0) adds Green / subtracts Magenta
+		// Right / bottom-right (dx > 0) adds Red
+		// Left / bottom-left (dx < 0) adds Blue
+		// Angle measured clockwise from top (0 = Green, 120 = Red, 240 = Blue)
+		const angleRad = Math.atan2(dx, -dy); // 0 at top (green), +pi/2 at right (yellow/red), -pi/2 at left (cyan/blue)
+		const magnitude = Math.min(1, dist);
+
+		// Projections onto the three 120° color axes:
+		// Green axis: 0 rad (top) -> cos(angleRad)
+		// Red axis: +2.0944 rad (120° = bottom right) -> cos(angleRad - 2π/3)
+		// Blue axis: -2.0944 rad (240° = bottom left) -> cos(angleRad - 4π/3)
+		const gVal = Math.cos(angleRad) * magnitude;
+		const rVal = Math.cos(angleRad - (2 * Math.PI) / 3) * magnitude;
+		const bVal = Math.cos(angleRad - (4 * Math.PI) / 3) * magnitude;
+
+		onChange(
+			Math.round(rVal * 100) / 100,
+			Math.round(gVal * 100) / 100,
+			Math.round(bVal * 100) / 100
+		);
 	};
 
-	// Center point is 50, 50 in 100x100 viewBox
-	const puckSvgX = 50 + discX * 45;
-	const puckSvgY = 50 + discY * 45;
+	// Center point is 50, 50 in 100x100 viewBox; disk radius is 48, puck usable radius is 42
+	// Normalize hypot(discX, discY) to max 1 for puck rendering
+	const puckDist = Math.hypot(discX, discY);
+	const normDist = puckDist > 1 ? 1 : puckDist;
+	const puckAngle = Math.atan2(discY, discX);
+	const puckSvgX = 50 + (puckDist > 0 ? Math.cos(puckAngle) * normDist * 42 : 0);
+	const puckSvgY = 50 + (puckDist > 0 ? Math.sin(puckAngle) * normDist * 42 : 0);
+
+	// Calculate dynamic tint color for the puck
+	const pr = Math.round(Math.max(0, Math.min(255, 128 + r * 127)));
+	const pg = Math.round(Math.max(0, Math.min(255, 128 + g * 127)));
+	const pb = Math.round(Math.max(0, Math.min(255, 128 + b * 127)));
+	const puckColor = `rgb(${pr}, ${pg}, ${pb})`;
+	const isModified = Math.abs(r) > 0.001 || Math.abs(g) > 0.001 || Math.abs(b) > 0.001;
 
 	return (
 		<div className="wheel-card">
-			<span className="wheel-title">{title}</span>
-			<svg
-				ref={svgRef}
-				viewBox="0 0 100 100"
-				className="wheel-svg"
-				onPointerDown={handlePointerDown}
-				onPointerMove={handlePointerMove}
-				onPointerUp={handlePointerUp}
-				onDoubleClick={handleDoubleClick}
-				role="slider"
-				aria-label={title}
-			>
-				<defs>
-					<radialGradient id="wheelGrad">
-						<stop offset="0%" stopColor="#808080" />
-						<stop offset="100%" stopColor="#333333" />
-					</radialGradient>
-				</defs>
-				<circle cx="50" cy="50" r="48" fill="url(#wheelGrad)" stroke="#444" strokeWidth="1" />
-				<line x1="50" y1="2" x2="50" y2="98" stroke="#555" strokeWidth="0.5" />
-				<line x1="2" y1="50" x2="98" y2="50" stroke="#555" strokeWidth="0.5" />
-				<circle cx={puckSvgX} cy={puckSvgY} r="5" className="wheel-puck" />
-			</svg>
+			<div className="wheel-header">
+				<span className="wheel-title">{title}</span>
+				{isModified && (
+					<button
+						type="button"
+						className="wheel-reset-btn"
+						title="Reset wheel to neutral"
+						aria-label={`Reset ${title}`}
+						onClick={handleReset}
+					>
+						<svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor">
+							<path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 1 0-.908-.418A4 4 0 1 1 8 4a3.97 3.97 0 0 1 2.828 1.172l-1.414 1.414H13V3.001l-1.464 1.464A4.975 4.975 0 0 0 8 3z" />
+						</svg>
+					</button>
+				)}
+			</div>
+			<div className="wheel-disc-container">
+				<svg
+					ref={svgRef}
+					viewBox="0 0 100 100"
+					className="wheel-svg"
+					onPointerDown={handlePointerDown}
+					onPointerMove={handlePointerMove}
+					onPointerUp={handlePointerUp}
+					onDoubleClick={handleReset}
+					role="slider"
+					aria-label={title}
+					aria-valuenow={Math.round(Math.hypot(discX, discY) * 100)}
+				>
+					{/* Outer perimeter outline */}
+					<circle
+						cx="50"
+						cy="50"
+						r="48"
+						fill="transparent"
+						stroke="rgba(255, 255, 255, 0.14)"
+						strokeWidth="1"
+					/>
+					{/* Crosshair guide lines */}
+					<line
+						x1="50"
+						y1="4"
+						x2="50"
+						y2="96"
+						stroke="rgba(255, 255, 255, 0.2)"
+						strokeWidth="0.75"
+						strokeDasharray="2 3"
+					/>
+					<line
+						x1="4"
+						y1="50"
+						x2="96"
+						y2="50"
+						stroke="rgba(255, 255, 255, 0.2)"
+						strokeWidth="0.75"
+						strokeDasharray="2 3"
+					/>
+					{/* Neutral center deadzone circle */}
+					<circle
+						cx="50"
+						cy="50"
+						r="6"
+						stroke="rgba(255, 255, 255, 0.3)"
+						strokeWidth="0.75"
+						fill="rgba(0, 0, 0, 0.35)"
+					/>
+					{/* Control Puck with dynamic color tint */}
+					<circle
+						cx={puckSvgX}
+						cy={puckSvgY}
+						r="5.5"
+						className="wheel-puck"
+						style={{ fill: puckColor }}
+					/>
+				</svg>
+			</div>
+			<div className="wheel-readouts" aria-label={`RGB values for ${title}`}>
+				<span className="wheel-readout-item readout-r">
+					<span className="readout-label">R</span>
+					<span>{r >= 0 ? `+${r.toFixed(2)}` : r.toFixed(2)}</span>
+				</span>
+				<span className="wheel-readout-item readout-g">
+					<span className="readout-label">G</span>
+					<span>{g >= 0 ? `+${g.toFixed(2)}` : g.toFixed(2)}</span>
+				</span>
+				<span className="wheel-readout-item readout-b">
+					<span className="readout-label">B</span>
+					<span>{b >= 0 ? `+${b.toFixed(2)}` : b.toFixed(2)}</span>
+				</span>
+			</div>
 		</div>
 	);
 }

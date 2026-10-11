@@ -289,7 +289,7 @@ export const PRESET_AUDIO: Workspace = {
 					},
 					{
 						type: 'stack',
-						panelIds: ['mixer', 'inspector'],
+						panelIds: ['mixer', 'loudness', 'inspector'],
 						activeId: 'mixer'
 					}
 				]

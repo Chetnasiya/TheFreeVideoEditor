@@ -33,6 +33,10 @@
 }
 
 .timeline-tool-group .tool-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
 	flex: 0 0 auto;
 	width: auto;
 	min-width: 2rem;
@@ -44,6 +48,16 @@
 	color: var(--color-body);
 	font-size: var(--text-body-sm);
 	white-space: nowrap;
+}
+
+.timeline-tool-group .tool-button .tool-btn-icon {
+	flex: 0 0 auto;
+	opacity: 0.85;
+}
+
+.timeline-tool-group .tool-button:hover .tool-btn-icon,
+.timeline-tool-group .tool-button.is-active .tool-btn-icon {
+	opacity: 1;
 }
 
 .timeline-tool-group .tool-button:hover:not(:disabled) {
@@ -91,6 +105,57 @@
 	white-space: nowrap;
 }
 
+.timeline-body-wrapper {
+	display: flex;
+	flex: 1 1 0;
+	min-width: 0;
+	min-height: 0;
+	width: 100%;
+	position: relative;
+	overflow: hidden;
+}
+
+.timeline-toolstrip {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	width: 38px;
+	flex: 0 0 38px;
+	padding: 8px 0;
+	background: var(--color-canvas);
+	border-right: 1px solid var(--color-hairline);
+	z-index: 10;
+}
+
+.timeline-toolstrip-button {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--color-body);
+	cursor: pointer;
+	transition:
+		background 0.12s ease,
+		border-color 0.12s ease,
+		color 0.12s ease;
+	position: relative;
+}
+
+.timeline-toolstrip-button:hover {
+	background: var(--color-hairline-soft);
+	color: var(--color-ink);
+}
+
+.timeline-toolstrip-button.is-active {
+	background: var(--color-link-soft);
+	border-color: var(--color-link);
+	color: var(--color-link);
+}
+
 .timeline-scroll {
 	position: relative;
 	flex: 1 1 0;
@@ -100,6 +165,45 @@
 	overscroll-behavior: contain;
 	touch-action: pan-x pan-y;
 	user-select: none;
+}
+
+.timeline-scroll[data-tool='razor'],
+.timeline-scroll[data-tool='razor'] .timeline-clip,
+.timeline-scroll[data-tool='razor'] .timeline-clip-body,
+.timeline-scroll[data-tool='razor'] .clip-trim-handle,
+.timeline-scroll[data-tool='razor'] .timeline-track-lane {
+	cursor:
+		url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtNiwgLTEpIj4KICAgIDxnIHRyYW5zZm9ybT0icm90YXRlKDQ1IDEyIDEyKSI+CiAgICAgIDwhLS0gSGlnaCBjb250cmFzdCBkYXJrIHNpbGhvdWV0dGUgLyBvdXRsaW5lIC0tPgogICAgICA8cGF0aAogICAgICAgIGZpbGw9IiMwMDAwMDAiCiAgICAgICAgc3Ryb2tlPSIjMDAwMDAwIgogICAgICAgIHN0cm9rZS13aWR0aD0iMi41IgogICAgICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgICAgICAgZmlsbC1ydWxlPSJldmVub2RkIgogICAgICAgIGQ9Ik0gNC41IDcgaCAxNSBsIDEuNSAxLjUgdiAyIGggLTEuNSB2IDMgSCAyMSB2IDIgbCAtMS41IDEuNSBoIC0xNSBMIDMgMTUuNSB2IC0yIGggMS41IHYgLTMgSCAzIFYgOC41IEwgNC41IDcgWiBNIDEyIDkuOCBhIDIuMiAyLjIgMCAxIDAgMC4wMDEgMCBaIE0gNS41IDExLjMgaCAxMyB2IDEuNCBoIC0xMyBaIE0gNS41IDEwLjQgaCAxLjUgdiAzLjIgaCAtMS41IFogTSAxNyAxMC40IGggMS41IHYgMy4yIGggLTEuNSBaIgogICAgICAvPgogICAgICA8IS0tIFNoYXJwIHNpbHZlci93aGl0ZSByYXpvciBibGFkZSAtLT4KICAgICAgPHBhdGgKICAgICAgICBmaWxsPSIjZjhmYWZjIgogICAgICAgIHN0cm9rZT0iIzBmMTcyYSIKICAgICAgICBzdHJva2Utd2lkdGg9IjAuOCIKICAgICAgICBzdHJva2UtbGluZWpvaW49InJvdW5kIgogICAgICAgIGZpbGwtcnVsZT0iZXZlbm9kZCIKICAgICAgICBkPSJNIDQuNSA3IGggMTUgbCAxLjUgMS41IHYgMiBoIC0xLjUgdiAzIEggMjEgdiAyIGwgLTEuNSAxLjUgaCAtMTUgTCAzIDE1LjUgdiAtMiBoIDEuNSB2IC0zIEggMyBWIDguNSBMIDQuNSA3IFogTSAxMiA5LjggYSAyLjIgMi4yIDAgMSAwIDAuMDAxIDAgWiBNIDUuNSAxMS4zIGggMTMgdiAxLjQgaCAtMTMgWiBNIDUuNSAxMC40IGggMS41IHYgMy4yIGggLTEuNSBaIE0gMTcgMTAuNCBoIDEuNSB2IDMuMiBoIC0xLjUgWiIKICAgICAgLz4KICAgICAgPCEtLSBNZXRhbGxpYyBibGFkZSBiZXZlbCBkZXRhaWwgbGluZXMgLS0+CiAgICAgIDxsaW5lIHgxPSI0LjUiIHkxPSI4IiB4Mj0iMTkuNSIgeTI9IjgiIHN0cm9rZT0iIzk0YTNiOCIgc3Ryb2tlLXdpZHRoPSIwLjc1IiAvPgogICAgICA8bGluZSB4MT0iNC41IiB5MT0iMTYiIHgyPSIxOS41IiB5Mj0iMTYiIHN0cm9rZT0iIzk0YTNiOCIgc3Ryb2tlLXdpZHRoPSIwLjc1IiAvPgogICAgPC9nPgogIDwvZz4KPC9zdmc+')
+			2 2,
+		crosshair !important;
+}
+
+.timeline-scroll[data-tool='hand'],
+.timeline-scroll[data-tool='hand'] .timeline-clip {
+	cursor: grab !important;
+}
+
+.timeline-scroll[data-tool='hand'].is-panning,
+.timeline-scroll[data-tool='hand'].is-panning .timeline-clip {
+	cursor: grabbing !important;
+}
+
+.timeline-scroll[data-tool='track-select'],
+.timeline-scroll[data-tool='track-select'] .timeline-clip {
+	cursor: e-resize !important;
+}
+
+.timeline-scroll[data-tool='slip'],
+.timeline-scroll[data-tool='slip'] .timeline-clip {
+	cursor: ew-resize !important;
+}
+
+.timeline-scroll[data-tool='type'] {
+	cursor: text !important;
+}
+
+.timeline-scroll[data-tool='ripple'] .clip-trim-handle {
+	cursor: col-resize !important;
 }
 
 .timeline-world {

@@ -9,6 +9,8 @@ export type PanelId =
 	| 'inspector'
 	| 'color'
 	| 'mixer'
+	| 'loudness'
+	| 'essential-sound'
 	| 'timeline'
 	| 'graph';
 

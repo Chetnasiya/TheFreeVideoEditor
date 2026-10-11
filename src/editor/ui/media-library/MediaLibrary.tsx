@@ -24,12 +24,13 @@ import { openFiles } from '../../services/storage/fileAccess';
 import './media-library.css';
 
 function formatBytes(bytes: number): string {
-	return new Intl.NumberFormat(undefined, {
-		style: 'unit',
-		unit: 'byte',
-		unitDisplay: 'narrow',
-		maximumFractionDigits: 1
-	}).format(bytes);
+	if (!bytes || bytes <= 0) return '0 B';
+	const k = 1024;
+	const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	const idx = Math.max(0, Math.min(i, sizes.length - 1));
+	const val = bytes / Math.pow(k, idx);
+	return `${val < 10 && idx > 0 ? val.toFixed(1) : Math.round(val)} ${sizes[idx]}`;
 }
 
 function fileFromEntry(entry: FileSystemFileEntry): Promise<File> {
@@ -476,591 +477,701 @@ export default function MediaLibrary() {
 				media.importQueue.some((job) => !['done', 'failed', 'cancelled'].includes(job.status))
 			}
 		>
-			<div className="media-library-toolbar">
-				<button
-					className="secondary-button media-import-button"
-					type="button"
-					disabled={!project || isImporting}
-					onClick={() => void pickFiles()}
-				>
-					Import Media…
-				</button>
-				<button
-					className="secondary-button media-new-sequence-btn"
-					type="button"
-					disabled={!project}
-					onClick={handleCreateSequence}
-					title="Create a new sequence"
-					aria-label="New sequence"
-				>
-					+ Sequence
-				</button>
-				<input
-					ref={fileInputRef}
-					type="file"
-					name="media-files"
-					accept={ACCEPTED_TYPES.join(',')}
-					multiple
-					hidden
-					onChange={(event) => {
-						void importFiles(Array.from(event.currentTarget.files ?? []));
-						event.currentTarget.value = '';
-					}}
-				/>
-				<div className="media-view-toggle" role="group" aria-label="Media view">
+			<div className="media-library-header">
+				<div className="media-library-toolbar">
+					<div className="media-toolbar-actions">
+						<button
+							className="secondary-button media-import-button"
+							type="button"
+							disabled={!project || isImporting}
+							onClick={() => void pickFiles()}
+							title="Import media files from device"
+						>
+							<svg
+								className="media-btn-icon"
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M8 10V2M8 2L5 5M8 2L11 5M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
+							</svg>
+							<span>Import Media…</span>
+						</button>
+						<button
+							className="secondary-button media-new-sequence-btn"
+							type="button"
+							disabled={!project}
+							onClick={handleCreateSequence}
+							title="Create a new sequence"
+							aria-label="New sequence"
+						>
+							<svg
+								className="media-btn-icon"
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<rect x="2" y="3" width="12" height="10" rx="1.5" />
+								<path d="M5 3v10M11 3v10M2 6.5h3M2 9.5h3M11 6.5h3M11 9.5h3" />
+							</svg>
+							<span>+ Sequence</span>
+						</button>
+						<button
+							className="secondary-button media-proxy-settings-btn"
+							type="button"
+							disabled={!project}
+							onClick={() => setProxySettingsOpen(true)}
+							title="Configure video proxy resolution and auto generation"
+							aria-label="Proxy settings"
+						>
+							<svg
+								className="media-btn-icon"
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<circle cx="8" cy="8" r="2.5" />
+								<path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" />
+							</svg>
+							<span>Proxies…</span>
+						</button>
+					</div>
+					<input
+						ref={fileInputRef}
+						type="file"
+						name="media-files"
+						accept={ACCEPTED_TYPES.join(',')}
+						multiple
+						hidden
+						onChange={(event) => {
+							void importFiles(Array.from(event.currentTarget.files ?? []));
+							event.currentTarget.value = '';
+						}}
+					/>
+					<div className="media-view-toggle" role="group" aria-label="Media view">
+						<button
+							type="button"
+							aria-pressed={media.viewMode === 'list'}
+							aria-label="List view"
+							title="List view"
+							onClick={() => setMediaView('list')}
+						>
+							<svg
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path d="M2.5 3.5h11v1.5h-11zm0 3.75h11v1.5h-11zm0 3.75h11v1.5h-11z" />
+							</svg>
+						</button>
+						<button
+							type="button"
+							aria-pressed={media.viewMode === 'grid'}
+							aria-label="Grid view"
+							title="Grid view"
+							onClick={() => setMediaView('grid')}
+						>
+							<svg
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+								<rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+								<rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+								<rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+							</svg>
+						</button>
+					</div>
+				</div>
+				<div className="media-filter-tabs" role="tablist" aria-label="Filter items">
 					<button
 						type="button"
-						aria-pressed={media.viewMode === 'list'}
-						aria-label="List view"
-						onClick={() => setMediaView('list')}
+						role="tab"
+						aria-selected={mediaTab === 'all'}
+						className={`filter-pill ${mediaTab === 'all' ? 'is-active' : ''}`}
+						onClick={() => setMediaTab('all')}
 					>
-						☷
+						All ({assets.length + sequencesList.length})
 					</button>
 					<button
 						type="button"
-						aria-pressed={media.viewMode === 'grid'}
-						aria-label="Grid view"
-						onClick={() => setMediaView('grid')}
+						role="tab"
+						aria-selected={mediaTab === 'media'}
+						className={`filter-pill ${mediaTab === 'media' ? 'is-active' : ''}`}
+						onClick={() => setMediaTab('media')}
 					>
-						▦
+						Media ({assets.length})
 					</button>
-				</div>
-				<button
-					className="secondary-button media-proxy-settings-btn"
-					type="button"
-					disabled={!project}
-					onClick={() => setProxySettingsOpen(true)}
-					title="Configure video proxy resolution and auto generation"
-					aria-label="Proxy settings"
-				>
-					Proxies…
-				</button>
-			</div>
-			<div className="media-filter-tabs" role="tablist" aria-label="Filter items">
-				<button
-					type="button"
-					role="tab"
-					aria-selected={mediaTab === 'all'}
-					className={`filter-pill ${mediaTab === 'all' ? 'is-active' : ''}`}
-					onClick={() => setMediaTab('all')}
-				>
-					All ({assets.length + sequencesList.length})
-				</button>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={mediaTab === 'media'}
-					className={`filter-pill ${mediaTab === 'media' ? 'is-active' : ''}`}
-					onClick={() => setMediaTab('media')}
-				>
-					Media ({assets.length})
-				</button>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={mediaTab === 'sequences'}
-					className={`filter-pill ${mediaTab === 'sequences' ? 'is-active' : ''}`}
-					onClick={() => setMediaTab('sequences')}
-				>
-					Sequences ({sequencesList.length})
-				</button>
-			</div>
-			<label className="media-thumbnail-size">
-				<span>Thumbnail height</span>
-				<input
-					type="range"
-					name="media-thumbnail-height"
-					min="40"
-					max="160"
-					step="8"
-					value={thumbnailHeight}
-					onChange={(event) => setThumbnailHeight(Number(event.currentTarget.value))}
-				/>
-				<output>{thumbnailHeight}px</output>
-			</label>
-			<label className="media-search">
-				<span className="sr-only">Search media</span>
-				<input
-					type="search"
-					name="media-search"
-					autoComplete="off"
-					placeholder="Search media…"
-					value={media.search}
-					onChange={(event) => setMediaSearch(event.currentTarget.value)}
-				/>
-			</label>
-			<div className="media-column-heading">
-				<span>Name</span>
-				<span>Duration</span>
-			</div>
-			{!project ? (
-				<div className="empty-state">
-					<p>No project open</p>
-					<span>Create or open a project before importing media.</span>
-				</div>
-			) : mediaTab === 'media' && assets.length === 0 ? (
-				<button className="media-drop-empty" type="button" onClick={() => void pickFiles()}>
-					<span className="media-drop-icon" aria-hidden="true">
-						⇧
-					</span>
-					<strong>Drop media files here</strong>
-					<span>or choose files from this device</span>
-					<small>{ACCEPTED_TYPES.join(' · ')}</small>
-				</button>
-			) : mediaTab === 'sequences' && sequencesList.length === 0 ? (
-				<div className="empty-state">
-					<p>No sequences created yet.</p>
 					<button
-						className="secondary-button"
 						type="button"
-						onClick={handleCreateSequence}
-						style={{ marginTop: '8px' }}
+						role="tab"
+						aria-selected={mediaTab === 'sequences'}
+						className={`filter-pill ${mediaTab === 'sequences' ? 'is-active' : ''}`}
+						onClick={() => setMediaTab('sequences')}
 					>
-						+ New Sequence
+						Sequences ({sequencesList.length})
 					</button>
 				</div>
-			) : mediaTab === 'all' && assets.length === 0 && sequencesList.length === 0 ? (
-				<button className="media-drop-empty" type="button" onClick={() => void pickFiles()}>
-					<span className="media-drop-icon" aria-hidden="true">
-						⇧
-					</span>
-					<strong>Drop media files here</strong>
-					<span>or choose files from this device</span>
-					<small>{ACCEPTED_TYPES.join(' · ')}</small>
-				</button>
-			) : (mediaTab === 'media' && filteredAssets.length === 0) ||
-			  (mediaTab === 'sequences' && filteredSequences.length === 0) ||
-			  (mediaTab === 'all' && filteredAssets.length === 0 && filteredSequences.length === 0) ? (
-				<div className="empty-state">
-					<p>No items match “{media.search}”.</p>
+				<div className="media-search-size-row">
+					<label className="media-search">
+						<span className="sr-only">Search media</span>
+						<div className="media-search-input-wrapper">
+							<svg
+								className="media-search-icon"
+								viewBox="0 0 16 16"
+								width="12"
+								height="12"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<circle cx="6.5" cy="6.5" r="4.5" />
+								<path d="M10 10l4 4" />
+							</svg>
+							<input
+								type="search"
+								name="media-search"
+								autoComplete="off"
+								placeholder="Search media…"
+								value={media.search}
+								onChange={(event) => setMediaSearch(event.currentTarget.value)}
+							/>
+						</div>
+					</label>
+					<label className="media-thumbnail-size" title={`Thumbnail height: ${thumbnailHeight}px`}>
+						<span className="media-size-icon" aria-hidden="true">
+							<svg
+								viewBox="0 0 16 16"
+								width="12"
+								height="12"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+							>
+								<rect x="2" y="3" width="12" height="10" rx="1.5" />
+							</svg>
+						</span>
+						<input
+							type="range"
+							name="media-thumbnail-height"
+							min="40"
+							max="160"
+							step="8"
+							aria-label="Thumbnail height"
+							value={thumbnailHeight}
+							onChange={(event) => setThumbnailHeight(Number(event.currentTarget.value))}
+						/>
+						<output>{thumbnailHeight}px</output>
+					</label>
 				</div>
-			) : (
-				<div
-					className={`media-assets media-assets-${media.viewMode}`}
-					role="listbox"
-					aria-label="Project media"
-					aria-multiselectable="true"
-				>
-					{/* Sequences section */}
-					{(mediaTab === 'all' || mediaTab === 'sequences') &&
-						filteredSequences.map((seq) => {
-							const durUs = sequenceDuration(project, seq.id);
-							const durTc = ticksToTimecode(durUs, project.settings.fps);
-							return (
-								<div
-									key={seq.id}
-									className="media-asset is-sequence-asset"
-									role="option"
-									aria-selected={false}
-									aria-label={`${seq.name}, sequence, ${durTc}`}
-									draggable
-									onDragStart={(event) => dragSequence(event, seq.id)}
-									onDoubleClick={() => openSequence(seq.id)}
-								>
-									<div className="media-asset-preview">
-										<div className="asset-kind-icon sequence-icon" aria-hidden="true">
-											🎞
+				<div className="media-column-heading">
+					<span>Name</span>
+					<span>Duration</span>
+				</div>
+			</div>
+			<div className="media-assets-scroll-area">
+				{!project ? (
+					<div className="empty-state">
+						<p>No project open</p>
+						<span>Create or open a project before importing media.</span>
+					</div>
+				) : mediaTab === 'media' && assets.length === 0 ? (
+					<button className="media-drop-empty" type="button" onClick={() => void pickFiles()}>
+						<span className="media-drop-icon" aria-hidden="true">
+							⇧
+						</span>
+						<strong>Drop media files here</strong>
+						<span>or choose files from this device</span>
+						<small>{ACCEPTED_TYPES.join(' · ')}</small>
+					</button>
+				) : mediaTab === 'sequences' && sequencesList.length === 0 ? (
+					<div className="empty-state">
+						<p>No sequences created yet.</p>
+						<button
+							className="secondary-button"
+							type="button"
+							onClick={handleCreateSequence}
+							style={{ marginTop: '8px' }}
+						>
+							+ New Sequence
+						</button>
+					</div>
+				) : mediaTab === 'all' && assets.length === 0 && sequencesList.length === 0 ? (
+					<button className="media-drop-empty" type="button" onClick={() => void pickFiles()}>
+						<span className="media-drop-icon" aria-hidden="true">
+							⇧
+						</span>
+						<strong>Drop media files here</strong>
+						<span>or choose files from this device</span>
+						<small>{ACCEPTED_TYPES.join(' · ')}</small>
+					</button>
+				) : (mediaTab === 'media' && filteredAssets.length === 0) ||
+				  (mediaTab === 'sequences' && filteredSequences.length === 0) ||
+				  (mediaTab === 'all' && filteredAssets.length === 0 && filteredSequences.length === 0) ? (
+					<div className="empty-state">
+						<p>No items match “{media.search}”.</p>
+					</div>
+				) : (
+					<div
+						className={`media-assets media-assets-${media.viewMode}`}
+						role="listbox"
+						aria-label="Project media"
+						aria-multiselectable="true"
+					>
+						{/* Sequences section */}
+						{(mediaTab === 'all' || mediaTab === 'sequences') &&
+							filteredSequences.map((seq) => {
+								const durUs = sequenceDuration(project, seq.id);
+								const durTc = ticksToTimecode(durUs, project.settings.fps);
+								return (
+									<div
+										key={seq.id}
+										className="media-asset is-sequence-asset"
+										role="option"
+										aria-selected={false}
+										aria-label={`${seq.name}, sequence, ${durTc}`}
+										draggable
+										onDragStart={(event) => dragSequence(event, seq.id)}
+										onDoubleClick={() => openSequence(seq.id)}
+									>
+										<div className="media-asset-preview">
+											<div className="asset-kind-icon sequence-icon" aria-hidden="true">
+												🎞
+											</div>
 										</div>
-									</div>
-									<div className="media-asset-details">
-										{renamingSeqId === seq.id ? (
-											<form
-												className="media-rename-form"
-												onSubmit={(event) => {
-													event.preventDefault();
-													commitRenameSequence(seq.id);
-												}}
-											>
-												<label className="sr-only" htmlFor={`seq-rename-${seq.id}`}>
-													Rename sequence
-												</label>
-												<input
-													id={`seq-rename-${seq.id}`}
-													name="seq-rename"
-													autoComplete="off"
-													value={renameSeqValue}
-													onChange={(event) => setRenameSeqValue(event.currentTarget.value)}
-													onKeyDown={(event) => {
-														if (event.key === 'Escape') setRenamingSeqId(null);
+										<div className="media-asset-details">
+											{renamingSeqId === seq.id ? (
+												<form
+													className="media-rename-form"
+													onSubmit={(event) => {
+														event.preventDefault();
+														commitRenameSequence(seq.id);
 													}}
-												/>
-												<button className="sr-only" type="submit">
-													Save name
-												</button>
-											</form>
-										) : (
-											<button
-												className="media-asset-name"
-												type="button"
-												onClick={() => openSequence(seq.id)}
-												onDoubleClick={() => startRenameSequence(seq.id, seq.name)}
-												title={`${seq.name} · Double-click to open · F2 to rename`}
-											>
-												{seq.name}
-											</button>
-										)}
-										<span className="media-asset-meta">
-											{durTc} · {seq.tracks.length} tracks
-										</span>
-										<div className="media-status-line">
-											<span className="media-chip">Sequence</span>
-											{(() => {
-												const instanceCount = project
-													? getSequenceUsage(project, seq.id).length
-													: 0;
-												return instanceCount > 0 ? (
-													<span
-														className="media-chip is-instance-count"
-														data-testid={`instance-count-${seq.id}`}
-														title={`Used ${instanceCount} time(s) across timeline`}
-													>
-														{instanceCount} instance{instanceCount > 1 ? 's' : ''}
-													</span>
-												) : null;
-											})()}
-											<button
-												className="media-action-link"
-												type="button"
-												onClick={() => openSequence(seq.id)}
-											>
-												Open
-											</button>
-											<button
-												className="media-action-link"
-												type="button"
-												onClick={() => openSequenceSettingsDialog(seq.id)}
-											>
-												Settings
-											</button>
-										</div>
-									</div>
-									<div className="media-asset-actions">
-										<button
-											type="button"
-											aria-label={`Duplicate ${seq.name}`}
-											title="Duplicate"
-											onClick={() => duplicateSequence(seq.id)}
-										>
-											⧉
-										</button>
-										<button
-											type="button"
-											aria-label={`Rename ${seq.name}`}
-											title="Rename (F2)"
-											onClick={() => startRenameSequence(seq.id, seq.name)}
-										>
-											✎
-										</button>
-										<button
-											type="button"
-											aria-label={`Delete ${seq.name}`}
-											title="Delete"
-											onClick={() => setDeleteSeqId(seq.id)}
-										>
-											×
-										</button>
-									</div>
-								</div>
-							);
-						})}
-					{/* Assets section */}
-					{(mediaTab === 'all' || mediaTab === 'media') &&
-						filteredAssets.map((asset) => {
-							const selected = media.selectedAssetIds.includes(asset.id);
-							const job = media.importQueue.find(
-								(item) => item.name === asset.name && item.status !== 'done'
-							);
-							const status = media.derivedStatus[asset.id];
-							return (
-								<div
-									key={asset.id}
-									ref={(element) => {
-										if (element) cardRefs.current.set(asset.id, element);
-										else cardRefs.current.delete(asset.id);
-									}}
-									className={`media-asset ${selected ? 'is-selected' : ''}`}
-									role="option"
-									aria-selected={selected}
-									aria-label={`${asset.name}, ${asset.kind}, ${timecode(asset, project.settings.fps)}`}
-									tabIndex={asset.id === rovingAssetId ? 0 : -1}
-									draggable
-									onDragStart={(event) => dragAsset(event, asset)}
-									onDragEnd={() => cancelTimelineDrag()}
-									onClick={(event) => handleAssetClick(event, asset.id)}
-									onFocus={() => setActiveAssetId(asset.id)}
-									onKeyDown={(event) => handleAssetKeyDown(event, asset)}
-								>
-									<div className="media-asset-preview">
-										<AssetPreview asset={asset} projectId={project.id} />
-									</div>
-									<div className="media-asset-details">
-										{renamingId === asset.id ? (
-											<form
-												className="media-rename-form"
-												onSubmit={(event) => {
-													event.preventDefault();
-													commitRename(asset.id);
-												}}
-											>
-												<label className="sr-only" htmlFor={`media-rename-${asset.id}`}>
-													Rename media
-												</label>
-												<input
-													id={`media-rename-${asset.id}`}
-													name="media-rename"
-													autoComplete="off"
-													value={renameValue}
-													onChange={(event) => setRenameValue(event.currentTarget.value)}
-													onKeyDown={(event) => {
-														if (event.key === 'Escape') setRenamingId(null);
-													}}
-												/>
-												<button className="sr-only" type="submit">
-													Save name
-												</button>
-											</form>
-										) : (
-											<button
-												className="media-asset-name"
-												type="button"
-												onClick={(event) =>
-													selectAsset(asset.id, {
-														toggle: event.ctrlKey || event.metaKey,
-														extend: event.shiftKey
-													})
-												}
-												onDoubleClick={() => startRename(asset)}
-												title={`${asset.name} · F2 to rename`}
-											>
-												{asset.name}
-											</button>
-										)}
-										<span className="media-asset-meta">
-											{timecode(asset, project.settings.fps)}
-											{asset.width && asset.height && ` · ${asset.width} × ${asset.height}`}
-											{asset.fps && ` · ${asset.fps}${asset.fpsEstimated ? ' fps*' : ' fps'}`}
-										</span>
-										<div className="media-status-line">
-											{asset.offline ? (
-												<>
-													<strong className="media-chip is-offline">Offline</strong>
-													<button
-														className="media-action-link"
-														type="button"
-														onClick={() => setRelinkId(asset.id)}
-													>
-														Relink…
-													</button>
-												</>
-											) : status === 'queued' || status === 'working' ? (
-												<span className="media-chip">Generating previews…</span>
-											) : status === 'failed' ? (
-												<>
-													<span className="media-chip is-failed">Preview failed</span>
-													<button
-														className="media-action-link"
-														type="button"
-														onClick={() => generateAssetDerived(asset.id)}
-													>
-														Retry
-													</button>
-												</>
-											) : asset.kind === 'video' && asset.audioChecked === false ? (
-												<span
-													className="media-chip is-failed"
-													title="This browser could not inspect the container audio tracks; audio may be omitted."
 												>
-													Audio track unverified
-												</span>
-											) : null}
-											{asset.kind === 'video' && !asset.offline && (
-												<>
-													{asset.proxy?.status === 'working' && (
+													<label className="sr-only" htmlFor={`seq-rename-${seq.id}`}>
+														Rename sequence
+													</label>
+													<input
+														id={`seq-rename-${seq.id}`}
+														name="seq-rename"
+														autoComplete="off"
+														value={renameSeqValue}
+														onChange={(event) => setRenameSeqValue(event.currentTarget.value)}
+														onKeyDown={(event) => {
+															if (event.key === 'Escape') setRenamingSeqId(null);
+														}}
+													/>
+													<button className="sr-only" type="submit">
+														Save name
+													</button>
+												</form>
+											) : (
+												<button
+													className="media-asset-name"
+													type="button"
+													onClick={() => openSequence(seq.id)}
+													onDoubleClick={() => startRenameSequence(seq.id, seq.name)}
+													title={`${seq.name} · Double-click to open · F2 to rename`}
+												>
+													{seq.name}
+												</button>
+											)}
+											<span className="media-asset-meta">
+												{durTc} · {seq.tracks.length} tracks
+											</span>
+											<div className="media-status-line">
+												<span className="media-chip">Sequence</span>
+												{(() => {
+													const instanceCount = project
+														? getSequenceUsage(project, seq.id).length
+														: 0;
+													return instanceCount > 0 ? (
 														<span
-															className="media-chip is-proxy"
-															data-testid="proxy-status-working"
+															className="media-chip is-instance-count"
+															data-testid={`instance-count-${seq.id}`}
+															title={`Used ${instanceCount} time(s) across timeline`}
 														>
-															Proxy {Math.round(asset.proxy.progress ?? 0)}%
-															<button
-																className="media-action-link"
-																type="button"
-																onClick={() => cancelProxyGeneration(asset.id)}
-															>
-																Cancel
-															</button>
+															{instanceCount} instance{instanceCount > 1 ? 's' : ''}
 														</span>
-													)}
-													{asset.proxy?.status === 'queued' && (
-														<span className="media-chip is-proxy" data-testid="proxy-status-queued">
-															Proxy queued
-															<button
-																className="media-action-link"
-																type="button"
-																onClick={() => cancelProxyGeneration(asset.id)}
-															>
-																Cancel
-															</button>
-														</span>
-													)}
-													{asset.proxy?.status === 'ready' && (
-														<span
-															className="media-chip is-proxy-ready"
-															data-testid="proxy-status-ready"
-															title={`Proxy: ${asset.proxy.width}×${asset.proxy.height} (${formatBytes(asset.proxy.bytes ?? 0)})`}
-														>
-															Proxy ready ({asset.proxy.height}p)
-															<button
-																className="media-action-link"
-																type="button"
-																title="Delete proxy"
-																onClick={() => void deleteProxy(asset.id)}
-															>
-																Delete
-															</button>
-														</span>
-													)}
-													{asset.proxy?.status === 'stale' && (
-														<span className="media-chip is-failed" data-testid="proxy-status-stale">
-															Proxy stale
-															<button
-																className="media-action-link"
-																type="button"
-																onClick={() => retryProxyGeneration(asset.id)}
-															>
-																Update
-															</button>
-														</span>
-													)}
-													{asset.proxy?.status === 'failed' && (
-														<span
-															className="media-chip is-failed"
-															data-testid="proxy-status-failed"
-															title={asset.proxy.error}
-														>
-															Proxy failed
-															<button
-																className="media-action-link"
-																type="button"
-																onClick={() => retryProxyGeneration(asset.id)}
-															>
-																Retry
-															</button>
-														</span>
-													)}
-													{(!asset.proxy || asset.proxy.status === 'none') && (
+													) : null;
+												})()}
+												<button
+													className="media-action-link"
+													type="button"
+													onClick={() => openSequence(seq.id)}
+												>
+													Open
+												</button>
+												<button
+													className="media-action-link"
+													type="button"
+													onClick={() => openSequenceSettingsDialog(seq.id)}
+												>
+													Settings
+												</button>
+											</div>
+										</div>
+										<div className="media-asset-actions">
+											<button
+												type="button"
+												aria-label={`Duplicate ${seq.name}`}
+												title="Duplicate"
+												onClick={() => duplicateSequence(seq.id)}
+											>
+												⧉
+											</button>
+											<button
+												type="button"
+												aria-label={`Rename ${seq.name}`}
+												title="Rename (F2)"
+												onClick={() => startRenameSequence(seq.id, seq.name)}
+											>
+												✎
+											</button>
+											<button
+												type="button"
+												aria-label={`Delete ${seq.name}`}
+												title="Delete"
+												onClick={() => setDeleteSeqId(seq.id)}
+											>
+												×
+											</button>
+										</div>
+									</div>
+								);
+							})}
+						{/* Assets section */}
+						{(mediaTab === 'all' || mediaTab === 'media') &&
+							filteredAssets.map((asset) => {
+								const selected = media.selectedAssetIds.includes(asset.id);
+								const job = media.importQueue.find(
+									(item) => item.name === asset.name && item.status !== 'done'
+								);
+								const status = media.derivedStatus[asset.id];
+								return (
+									<div
+										key={asset.id}
+										ref={(element) => {
+											if (element) cardRefs.current.set(asset.id, element);
+											else cardRefs.current.delete(asset.id);
+										}}
+										className={`media-asset ${selected ? 'is-selected' : ''}`}
+										role="option"
+										aria-selected={selected}
+										aria-label={`${asset.name}, ${asset.kind}, ${timecode(asset, project.settings.fps)}`}
+										tabIndex={asset.id === rovingAssetId ? 0 : -1}
+										draggable
+										onDragStart={(event) => dragAsset(event, asset)}
+										onDragEnd={() => cancelTimelineDrag()}
+										onClick={(event) => handleAssetClick(event, asset.id)}
+										onFocus={() => setActiveAssetId(asset.id)}
+										onKeyDown={(event) => handleAssetKeyDown(event, asset)}
+									>
+										<div className="media-asset-preview">
+											<AssetPreview asset={asset} projectId={project.id} />
+										</div>
+										<div className="media-asset-details">
+											{renamingId === asset.id ? (
+												<form
+													className="media-rename-form"
+													onSubmit={(event) => {
+														event.preventDefault();
+														commitRename(asset.id);
+													}}
+												>
+													<label className="sr-only" htmlFor={`media-rename-${asset.id}`}>
+														Rename media
+													</label>
+													<input
+														id={`media-rename-${asset.id}`}
+														name="media-rename"
+														autoComplete="off"
+														value={renameValue}
+														onChange={(event) => setRenameValue(event.currentTarget.value)}
+														onKeyDown={(event) => {
+															if (event.key === 'Escape') setRenamingId(null);
+														}}
+													/>
+													<button className="sr-only" type="submit">
+														Save name
+													</button>
+												</form>
+											) : (
+												<button
+													className="media-asset-name"
+													type="button"
+													onClick={(event) =>
+														selectAsset(asset.id, {
+															toggle: event.ctrlKey || event.metaKey,
+															extend: event.shiftKey
+														})
+													}
+													onDoubleClick={() => startRename(asset)}
+													title={`${asset.name} · F2 to rename`}
+												>
+													{asset.name}
+												</button>
+											)}
+											<span className="media-asset-meta">
+												{timecode(asset, project.settings.fps)}
+												{asset.width && asset.height && ` · ${asset.width} × ${asset.height}`}
+												{asset.fps && ` · ${asset.fps}${asset.fpsEstimated ? ' fps*' : ' fps'}`}
+											</span>
+											<div className="media-status-line">
+												{asset.offline ? (
+													<>
+														<strong className="media-chip is-offline">Offline</strong>
 														<button
 															className="media-action-link"
 															type="button"
-															data-testid="create-proxy-button"
-															onClick={() => createProxy(asset.id)}
+															onClick={() => setRelinkId(asset.id)}
 														>
-															Create proxy
+															Relink…
 														</button>
-													)}
-												</>
-											)}
-										</div>
-									</div>
-									<div className="media-asset-actions">
-										{asset.kind === 'video' &&
-											!asset.offline &&
-											(!asset.proxy || asset.proxy.status === 'none') && (
-												<button
-													type="button"
-													aria-label={`Create proxy for ${asset.name}`}
-													title="Create proxy"
-													onClick={() => createProxy(asset.id)}
-												>
-													⚡
-												</button>
-											)}
-										<button
-											type="button"
-											aria-label={`Rename ${asset.name}`}
-											title="Rename (F2)"
-											onClick={() => startRename(asset)}
-										>
-											✎
-										</button>
-										<button
-											type="button"
-											aria-label={`Delete ${asset.name}`}
-											title="Delete"
-											onClick={() => setDeleteId(asset.id)}
-										>
-											×
-										</button>
-									</div>
-									{job &&
-										job.status !== 'done' &&
-										job.status !== 'failed' &&
-										job.status !== 'cancelled' && (
-											<div className="media-import-progress">
-												<span>
-													{job.status === 'probing'
-														? 'Reading metadata…'
-														: `Importing ${Math.round(job.progress)}%`}
-												</span>
-												<progress
-													value={job.progress}
-													max={100}
-													aria-label={`Import ${job.name}`}
-												/>
+													</>
+												) : status === 'queued' || status === 'working' ? (
+													<span className="media-chip">Generating previews…</span>
+												) : status === 'failed' ? (
+													<>
+														<span className="media-chip is-failed">Preview failed</span>
+														<button
+															className="media-action-link"
+															type="button"
+															onClick={() => generateAssetDerived(asset.id)}
+														>
+															Retry
+														</button>
+													</>
+												) : asset.kind === 'video' && asset.audioChecked === false ? (
+													<span
+														className="media-chip is-failed"
+														title="This browser could not inspect the container audio tracks; audio may be omitted."
+													>
+														Audio track unverified
+													</span>
+												) : null}
+												{asset.kind === 'video' && !asset.offline && (
+													<>
+														{asset.proxy?.status === 'working' && (
+															<span
+																className="media-chip is-proxy"
+																data-testid="proxy-status-working"
+															>
+																Proxy {Math.round(asset.proxy.progress ?? 0)}%
+																<button
+																	className="media-action-link"
+																	type="button"
+																	onClick={() => cancelProxyGeneration(asset.id)}
+																>
+																	Cancel
+																</button>
+															</span>
+														)}
+														{asset.proxy?.status === 'queued' && (
+															<span
+																className="media-chip is-proxy"
+																data-testid="proxy-status-queued"
+															>
+																Proxy queued
+																<button
+																	className="media-action-link"
+																	type="button"
+																	onClick={() => cancelProxyGeneration(asset.id)}
+																>
+																	Cancel
+																</button>
+															</span>
+														)}
+														{asset.proxy?.status === 'ready' && (
+															<span
+																className="media-chip is-proxy-ready"
+																data-testid="proxy-status-ready"
+																title={`Proxy: ${asset.proxy.width}×${asset.proxy.height} (${formatBytes(asset.proxy.bytes ?? 0)})`}
+															>
+																Proxy ready ({asset.proxy.height}p)
+																<button
+																	className="media-action-link"
+																	type="button"
+																	title="Delete proxy"
+																	onClick={() => void deleteProxy(asset.id)}
+																>
+																	Delete
+																</button>
+															</span>
+														)}
+														{asset.proxy?.status === 'stale' && (
+															<span
+																className="media-chip is-failed"
+																data-testid="proxy-status-stale"
+															>
+																Proxy stale
+																<button
+																	className="media-action-link"
+																	type="button"
+																	onClick={() => retryProxyGeneration(asset.id)}
+																>
+																	Update
+																</button>
+															</span>
+														)}
+														{asset.proxy?.status === 'failed' && (
+															<span
+																className="media-chip is-failed"
+																data-testid="proxy-status-failed"
+																title={asset.proxy.error}
+															>
+																Proxy failed
+																<button
+																	className="media-action-link"
+																	type="button"
+																	onClick={() => retryProxyGeneration(asset.id)}
+																>
+																	Retry
+																</button>
+															</span>
+														)}
+														{(!asset.proxy || asset.proxy.status === 'none') && (
+															<button
+																className="media-action-link"
+																type="button"
+																data-testid="create-proxy-button"
+																onClick={() => createProxy(asset.id)}
+															>
+																Create proxy
+															</button>
+														)}
+													</>
+												)}
 											</div>
-										)}
-								</div>
-							);
-						})}
-				</div>
-			)}
-			{media.importQueue.length > 0 && (
-				<div className="media-import-queue" aria-label="Media import progress">
-					{media.importQueue.map((job) => (
-						<div className="media-import-job" key={job.id}>
-							<span>{job.name}</span>
-							<span>
-								{job.status === 'probing'
-									? 'Reading metadata…'
-									: job.status === 'done'
-										? 'Imported'
-										: job.status === 'failed'
-											? `Failed: ${job.reason}`
-											: job.status === 'cancelled'
-												? 'Cancelled'
-												: `${Math.round(job.progress)}%`}
-							</span>
-							{!['done', 'failed', 'cancelled'].includes(job.status) && (
-								<button
-									type="button"
-									aria-label={`Cancel import of ${job.name}`}
-									onClick={() => cancelImport(job.id)}
-								>
-									Cancel
-								</button>
-							)}
-						</div>
-					))}
-				</div>
-			)}
-			{hasImportFailures && (
-				<div className="media-failures" role="status" aria-live="polite">
-					{media.importQueue
-						.filter((job) => job.status === 'failed')
-						.map((job) => (
-							<p key={job.id}>
-								<strong>Failed:</strong> {job.name} — {job.reason}
-							</p>
+										</div>
+										<div className="media-asset-actions">
+											{asset.kind === 'video' &&
+												!asset.offline &&
+												(!asset.proxy || asset.proxy.status === 'none') && (
+													<button
+														type="button"
+														aria-label={`Create proxy for ${asset.name}`}
+														title="Create proxy"
+														onClick={() => createProxy(asset.id)}
+													>
+														⚡
+													</button>
+												)}
+											<button
+												type="button"
+												aria-label={`Rename ${asset.name}`}
+												title="Rename (F2)"
+												onClick={() => startRename(asset)}
+											>
+												✎
+											</button>
+											<button
+												type="button"
+												aria-label={`Delete ${asset.name}`}
+												title="Delete"
+												onClick={() => setDeleteId(asset.id)}
+											>
+												×
+											</button>
+										</div>
+										{job &&
+											job.status !== 'done' &&
+											job.status !== 'failed' &&
+											job.status !== 'cancelled' && (
+												<div className="media-import-progress">
+													<span>
+														{job.status === 'probing'
+															? 'Reading metadata…'
+															: `Importing ${Math.round(job.progress)}%`}
+													</span>
+													<progress
+														value={job.progress}
+														max={100}
+														aria-label={`Import ${job.name}`}
+													/>
+												</div>
+											)}
+									</div>
+								);
+							})}
+					</div>
+				)}
+				{media.importQueue.length > 0 && (
+					<div className="media-import-queue" aria-label="Media import progress">
+						{media.importQueue.map((job) => (
+							<div className="media-import-job" key={job.id}>
+								<span>{job.name}</span>
+								<span>
+									{job.status === 'probing'
+										? 'Reading metadata…'
+										: job.status === 'done'
+											? 'Imported'
+											: job.status === 'failed'
+												? `Failed: ${job.reason}`
+												: job.status === 'cancelled'
+													? 'Cancelled'
+													: `${Math.round(job.progress)}%`}
+								</span>
+								{!['done', 'failed', 'cancelled'].includes(job.status) && (
+									<button
+										type="button"
+										aria-label={`Cancel import of ${job.name}`}
+										onClick={() => cancelImport(job.id)}
+									>
+										Cancel
+									</button>
+								)}
+							</div>
 						))}
+					</div>
+				)}
+				{hasImportFailures && (
+					<div className="media-failures" role="status" aria-live="polite">
+						{media.importQueue
+							.filter((job) => job.status === 'failed')
+							.map((job) => (
+								<p key={job.id}>
+									<strong>Failed:</strong> {job.name} — {job.reason}
+								</p>
+							))}
+					</div>
+				)}
+				<div className="media-live" role="status" aria-live="polite">
+					{projectMessage}
 				</div>
-			)}
-			<div className="media-live" role="status" aria-live="polite">
-				{projectMessage}
 			</div>
 			<footer className="media-library-footer">
-				<span>
+				<span className="media-item-count">
 					{assets.length} {assets.length === 1 ? 'item' : 'items'}
+					{sequencesList.length > 0 ? ` · ${sequencesList.length} seq` : ''}
 				</span>
-				<span>
+				<span className="media-storage-count">
 					{formatBytes(storageBytes)} used
 					{proxyStorageBytes > 0 && ` (${formatBytes(proxyStorageBytes)} proxies)`}
 				</span>

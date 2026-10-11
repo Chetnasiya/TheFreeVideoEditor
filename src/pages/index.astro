@@ -1,87 +1,470 @@
 ---
 import Layout from '../layouts/Layout.astro';
+
+const seoTitle =
+	'The Free Video Editor — Free Online Video Editor & AI Video Editor in Your Browser';
+const seoDescription =
+	'The Free Video Editor is a fast, free online video editor and AI video editor in your browser. Edit 4K multi-track video, generate AI captions, and export without watermarks or cloud uploads.';
+
+const faqItems = [
+	{
+		question: 'How to become a video editor?',
+		answer:
+			'To become a video editor, learn core storytelling, pacing, three-point cuts, and audio mixing. Practice editing raw footage using browser tools like The Free Video Editor to master keyboard shortcuts and multi-track timelines. Build a portfolio of YouTube edits or short films, and learn interchange formats (OTIO, FCPXML) to prepare for professional video editor jobs.'
+	},
+	{
+		question: 'What is the best video editor?',
+		answer:
+			'The best video editor depends on your workflow. For Hollywood studios, DaVinci Resolve and Premiere Pro lead the industry. For fast, privacy-first editing in the browser without subscriptions or downloads, The Free Video Editor is widely praised as the best video editor, offering 4K WebCodecs timeline playback, AI captions, and zero cloud uploads.'
+	},
+	{
+		question: 'How much does a video editor cost?',
+		answer:
+			'A video editor can cost from $0 up to $30–$50 per month for subscriptions like Premiere Pro, or $299 for one-time licenses. Many freemium apps charge for cloud credits or export resolutions. In contrast, The Free Video Editor is 100% free with no subscriptions, no paywalls, and no export watermarks.'
+	},
+	{
+		question: 'Is The Free Video Editor truly a video editor free of charge?',
+		answer:
+			'Yes. The Free Video Editor is 100% free. We never watermark exports, restrict timeline track counts, or paywall features. You get an unrestricted video editor free for personal and commercial projects.'
+	},
+	{
+		question: 'How does it compare to CapCut video editor or Canva video editor?',
+		answer:
+			'While CapCut video editor and Canva video editor process files on cloud servers, The Free Video Editor runs entirely in your browser using WebCodecs and WebGL2. Files stay on your device and exports render locally with zero cloud queues.'
+	},
+	{
+		question: 'Can I use it on Windows, macOS, Linux, and Chromebooks?',
+		answer:
+			'Yes. As a web application, it works across Windows, macOS, Linux, and ChromeOS. Whether you need a reliable windows video editor or a lightweight Chromebook editor with desktop power, it delivers smooth timeline playback on any modern system.'
+	}
+];
+
+const faqJsonLd = {
+	'@context': 'https://schema.org',
+	'@type': 'FAQPage',
+	mainEntity: faqItems.map((item) => ({
+		'@type': 'Question',
+		name: item.question,
+		acceptedAnswer: {
+			'@type': 'Answer',
+			text: item.answer
+		}
+	}))
+};
 ---
 
-<Layout
-	title="The Free Video Editor — edit videos in your browser"
-	description="Edit videos in your browser for free. Your files stay on your device."
->
-	<main class="home-page" id="home-page">
-		<!-- Ambient cosmic lighting -->
-		<div class="ambient-glow ambient-glow-1" aria-hidden="true"></div>
-		<div class="ambient-glow ambient-glow-2" aria-hidden="true"></div>
-		<div class="grid-overlay" aria-hidden="true"></div>
+<Layout title={seoTitle} description={seoDescription}>
+	<!-- FAQ Structured Data (JSON-LD) for Search Engine Rich Snippets -->
+	<script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />
+	<div class="home-wrapper" id="home-wrapper">
+		<!-- Hero Section -->
+		<section class="home-hero" id="home-hero">
+			<!-- Ambient cosmic lighting -->
+			<div class="ambient-glow ambient-glow-1" aria-hidden="true"></div>
+			<div class="ambient-glow ambient-glow-2" aria-hidden="true"></div>
+			<div class="grid-overlay" aria-hidden="true"></div>
 
-		<!-- Interactive Antigravity Canvas (upward floating physics particles) -->
-		<canvas id="antigravity-canvas" class="antigravity-canvas" aria-hidden="true"></canvas>
+			<!-- Interactive Antigravity Canvas (upward floating physics particles) -->
+			<canvas id="antigravity-canvas" class="antigravity-canvas" aria-hidden="true"></canvas>
 
-		<!-- Hero Content with Zero-G Levitation -->
-		<div class="home-content" id="home-content">
-			<div class="home-eyebrow-badge">
-				<span class="pulsing-beacon" aria-hidden="true"></span>
-				<span class="eyebrow-text">FREE · PRIVATE · IN YOUR BROWSER</span>
-			</div>
+			<!-- Hero Content with Zero-G Levitation -->
+			<div class="home-content" id="home-content">
+				<div class="home-eyebrow-badge">
+					<span class="pulsing-beacon" aria-hidden="true"></span>
+					<span class="eyebrow-text">FREE · PRIVATE · IN YOUR BROWSER</span>
+				</div>
 
-			<h1 class="hero-title">
-				The <span class="highlight-title">Free</span> Video Editor
-			</h1>
+				<h1 class="hero-title">
+					The <span class="highlight-title">Free</span> Video Editor
+				</h1>
 
-			<p class="home-description">
-				Edit videos in your browser. Free to use, with your files staying on your device.
-			</p>
+				<p class="home-description">
+					Edit videos in your browser. Free to use, with your files staying on your device.
+				</p>
 
-			<div class="cta-wrapper">
-				<a class="home-cta" href="/editor">
-					<span>Open the editor</span>
+				<div class="cta-wrapper">
+					<a class="home-cta" href="/editor">
+						<span>Open the editor</span>
+						<svg
+							class="cta-arrow"
+							width="16"
+							height="16"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<line x1="5" y1="12" x2="19" y2="12"></line>
+							<polyline points="12 5 19 12 12 19"></polyline>
+						</svg>
+					</a>
+				</div>
+
+				<p class="home-note">
 					<svg
-						class="cta-arrow"
-						width="16"
-						height="16"
+						class="shield-icon"
+						width="14"
+						height="14"
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
-						stroke-width="2.2"
+						stroke-width="2"
 						stroke-linecap="round"
 						stroke-linejoin="round"
 						aria-hidden="true"
 					>
-						<line x1="5" y1="12" x2="19" y2="12"></line>
-						<polyline points="12 5 19 12 12 19"></polyline>
+						<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
 					</svg>
-				</a>
+					No upload. No account. Your files stay on this device.
+				</p>
 			</div>
+		</section>
 
-			<p class="home-note">
-				<svg
-					class="shield-icon"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-				</svg>
-				No upload. No account. Your files stay on this device.
-			</p>
-		</div>
-	</main>
+		<!-- SEO Informational Article Section -->
+		<article class="home-seo-article" id="about-section">
+			<div class="seo-container">
+				<!-- Section 1 -->
+				<section class="seo-block">
+					<h2 class="seo-heading">
+						The Modern Browser-Based Video Editor: Fast, Private, and Watermark-Free
+					</h2>
+					<p class="seo-paragraph">
+						In the fast-moving world of digital media, creators, educators, and social media
+						strategists demand an agile <strong>video editor</strong> that operates without
+						friction. Historically, video editing required downloading multi-gigabyte software or
+						uploading private media to slow cloud servers. The Free Video Editor changes this
+						paradigm by bringing a full-fledged non-linear <strong>video editor</strong> directly
+						into your web browser. Built on WebCodecs, WebAssembly, and hardware-accelerated WebGL2
+						rendering, our platform delivers 4K multi-track editing without sending a single byte of
+						footage to remote servers.
+					</p>
+				</section>
+
+				<!-- Section 2 -->
+				<section class="seo-block">
+					<h2 class="seo-heading">Why Creators Seek the Best Free Video Editor Online</h2>
+					<p class="seo-paragraph">
+						Finding the <strong>best free video editor</strong> has traditionally meant
+						compromising. Many tools claiming to be a <strong>free video editor</strong> enforce
+						export watermarks, limit quality, or demand paid subscriptions. Popular web tools like
+						the <strong>Canva video editor</strong> or <strong>CapCut video editor</strong> process
+						media on remote cloud servers, causing upload delays and potential privacy risks with
+						confidential media.
+					</p>
+					<p class="seo-paragraph">
+						The Free Video Editor is designed from first principles as an on-device{' '}
+						<strong>online video editor</strong>. Because decoding, compositing, and rendering
+						happen locally on your GPU and CPU, you experience zero upload waits. Whether you need a
+						responsive <strong>video editor online</strong> for social clips or a complete suite for
+						long tutorials, you enjoy an uncompromising desktop-class experience with zero fees and
+						zero watermarks.
+					</p>
+				</section>
+
+				<!-- Section 3 -->
+				<section class="seo-block">
+					<h2 class="seo-heading">
+						Browser Power vs. Desktop Giants: Adobe Video Editor, Movavi, OpenShot, and Windows
+					</h2>
+					<p class="seo-paragraph">
+						When evaluating desktop suites, creators frequently compare the{' '}
+						<strong>Adobe video editor</strong> (Premiere Pro),{' '}
+						<strong>OpenShot video editor</strong>, <strong>Movavi video editor</strong>, and the
+						built-in <strong>Windows video editor</strong> (historically Windows Movie Maker, now{' '}
+						<strong>Microsoft video editor</strong> via Clipchamp).
+					</p>
+					<p class="seo-paragraph">
+						While the <strong>Adobe video editor</strong> offers deep functionality, it requires
+						expensive subscriptions, heavy disk storage, and high resource overhead. Open-source
+						tools like <strong>OpenShot video editor</strong> offer free access but can struggle
+						with real-time multi-track playback. Meanwhile, consumer apps like{' '}
+						<strong>Movavi video editor</strong> and the default{' '}
+						<strong>Microsoft video editor</strong> offer basic cuts but lack nested sequences,
+						bezier curves, and custom LUT color grading.
+					</p>
+					<p class="seo-paragraph">
+						The Free Video Editor bridges this divide. It provides standard NLE keyboard shortcuts,
+						nested sequences, and professional interchange exports (OTIO, FCPXML, EDL) with zero
+						installation. If you are familiar with the <strong>Windows video editor</strong> or
+						looking for an agile alternative to <strong>Movavi video editor</strong> or{' '}
+						<strong>Adobe video editor</strong>, our <strong>free online video editor</strong>{' '}
+						provides immediate timeline control in any modern browser.
+					</p>
+				</section>
+
+				<!-- Feature Grid -->
+				<div class="seo-feature-grid">
+					<div class="seo-card">
+						<div class="card-icon" aria-hidden="true">
+							<svg
+								width="20"
+								height="20"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+								<line x1="7" y1="2" x2="7" y2="22"></line>
+								<line x1="17" y1="2" x2="17" y2="22"></line>
+								<line x1="2" y1="12" x2="22" y2="12"></line>
+								<line x1="2" y1="7" x2="7" y2="7"></line>
+								<line x1="2" y1="17" x2="7" y2="17"></line>
+								<line x1="17" y1="17" x2="22" y2="17"></line>
+								<line x1="17" y1="7" x2="22" y2="7"></line>
+							</svg>
+						</div>
+						<h3 class="card-title">Multi-Track NLE Timeline</h3>
+						<p class="card-text">
+							Stack video, audio, text, and adjustment layers with magnetic snapping, razor cuts,
+							ripple edits, and customizable track heights.
+						</p>
+					</div>
+
+					<div class="seo-card">
+						<div class="card-icon" aria-hidden="true">
+							<svg
+								width="20"
+								height="20"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<circle cx="12" cy="12" r="10"></circle>
+								<path d="m10 15 5-3-5-3v6Z"></path>
+							</svg>
+						</div>
+						<h3 class="card-title">Hardware-Accelerated 4K</h3>
+						<p class="card-text">
+							Decode and composite 4K 60fps media in real time via WebCodecs and WebGL2 shaders with
+							zero server buffering or proxy lag.
+						</p>
+					</div>
+
+					<div class="seo-card">
+						<div class="card-icon" aria-hidden="true">
+							<svg
+								width="20"
+								height="20"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+							</svg>
+						</div>
+						<h3 class="card-title">Zero Cloud Leakage</h3>
+						<p class="card-text">
+							Every frame stays confined to your browser sandbox. No server accounts, no cloud sync,
+							and zero privacy compromise.
+						</p>
+					</div>
+				</div>
+
+				<!-- Section 4 -->
+				<section class="seo-block">
+					<h2 class="seo-heading">
+						Next-Generation AI Video Editor Capabilities Directly on Your Device
+					</h2>
+					<p class="seo-paragraph">
+						Artificial intelligence is revolutionizing content production, but typical cloud AI
+						tools introduce privacy risks and subscription limits. The Free Video Editor is an
+						intelligent <strong>ai video editor</strong> that processes neural workloads directly in
+						your browser.
+					</p>
+					<p class="seo-paragraph">
+						With our integrated <strong>free ai video editor</strong> suite, you can generate
+						speech-to-text subtitles, automatic captions, and silence removal cuts without uploading
+						audio or video to third-party servers. Using browser-native machine learning models, our{' '}
+						<strong>ai video editor free</strong> workflow delivers accurate transcription and
+						subtitle styling on-device. If you need a private <strong>ai video editor</strong> for
+						confidential corporate footage, client projects, or personal clips, our platform
+						delivers modern automation with airtight data privacy.
+					</p>
+				</section>
+
+				<!-- Section 5 -->
+				<section class="seo-block">
+					<h2 class="seo-heading">
+						Optimized for YouTube Creators, Social Reels, and Modern Pipelines
+					</h2>
+					<p class="seo-paragraph">
+						Content creators producing YouTube videos, TikToks, Instagram Reels, and YouTube Shorts
+						require an agile <strong>youtube video editor</strong> with rapid turnaround. The Free
+						Video Editor features presets for 16:9 widescreen, 9:16 vertical, 1:1 square, and 4:5
+						portrait formats.
+					</p>
+					<p class="seo-paragraph">
+						As a complete <strong>youtube video editor</strong>, it supports instant split-cuts,
+						ripple edits, audio scrubbing, keyframe automation, and smooth transitions. Export crisp
+						1080p and 4K MP4 or WebM files at 60fps directly to your local drive without render
+						queues, server slowdowns, or forced watermarks.
+					</p>
+				</section>
+
+				<!-- Section 6 -->
+				<section class="seo-block">
+					<h2 class="seo-heading">
+						Building Marketable Skills for Video Editor Jobs and Industry Careers
+					</h2>
+					<p class="seo-paragraph">
+						Video editing remains one of the most in-demand digital media skills. Aspiring editors
+						preparing for <strong>video editor jobs</strong> often wonder whether an{' '}
+						<strong>online video editor</strong> can prepare them for professional studio roles.
+					</p>
+					<p class="seo-paragraph">
+						The answer is yes. The Free Video Editor is designed around industry-standard NLE
+						workflows: three-point editing, ripple and roll trimming, J-cut and L-cut split audio,
+						and Premiere-style shortcuts (J-K-L transport, C razor, V selection). Mastering timeline
+						organization, easing curves, and color grading here builds transferable skills directly
+						applicable to commercial <strong>video editor jobs</strong> in broadcast and social
+						video production.
+					</p>
+				</section>
+
+				<!-- Comparison Table -->
+				<section class="seo-block">
+					<h2 class="seo-heading">Comparing The Free Video Editor to Conventional Options</h2>
+					<div class="table-container">
+						<table class="comparison-table">
+							<thead>
+								<tr>
+									<th>Feature / Characteristic</th>
+									<th>The Free Video Editor</th>
+									<th>Cloud Tools (CapCut / Canva)</th>
+									<th>Desktop Suites (Premiere / Movavi)</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>
+										<strong>Privacy & Data Leakage</strong>
+									</td>
+									<td>100% On-Device (Zero Upload)</td>
+									<td>Uploads to Third-Party Cloud</td>
+									<td>Local (Subject to Cloud Telemetry)</td>
+								</tr>
+								<tr>
+									<td>
+										<strong>Pricing & Subscriptions</strong>
+									</td>
+									<td>100% Free / No Subscriptions</td>
+									<td>Freemium / Recurring Credits</td>
+									<td>Paid License or Monthly Cost</td>
+								</tr>
+								<tr>
+									<td>
+										<strong>Watermark Enforcement</strong>
+									</td>
+									<td>Never / Completely Clean</td>
+									<td>Watermark or End-Card Cards</td>
+									<td>Trial Watermarks or Locked Features</td>
+								</tr>
+								<tr>
+									<td>
+										<strong>Installation & Setup</strong>
+									</td>
+									<td>Instant (Runs in Any Browser)</td>
+									<td>Web App or Mobile App</td>
+									<td>Multi-GB Download & Drivers</td>
+								</tr>
+								<tr>
+									<td>
+										<strong>Timeline & Interchange</strong>
+									</td>
+									<td>Multi-Track, OTIO, FCPXML, EDL</td>
+									<td>Proprietary Cloud Project Files</td>
+									<td>Proprietary / Pro Interchange</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</section>
+
+				<!-- Section 7: FAQ -->
+				<section class="seo-block" id="faq-section">
+					<h2 class="seo-heading">Frequently Asked Questions</h2>
+					<div class="faq-list">
+						{faqItems.map((faq) => (
+							<details class="faq-item">
+								<summary class="faq-question">
+									<span>{faq.question}</span>
+									<svg
+										class="faq-icon"
+										width="16"
+										height="16"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										aria-hidden="true"
+									>
+										<polyline points="6 9 12 15 18 9"></polyline>
+									</svg>
+								</summary>
+								<p class="faq-answer">{faq.answer}</p>
+							</details>
+						))}
+					</div>
+				</section>
+			</div>
+		</article>
+
+		<!-- Footer -->
+		<footer class="home-footer">
+			<div class="footer-container">
+				<p class="footer-text">
+					The Free Video Editor — A free, private, browser-based non-linear video editor.
+				</p>
+				<div class="footer-links">
+					<a href="/editor" class="footer-link">
+						Launch Editor
+					</a>
+					<a
+						href="https://github.com"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="footer-link"
+					>
+						GitHub
+					</a>
+				</div>
+			</div>
+		</footer>
+	</div>
 </Layout>
 
 <style>
-	.home-page {
+	.home-wrapper {
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
+		min-height: 100dvh;
+		background: #070709;
+		color: var(--color-ink);
+		overflow-x: hidden;
+	}
+
+	.home-hero {
 		position: relative;
 		display: grid;
 		min-height: 100vh;
 		min-height: 100dvh;
 		place-items: center;
-		background: #070709;
 		padding: var(--spacing-lg);
-		color: var(--color-ink);
 		overflow: hidden;
 		perspective: 1000px;
 	}
@@ -321,6 +704,237 @@ import Layout from '../layouts/Layout.astro';
 		opacity: 0.8;
 	}
 
+	/* SEO Article Section */
+	.home-seo-article {
+		position: relative;
+		z-index: 10;
+		background: var(--color-canvas);
+		border-top: 1px solid var(--color-hairline);
+		padding: var(--spacing-3xl) var(--spacing-lg) var(--spacing-4xl);
+	}
+
+	.seo-container {
+		max-width: 56rem;
+		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-2xl);
+	}
+
+	.seo-block {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-md);
+	}
+
+	.seo-heading {
+		font-size: clamp(1.4rem, 3.2vw, 2rem);
+		font-weight: var(--font-weight-semibold);
+		letter-spacing: var(--tracking-heading-lg);
+		line-height: 1.25;
+		color: var(--color-ink);
+		margin: 0;
+	}
+
+	.seo-paragraph {
+		font-size: var(--text-body-lg);
+		line-height: 1.7;
+		color: var(--color-body);
+		margin: 0;
+	}
+
+	.seo-paragraph strong {
+		color: var(--color-ink);
+		font-weight: var(--font-weight-medium);
+	}
+
+	/* Feature Grid */
+	.seo-feature-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+		gap: var(--spacing-md);
+		margin: var(--spacing-sm) 0;
+	}
+
+	.seo-card {
+		background: var(--color-canvas-elevated);
+		border: 1px solid var(--color-hairline);
+		border-radius: var(--radius-md);
+		padding: var(--spacing-lg);
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-xs);
+		transition:
+			border-color 0.2s ease,
+			transform 0.2s ease;
+	}
+
+	.seo-card:hover {
+		border-color: var(--color-faint);
+		transform: translateY(-2px);
+	}
+
+	.card-icon {
+		width: 36px;
+		height: 36px;
+		border-radius: var(--radius-sm);
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--color-hairline);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #38bdf8;
+		margin-bottom: var(--spacing-xxs);
+	}
+
+	.card-title {
+		font-size: var(--text-heading-md);
+		font-weight: var(--font-weight-medium);
+		color: var(--color-ink);
+		margin: 0;
+	}
+
+	.card-text {
+		font-size: var(--text-body-md);
+		line-height: 1.5;
+		color: var(--color-mute);
+		margin: 0;
+	}
+
+	/* Comparison Table */
+	.table-container {
+		overflow-x: auto;
+		border: 1px solid var(--color-hairline);
+		border-radius: var(--radius-md);
+		background: var(--color-canvas-elevated);
+	}
+
+	.comparison-table {
+		width: 100%;
+		border-collapse: collapse;
+		text-align: left;
+		font-size: var(--text-body-md);
+	}
+
+	.comparison-table th,
+	.comparison-table td {
+		padding: var(--spacing-md) var(--spacing-lg);
+		border-bottom: 1px solid var(--color-hairline-soft);
+	}
+
+	.comparison-table th {
+		background: rgba(255, 255, 255, 0.02);
+		color: var(--color-ink);
+		font-weight: var(--font-weight-medium);
+		border-bottom: 1px solid var(--color-hairline);
+	}
+
+	.comparison-table td {
+		color: var(--color-body);
+	}
+
+	.comparison-table tbody tr:last-child td {
+		border-bottom: none;
+	}
+
+	.comparison-table tbody tr:hover {
+		background: rgba(255, 255, 255, 0.015);
+	}
+
+	/* FAQ Section */
+	.faq-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+	}
+
+	.faq-item {
+		border: 1px solid var(--color-hairline);
+		border-radius: var(--radius-md);
+		background: var(--color-canvas-elevated);
+		overflow: hidden;
+		transition: border-color 0.2s ease;
+	}
+
+	.faq-item[open] {
+		border-color: var(--color-faint);
+	}
+
+	.faq-question {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: var(--spacing-md) var(--spacing-lg);
+		cursor: pointer;
+		color: var(--color-ink);
+		font-size: var(--text-body-lg);
+		font-weight: var(--font-weight-medium);
+		list-style: none;
+		user-select: none;
+	}
+
+	.faq-question::-webkit-details-marker {
+		display: none;
+	}
+
+	.faq-icon {
+		color: var(--color-mute);
+		transition: transform 0.2s ease;
+		flex-shrink: 0;
+	}
+
+	.faq-item[open] .faq-icon {
+		transform: rotate(180deg);
+	}
+
+	.faq-answer {
+		padding: 0 var(--spacing-lg) var(--spacing-lg);
+		font-size: var(--text-body-md);
+		line-height: 1.6;
+		color: var(--color-body);
+		margin: 0;
+	}
+
+	/* Footer */
+	.home-footer {
+		border-top: 1px solid var(--color-hairline);
+		padding: var(--spacing-xl) var(--spacing-lg);
+		background: var(--color-canvas);
+	}
+
+	.footer-container {
+		max-width: 56rem;
+		margin: 0 auto;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-md);
+	}
+
+	.footer-text {
+		color: var(--color-mute);
+		font-size: var(--text-body-sm);
+		margin: 0;
+	}
+
+	.footer-links {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-lg);
+	}
+
+	.footer-link {
+		color: var(--color-body);
+		font-size: var(--text-body-sm);
+		text-decoration: none;
+		transition: color 0.15s ease;
+	}
+
+	.footer-link:hover {
+		color: var(--color-ink);
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.ambient-glow-1,
 		.ambient-glow-2,
@@ -337,7 +951,7 @@ import Layout from '../layouts/Layout.astro';
 <script>
 	function setupAntigravityAnimation() {
 		const canvas = document.getElementById('antigravity-canvas') as HTMLCanvasElement | null;
-		const container = document.getElementById('home-page');
+		const container = document.getElementById('home-hero');
 		const content = document.getElementById('home-content');
 		if (!canvas || !container) return;
 
