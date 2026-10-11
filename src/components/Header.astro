@@ -1,4 +1,6 @@
 ---
+import BrandIcon from './BrandIcon.astro';
+
 const navItems = [
 	{ label: 'Editor', href: '/editor' },
 	{ label: 'About Us', href: '/about' },
@@ -13,11 +15,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 <header class="site-header" id="site-header">
 	<div class="header-container">
 		<a href="/" class="brand-link" aria-label="The Free Video Editor Home">
-			<div class="brand-logo" aria-hidden="true">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-					<polygon points="5 3 19 12 5 21 5 3"></polygon>
-				</svg>
-			</div>
+			<BrandIcon size={34} />
 			<span class="brand-name">The Free Video Editor</span>
 		</a>
 

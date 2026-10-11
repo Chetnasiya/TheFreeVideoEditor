@@ -71,14 +71,13 @@
 
 .brand-glyph {
 	display: grid;
-	width: 1.5rem;
-	height: 1.5rem;
+	width: 1.625rem;
+	height: 1.625rem;
 	place-items: center;
 	border-radius: var(--radius-sm);
-	background: var(--color-primary);
-	color: var(--color-on-primary);
-	font-size: var(--text-body-sm);
-	font-weight: var(--font-weight-semibold);
+	background: linear-gradient(45deg, rgb(255, 20, 20) 0%, rgb(252, 63, 63) 27%, rgb(255, 147, 15) 100%);
+	color: #ffffff;
+	box-shadow: 0 2px 8px rgba(255, 20, 20, 0.4);
 }
 
 .menu-bar {

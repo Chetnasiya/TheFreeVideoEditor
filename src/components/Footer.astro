@@ -1,4 +1,6 @@
 ---
+import BrandIcon from './BrandIcon.astro';
+
 interface Props {
 	currentPage?: string;
 }
@@ -11,11 +13,7 @@ const currentYear = new Date().getFullYear();
 		<div class="footer-grid">
 			<div class="footer-col brand-col">
 				<a href="/" class="footer-brand" aria-label="The Free Video Editor Home">
-					<div class="brand-logo" aria-hidden="true">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-							<polygon points="5 3 19 12 5 21 5 3"></polygon>
-						</svg>
-					</div>
+					<BrandIcon size={28} />
 					<span>The Free Video Editor</span>
 				</a>
 				<p class="footer-desc">
