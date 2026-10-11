@@ -53,44 +53,49 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 
 	return (
 		<div
-			className="compressor-popup fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md"
+			className="compressor-popup fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs"
 			role="dialog"
 			aria-labelledby={titleId}
 			aria-modal="true"
 		>
-			<div className="relative w-full max-w-lg overflow-hidden rounded-lg border border-[#26262e] bg-[#141418] text-[#ededed] shadow-2xl">
-				{/* Premiere Pro Style Title Bar */}
-				<div className="flex items-center justify-between border-b border-[#24242c] bg-[#1a1a22] px-5 py-3">
+			<div className="relative w-full max-w-lg overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] text-[var(--color-ink)] shadow-2xl">
+				{/* Title Bar */}
+				<div className="flex items-center justify-between border-b border-[var(--color-hairline)] bg-[var(--color-canvas)] px-5 py-3">
 					<div className="flex items-center gap-2.5">
-						<span className="h-2.5 w-2.5 rounded-full bg-[#0070f3] shadow-[0_0_8px_rgba(0,112,243,0.6)]" />
-						<h3 id={titleId} className="text-sm font-semibold tracking-tight text-[#f1f5f9]">
+						<span className="h-2.5 w-2.5 rounded-full bg-[var(--color-link)]" />
+						<h3
+							id={titleId}
+							className="text-sm font-semibold tracking-tight text-[var(--color-ink)]"
+						>
 							Track Dynamics Compressor — {trackName}
 						</h3>
 					</div>
 					<div className="flex items-center gap-3">
-						<label className="flex cursor-pointer items-center gap-1.5 text-xs text-[#94a3b8] select-none">
+						<label className="flex cursor-pointer items-center gap-1.5 text-xs text-[var(--color-mute)] select-none">
 							<input
 								type="checkbox"
 								checked={currentComp.enabled}
 								onChange={toggleEnabled}
-								className="rounded border-[#32323e] accent-[#0070f3]"
+								className="rounded border-[var(--color-hairline)] accent-[var(--color-link)]"
 								aria-label="Enabled"
 							/>
-							<span className="text-[11px] font-medium text-[#cbd5e1]">Enabled</span>
+							<span className="text-[11px] font-medium text-[var(--color-body)]">Enabled</span>
 						</label>
 						<button
 							type="button"
 							onClick={toggleEnabled}
 							className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
 								currentComp.enabled
-									? 'border border-[#166534] bg-[#143322] text-[#4ade80]'
-									: 'border border-[#32323e] bg-[#202028] text-[#94a3b8]'
+									? 'border border-emerald-600/40 bg-emerald-500/15 text-emerald-400'
+									: 'border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] text-[var(--color-mute)]'
 							}`}
 							title="Toggle compressor processing bypass"
 						>
 							<span
 								className={`h-2 w-2 rounded-full ${
-									currentComp.enabled ? 'bg-[#22c55e] shadow-[0_0_6px_#22c55e]' : 'bg-[#64748b]'
+									currentComp.enabled
+										? 'bg-emerald-400 shadow-[0_0_6px_#22c55e]'
+										: 'bg-[var(--color-mute)]'
 								}`}
 							/>
 							<span>{currentComp.enabled ? 'Active' : 'Bypassed'}</span>
@@ -98,7 +103,7 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 						<button
 							type="button"
 							onClick={onClose}
-							className="rounded p-1 text-[#94a3b8] transition-colors hover:bg-[#252530] hover:text-[#f1f5f9]"
+							className="rounded p-1 text-[var(--color-mute)] transition-colors hover:bg-[var(--color-hairline-soft)] hover:text-[var(--color-ink)]"
 							aria-label="Close compressor popup"
 						>
 							✕
@@ -194,10 +199,10 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 							/>
 						</div>
 
-						<div className="flex flex-col gap-1.5 rounded border border-[#22222a] bg-[#16161d] p-3 shadow-sm">
-							<div className="flex justify-between font-mono text-[11px] text-[#94a3b8]">
-								<span className="font-semibold text-[#cbd5e1]">Ratio</span>
-								<span className="font-bold text-[#38bdf8]">{currentComp.ratio}:1</span>
+						<div className="flex flex-col gap-1.5 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-3 shadow-xs">
+							<div className="flex justify-between font-mono text-[11px] text-[var(--color-mute)]">
+								<span className="font-semibold text-[var(--color-ink)]">Ratio</span>
+								<span className="font-bold text-[var(--color-link)]">{currentComp.ratio}:1</span>
 							</div>
 							<input
 								type="range"
@@ -206,14 +211,16 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 								step="0.5"
 								value={currentComp.ratio}
 								onChange={(e) => update({ ratio: parseFloat(e.target.value) })}
-								className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
+								className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
 							/>
 						</div>
 
-						<div className="flex flex-col gap-1.5 rounded border border-[#22222a] bg-[#16161d] p-3 shadow-sm">
-							<div className="flex justify-between font-mono text-[11px] text-[#94a3b8]">
-								<span className="font-semibold text-[#cbd5e1]">Attack</span>
-								<span className="text-[#e2e8f0]">{Math.round(currentComp.attackMs)} ms</span>
+						<div className="flex flex-col gap-1.5 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-3 shadow-xs">
+							<div className="flex justify-between font-mono text-[11px] text-[var(--color-mute)]">
+								<span className="font-semibold text-[var(--color-ink)]">Attack</span>
+								<span className="text-[var(--color-body)]">
+									{Math.round(currentComp.attackMs)} ms
+								</span>
 							</div>
 							<input
 								type="range"
@@ -222,14 +229,16 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 								step="1"
 								value={currentComp.attackMs}
 								onChange={(e) => update({ attackMs: parseFloat(e.target.value) })}
-								className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
+								className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
 							/>
 						</div>
 
-						<div className="flex flex-col gap-1.5 rounded border border-[#22222a] bg-[#16161d] p-3 shadow-sm">
-							<div className="flex justify-between font-mono text-[11px] text-[#94a3b8]">
-								<span className="font-semibold text-[#cbd5e1]">Release</span>
-								<span className="text-[#e2e8f0]">{Math.round(currentComp.releaseMs)} ms</span>
+						<div className="flex flex-col gap-1.5 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-3 shadow-xs">
+							<div className="flex justify-between font-mono text-[11px] text-[var(--color-mute)]">
+								<span className="font-semibold text-[var(--color-ink)]">Release</span>
+								<span className="text-[var(--color-body)]">
+									{Math.round(currentComp.releaseMs)} ms
+								</span>
 							</div>
 							<input
 								type="range"
@@ -238,14 +247,14 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 								step="10"
 								value={currentComp.releaseMs}
 								onChange={(e) => update({ releaseMs: parseFloat(e.target.value) })}
-								className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
+								className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
 							/>
 						</div>
 
-						<div className="flex flex-col gap-1.5 rounded border border-[#22222a] bg-[#16161d] p-3 shadow-sm">
-							<div className="flex justify-between font-mono text-[11px] text-[#94a3b8]">
-								<span className="font-semibold text-[#cbd5e1]">Knee</span>
-								<span className="text-[#e2e8f0]">{currentComp.kneeDb} dB</span>
+						<div className="flex flex-col gap-1.5 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-3 shadow-xs">
+							<div className="flex justify-between font-mono text-[11px] text-[var(--color-mute)]">
+								<span className="font-semibold text-[var(--color-ink)]">Knee</span>
+								<span className="text-[var(--color-body)]">{currentComp.kneeDb} dB</span>
 							</div>
 							<input
 								type="range"
@@ -254,16 +263,18 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 								step="0.5"
 								value={currentComp.kneeDb}
 								onChange={(e) => update({ kneeDb: parseFloat(e.target.value) })}
-								className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
+								className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
 							/>
 						</div>
 
-						<div className="flex flex-col gap-1.5 rounded border border-[#22222a] bg-[#16161d] p-3 shadow-sm">
-							<div className="flex justify-between font-mono text-[11px] text-[#94a3b8]">
-								<span className="font-semibold text-[#cbd5e1]">Makeup Gain</span>
+						<div className="flex flex-col gap-1.5 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-3 shadow-xs">
+							<div className="flex justify-between font-mono text-[11px] text-[var(--color-mute)]">
+								<span className="font-semibold text-[var(--color-ink)]">Makeup Gain</span>
 								<span
 									className={
-										currentComp.makeupDb > 0 ? 'font-bold text-[#38bdf8]' : 'text-[#e2e8f0]'
+										currentComp.makeupDb > 0
+											? 'font-bold text-[var(--color-link)]'
+											: 'text-[var(--color-body)]'
 									}
 								>
 									+{currentComp.makeupDb} dB
@@ -276,25 +287,21 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 								step="0.5"
 								value={currentComp.makeupDb}
 								onChange={(e) => update({ makeupDb: parseFloat(e.target.value) })}
-								className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
+								className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
 							/>
 						</div>
 					</div>
 				</div>
 
-				{/* Premiere Pro Dialog Footer */}
-				<div className="flex items-center justify-between border-t border-[#22222c] bg-[#111116] px-5 py-3">
-					<button
-						type="button"
-						onClick={resetDefault}
-						className="rounded border border-[#2c2c36] bg-[#1a1a22] px-3 py-1.5 text-xs font-medium text-[#94a3b8] transition-colors hover:bg-[#252530] hover:text-[#f1f5f9]"
-					>
+				{/* Dialog Footer */}
+				<div className="flex items-center justify-between border-t border-[var(--color-hairline)] bg-[var(--color-canvas)] px-5 py-3">
+					<button type="button" onClick={resetDefault} className="tracking-btn">
 						Reset to Default
 					</button>
 					<button
 						type="button"
 						onClick={onClose}
-						className="rounded bg-[#0070f3] px-5 py-1.5 text-xs font-semibold text-white shadow transition-colors hover:bg-[#0060df]"
+						className="tracking-btn tracking-btn-primary px-5"
 					>
 						Done
 					</button>

@@ -83,14 +83,21 @@ function ConnectedToolbar({
 	const playhead = useEditorStore((state) => state.timeline.playhead);
 	const showLanes = useEditorStore((state) => state.keyframes.showLanes);
 	const graphOpen = useEditorStore((state) => state.keyframes.graph.open);
+	const snapToMarkers = useEditorStore((state) => state.timeline.snapToMarkers);
+	const activeSeqId = useEditorStore((state) => state.activeSequenceId);
 	const store = useEditorStoreApi();
 	const duration = timelineDuration(project);
+	const seqMarkers =
+		(activeSeqId && project.sequences?.[activeSeqId]?.markers) || project.markers || [];
 	return (
 		<TimelineToolbar
 			playheadLabel={ticksToTimecode(playhead, project.settings.fps)}
 			durationLabel={ticksToTimecode(duration, project.settings.fps)}
 			clipCount={clipCount}
 			snapEnabled={snapEnabled}
+			snapToMarkers={snapToMarkers}
+			onToggleSnapToMarkers={() => store.getState().setSnapToMarkers(!snapToMarkers)}
+			markerCount={seqMarkers.length}
 			pixelsPerSecond={pixelsPerSecond}
 			showLanes={showLanes}
 			onToggleKeyframes={() => store.getState().toggleKeyframeLanes()}
@@ -305,6 +312,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 	const selection = useEditorStore((state) => state.timeline.selection);
 	const drag = useEditorStore((state) => state.timeline.drag);
 	const snapEnabled = useEditorStore((state) => state.timeline.snapEnabled);
+	const snapToMarkers = useEditorStore((state) => state.timeline.snapToMarkers);
 	const message = useEditorStore((state) => state.timeline.message);
 	const setZoom = useEditorStore((state) => state.setZoom);
 	const zoomToFit = useEditorStore((state) => state.zoomToFit);
@@ -518,7 +526,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 		const points = collectSnapPoints(activeProject, {
 			excludeClipIds: excluded,
 			playhead: getPlayhead(),
-			includeMarkers: true
+			includeMarkers: snapToMarkers
 		});
 		const primary = session.original[0];
 		const referenceStart =
@@ -1215,6 +1223,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 				<TimelineTools
 					activeTool={activeTool}
 					onSelectTool={(tool) => store.getState().setActiveTimelineTool(tool)}
+					onAddMarker={() => store.getState().addMarker(store.getState().timeline.playhead)}
 				/>
 				<div
 					className={`timeline-scroll ${isPanning ? 'is-panning' : ''}`}

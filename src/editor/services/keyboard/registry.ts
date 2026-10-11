@@ -83,6 +83,9 @@ export function matchesShortcut(event: KeyboardEvent, combo: ShortcutKey): boole
 	if (!matchesKey && event.code && event.code.toLowerCase() === `digit${key}`) {
 		matchesKey = true;
 	}
+	if (!matchesKey && event.code && event.code.toLowerCase() === `key${key}`) {
+		matchesKey = true;
+	}
 
 	if (!matchesKey) return false;
 	if (
@@ -278,7 +281,7 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		},
 		{
 			id: 'mute',
-			keys: { mac: 'm', other: 'm' },
+			keys: { mac: 'alt+u', other: 'alt+u' },
 			label: 'Mute / Unmute',
 			group: 'Playback',
 			scope: 'preview',
@@ -805,7 +808,7 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		},
 		{
 			id: 'mute-track',
-			keys: { mac: 'alt+shift+m', other: 'alt+shift+m' },
+			keys: { mac: 'alt+shift+u', other: 'alt+shift+u' },
 			label: 'Mute Selected Track',
 			group: 'Audio',
 			scope: 'editor',
@@ -909,6 +912,42 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			group: 'Workspaces',
 			scope: 'editor',
 			handler: action('toggle-maximize-panel'),
+			preventDefault: true
+		},
+		{
+			id: 'add-marker',
+			keys: { mac: 'm', other: 'm' },
+			label: 'Add Marker at Playhead',
+			group: 'Markers',
+			scope: 'editor',
+			handler: action('add-marker'),
+			preventDefault: true
+		},
+		{
+			id: 'add-marker-edit',
+			keys: { mac: 'ctrl+m', other: 'ctrl+m' },
+			label: 'Add and Edit Marker',
+			group: 'Markers',
+			scope: 'editor',
+			handler: action('add-marker-edit'),
+			preventDefault: true
+		},
+		{
+			id: 'next-marker',
+			keys: { mac: 'shift+m', other: 'shift+m' },
+			label: 'Go to Next Marker',
+			group: 'Markers',
+			scope: 'editor',
+			handler: action('next-marker'),
+			preventDefault: true
+		},
+		{
+			id: 'prev-marker',
+			keys: { mac: 'alt+shift+m', other: 'alt+shift+m' },
+			label: 'Go to Previous Marker',
+			group: 'Markers',
+			scope: 'editor',
+			handler: action('prev-marker'),
 			preventDefault: true
 		}
 	];

@@ -41,7 +41,7 @@ test.describe('Gate J — Functional Pipeline Verification', () => {
 				preserveDrawingBuffer: true
 			}) as import('../../src/editor/services/render').FrameRenderer;
 
-			const provider = (layer: Layer) => (layer.assetId ? sources[layer.assetId] ?? null : null);
+			const provider = (layer: Layer) => (layer.assetId ? (sources[layer.assetId] ?? null) : null);
 			const size = { width: W, height: H };
 
 			const readPixel = (x: number, y: number): number[] => {
@@ -409,7 +409,7 @@ test.describe('Gate J — Functional Pipeline Verification', () => {
 				preserveDrawingBuffer: true
 			}) as import('../../src/editor/services/render').FrameRenderer;
 
-			const provider = (layer: Layer) => (layer.assetId ? sources[layer.assetId] ?? null : null);
+			const provider = (layer: Layer) => (layer.assetId ? (sources[layer.assetId] ?? null) : null);
 			const size = { width: W, height: H };
 
 			const readPixel = (x: number, y: number): number[] => {
@@ -423,27 +423,31 @@ test.describe('Gate J — Functional Pipeline Verification', () => {
 
 			// 1. Film grain determinism: render twice at sourceTime = 1000
 			const renderGrain = (sourceTime: number) => {
-				renderer.render(size, [
-					{
-						clipId: 'c_grain' as any,
-						assetId: 'gray' as any,
-						trackId: 't1' as any,
-						trackOrder: 0,
-						sourceTime,
-						kind: 'image',
-						opacity: 1,
-						transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
-						effects: [
-							{
-								id: 'e_grain',
-								type: 'filmGrain',
-								enabled: true,
-								params: { amount: 0.5, speed: 1.0, colored: false, mix: 1 },
-								isNeutral: false
-							}
-						]
-					}
-				], provider);
+				renderer.render(
+					size,
+					[
+						{
+							clipId: 'c_grain' as any,
+							assetId: 'gray' as any,
+							trackId: 't1' as any,
+							trackOrder: 0,
+							sourceTime,
+							kind: 'image',
+							opacity: 1,
+							transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+							effects: [
+								{
+									id: 'e_grain',
+									type: 'filmGrain',
+									enabled: true,
+									params: { amount: 0.5, speed: 1.0, colored: false, mix: 1 },
+									isNeutral: false
+								}
+							]
+						}
+					],
+					provider
+				);
 			};
 
 			renderGrain(1000);
@@ -454,51 +458,59 @@ test.describe('Gate J — Functional Pipeline Verification', () => {
 			const grainT500000 = readPixel(W / 2, H / 2);
 
 			// 2. Universal mix = 0.5 on Invert (White inverted = Black; mix 0.5 = 128)
-			renderer.render(size, [
-				{
-					clipId: 'c_mix' as any,
-					assetId: 'white' as any,
-					trackId: 't1' as any,
-					trackOrder: 0,
-					sourceTime: 0,
-					kind: 'image',
-					opacity: 1,
-					transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
-					effects: [
-						{
-							id: 'e_inv_mix',
-							type: 'invert',
-							enabled: true,
-							params: { amount: 1, mix: 0.5 },
-							isNeutral: false
-						}
-					]
-				}
-			], provider);
+			renderer.render(
+				size,
+				[
+					{
+						clipId: 'c_mix' as any,
+						assetId: 'white' as any,
+						trackId: 't1' as any,
+						trackOrder: 0,
+						sourceTime: 0,
+						kind: 'image',
+						opacity: 1,
+						transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+						effects: [
+							{
+								id: 'e_inv_mix',
+								type: 'invert',
+								enabled: true,
+								params: { amount: 1, mix: 0.5 },
+								isNeutral: false
+							}
+						]
+					}
+				],
+				provider
+			);
 			const mixHalfPixel = readPixel(W / 2, H / 2);
 
 			// 3. Vignette: center should be brighter than corners
-			renderer.render(size, [
-				{
-					clipId: 'c_vig' as any,
-					assetId: 'white' as any,
-					trackId: 't1' as any,
-					trackOrder: 0,
-					sourceTime: 0,
-					kind: 'image',
-					opacity: 1,
-					transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
-					effects: [
-						{
-							id: 'e_vig',
-							type: 'vignette',
-							enabled: true,
-							params: { amount: 0.8, radius: 0.4, softness: 0.5, roundness: 1, mix: 1 },
-							isNeutral: false
-						}
-					]
-				}
-			], provider);
+			renderer.render(
+				size,
+				[
+					{
+						clipId: 'c_vig' as any,
+						assetId: 'white' as any,
+						trackId: 't1' as any,
+						trackOrder: 0,
+						sourceTime: 0,
+						kind: 'image',
+						opacity: 1,
+						transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+						effects: [
+							{
+								id: 'e_vig',
+								type: 'vignette',
+								enabled: true,
+								params: { amount: 0.8, radius: 0.4, softness: 0.5, roundness: 1, mix: 1 },
+								isNeutral: false
+							}
+						]
+					}
+				],
+				provider
+			);
 			const vigCenter = readPixel(W / 2, H / 2);
 			const vigCorner = readPixel(2, 2);
 
@@ -536,7 +548,7 @@ test.describe('Gate J — Functional Pipeline Verification', () => {
 		await page.goto('/editor');
 
 		const results = await page.evaluate(async () => {
-			const render = await (new Function('return import("/src/editor/services/render/index.ts")')());
+			const render = await new Function('return import("/src/editor/services/render/index.ts")')();
 			type Layer = any;
 
 			const W = 200;

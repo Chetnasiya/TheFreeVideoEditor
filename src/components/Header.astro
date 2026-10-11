@@ -1,0 +1,204 @@
+---
+const navItems = [
+	{ label: 'Editor', href: '/editor' },
+	{ label: 'About Us', href: '/about' },
+	{ label: 'Contact Us', href: '/contact' },
+	{ label: 'Privacy Policy', href: '/privacy' },
+	{ label: 'Terms & Conditions', href: '/terms' }
+];
+
+const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+---
+
+<header class="site-header" id="site-header">
+	<div class="header-container">
+		<a href="/" class="brand-link" aria-label="The Free Video Editor Home">
+			<div class="brand-logo" aria-hidden="true">
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+					<polygon points="5 3 19 12 5 21 5 3"></polygon>
+				</svg>
+			</div>
+			<span class="brand-name">The Free Video Editor</span>
+		</a>
+
+		<nav class="site-nav" aria-label="Main Navigation">
+			<ul class="nav-list">
+				{navItems.map((item) => {
+					const isActive = currentPath === item.href || (item.href === '/' && currentPath === '');
+					return (
+						<li>
+							<a
+								href={item.href}
+								class:list={['nav-link', { 'is-active': isActive }]}
+								aria-current={isActive ? 'page' : undefined}
+							>
+								{item.label}
+							</a>
+						</li>
+					);
+				})}
+			</ul>
+		</nav>
+
+		<div class="header-actions">
+			<a href="/editor" class="header-cta-btn">
+				<span>Open Editor</span>
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<polyline points="9 18 15 12 9 6"></polyline>
+				</svg>
+			</a>
+		</div>
+	</div>
+</header>
+
+<style>
+	.site-header {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 50;
+		width: 100%;
+		padding: 1rem 1.5rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+		background: rgba(7, 7, 9, 0.65);
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+	}
+
+	.header-container {
+		max-width: 72rem;
+		margin: 0 auto;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.5rem;
+	}
+
+	.brand-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.65rem;
+		text-decoration: none;
+		color: #ffffff;
+		font-weight: 600;
+		font-size: 0.95rem;
+		letter-spacing: -0.01em;
+		transition: opacity 0.15s ease;
+		flex-shrink: 0;
+	}
+
+	.brand-link:hover {
+		opacity: 0.9;
+	}
+
+	.brand-logo {
+		display: grid;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		border-radius: 8px;
+		background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(168, 85, 247, 0.25));
+		border: 1px solid rgba(56, 189, 248, 0.4);
+		color: #38bdf8;
+		box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+	}
+
+	.brand-name {
+		font-family: var(--font-sans);
+		white-space: nowrap;
+	}
+
+	.site-nav {
+		display: flex;
+		align-items: center;
+	}
+
+	.nav-list {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.nav-link {
+		display: inline-block;
+		padding: 0.4rem 0.75rem;
+		border-radius: 6px;
+		color: #94a3b8;
+		text-decoration: none;
+		font-size: 0.85rem;
+		font-weight: 500;
+		transition: all 0.15s ease;
+		white-space: nowrap;
+	}
+
+	.nav-link:hover {
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.nav-link.is-active {
+		color: #38bdf8;
+		background: rgba(56, 189, 248, 0.08);
+		border: 1px solid rgba(56, 189, 248, 0.2);
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+	}
+
+	.header-cta-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 0.45rem 1rem;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: #ffffff;
+		text-decoration: none;
+		font-size: 0.8rem;
+		font-weight: 500;
+		transition: all 0.2s ease;
+	}
+
+	.header-cta-btn:hover {
+		background: rgba(255, 255, 255, 0.18);
+		border-color: rgba(255, 255, 255, 0.4);
+		box-shadow: 0 0 16px rgba(255, 255, 255, 0.15);
+	}
+
+	@media (max-width: 820px) {
+		.site-header {
+			position: relative;
+			padding: 0.75rem 1rem;
+		}
+
+		.header-container {
+			flex-wrap: wrap;
+			gap: 0.75rem;
+		}
+
+		.site-nav {
+			order: 3;
+			width: 100%;
+			overflow-x: auto;
+			padding-bottom: 0.25rem;
+		}
+
+		.nav-list {
+			gap: 0.25rem;
+		}
+
+		.nav-link {
+			padding: 0.35rem 0.55rem;
+			font-size: 0.8rem;
+		}
+	}
+</style>
+

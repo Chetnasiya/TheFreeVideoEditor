@@ -3,6 +3,9 @@ interface TimelineToolbarProps {
 	durationLabel: string;
 	clipCount: number;
 	snapEnabled: boolean;
+	snapToMarkers?: boolean;
+	onToggleSnapToMarkers?: () => void;
+	markerCount?: number;
 	pixelsPerSecond: number;
 	showLanes?: 'selected' | 'all' | 'off';
 	onToggleKeyframes?: () => void;
@@ -26,6 +29,9 @@ export default function TimelineToolbar({
 	durationLabel,
 	clipCount,
 	snapEnabled,
+	snapToMarkers = true,
+	onToggleSnapToMarkers,
+	markerCount,
 	pixelsPerSecond,
 	showLanes = 'selected',
 	onToggleKeyframes,
@@ -135,6 +141,28 @@ export default function TimelineToolbar({
 					</svg>
 					<span>Snap</span>
 				</button>
+				{onToggleSnapToMarkers && (
+					<button
+						className={`tool-button ${snapToMarkers ? 'is-active' : ''}`}
+						type="button"
+						aria-pressed={snapToMarkers}
+						onClick={onToggleSnapToMarkers}
+						title="Snap to markers (start and duration ends)"
+						aria-label="Snap to markers"
+					>
+						<svg
+							className="tool-btn-icon"
+							viewBox="0 0 16 16"
+							width="13"
+							height="13"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M4 2v12h1.5V9.5h6l-1.5-3.5 1.5-4H5.5V2H4z" />
+						</svg>
+						<span>Snap to Markers</span>
+					</button>
+				)}
 				{onToggleKeyframes && (
 					<button
 						className={`tool-button ${showLanes !== 'off' ? 'is-active' : ''}`}
@@ -261,6 +289,14 @@ export default function TimelineToolbar({
 				<span className="timeline-clip-count" aria-label={`${clipCount} clips`}>
 					{clipCount} clips
 				</span>
+				{markerCount !== undefined && markerCount > 0 && (
+					<span
+						className="timeline-clip-count timeline-marker-count"
+						aria-label={`${markerCount} markers`}
+					>
+						{markerCount} markers
+					</span>
+				)}
 			</div>
 		</div>
 	);

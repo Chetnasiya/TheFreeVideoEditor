@@ -332,7 +332,9 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await page.evaluate(() => {
 			const state = (window as any).__TFVE_STORE__.getState();
 			const activeTracks = state.project.tracks;
-			const c = activeTracks.flatMap((t: any) => t.clips).find((c: any) => c.source?.type === 'sequence');
+			const c = activeTracks
+				.flatMap((t: any) => t.clips)
+				.find((c: any) => c.source?.type === 'sequence');
 			if (c) {
 				state.setClipSpeed([c.id], 2.0);
 			}
@@ -349,7 +351,9 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await page.evaluate(() => {
 			const state = (window as any).__TFVE_STORE__.getState();
 			const activeTracks = state.project.tracks;
-			const c = activeTracks.flatMap((t: any) => t.clips).find((c: any) => c.source?.type === 'sequence');
+			const c = activeTracks
+				.flatMap((t: any) => t.clips)
+				.find((c: any) => c.source?.type === 'sequence');
 			if (c) {
 				state.setClipSpeed([c.id], 1.0);
 			}
@@ -366,9 +370,7 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await expect(page.locator('.timeline-clip.is-solid')).toHaveCount(1);
 	});
 
-	test('undo and redo restores activeSequenceId with polite announcement', async ({
-		page
-	}) => {
+	test('undo and redo restores activeSequenceId with polite announcement', async ({ page }) => {
 		await page.goto('/editor');
 
 		await page
@@ -509,7 +511,17 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 						s.height = 1;
 						const ctx = s.getContext('2d');
 						if (!ctx) return [0, 0, 0, 0];
-						ctx.drawImage(el, Math.floor(el.width / 2), Math.floor(el.height / 2), 1, 1, 0, 0, 1, 1);
+						ctx.drawImage(
+							el,
+							Math.floor(el.width / 2),
+							Math.floor(el.height / 2),
+							1,
+							1,
+							0,
+							0,
+							1,
+							1
+						);
 						const d = ctx.getImageData(0, 0, 1, 1).data;
 						return [d[0], d[1], d[2], d[3]];
 					});
@@ -745,7 +757,9 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await fileChooser.setFiles(tfvePath!);
 
 		// Check project loaded with heading Tfve Sequences
-		await expect(page.getByRole('heading', { name: 'Tfve Sequences' })).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByRole('heading', { name: 'Tfve Sequences' })).toBeVisible({
+			timeout: 10_000
+		});
 
 		// Verify Saved SubSequence exists in project sequences
 		const restoredSeq = await page.evaluate(() => {

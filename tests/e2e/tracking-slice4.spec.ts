@@ -55,7 +55,7 @@ test('tracking slice 4: track shaky footage, stabilize clip, verify compensation
 	await addTrackerBtn.click();
 
 	// Track Forward
-	const trackForwardBtn = inspector.getByRole('button', { name: 'Track Forward ⯈' });
+	const trackForwardBtn = inspector.getByRole('button', { name: /Track Forward/i });
 	await expect(trackForwardBtn).toBeVisible();
 	await trackForwardBtn.click();
 

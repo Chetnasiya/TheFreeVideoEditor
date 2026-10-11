@@ -120,6 +120,14 @@ export function duplicateProject(project: Project): Project {
 			...(clip.linkId ? { linkId: linkIdMap.get(clip.linkId) } : {}),
 			effects: clip.effects?.map((effect) => ({ ...effect, id: randomId() })),
 			...(clip.masks ? { masks: clip.masks.map((mask) => ({ ...mask, id: randomId() })) } : {}),
+			...(clip.markers
+				? {
+						markers: clip.markers.map((marker) => ({
+							...marker,
+							id: randomId() as MarkerId
+						}))
+					}
+				: {}),
 			...(clip.source?.type === 'sequence'
 				? {
 						source: {
@@ -163,7 +171,22 @@ export function duplicateProject(project: Project): Project {
 					sequences: Object.fromEntries(
 						Object.values(project.sequences).map((sequence) => {
 							const id = sequenceIdMap.get(sequence.id) as SequenceId;
-							return [id, { ...sequence, id, tracks: sequence.tracks.map(remapTrack) }];
+							return [
+								id,
+								{
+									...sequence,
+									id,
+									tracks: sequence.tracks.map(remapTrack),
+									...(sequence.markers
+										? {
+												markers: sequence.markers.map((marker) => ({
+													...marker,
+													id: randomId() as MarkerId
+												}))
+											}
+										: {})
+								}
+							];
 						})
 					) as Record<SequenceId, Sequence>
 				}

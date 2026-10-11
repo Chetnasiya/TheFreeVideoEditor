@@ -5,6 +5,8 @@ import type {
 	ClipId,
 	ClipSource,
 	JsonValue,
+	Marker,
+	MarkerColor,
 	MarkerId,
 	Project,
 	ProjectId,
@@ -260,7 +262,8 @@ export const clipSchema = z.object({
 	fadeInUs: timeSchema.nonnegative().optional(),
 	fadeOutUs: timeSchema.nonnegative().optional(),
 	fadeCurve: z.enum(['equalPower', 'linear']).optional(),
-	trackers: z.array(z.lazy(() => trackerSchema)).optional()
+	trackers: z.array(z.lazy(() => trackerSchema)).optional(),
+	markers: z.array(z.lazy(() => markerSchema)).optional()
 });
 
 export const trackerRegionSchema = z.object({
@@ -481,18 +484,62 @@ export const trackSchema = z.object({
 	captionStyle: captionStyleSchema.optional()
 });
 
-export const markerSchema = z.object({
-	id: markerIdSchema,
-	time: timeSchema,
-	label: z.string(),
-	color: z.string().optional()
-});
+export const markerColorSchema = z.enum([
+	'green',
+	'red',
+	'purple',
+	'orange',
+	'yellow',
+	'white',
+	'blue',
+	'cyan'
+]);
+
+export const markerTypeSchema = z.enum(['comment', 'chapter', 'segment', 'web-link']);
+
+export const markerSchema = z
+	.object({
+		id: markerIdSchema,
+		time: timeSchema,
+		duration: timeSchema.nonnegative().optional(),
+		name: z.string().optional(),
+		label: z.string().optional(),
+		comment: z.string().optional(),
+		color: z.union([markerColorSchema, z.string()]).optional(),
+		type: markerTypeSchema.optional(),
+		url: z.string().optional()
+	})
+	.transform((val) => {
+		const name = val.name ?? val.label ?? 'Marker';
+		const validColors = [
+			'green',
+			'red',
+			'purple',
+			'orange',
+			'yellow',
+			'white',
+			'blue',
+			'cyan'
+		] as const;
+		const color: MarkerColor =
+			val.color && validColors.includes(val.color as MarkerColor)
+				? (val.color as MarkerColor)
+				: 'green';
+		return {
+			...val,
+			name,
+			label: val.label ?? name,
+			color,
+			type: val.type ?? 'comment'
+		} as Marker;
+	});
 
 export const sequenceSchema = z.object({
 	id: z.custom<SequenceId>((value) => typeof value === 'string' && value.length > 0),
 	name: z.string().min(1),
 	settings: projectSettingsSchema.optional(),
-	tracks: z.array(trackSchema)
+	tracks: z.array(trackSchema),
+	markers: z.array(z.lazy(() => markerSchema)).optional()
 });
 
 export const projectSchema = z

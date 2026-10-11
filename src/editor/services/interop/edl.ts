@@ -42,7 +42,7 @@ export function exportEdlTrack(
 		});
 	const markerComments = project.markers.map(
 		(marker) =>
-			`* MARKER ${framesToTimecode(frames(marker.time, project), project.settings.fps)} ${marker.label}`
+			`* MARKER ${framesToTimecode(frames(marker.time, project), project.settings.fps)} ${marker.name ?? marker.label ?? 'Marker'}`
 	);
 	return [
 		`TITLE: ${project.name}`,

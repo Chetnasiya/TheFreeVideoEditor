@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { TimelineTool } from '../../state/store';
 
 interface ToolItem {
-	id: TimelineTool;
+	id: TimelineTool | 'mark';
 	label: string;
 	shortcut?: string;
 	description: string;
@@ -111,14 +111,13 @@ const TOOLS: ToolItem[] = [
 		)
 	},
 	{
-		id: 'hand',
-		label: 'Hand Tool',
-		shortcut: 'H',
-		description: 'Click and drag to pan across the timeline',
+		id: 'mark',
+		label: 'Add Marker',
+		shortcut: 'M',
+		description: 'Add marker at playhead',
 		icon: (
 			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
-				{/* Hand tool palm */}
-				<path d="M6 1.5a.75.75 0 01.75.75v4.5h.5V1a.75.75 0 011.5 0v5.75h.5V1.75a.75.75 0 011.5 0v5h.5v-3.5a.75.75 0 011.5 0v6.25c0 3-2 5-4.5 5S3.5 12.5 3.5 10V5.75a.75.75 0 011.5 0V7.5h.5V2.25A.75.75 0 016 1.5z" />
+				<path d="M4 1.5h8v8l-4 5-4-5V1.5z" />
 			</svg>
 		)
 	},
@@ -139,9 +138,10 @@ const TOOLS: ToolItem[] = [
 interface TimelineToolsProps {
 	activeTool: TimelineTool;
 	onSelectTool: (tool: TimelineTool) => void;
+	onAddMarker?: () => void;
 }
 
-export function TimelineTools({ activeTool, onSelectTool }: TimelineToolsProps) {
+export function TimelineTools({ activeTool, onSelectTool, onAddMarker }: TimelineToolsProps) {
 	return (
 		<aside
 			className="timeline-toolstrip"
@@ -150,7 +150,8 @@ export function TimelineTools({ activeTool, onSelectTool }: TimelineToolsProps) 
 			aria-orientation="vertical"
 		>
 			{TOOLS.map((tool) => {
-				const isActive = activeTool === tool.id;
+				const isMarkAction = tool.id === 'mark';
+				const isActive = !isMarkAction && activeTool === tool.id;
 				const title = tool.shortcut
 					? `${tool.label} (${tool.shortcut}) – ${tool.description}`
 					: `${tool.label} – ${tool.description}`;
@@ -162,7 +163,13 @@ export function TimelineTools({ activeTool, onSelectTool }: TimelineToolsProps) 
 						aria-pressed={isActive}
 						aria-label={tool.shortcut ? `${tool.label} (${tool.shortcut})` : tool.label}
 						title={title}
-						onClick={() => onSelectTool(tool.id)}
+						onClick={() => {
+							if (tool.id === 'mark') {
+								onAddMarker?.();
+							} else {
+								onSelectTool(tool.id);
+							}
+						}}
 					>
 						{tool.icon}
 					</button>

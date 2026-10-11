@@ -18,7 +18,9 @@ test.describe('Proxy media lifecycle and playback', () => {
 		await expect(page.getByRole('heading', { name })).toBeVisible();
 	}
 
-	test('Slice 1 & 2: generates proxy for 4K media, switches playback, and shows PROXY badge', async ({ page }) => {
+	test('Slice 1 & 2: generates proxy for 4K media, switches playback, and shows PROXY badge', async ({
+		page
+	}) => {
 		test.setTimeout(60_000);
 		const browserProblems: string[] = [];
 		page.on('console', (message) => {
@@ -45,7 +47,9 @@ test.describe('Proxy media lifecycle and playback', () => {
 		await expect(suggestionToast).toBeHidden();
 
 		// Wait for either ready or failed status
-		const statusChip = page.locator('[data-testid="proxy-status-ready"], [data-testid="proxy-status-failed"]');
+		const statusChip = page.locator(
+			'[data-testid="proxy-status-ready"], [data-testid="proxy-status-failed"]'
+		);
 		await expect(statusChip).toBeVisible({ timeout: 45_000 });
 		const isFailed = await page.getByTestId('proxy-status-failed').isVisible();
 		if (isFailed) {
@@ -144,7 +148,9 @@ test.describe('Proxy media lifecycle and playback', () => {
 		await expect(page.getByTestId('create-proxy-button')).toBeVisible();
 	});
 
-	test('Slice 3: export uses original media even when proxies are enabled and ready', async ({ page }) => {
+	test('Slice 3: export uses original media even when proxies are enabled and ready', async ({
+		page
+	}) => {
 		await createProject(page, 'Proxy Export Independence Project');
 
 		await page.locator('input[name="media-files"]').setInputFiles(['tests/fixtures/stock-4k.mp4']);
@@ -236,7 +242,8 @@ test.describe('Proxy media lifecycle and playback', () => {
 
 		// Inject dev fault on next proxy attempt via window.__tfveProxyService
 		await page.evaluate(() => {
-			const s = (window as unknown as { __tfveProxyService?: { devFaultInjection?: string } }).__tfveProxyService;
+			const s = (window as unknown as { __tfveProxyService?: { devFaultInjection?: string } })
+				.__tfveProxyService;
 			if (s) s.devFaultInjection = 'encoder_unsupported';
 		});
 
@@ -252,7 +259,8 @@ test.describe('Proxy media lifecycle and playback', () => {
 
 		// Clear fault injection and click Retry
 		await page.evaluate(() => {
-			const s = (window as unknown as { __tfveProxyService?: { devFaultInjection?: string } }).__tfveProxyService;
+			const s = (window as unknown as { __tfveProxyService?: { devFaultInjection?: string } })
+				.__tfveProxyService;
 			if (s) s.devFaultInjection = undefined;
 		});
 		await retryBtn.click();
@@ -261,7 +269,9 @@ test.describe('Proxy media lifecycle and playback', () => {
 		await expect(page.getByTestId('proxy-status-ready')).toBeVisible({ timeout: 45_000 });
 	});
 
-	test('Slice 2: Alt+P toggles proxy mode during playback preserving playhead', async ({ page }) => {
+	test('Slice 2: Alt+P toggles proxy mode during playback preserving playhead', async ({
+		page
+	}) => {
 		await createProject(page, 'Proxy Toggle Shortcut Project');
 
 		await page.locator('input[name="media-files"]').setInputFiles(['tests/fixtures/stock-4k.mp4']);
@@ -314,12 +324,16 @@ test.describe('Proxy media lifecycle and playback', () => {
 		expect(Number(currentPlayheadVal)).toBeGreaterThan(0);
 	});
 
-	test('Slice 2 & 3: colors preview and real export parity with proxies on vs off', async ({ page }) => {
+	test('Slice 2 & 3: colors preview and real export parity with proxies on vs off', async ({
+		page
+	}) => {
 		test.setTimeout(90_000);
 		await createProject(page, 'Proxy Colors and Export Parity Project');
 
 		// Import 1080p video fixture
-		await page.locator('input[name="media-files"]').setInputFiles(['tests/fixtures/stock-1080p25-audio.mp4']);
+		await page
+			.locator('input[name="media-files"]')
+			.setInputFiles(['tests/fixtures/stock-1080p25-audio.mp4']);
 		const assets = page.getByRole('listbox', { name: 'Project media' });
 		await expect(assets.getByRole('option')).toHaveCount(1, { timeout: 20_000 });
 
@@ -479,4 +493,3 @@ test.describe('Proxy media lifecycle and playback', () => {
 		expect(throughput).toBeDefined();
 	});
 });
-

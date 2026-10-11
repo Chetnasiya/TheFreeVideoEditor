@@ -154,6 +154,7 @@ export interface Sequence {
 	name: string;
 	settings?: ProjectSettings;
 	tracks: Track[];
+	markers?: Marker[];
 }
 
 export type ProxyStatus = 'none' | 'queued' | 'working' | 'ready' | 'failed' | 'stale' | 'pending';
@@ -287,6 +288,7 @@ export interface Clip {
 	fadeOutUs?: Time;
 	fadeCurve?: 'equalPower' | 'linear';
 	trackers?: Tracker[];
+	markers?: ClipMarker[];
 }
 
 export type TrackerType = 'point' | 'planar' | 'stabilize';
@@ -437,12 +439,24 @@ export interface Track {
 	captionStyle?: CaptionStyle;
 }
 
+export type MarkerColor =
+	'green' | 'red' | 'purple' | 'orange' | 'yellow' | 'white' | 'blue' | 'cyan';
+
+export type MarkerType = 'comment' | 'chapter' | 'segment' | 'web-link';
+
 export interface Marker {
 	id: MarkerId;
 	time: Time;
-	label: string;
-	color?: string;
+	duration?: Time;
+	name: string;
+	label?: string; // Backwards-compatibility alias for older projects
+	comment?: string;
+	color: MarkerColor;
+	type?: MarkerType;
+	url?: string;
 }
+
+export type ClipMarker = Marker;
 
 export interface Project {
 	id: ProjectId;

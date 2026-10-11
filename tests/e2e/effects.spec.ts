@@ -113,7 +113,9 @@ test.describe('Effects, Color & Scopes (Gate J)', () => {
 
 		// Clip should appear in timeline
 		await expect(page.locator('.timeline-clip')).toHaveCount(1);
-		await expect(page.locator('.timeline-clip-name', { hasText: 'Adjustment Layer' })).toBeVisible();
+		await expect(
+			page.locator('.timeline-clip-name', { hasText: 'Adjustment Layer' })
+		).toBeVisible();
 
 		// Add solid layer
 		const addSolidBtn = page.getByRole('button', { name: '+ Solid' });

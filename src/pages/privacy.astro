@@ -1,0 +1,251 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+const seoTitle = 'Privacy Policy — The Free Video Editor';
+const seoDescription =
+	'Read our Privacy Policy. The Free Video Editor processes all videos, audio, and media 100% locally on your device with zero cloud uploads and zero media tracking.';
+
+const lastUpdated = 'October 12, 2026';
+---
+
+<Layout
+	title={seoTitle}
+	description={seoDescription}
+	canonicalUrl="https://thefreevideoeditor.com/privacy"
+>
+	<Header />
+
+	<main class="page-main">
+		<div class="page-container">
+			<div class="page-header">
+				<div class="eyebrow-badge">
+					<span class="pulsing-dot" aria-hidden="true"></span>
+					<span>DATA PRIVACY & LOCAL PROCESSING</span>
+				</div>
+				<h1 class="page-title">Privacy Policy</h1>
+				<p class="page-lead">
+					Your media never leaves your computer. We believe privacy is a fundamental human right, not a paid tier.
+				</p>
+				<p class="last-updated">Last Updated: {lastUpdated}</p>
+			</div>
+
+			<article class="content-body">
+				<div class="highlight-callout">
+					<div class="callout-icon">
+						<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+						</svg>
+					</div>
+					<div class="callout-text">
+						<h3>The Core Privacy Guarantee</h3>
+						<p>
+							<strong>We never upload your video, audio, or image files to our servers or any third-party cloud.</strong>
+							All decoding, trimming, filtering, keyframing, AI captions, and exporting happen 100% locally on your computer via client-side WebAssembly, WebCodecs, and WebGL2.
+						</p>
+					</div>
+				</div>
+
+				<section class="content-section">
+					<h2>1. Information We Do NOT Collect</h2>
+					<p>Unlike cloud-based editing platforms, The Free Video Editor is designed with zero-knowledge architecture regarding your content:</p>
+					<ul>
+						<li><strong>Your Media Files:</strong> We cannot access, view, copy, or store your videos, photos, or voice recordings.</li>
+						<li><strong>Project Content:</strong> Timeline assets, subtitles, cuts, project names, and exported videos remain stored solely in your browser's local sandbox (Origin Private File System / IndexedDB).</li>
+						<li><strong>Personal Information:</strong> We do not ask for your name, phone number, physical address, or payment details. No account creation is required to use the editor.</li>
+					</ul>
+				</section>
+
+				<section class="content-section">
+					<h2>2. Client-Side AI & Speech-to-Text Processing</h2>
+					<p>
+						When you generate automatic subtitles or perform motion tracking, our machine learning models (such as Whisper AI) are downloaded directly to your browser's local cache and execute inference on your device's hardware (via WebAssembly or WebGPU). Audio data is never streamed to external AI API servers or voice intelligence providers.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>3. Local Storage & Offline Capabilities</h2>
+					<p>
+						To ensure smooth autosaving and instant recovery, The Free Video Editor stores project state using browser-standard local storage technologies:
+					</p>
+					<ul>
+						<li><strong>IndexedDB:</strong> Stores project timelines, clip arrangements, keyframes, and color grading parameters.</li>
+						<li><strong>Origin Private File System (OPFS):</strong> Stores imported media handles and cached waveforms locally on your hard drive.</li>
+					</ul>
+					<p>
+						This data exists solely on your local device. You can purge all stored projects at any time through your browser's "Clear Site Data" settings or within the editor's Project Manager.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>4. Analytics and Server Logs</h2>
+					<p>
+						When you visit our marketing pages, our static hosting infrastructure (such as Cloudflare/Vercel) may log standard technical web traffic metadata (such as IP address, browser user-agent, and HTTP request headers) for security, DDoS mitigation, and server performance monitoring. We do not use intrusive cross-site tracking cookies or sell marketing profiles to data brokers.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>5. Third-Party Links</h2>
+					<p>
+						Our website may include links to third-party services (such as GitHub or open-source repositories). We are not responsible for the privacy practices of external platforms, and we encourage you to review their respective policies.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>6. Changes to this Privacy Policy</h2>
+					<p>
+						We may update our Privacy Policy periodically to reflect architectural enhancements or new browser API standards. Any updates will be posted to this page with an updated "Last Updated" timestamp.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>7. Contacting Us Regarding Privacy</h2>
+					<p>
+						If you have questions, concerns, or technical inquiries regarding data handling or local security, please visit our <a href="/contact" class="inline-link">Contact Us page</a> or reach out to our privacy team at <a href="mailto:privacy@thefreevideoeditor.com" class="inline-link">privacy@thefreevideoeditor.com</a>.
+					</p>
+				</section>
+			</article>
+		</div>
+	</main>
+
+	<Footer currentPage="/privacy" />
+</Layout>
+
+<style>
+	.page-main {
+		min-height: 100vh;
+		background: #070709;
+		color: #e2e8f0;
+		padding: 7rem 1.5rem 5rem;
+	}
+
+	.page-container {
+		max-width: 52rem;
+		margin: 0 auto;
+	}
+
+	.page-header {
+		text-align: center;
+		margin-bottom: 3.5rem;
+	}
+
+	.eyebrow-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 5px 14px;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: #94a3b8;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		letter-spacing: 0.08em;
+		margin-bottom: 1.25rem;
+	}
+
+	.pulsing-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #38bdf8;
+		box-shadow: 0 0 8px #38bdf8;
+	}
+
+	.page-title {
+		font-size: clamp(2.25rem, 5vw, 3.5rem);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+		color: #ffffff;
+		margin: 0 0 1rem 0;
+		line-height: 1.15;
+	}
+
+	.page-lead {
+		font-size: 1.15rem;
+		color: #94a3b8;
+		line-height: 1.6;
+		margin: 0 auto;
+		max-width: 42rem;
+	}
+
+	.last-updated {
+		color: #64748b;
+		font-size: 0.825rem;
+		font-family: var(--font-mono);
+		margin-top: 1rem;
+	}
+
+	.content-body {
+		display: flex;
+		flex-direction: column;
+		gap: 2.5rem;
+	}
+
+	.highlight-callout {
+		display: flex;
+		gap: 1.25rem;
+		background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(99, 102, 241, 0.06));
+		border: 1px solid rgba(56, 189, 248, 0.25);
+		border-radius: 12px;
+		padding: 1.5rem;
+		margin-bottom: 1rem;
+	}
+
+	.callout-icon {
+		flex-shrink: 0;
+		color: #38bdf8;
+	}
+
+	.callout-text h3 {
+		color: #ffffff;
+		font-size: 1.1rem;
+		margin: 0 0 0.4rem 0;
+	}
+
+	.callout-text p {
+		color: #cbd5e1;
+		font-size: 0.95rem;
+		line-height: 1.6;
+		margin: 0;
+	}
+
+	.content-section h2 {
+		font-size: 1.4rem;
+		font-weight: 600;
+		letter-spacing: -0.02em;
+		color: #f8fafc;
+		margin: 0 0 0.85rem 0;
+	}
+
+	.content-section p {
+		color: #94a3b8;
+		line-height: 1.75;
+		font-size: 0.95rem;
+		margin: 0 0 0.85rem 0;
+	}
+
+	.content-section ul {
+		margin: 0.75rem 0 1.25rem 1.25rem;
+		padding: 0;
+		color: #94a3b8;
+		font-size: 0.95rem;
+		line-height: 1.7;
+	}
+
+	.content-section li {
+		margin-bottom: 0.5rem;
+	}
+
+	.inline-link {
+		color: #38bdf8;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.inline-link:hover {
+		color: #7dd3fc;
+	}
+</style>
+

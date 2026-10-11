@@ -983,3 +983,163 @@
 	gap: 4px;
 	margin-top: 2px;
 }
+
+/* Motion Tracking Section Styles */
+.tracking-container {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-sm);
+	font-size: var(--text-body-sm);
+}
+
+.tracking-header-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.tracking-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-xs);
+	padding: var(--spacing-xs);
+	background: var(--color-canvas-elevated);
+	border: 1px solid var(--color-hairline);
+	border-radius: var(--radius-sm);
+}
+
+.tracking-card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--spacing-xs);
+}
+
+.tracking-select,
+.tracking-input {
+	height: 24px;
+	border: 1px solid var(--color-hairline);
+	border-radius: var(--radius-sm);
+	background: var(--color-canvas);
+	color: var(--color-ink);
+	font-size: var(--text-body-sm);
+	padding: 0 var(--spacing-xs);
+	outline: none;
+	transition: border-color 0.15s ease;
+}
+
+.tracking-select:focus,
+.tracking-input:focus {
+	border-color: var(--color-link);
+}
+
+.tracking-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 24px;
+	padding: 0 var(--spacing-xs);
+	border: 1px solid var(--color-hairline);
+	border-radius: var(--radius-sm);
+	background: var(--color-canvas-elevated);
+	color: var(--color-ink);
+	font-size: var(--text-body-sm);
+	font-weight: var(--font-weight-medium);
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.tracking-btn:hover:not(:disabled) {
+	background: var(--color-hairline-soft);
+	border-color: var(--color-primary);
+}
+
+.tracking-btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.tracking-btn-primary {
+	background: var(--color-link);
+	border-color: var(--color-link-deep);
+	color: #ffffff;
+}
+
+.tracking-btn-primary:hover:not(:disabled) {
+	background: var(--color-link-deep);
+	border-color: var(--color-link);
+}
+
+.tracking-btn-accent {
+	background: var(--color-primary);
+	border-color: var(--color-primary);
+	color: var(--color-on-primary);
+}
+
+.tracking-btn-accent:hover:not(:disabled) {
+	opacity: 0.9;
+}
+
+.tracking-btn-danger {
+	color: var(--color-error);
+	border-color: transparent;
+	background: transparent;
+}
+
+.tracking-btn-danger:hover:not(:disabled) {
+	background: rgba(238, 0, 0, 0.1);
+	border-color: rgba(238, 0, 0, 0.25);
+}
+
+.tracking-progress-bar {
+	height: 4px;
+	width: 100%;
+	border-radius: var(--radius-full);
+	background: var(--color-hairline);
+	overflow: hidden;
+}
+
+.tracking-progress-fill {
+	height: 100%;
+	background: var(--color-link);
+	transition: width 0.1s ease;
+}
+
+/* Audio Fades Form Grid */
+.audio-fade-grid {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: var(--spacing-xxs) 0;
+}
+
+.audio-fade-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 24px;
+}
+
+.audio-fade-label {
+	font-size: var(--text-body-sm);
+	color: var(--color-mute);
+}
+
+.audio-fade-input {
+	width: 64px;
+	height: 22px;
+	border: 1px solid var(--color-hairline);
+	border-radius: var(--radius-sm);
+	background: var(--color-canvas-elevated);
+	color: var(--color-ink);
+	font-family: var(--font-mono);
+	font-size: 11px;
+	text-align: right;
+	padding: 0 6px;
+	outline: none;
+	transition: border-color 0.15s ease;
+}
+
+.audio-fade-input:focus {
+	border-color: var(--color-link);
+}

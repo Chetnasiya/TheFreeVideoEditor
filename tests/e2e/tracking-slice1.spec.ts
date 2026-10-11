@@ -88,4 +88,3 @@ test('tracking slice 1: add point tracker on track-target.mp4, move search/featu
 	// Assert no console errors occurred
 	expect(browserProblems).toEqual([]);
 });
-

@@ -28,7 +28,7 @@
 }
 
 .editor-topbar {
-	z-index: 20;
+	z-index: 1050;
 	flex: 0 0 auto;
 	border-bottom: var(--panel-divider);
 	background: var(--color-canvas-elevated);
@@ -56,6 +56,8 @@
 }
 
 .application-bar {
+	position: relative;
+	z-index: 20;
 	min-height: 2.75rem;
 	gap: var(--spacing-md);
 	padding: 0 var(--spacing-md);
@@ -113,7 +115,7 @@
 
 .file-menu-items {
 	position: absolute;
-	z-index: 50;
+	z-index: 1100;
 	top: calc(100% + 0.25rem);
 	left: 0;
 	min-width: 12rem;
@@ -413,11 +415,13 @@
 	border-top: var(--panel-divider);
 	padding: 0 var(--spacing-md);
 	position: relative;
+	z-index: 10;
 }
 
 .workspace-bar-left {
 	flex: 1 1 0;
 	min-width: 0;
+	pointer-events: none;
 }
 
 .workspace-bar-center {

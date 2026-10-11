@@ -88,6 +88,23 @@
 	--color-gradient-preview-end: var(--theme-gradient-preview-end);
 	--color-gradient-ship-start: var(--theme-gradient-ship-start);
 	--color-gradient-ship-end: var(--theme-gradient-ship-end);
+
+	--marker-green: var(--theme-marker-green);
+	--marker-green-fg: var(--theme-marker-green-fg);
+	--marker-red: var(--theme-marker-red);
+	--marker-red-fg: var(--theme-marker-red-fg);
+	--marker-purple: var(--theme-marker-purple);
+	--marker-purple-fg: var(--theme-marker-purple-fg);
+	--marker-orange: var(--theme-marker-orange);
+	--marker-orange-fg: var(--theme-marker-orange-fg);
+	--marker-yellow: var(--theme-marker-yellow);
+	--marker-yellow-fg: var(--theme-marker-yellow-fg);
+	--marker-white: var(--theme-marker-white);
+	--marker-white-fg: var(--theme-marker-white-fg);
+	--marker-blue: var(--theme-marker-blue);
+	--marker-blue-fg: var(--theme-marker-blue-fg);
+	--marker-cyan: var(--theme-marker-cyan);
+	--marker-cyan-fg: var(--theme-marker-cyan-fg);
 }
 
 :root,
@@ -125,6 +142,23 @@
 	--theme-gradient-preview-end: #ff0080;
 	--theme-gradient-ship-start: #ff4d4d;
 	--theme-gradient-ship-end: #f9cb28;
+
+	--theme-marker-green: #22c55e;
+	--theme-marker-green-fg: #052e16;
+	--theme-marker-red: #ef4444;
+	--theme-marker-red-fg: #ffffff;
+	--theme-marker-purple: #a855f7;
+	--theme-marker-purple-fg: #ffffff;
+	--theme-marker-orange: #f97316;
+	--theme-marker-orange-fg: #ffffff;
+	--theme-marker-yellow: #eab308;
+	--theme-marker-yellow-fg: #422006;
+	--theme-marker-white: #f8fafc;
+	--theme-marker-white-fg: #09090b;
+	--theme-marker-blue: #3b82f6;
+	--theme-marker-blue-fg: #ffffff;
+	--theme-marker-cyan: #06b6d4;
+	--theme-marker-cyan-fg: #083344;
 }
 
 :root[data-theme='light'] {
@@ -161,4 +195,21 @@
 	--theme-gradient-preview-end: #ff0080;
 	--theme-gradient-ship-start: #ff4d4d;
 	--theme-gradient-ship-end: #f9cb28;
+
+	--theme-marker-green: #16a34a;
+	--theme-marker-green-fg: #ffffff;
+	--theme-marker-red: #dc2626;
+	--theme-marker-red-fg: #ffffff;
+	--theme-marker-purple: #9333ea;
+	--theme-marker-purple-fg: #ffffff;
+	--theme-marker-orange: #ea580c;
+	--theme-marker-orange-fg: #ffffff;
+	--theme-marker-yellow: #ca8a04;
+	--theme-marker-yellow-fg: #ffffff;
+	--theme-marker-white: #ffffff;
+	--theme-marker-white-fg: #171717;
+	--theme-marker-blue: #2563eb;
+	--theme-marker-blue-fg: #ffffff;
+	--theme-marker-cyan: #0891b2;
+	--theme-marker-cyan-fg: #ffffff;
 }

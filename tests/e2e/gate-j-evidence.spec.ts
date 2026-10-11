@@ -11,9 +11,8 @@ test.describe('Gate J Evidence Closure', () => {
 
 		const benchmark = await page.evaluate(async () => {
 			const { exportTimeline } = await import('/src/editor/services/export/exporter.ts');
-			const { createEmptyProject, insertClip, addEffectToClip } = await import(
-				'/src/editor/core/index.ts'
-			);
+			const { createEmptyProject, insertClip, addEffectToClip } =
+				await import('/src/editor/core/index.ts');
 			type Project = import('/src/editor/core/index.ts').Project;
 			type ExportSettings = import('/src/editor/services/export/plan.ts').ExportSettings;
 
@@ -278,7 +277,13 @@ test.describe('Gate J Evidence Closure', () => {
 				sourceRgb: [number, number, number],
 				effectType: string,
 				params: Record<string, unknown>,
-				cpuOracle: (r: number, g: number, b: number, x: number, y: number) => [number, number, number],
+				cpuOracle: (
+					r: number,
+					g: number,
+					b: number,
+					x: number,
+					y: number
+				) => [number, number, number],
 				tolerance: number
 			) => {
 				const src = makeSolid(...sourceRgb);
@@ -342,7 +347,13 @@ test.describe('Gate J Evidence Closure', () => {
 
 			// 1. Invert: (1 - c)
 			results.push(
-				runTest([100, 150, 200], 'invert', { amount: 1, mix: 1 }, (r, g, b) => [1 - r, 1 - g, 1 - b], 2)
+				runTest(
+					[100, 150, 200],
+					'invert',
+					{ amount: 1, mix: 1 },
+					(r, g, b) => [1 - r, 1 - g, 1 - b],
+					2
+				)
 			);
 
 			// 2. Exposure: c * 2^ev
@@ -456,7 +467,13 @@ test.describe('Gate J Evidence Closure', () => {
 					opacity: 1,
 					transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
 					effects: [
-						{ id: 'e1', type: 'gaussianBlur', enabled: true, params: { radius: 20 }, isNeutral: false },
+						{
+							id: 'e1',
+							type: 'gaussianBlur',
+							enabled: true,
+							params: { radius: 20 },
+							isNeutral: false
+						},
 						{
 							id: 'e2',
 							type: 'colorCorrection',
@@ -477,7 +494,13 @@ test.describe('Gate J Evidence Closure', () => {
 					opacity: 0.8,
 					transform: { x: 100, y: 50, scaleX: 0.9, scaleY: 0.9, rotation: 5, opacity: 0.8 },
 					effects: [
-						{ id: 'e4', type: 'gaussianBlur', enabled: true, params: { radius: 20 }, isNeutral: false },
+						{
+							id: 'e4',
+							type: 'gaussianBlur',
+							enabled: true,
+							params: { radius: 20 },
+							isNeutral: false
+						},
 						{
 							id: 'e5',
 							type: 'colorCorrection',

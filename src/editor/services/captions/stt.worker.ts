@@ -157,6 +157,17 @@ async function getOrLoadRealPipeline(modelKey = 'whisper-tiny.en', useWebGpu = t
 	// Disallow telemetry or third-party connections other than the model host
 	env.allowLocalModels = false;
 
+	// Point ONNX Runtime WebAssembly files to official jsDelivr CDN
+	// This prevents bundling 25MB+ local wasm files into the static assets bundle
+	const onnxWebVersion = '1.21.0';
+	const wasmCdn = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${onnxWebVersion}/dist/`;
+	if (env.backends?.onnx?.wasm) {
+		env.backends.onnx.wasm.wasmPaths = {
+			mjs: `${wasmCdn}ort-wasm-simd-threaded.asyncify.mjs`,
+			wasm: `${wasmCdn}ort-wasm-simd-threaded.asyncify.wasm`
+		};
+	}
+
 	const device =
 		useWebGpu && typeof navigator !== 'undefined' && 'gpu' in navigator ? 'webgpu' : 'wasm';
 

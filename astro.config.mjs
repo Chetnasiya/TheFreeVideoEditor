@@ -4,29 +4,62 @@ import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
 
+import { fileURLToPath } from 'node:url';
+
+// Plugin to prevent bundling the massive 26MB onnxruntime wasm files into dist assets
+function externalizeOnnxWasmPlugin() {
+	return {
+		name: 'externalize-onnx-wasm',
+		enforce: /** @type {const} */ ('pre'),
+		/**
+		 * @param {string} code
+		 */
+		transform(code) {
+			if (code.includes('ort-wasm')) {
+				return {
+					code: code.replace(
+						/new URL\(["']ort-wasm-simd-threaded[^\s"']*?\.wasm["'],\s*import\.meta\.url\)/gs,
+						'new URL("https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort-wasm-simd-threaded.asyncify.wasm")'
+					),
+					map: null
+				};
+			}
+			return null;
+		},
+		closeBundle() {
+			import('node:fs').then((fs) => {
+				import('node:path').then((path) => {
+					const astroDir = path.resolve('dist/_astro');
+					if (fs.existsSync(astroDir)) {
+						for (const file of fs.readdirSync(astroDir)) {
+							if (file.endsWith('.wasm')) {
+								fs.unlinkSync(path.join(astroDir, file));
+							}
+						}
+					}
+				});
+			});
+		}
+	};
+}
+
 // https://astro.build/config
 export default defineConfig({
 	integrations: [react()],
 	vite: {
-		plugins: [tailwindcss()],
-		optimizeDeps: {
-			include: ['@huggingface/transformers']
+		plugins: [tailwindcss(), externalizeOnnxWasmPlugin()],
+		resolve: {
+			alias: {
+				'@huggingface/transformers': fileURLToPath(
+					new URL(
+						'./node_modules/@huggingface/transformers/dist/transformers.web.js',
+						import.meta.url
+					)
+				)
+			}
 		},
 		build: {
-			chunkSizeWarningLimit: 1500,
-			rolldownOptions: {
-				output: {
-					codeSplitting: {
-						groups: [
-							{
-								name: 'mediabunny',
-								test: /(?:^|[\\/])mediabunny[\\/]/,
-								maxSize: 420 * 1024
-							}
-						]
-					}
-				}
-			}
+			chunkSizeWarningLimit: 2500
 		}
 	}
 });

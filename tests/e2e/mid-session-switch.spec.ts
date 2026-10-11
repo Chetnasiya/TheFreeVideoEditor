@@ -131,4 +131,3 @@ test.describe('Mid-Session Renderer Switch', () => {
 			.toBe(true);
 	});
 });
-

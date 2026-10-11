@@ -61,44 +61,49 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 
 	return (
 		<div
-			className="eq-popup fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md"
+			className="eq-popup fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs"
 			role="dialog"
 			aria-labelledby={titleId}
 			aria-modal="true"
 		>
-			<div className="relative w-full max-w-xl overflow-hidden rounded-lg border border-[#26262e] bg-[#141418] text-[#ededed] shadow-2xl">
-				{/* Premiere Pro Style Title Bar */}
-				<div className="flex items-center justify-between border-b border-[#24242c] bg-[#1a1a22] px-5 py-3">
+			<div className="relative w-full max-w-xl overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] text-[var(--color-ink)] shadow-2xl">
+				{/* Title Bar */}
+				<div className="flex items-center justify-between border-b border-[var(--color-hairline)] bg-[var(--color-canvas)] px-5 py-3">
 					<div className="flex items-center gap-2.5">
-						<span className="h-2.5 w-2.5 rounded-full bg-[#0070f3] shadow-[0_0_8px_rgba(0,112,243,0.6)]" />
-						<h3 id={titleId} className="text-sm font-semibold tracking-tight text-[#f1f5f9]">
+						<span className="h-2.5 w-2.5 rounded-full bg-[var(--color-link)]" />
+						<h3
+							id={titleId}
+							className="text-sm font-semibold tracking-tight text-[var(--color-ink)]"
+						>
 							Track EQ — {trackName}
 						</h3>
 					</div>
 					<div className="flex items-center gap-3">
-						<label className="flex cursor-pointer items-center gap-1.5 text-xs text-[#94a3b8] select-none">
+						<label className="flex cursor-pointer items-center gap-1.5 text-xs text-[var(--color-mute)] select-none">
 							<input
 								type="checkbox"
 								checked={currentEq.enabled}
 								onChange={toggleEnabled}
-								className="rounded border-[#32323e] accent-[#0070f3]"
+								className="rounded border-[var(--color-hairline)] accent-[var(--color-link)]"
 								aria-label="Enabled"
 							/>
-							<span className="text-[11px] font-medium text-[#cbd5e1]">Enabled</span>
+							<span className="text-[11px] font-medium text-[var(--color-body)]">Enabled</span>
 						</label>
 						<button
 							type="button"
 							onClick={toggleEnabled}
 							className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
 								currentEq.enabled
-									? 'border border-[#166534] bg-[#143322] text-[#4ade80]'
-									: 'border border-[#32323e] bg-[#202028] text-[#94a3b8]'
+									? 'border border-emerald-600/40 bg-emerald-500/15 text-emerald-400'
+									: 'border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] text-[var(--color-mute)]'
 							}`}
 							title="Toggle EQ processing bypass"
 						>
 							<span
 								className={`h-2 w-2 rounded-full ${
-									currentEq.enabled ? 'bg-[#22c55e] shadow-[0_0_6px_#22c55e]' : 'bg-[#64748b]'
+									currentEq.enabled
+										? 'bg-emerald-400 shadow-[0_0_6px_#22c55e]'
+										: 'bg-[var(--color-mute)]'
 								}`}
 							/>
 							<span>{currentEq.enabled ? 'Active' : 'Bypassed'}</span>
@@ -106,7 +111,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 						<button
 							type="button"
 							onClick={onClose}
-							className="rounded p-1 text-[#94a3b8] transition-colors hover:bg-[#252530] hover:text-[#f1f5f9]"
+							className="rounded p-1 text-[var(--color-mute)] transition-colors hover:bg-[var(--color-hairline-soft)] hover:text-[var(--color-ink)]"
 							aria-label="Close EQ popup"
 						>
 							✕
@@ -212,19 +217,19 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 						{currentEq.bands.map((band, idx) => (
 							<div
 								key={idx}
-								className="flex flex-col gap-2 rounded border border-[#22222a] bg-[#16161d] p-3 shadow-sm"
+								className="flex flex-col gap-2 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-3 shadow-xs"
 							>
-								<div className="flex items-center justify-between text-[11px] font-semibold text-[#cbd5e1]">
+								<div className="flex items-center justify-between text-[11px] font-semibold text-[var(--color-ink)]">
 									<span>Band {idx + 1}</span>
-									<span className="rounded bg-[#101016] px-1 py-0.5 font-mono text-[10px] text-[#94a3b8] uppercase">
+									<span className="rounded bg-[var(--color-hairline-soft)] px-1 py-0.5 font-mono text-[10px] text-[var(--color-mute)] uppercase">
 										{band.type === 'peaking' ? 'Peak' : band.type === 'lowshelf' ? 'Low' : 'High'}
 									</span>
 								</div>
 
 								<div>
-									<div className="mb-1 flex justify-between font-mono text-[10px] text-[#94a3b8]">
+									<div className="mb-1 flex justify-between font-mono text-[10px] text-[var(--color-mute)]">
 										<span>Gain</span>
-										<span className={band.gainDb !== 0 ? 'font-bold text-[#38bdf8]' : ''}>
+										<span className={band.gainDb !== 0 ? 'font-bold text-[var(--color-link)]' : ''}>
 											{band.gainDb > 0 ? `+${band.gainDb}` : band.gainDb} dB
 										</span>
 									</div>
@@ -235,12 +240,12 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 										step="0.5"
 										value={band.gainDb}
 										onChange={(e) => updateBand(idx, { gainDb: parseFloat(e.target.value) })}
-										className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
+										className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
 									/>
 								</div>
 
 								<div>
-									<div className="mb-1 flex justify-between font-mono text-[10px] text-[#94a3b8]">
+									<div className="mb-1 flex justify-between font-mono text-[10px] text-[var(--color-mute)]">
 										<span>Freq</span>
 										<span>
 											{band.frequencyHz >= 1000
@@ -256,12 +261,12 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 										step="10"
 										value={band.frequencyHz}
 										onChange={(e) => updateBand(idx, { frequencyHz: parseFloat(e.target.value) })}
-										className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
+										className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
 									/>
 								</div>
 
 								<div>
-									<div className="mb-1 flex justify-between font-mono text-[10px] text-[#94a3b8]">
+									<div className="mb-1 flex justify-between font-mono text-[10px] text-[var(--color-mute)]">
 										<span>Q</span>
 										<span>{band.q.toFixed(1)}</span>
 									</div>
@@ -272,7 +277,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 										step="0.1"
 										value={band.q}
 										onChange={(e) => updateBand(idx, { q: parseFloat(e.target.value) })}
-										className="h-1.5 w-full cursor-pointer rounded-full bg-[#282834] accent-[#0070f3]"
+										className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
 									/>
 								</div>
 							</div>
@@ -280,19 +285,15 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 					</div>
 				</div>
 
-				{/* Premiere Pro Dialog Footer */}
-				<div className="flex items-center justify-between border-t border-[#22222c] bg-[#111116] px-5 py-3">
-					<button
-						type="button"
-						onClick={resetFlat}
-						className="rounded border border-[#2c2c36] bg-[#1a1a22] px-3 py-1.5 text-xs font-medium text-[#94a3b8] transition-colors hover:bg-[#252530] hover:text-[#f1f5f9]"
-					>
+				{/* Dialog Footer */}
+				<div className="flex items-center justify-between border-t border-[var(--color-hairline)] bg-[var(--color-canvas)] px-5 py-3">
+					<button type="button" onClick={resetFlat} className="tracking-btn">
 						Reset to Flat
 					</button>
 					<button
 						type="button"
 						onClick={onClose}
-						className="rounded bg-[#0070f3] px-5 py-1.5 text-xs font-semibold text-white shadow transition-colors hover:bg-[#0060df]"
+						className="tracking-btn tracking-btn-primary px-5"
 					>
 						Done
 					</button>

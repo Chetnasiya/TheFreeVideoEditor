@@ -1,0 +1,239 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+const seoTitle = 'Terms & Conditions — The Free Video Editor';
+const seoDescription =
+	'Review the Terms & Conditions of The Free Video Editor. Learn about usage rights, commercial licensing, intellectual property, and local software warranty.';
+
+const lastUpdated = 'October 12, 2026';
+---
+
+<Layout
+	title={seoTitle}
+	description={seoDescription}
+	canonicalUrl="https://thefreevideoeditor.com/terms"
+>
+	<Header />
+
+	<main class="page-main">
+		<div class="page-container">
+			<div class="page-header">
+				<div class="eyebrow-badge">
+					<span class="pulsing-dot" aria-hidden="true"></span>
+					<span>USER RIGHTS & SERVICE AGREEMENT</span>
+				</div>
+				<h1 class="page-title">Terms & Conditions</h1>
+				<p class="page-lead">
+					Transparent, creator-first guidelines designed to protect your creative freedom and ownership.
+				</p>
+				<p class="last-updated">Last Updated: {lastUpdated}</p>
+			</div>
+
+			<article class="content-body">
+				<section class="content-section">
+					<h2>1. Acceptance of Terms</h2>
+					<p>
+						By accessing or using <strong>The Free Video Editor</strong> (the "Service", "we", "us", or "our"), available at thefreevideoeditor.com, you agree to comply with and be legally bound by these Terms and Conditions ("Terms"). If you disagree with any portion of these Terms, you may discontinue use of the Service at any time.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>2. Free Usage and Commercial Rights</h2>
+					<p>
+						The Free Video Editor is provided 100% free of charge. You may use the software for:
+					</p>
+					<ul>
+						<li><strong>Personal & Educational Projects:</strong> School presentations, family videos, hobby edits, and portfolio reels.</li>
+						<li><strong>Commercial Projects:</strong> Monetized YouTube videos, TikTok & Instagram Reels, corporate advertising, client deliverables, indie feature films, and broadcast television.</li>
+					</ul>
+					<p>
+						We do not charge royalty fees, export surcharges, or license fees on any video content produced through the Service.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>3. Ownership and Intellectual Property</h2>
+					<p>
+						<strong>You retain 100% ownership of your content.</strong>
+					</p>
+					<p>
+						We claim zero copyright, license, or proprietary interest in any raw footage, audio files, images, graphics, or rendered video clips imported into or created with The Free Video Editor. Because our software executes processing on your local machine, your creative media remains solely in your custody.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>4. Acceptable Use Policy</h2>
+					<p>
+						You agree to use The Free Video Editor in accordance with all applicable international, federal, and local laws. You shall not utilize the software to:
+					</p>
+					<ul>
+						<li>Infringe on the copyright, trademark, or intellectual property rights of any third party.</li>
+						<li>Produce or distribute illicit material, harassment, non-consensual deepfakes, or content promoting violence or hate speech.</li>
+						<li>Attempt to interfere with or disrupt the stability, hosting, or networks of our web delivery infrastructure.</li>
+					</ul>
+				</section>
+
+				<section class="content-section">
+					<h2>5. Browser Performance & Local Storage</h2>
+					<p>
+						The Free Video Editor executes high-performance client-side tasks including 4K video decoding, audio DSP synthesis, and GPU shader operations. Performance depends on your device's hardware (RAM, GPU, CPU) and browser capabilities (WebCodecs, WebGL2, WebGPU).
+					</p>
+					<p>
+						Project autosaves and media caches are stored on your local browser drive (IndexedDB / OPFS). While the software includes automated project database recovery, we encourage creators to regularly export native project archive files (<code>.tfve</code>) or interchange files (OTIO, FCPXML, EDL) as project backups.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>6. Disclaimer of Warranties</h2>
+					<p>
+						The Free Video Editor is provided on an "AS IS" and "AS AVAILABLE" basis, without express or implied warranties of any kind, including but not limited to merchantability, fitness for a particular purpose, non-infringement, or error-free operation. We do not warrant that video playback, AI inference, or hardware encoding will be completely uninterrupted on every hardware combination or operating system.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>7. Limitation of Liability</h2>
+					<p>
+						To the maximum extent permitted by applicable law, in no event shall The Free Video Editor or its maintainers be liable for any direct, indirect, incidental, consequential, special, or exemplary damages—including but not limited to loss of data, loss of profits, equipment damage, or project deadlines—arising from the use or inability to use the Service.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>8. Modifications to Terms</h2>
+					<p>
+						We reserve the right to revise or modify these Terms at any time. When modifications occur, the "Last Updated" date at the top of this document will be amended. Your continued use of the website following any changes signifies your acceptance of the revised Terms.
+					</p>
+				</section>
+
+				<section class="content-section">
+					<h2>9. Questions & Contact</h2>
+					<p>
+						If you have any questions or require legal clarification regarding these Terms, please reach out via our <a href="/contact" class="inline-link">Contact Us page</a> or email <a href="mailto:legal@thefreevideoeditor.com" class="inline-link">legal@thefreevideoeditor.com</a>.
+					</p>
+				</section>
+			</article>
+		</div>
+	</main>
+
+	<Footer currentPage="/terms" />
+</Layout>
+
+<style>
+	.page-main {
+		min-height: 100vh;
+		background: #070709;
+		color: #e2e8f0;
+		padding: 7rem 1.5rem 5rem;
+	}
+
+	.page-container {
+		max-width: 52rem;
+		margin: 0 auto;
+	}
+
+	.page-header {
+		text-align: center;
+		margin-bottom: 3.5rem;
+	}
+
+	.eyebrow-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 5px 14px;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: #94a3b8;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		letter-spacing: 0.08em;
+		margin-bottom: 1.25rem;
+	}
+
+	.pulsing-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #38bdf8;
+		box-shadow: 0 0 8px #38bdf8;
+	}
+
+	.page-title {
+		font-size: clamp(2.25rem, 5vw, 3.5rem);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+		color: #ffffff;
+		margin: 0 0 1rem 0;
+		line-height: 1.15;
+	}
+
+	.page-lead {
+		font-size: 1.15rem;
+		color: #94a3b8;
+		line-height: 1.6;
+		margin: 0 auto;
+		max-width: 42rem;
+	}
+
+	.last-updated {
+		color: #64748b;
+		font-size: 0.825rem;
+		font-family: var(--font-mono);
+		margin-top: 1rem;
+	}
+
+	.content-body {
+		display: flex;
+		flex-direction: column;
+		gap: 2.5rem;
+	}
+
+	.content-section h2 {
+		font-size: 1.4rem;
+		font-weight: 600;
+		letter-spacing: -0.02em;
+		color: #f8fafc;
+		margin: 0 0 0.85rem 0;
+	}
+
+	.content-section p {
+		color: #94a3b8;
+		line-height: 1.75;
+		font-size: 0.95rem;
+		margin: 0 0 0.85rem 0;
+	}
+
+	.content-section ul {
+		margin: 0.75rem 0 1.25rem 1.25rem;
+		padding: 0;
+		color: #94a3b8;
+		font-size: 0.95rem;
+		line-height: 1.7;
+	}
+
+	.content-section li {
+		margin-bottom: 0.5rem;
+	}
+
+	.content-section code {
+		font-family: var(--font-mono);
+		font-size: 0.85rem;
+		background: rgba(255, 255, 255, 0.08);
+		padding: 2px 6px;
+		border-radius: 4px;
+		color: #38bdf8;
+	}
+
+	.inline-link {
+		color: #38bdf8;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.inline-link:hover {
+		color: #7dd3fc;
+	}
+</style>
+

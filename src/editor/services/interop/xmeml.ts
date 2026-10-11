@@ -75,7 +75,7 @@ export function exportXmeml(project: Project, options: InteropOptions = {}): str
 	const markers = project.markers
 		.map(
 			(marker) =>
-				`<marker><name>${escapeXml(marker.label)}</name><in>${frames(marker.time, project)}</in><out>${frames(marker.time, project)}</out></marker>`
+				`<marker><name>${escapeXml(marker.name ?? marker.label ?? 'Marker')}</name><in>${frames(marker.time, project)}</in><out>${frames(marker.time, project)}</out></marker>`
 		)
 		.join('');
 	return `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE xmeml><xmeml version="4"><sequence id="sequence-1"><name>${escapeXml(project.name)}</name><duration>${duration}</duration>${rateXml(project.settings.fps)}${markers}<media><video><format><samplecharacteristics><width>${project.settings.width}</width><height>${project.settings.height}</height>${rateXml(project.settings.fps)}</samplecharacteristics></format>${tracks('video')}</video><audio><numOutputChannels>2</numOutputChannels>${tracks('audio')}</audio></media></sequence></xmeml>`;

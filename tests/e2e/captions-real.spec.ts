@@ -4,8 +4,12 @@ test.describe('Opt-in Real Whisper STT Recognition Test', () => {
 	test('transcribes speech-sample fixture using real on-device model', async ({ page }) => {
 		test.setTimeout(240_000);
 		// Only run when explicitly executed via test:captions:real or TFVE_REAL_STT=1
-		const enabled = process.env.TFVE_REAL_STT === '1' || process.env.npm_lifecycle_event === 'test:captions:real';
-		test.skip(!enabled, 'Opt-in test skipped by default. Run with `npm run test:captions:real` to execute.');
+		const enabled =
+			process.env.TFVE_REAL_STT === '1' || process.env.npm_lifecycle_event === 'test:captions:real';
+		test.skip(
+			!enabled,
+			'Opt-in test skipped by default. Run with `npm run test:captions:real` to execute.'
+		);
 
 		await page.goto('/editor');
 		const manager = page.locator('.project-manager-dialog');
@@ -20,7 +24,9 @@ test.describe('Opt-in Real Whisper STT Recognition Test', () => {
 		} catch {}
 
 		// Import speech audio fixture
-		await page.locator('input[name="media-files"]').setInputFiles('tests/fixtures/audio/speech-sample.wav');
+		await page
+			.locator('input[name="media-files"]')
+			.setInputFiles('tests/fixtures/audio/speech-sample.wav');
 		const media = page.getByRole('listbox', { name: 'Project media' });
 		const mediaClip = media.getByRole('option').first();
 		await expect(mediaClip).toBeVisible({ timeout: 20_000 });
@@ -38,7 +44,9 @@ test.describe('Opt-in Real Whisper STT Recognition Test', () => {
 
 		// 2. Open Auto-Caption Modal
 		await page.getByRole('button', { name: /Auto-Caption/i }).click();
-		const modal = page.locator('dialog.editor-dialog').filter({ hasText: 'Local AI Speech-to-Text' });
+		const modal = page
+			.locator('dialog.editor-dialog')
+			.filter({ hasText: 'Local AI Speech-to-Text' });
 		await expect(modal).toBeVisible();
 
 		// 3. Select Whisper Tiny (English)
@@ -61,4 +69,3 @@ test.describe('Opt-in Real Whisper STT Recognition Test', () => {
 		expect(text.length).toBeGreaterThan(0);
 	});
 });
-

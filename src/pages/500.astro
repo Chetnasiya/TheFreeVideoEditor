@@ -1,0 +1,263 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+const seoTitle = '500: System Error — The Free Video Editor';
+const seoDescription =
+	'An unexpected error occurred while rendering or processing. The Free Video Editor processes everything locally on your device.';
+---
+
+<Layout
+	title={seoTitle}
+	description={seoDescription}
+	canonicalUrl="https://thefreevideoeditor.com/500"
+	robots="noindex, follow"
+>
+	<Header />
+
+	<main class="error-main">
+		<!-- Background ambient spatial glow -->
+		<div class="ambient-glow ambient-glow-1" aria-hidden="true"></div>
+		<div class="ambient-glow ambient-glow-2" aria-hidden="true"></div>
+
+		<div class="error-container">
+			<div class="error-badge">
+				<span class="error-code">500 ERROR</span>
+				<span class="sep">&bull;</span>
+				<span>UNEXPECTED GLITCH</span>
+			</div>
+
+			<h1 class="error-title">Render Pipe Interrupted</h1>
+
+			<p class="error-description">
+				Something unexpected went wrong while processing the request. Because The Free Video Editor runs on-device, your local projects, timeline clips, and media caches in IndexedDB and OPFS remain safe.
+			</p>
+
+			<div class="troubleshoot-box">
+				<h3>Quick Recovery Steps:</h3>
+				<ul>
+					<li><strong>Reload the Application:</strong> Press <kbd>Cmd+Shift+R</kbd> or <kbd>Ctrl+F5</kbd> for a clean reload.</li>
+					<li><strong>Check Browser GPU Acceleration:</strong> Verify hardware acceleration is enabled in your browser settings (Chrome/Edge/Brave/Safari).</li>
+					<li><strong>Restore via Project Manager:</strong> The editor features automated crash recovery snapshots in IndexedDB.</li>
+				</ul>
+			</div>
+
+			<div class="error-actions">
+				<button type="button" class="btn-primary" onclick="window.location.reload()">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<polyline points="23 4 23 10 17 10"></polyline>
+						<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+					</svg>
+					<span>Reload Page</span>
+				</button>
+
+				<a href="/editor" class="btn-secondary">
+					<span>Launch Editor</span>
+				</a>
+
+				<a href="/contact" class="btn-outline">
+					<span>Report Bug</span>
+				</a>
+			</div>
+		</div>
+	</main>
+
+	<Footer />
+</Layout>
+
+<style>
+	.error-main {
+		position: relative;
+		min-height: 85vh;
+		display: grid;
+		place-items: center;
+		padding: 7rem 1.5rem 5rem;
+		background: #070709;
+		color: #e2e8f0;
+		overflow: hidden;
+	}
+
+	.ambient-glow {
+		position: absolute;
+		border-radius: 50%;
+		pointer-events: none;
+		filter: blur(100px);
+		z-index: 1;
+	}
+
+	.ambient-glow-1 {
+		top: 25%;
+		left: 50%;
+		width: 480px;
+		height: 400px;
+		transform: translate(-50%, -50%);
+		background: radial-gradient(circle, rgba(239, 68, 68, 0.12) 0%, rgba(168, 85, 247, 0.08) 50%, transparent 75%);
+	}
+
+	.ambient-glow-2 {
+		bottom: 15%;
+		left: 45%;
+		width: 400px;
+		height: 320px;
+		background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+	}
+
+	.error-container {
+		position: relative;
+		z-index: 10;
+		max-width: 42rem;
+		text-align: center;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.error-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 5px 14px;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: #94a3b8;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		letter-spacing: 0.08em;
+		margin-bottom: 1.5rem;
+	}
+
+	.error-code {
+		color: #f87171;
+		font-weight: 600;
+	}
+
+	.sep {
+		color: #64748b;
+	}
+
+	.error-title {
+		font-size: clamp(2.5rem, 6vw, 4rem);
+		font-weight: 700;
+		letter-spacing: -0.04em;
+		line-height: 1.1;
+		color: #ffffff;
+		margin: 0 0 1rem 0;
+	}
+
+	.error-description {
+		font-size: 1.1rem;
+		color: #94a3b8;
+		line-height: 1.6;
+		margin: 0 0 2rem 0;
+		max-width: 36rem;
+	}
+
+	.troubleshoot-box {
+		width: 100%;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
+		padding: 1.5rem 1.75rem;
+		text-align: left;
+		margin-bottom: 2.5rem;
+	}
+
+	.troubleshoot-box h3 {
+		font-size: 0.95rem;
+		color: #ffffff;
+		margin: 0 0 0.85rem 0;
+		font-weight: 600;
+	}
+
+	.troubleshoot-box ul {
+		margin: 0;
+		padding-left: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+		color: #94a3b8;
+		font-size: 0.875rem;
+		line-height: 1.5;
+	}
+
+	.troubleshoot-box kbd {
+		font-family: var(--font-mono);
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 4px;
+		padding: 1px 5px;
+		font-size: 0.8rem;
+		color: #ffffff;
+	}
+
+	.error-actions {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.btn-primary {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0.75rem 1.75rem;
+		border-radius: 9999px;
+		background: #ededed;
+		border: none;
+		color: #090909;
+		font-weight: 600;
+		font-size: 0.95rem;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+	}
+
+	.btn-primary:hover {
+		background: #ffffff;
+		box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
+		transform: translateY(-1px);
+	}
+
+	.btn-secondary {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.75rem 1.5rem;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.06);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		color: #ffffff;
+		font-weight: 500;
+		font-size: 0.95rem;
+		text-decoration: none;
+		transition: all 0.2s ease;
+	}
+
+	.btn-secondary:hover {
+		background: rgba(255, 255, 255, 0.12);
+		border-color: rgba(255, 255, 255, 0.3);
+	}
+
+	.btn-outline {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.75rem 1.5rem;
+		border-radius: 9999px;
+		background: transparent;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: #94a3b8;
+		font-weight: 500;
+		font-size: 0.95rem;
+		text-decoration: none;
+		transition: all 0.2s ease;
+	}
+
+	.btn-outline:hover {
+		color: #ffffff;
+		border-color: rgba(255, 255, 255, 0.25);
+	}
+</style>
+

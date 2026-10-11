@@ -59,16 +59,14 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 	};
 
 	return (
-		<div className="flex flex-col gap-3 p-2 text-xs">
-			<div className="flex items-center justify-between">
-				<span className="font-medium text-[var(--color-text-secondary)]">
-					Trackers ({trackers.length})
-				</span>
+		<div className="tracking-container">
+			<div className="tracking-header-row">
+				<span className="font-medium text-[var(--color-mute)]">Trackers ({trackers.length})</span>
 				<div className="flex items-center gap-1">
 					<button
 						type="button"
 						onClick={() => handleAddTracker('point')}
-						className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-raised)] px-2 py-1 text-[11px] font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+						className="tracking-btn tracking-btn-accent"
 					>
 						+ Add Point Tracker
 					</button>
@@ -76,12 +74,12 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 			</div>
 
 			{trackers.length > 0 && (
-				<div className="flex flex-col gap-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-2">
-					<div className="flex items-center justify-between">
+				<div className="tracking-card">
+					<div className="tracking-card-header">
 						<select
 							value={selectedTracker?.id ?? ''}
 							onChange={(e) => store.getState().selectTracker(e.target.value as TrackerId)}
-							className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-raised)] px-2 py-1 text-xs"
+							className="tracking-select flex-1"
 						>
 							{trackers.map((t) => (
 								<option key={t.id} value={t.id}>
@@ -93,7 +91,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 							<button
 								type="button"
 								onClick={() => handleRemoveTracker(selectedTracker.id)}
-								className="text-[11px] text-[var(--color-text-muted)] hover:text-red-400"
+								className="tracking-btn tracking-btn-danger"
 								title="Delete tracker"
 							>
 								Delete
@@ -109,39 +107,63 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 									type="button"
 									disabled={isTrackingActive}
 									onClick={handleTrackBackward}
-									className="flex-1 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-raised)] py-1 font-medium hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+									className="tracking-btn flex-1 gap-1.5"
+									title="Track backward from playhead"
+									aria-label="Track Backward"
 								>
-									⯇ Track Backward
+									<svg
+										width="12"
+										height="12"
+										viewBox="0 0 16 16"
+										fill="currentColor"
+										aria-hidden="true"
+										className="shrink-0"
+									>
+										<path d="M12.5 3.24a1 1 0 0 0-1.52-.86L3.8 7.14a1 1 0 0 0 0 1.72l7.18 4.76a1 1 0 0 0 1.52-.86V3.24z" />
+									</svg>
+									<span>Track Backward</span>
 								</button>
 								<button
 									type="button"
 									disabled={isTrackingActive}
 									onClick={handleTrackForward}
-									className="flex-1 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-raised)] py-1 font-medium hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+									className="tracking-btn flex-1 gap-1.5"
+									title="Track forward from playhead"
+									aria-label="Track Forward"
 								>
-									Track Forward ⯈
+									<span>Track Forward</span>
+									<svg
+										width="12"
+										height="12"
+										viewBox="0 0 16 16"
+										fill="currentColor"
+										aria-hidden="true"
+										className="shrink-0"
+									>
+										<path d="M3.5 3.24a1 1 0 0 1 1.52-.86l7.18 4.76a1 1 0 0 1 0 1.72l-7.18 4.76a1 1 0 0 1-1.52-.86V3.24z" />
+									</svg>
 								</button>
 							</div>
 
 							{/* Progress Bar & Cancel */}
 							{isTrackingActive && trackingProgress && (
-								<div className="flex flex-col gap-1 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] p-2">
+								<div className="flex flex-col gap-1.5 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-2">
 									<div className="flex items-center justify-between text-[11px]">
-										<span>
+										<span className="text-[var(--color-mute)]">
 											Tracking frame {trackingProgress.processedFrames} /{' '}
 											{trackingProgress.totalFrames}
 										</span>
 										<button
 											type="button"
 											onClick={handleCancel}
-											className="font-medium text-red-400 hover:underline"
+											className="font-medium text-[var(--color-error)] hover:underline"
 										>
 											Cancel
 										</button>
 									</div>
-									<div className="h-1.5 w-full overflow-hidden rounded bg-[var(--color-surface-sunken)]">
+									<div className="tracking-progress-bar">
 										<div
-											className="h-full bg-blue-500 transition-all duration-75"
+											className="tracking-progress-fill"
 											style={{
 												width: `${Math.round(
 													(trackingProgress.processedFrames /
@@ -157,10 +179,8 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 							{/* Confidence Graph */}
 							{selectedTracker.samples.length > 0 && (
 								<div className="flex flex-col gap-1 pt-1">
-									<span className="text-[10px] text-[var(--color-text-muted)]">
-										Confidence History
-									</span>
-									<div className="h-8 w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] p-0.5">
+									<span className="text-[10px] text-[var(--color-mute)]">Confidence History</span>
+									<div className="h-8 w-full rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-0.5">
 										<svg className="h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 24">
 											<path
 												d={selectedTracker.samples
@@ -171,7 +191,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 													})
 													.join(' ')}
 												fill="none"
-												stroke="var(--color-accent, #3b82f6)"
+												stroke="var(--color-link)"
 												strokeWidth="1.5"
 											/>
 										</svg>
@@ -180,16 +200,16 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 							)}
 
 							{/* Apply / Follow / Bake Section (Slice 2) */}
-							<div className="flex flex-col gap-1.5 border-t border-[var(--color-border-subtle)] pt-2">
-								<span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
+							<div className="flex flex-col gap-1.5 border-t border-[var(--color-hairline)] pt-2">
+								<span className="text-[11px] font-medium text-[var(--color-body)]">
 									Apply / Follow
 								</span>
 								{selectedTracker.binding ? (
-									<div className="flex flex-col gap-2 rounded bg-[var(--color-surface-base)] p-2">
+									<div className="flex flex-col gap-2 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-2">
 										<div className="flex items-center justify-between text-[11px]">
-											<span className="text-[var(--color-text-secondary)]">
+											<span className="text-[var(--color-mute)]">
 												Bound to:{' '}
-												<span className="font-medium text-[var(--color-text-primary)]">
+												<span className="font-medium text-[var(--color-ink)]">
 													{(() => {
 														const boundClip = (store.getState().project?.tracks ?? [])
 															.flatMap((t) => t.clips)
@@ -200,7 +220,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 													})()}
 												</span>
 											</span>
-											<span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+											<span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
 												Live Follow
 											</span>
 										</div>
@@ -210,31 +230,31 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 												onClick={() =>
 													store.getState().bakeTracker(clip.id, selectedTracker.id, 0.5)
 												}
-												className="flex-1 rounded border border-blue-500/50 bg-blue-600/20 py-1 text-[11px] font-medium text-blue-300 hover:bg-blue-600/30"
+												className="tracking-btn tracking-btn-primary flex-1"
 											>
 												Bake to Keyframes
 											</button>
 											<button
 												type="button"
 												onClick={() => store.getState().unbindTracker(clip.id, selectedTracker.id)}
-												className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-raised)] px-2 py-1 text-[11px] hover:bg-[var(--color-surface-hover)]"
+												className="tracking-btn"
 											>
 												Unbind
 											</button>
 										</div>
 									</div>
 								) : (
-									<div className="flex flex-col gap-2 rounded bg-[var(--color-surface-base)] p-2">
+									<div className="flex flex-col gap-2 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-2">
 										<div className="flex items-center gap-2">
 											<label
 												htmlFor="target-clip-select"
-												className="text-[11px] text-[var(--color-text-muted)]"
+												className="text-[11px] text-[var(--color-mute)]"
 											>
 												Target:
 											</label>
 											<select
 												id="target-clip-select"
-												className="flex-1 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-raised)] px-2 py-1 text-[11px]"
+												className="tracking-select flex-1"
 												defaultValue=""
 												onChange={(e) => {
 													const targetId = e.target.value as import('../../core/types').ClipId;
@@ -252,8 +272,23 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 													Select clip, text, or image to attach...
 												</option>
 												{(store.getState().project?.tracks ?? [])
+													.filter((t) => t.kind !== 'audio')
 													.flatMap((t) => t.clips)
-													.filter((c) => c.id !== clip.id)
+													.filter((c) => {
+														if (c.id === clip.id) return false;
+														if (
+															c.source?.type === 'text' ||
+															c.source?.type === 'solid' ||
+															c.source?.type === 'adjustment'
+														) {
+															return true;
+														}
+														if (c.assetId && store.getState().project?.assets[c.assetId]) {
+															const a = store.getState().project!.assets[c.assetId]!;
+															return a.kind === 'video' || a.kind === 'image';
+														}
+														return true;
+													})
 													.map((c) => (
 														<option key={c.id} value={c.id}>
 															{getClipLabel(c, store.getState().project)}
@@ -266,21 +301,19 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 							</div>
 
 							{/* Stabilization panel */}
-							<div className="mt-2 flex flex-col gap-2 border-t border-[var(--color-border-subtle)] pt-2">
+							<div className="mt-2 flex flex-col gap-2 border-t border-[var(--color-hairline)] pt-2">
 								<div className="flex items-center justify-between">
-									<span className="font-medium text-[var(--color-text-secondary)]">
-										Stabilization
-									</span>
+									<span className="font-medium text-[var(--color-body)]">Stabilization</span>
 									<button
 										type="button"
 										disabled={isTrackingActive || selectedTracker.samples.length < 2}
 										onClick={() => store.getState().stabilizeClip(clip.id, selectedTracker.id)}
-										className="rounded bg-[var(--color-accent)] px-2 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:opacity-50"
+										className="tracking-btn tracking-btn-accent"
 									>
 										Stabilize Clip
 									</button>
 								</div>
-								<span className="text-[10px] text-[var(--color-text-muted)]">
+								<span className="text-[10px] text-[var(--color-mute)]">
 									Applies counter-motion smoothing and auto-zoom to eliminate camera shake.
 								</span>
 							</div>

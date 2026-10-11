@@ -66,4 +66,3 @@ test.describe('Gate O: Text Presets & Animations (Slice 2)', () => {
 		await clearBtn.click();
 	});
 });
-

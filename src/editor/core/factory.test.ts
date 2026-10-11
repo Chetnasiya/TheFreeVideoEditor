@@ -45,7 +45,7 @@ describe('project factory', () => {
 			volume: 1,
 			effects: [{ id: 'effect-1', type: 'color', params: { intensity: 0.5 } }]
 		});
-		project.markers.push({ id: markerId, time: 0, label: 'Start' });
+		project.markers.push({ id: markerId, time: 0, name: 'Start', label: 'Start', color: 'green' });
 
 		const duplicate = duplicateProject(project);
 		expect(duplicate.id).not.toBe(project.id);

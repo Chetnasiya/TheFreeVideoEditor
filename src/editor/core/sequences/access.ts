@@ -20,9 +20,8 @@ export function getSequence(project: Project, id: SequenceId): Sequence | undefi
 /**
  * Produce a virtual Project view projecting the specified sequence as the active project.
  * - If sequenceId is root (or undefined), returns the project directly.
- * - Otherwise returns a shallow-cloned Project whose tracks and settings are projected
+ * - Otherwise returns a shallow-cloned Project whose tracks, markers, and settings are projected
  *   from the sequence (inheriting project settings if sequence has no custom settings).
- * - Markers are root-only (empty in nested sequence view).
  */
 export function viewProject(project: Project, sequenceId: SequenceId): Project {
 	if (isRootSequence(sequenceId)) {
@@ -42,7 +41,7 @@ export function viewProject(project: Project, sequenceId: SequenceId): Project {
 		...project,
 		settings,
 		tracks: sequence.tracks,
-		markers: []
+		markers: sequence.markers ? [...sequence.markers] : []
 	};
 }
 
@@ -70,7 +69,8 @@ export function applyToSequence(
 	const updatedSequence: Sequence = {
 		...sequence,
 		settings: sequence.settings,
-		tracks: updatedView.tracks
+		tracks: updatedView.tracks,
+		markers: updatedView.markers
 	};
 
 	return {

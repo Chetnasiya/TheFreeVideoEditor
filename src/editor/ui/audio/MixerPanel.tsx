@@ -24,24 +24,20 @@ export const MixerPanel: React.FC = () => {
 
 	return (
 		<aside
-			className="mixer-panel flex h-full w-full flex-col bg-[var(--color-surface-base)] text-[var(--color-text-primary)]"
+			className="mixer-panel flex h-full w-full flex-col bg-[var(--color-canvas)] text-[var(--color-ink)]"
 			aria-label="Audio Mixer"
 		>
 			{/* Mixer Action Sub-header */}
-			<div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-3 py-1.5">
+			<div className="flex items-center justify-between border-b border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] px-3 py-1.5">
 				<div className="flex items-center gap-2">
-					<span className="text-[11px] font-semibold tracking-wider text-[var(--color-text-secondary)] uppercase">
+					<span className="text-[11px] font-semibold tracking-wider text-[var(--color-ink)] uppercase">
 						Mixer
 					</span>
-					<span className="text-[10px] text-[var(--color-text-muted)]">
+					<span className="text-[10px] text-[var(--color-mute)]">
 						{audioTracks.length} tracks · {audioBuses.length} buses
 					</span>
 				</div>
-				<button
-					type="button"
-					onClick={handleAddBus}
-					className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
-				>
+				<button type="button" onClick={handleAddBus} className="tracking-btn text-[10px]">
 					+ Add Submix
 				</button>
 			</div>
@@ -58,15 +54,18 @@ export const MixerPanel: React.FC = () => {
 					return (
 						<div
 							key={track.id}
-							className="channel-strip flex w-28 shrink-0 flex-col justify-between rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] p-2 shadow-xs"
+							className="channel-strip flex w-28 shrink-0 flex-col justify-between rounded border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] p-2 shadow-xs"
 							data-track-id={track.id}
 						>
 							{/* Track Header & Automation */}
 							<div className="flex flex-col gap-1">
-								<div className="truncate text-center text-xs font-medium" title={track.name}>
+								<div
+									className="truncate text-center text-xs font-medium text-[var(--color-ink)]"
+									title={track.name}
+								>
 									{track.name}
 								</div>
-								<div className="flex items-center justify-between px-0.5 text-[9px] text-[var(--color-text-muted)]">
+								<div className="flex items-center justify-between px-0.5 text-[9px] text-[var(--color-mute)]">
 									<span>AUTO</span>
 									<select
 										value={autoMode}
@@ -75,7 +74,7 @@ export const MixerPanel: React.FC = () => {
 												.getState()
 												.setAutomationMode('track', track.id, e.target.value as AutomationMode)
 										}
-										className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] px-1 py-0.5 text-[9px] uppercase"
+										className="rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-1 py-0.5 text-[9px] text-[var(--color-ink)] uppercase"
 									>
 										{automationModes.map((m) => (
 											<option key={m} value={m}>
@@ -91,10 +90,10 @@ export const MixerPanel: React.FC = () => {
 								<button
 									type="button"
 									onClick={() => setActiveEqTrack(track)}
-									className={`rounded border px-1.5 py-0.5 font-mono text-[9px] font-medium ${
+									className={`rounded border px-1.5 py-0.5 font-mono text-[9px] font-medium transition-colors ${
 										tAudio.eq?.enabled
-											? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-contrast)]'
-											: 'border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+											? 'border-[var(--color-link)] bg-[var(--color-link)] text-white'
+											: 'border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-mute)] hover:text-[var(--color-ink)]'
 									}`}
 								>
 									EQ
@@ -102,10 +101,10 @@ export const MixerPanel: React.FC = () => {
 								<button
 									type="button"
 									onClick={() => setActiveCompTrack(track)}
-									className={`rounded border px-1.5 py-0.5 font-mono text-[9px] font-medium ${
+									className={`rounded border px-1.5 py-0.5 font-mono text-[9px] font-medium transition-colors ${
 										tAudio.compressor?.enabled
-											? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-contrast)]'
-											: 'border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+											? 'border-[var(--color-link)] bg-[var(--color-link)] text-white'
+											: 'border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-mute)] hover:text-[var(--color-ink)]'
 									}`}
 								>
 									DYN
@@ -114,7 +113,7 @@ export const MixerPanel: React.FC = () => {
 
 							{/* Pan Slider */}
 							<div className="flex flex-col items-center gap-0.5">
-								<div className="flex w-full justify-between font-mono text-[9px] text-[var(--color-text-muted)]">
+								<div className="flex w-full justify-between font-mono text-[9px] text-[var(--color-mute)]">
 									<span>L</span>
 									<span>
 										{tAudio.pan === 0
@@ -134,7 +133,7 @@ export const MixerPanel: React.FC = () => {
 									onChange={(e) =>
 										store.getState().setTrackAudioPan(track.id, parseFloat(e.target.value), true)
 									}
-									className="h-1 w-full cursor-pointer accent-[var(--color-accent)]"
+									className="h-1 w-full cursor-pointer accent-[var(--color-link)]"
 									title="Pan"
 								/>
 							</div>
@@ -150,7 +149,7 @@ export const MixerPanel: React.FC = () => {
 									onChange={(e) =>
 										store.getState().setTrackAudioGain(track.id, parseFloat(e.target.value), true)
 									}
-									className="cursor-pointer accent-[var(--color-accent)]"
+									className="cursor-pointer accent-[var(--color-link)]"
 									style={{
 										writingMode: 'vertical-lr',
 										direction: 'rtl',
@@ -159,7 +158,7 @@ export const MixerPanel: React.FC = () => {
 									}}
 									title="Fader Gain (dB)"
 								/>
-								<div className="w-full text-center font-mono text-[10px]">
+								<div className="w-full text-center font-mono text-[10px] text-[var(--color-ink)]">
 									{tAudio.gainDb <= -96
 										? '-inf'
 										: tAudio.gainDb > 0
@@ -175,10 +174,10 @@ export const MixerPanel: React.FC = () => {
 									onClick={() =>
 										store.getState().setTimelineTrackFlags(track.id, { muted: !isMuted })
 									}
-									className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+									className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${
 										isMuted
 											? 'bg-[var(--color-error)] text-white'
-											: 'bg-[var(--color-surface-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+											: 'border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-mute)] hover:text-[var(--color-ink)]'
 									}`}
 								>
 									M
@@ -186,10 +185,10 @@ export const MixerPanel: React.FC = () => {
 								<button
 									type="button"
 									onClick={() => store.getState().setTrackAudioSolo(track.id)}
-									className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+									className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${
 										isSolo
 											? 'bg-[var(--color-warning)] text-black'
-											: 'bg-[var(--color-surface-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+											: 'border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-mute)] hover:text-[var(--color-ink)]'
 									}`}
 								>
 									S
@@ -203,13 +202,13 @@ export const MixerPanel: React.FC = () => {
 				{audioBuses.map((bus) => (
 					<div
 						key={bus.id}
-						className="channel-strip bus-strip flex w-28 shrink-0 flex-col justify-between rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-raised)] p-2 shadow-xs"
+						className="channel-strip bus-strip flex w-28 shrink-0 flex-col justify-between rounded border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] p-2 shadow-xs"
 						data-bus-id={bus.id}
 					>
 						<div className="flex flex-col gap-1">
 							<div className="flex items-center justify-between gap-1">
 								<div
-									className="flex-1 truncate text-left text-xs font-semibold text-[var(--color-accent)]"
+									className="flex-1 truncate text-left text-xs font-semibold text-[var(--color-link)]"
 									title={bus.name}
 								>
 									{bus.name}
@@ -217,14 +216,14 @@ export const MixerPanel: React.FC = () => {
 								<button
 									type="button"
 									onClick={() => store.getState().removeAudioBus(bus.id)}
-									className="rounded p-0.5 text-[10px] leading-none text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-error)]"
+									className="rounded p-0.5 text-[10px] leading-none text-[var(--color-mute)] hover:bg-[var(--color-hairline-soft)] hover:text-[var(--color-error)]"
 									title={`Delete ${bus.name}`}
 									aria-label={`Delete ${bus.name}`}
 								>
 									✕
 								</button>
 							</div>
-							<div className="flex items-center justify-between px-0.5 text-[9px] text-[var(--color-text-muted)]">
+							<div className="flex items-center justify-between px-0.5 text-[9px] text-[var(--color-mute)]">
 								<span>AUTO</span>
 								<select
 									value={bus.automationMode ?? 'read'}
@@ -233,7 +232,7 @@ export const MixerPanel: React.FC = () => {
 											.getState()
 											.setAutomationMode('bus', bus.id, e.target.value as AutomationMode)
 									}
-									className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] px-1 py-0.5 text-[9px] uppercase"
+									className="rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] px-1 py-0.5 text-[9px] text-[var(--color-ink)] uppercase"
 								>
 									{automationModes.map((m) => (
 										<option key={m} value={m}>
@@ -244,13 +243,13 @@ export const MixerPanel: React.FC = () => {
 							</div>
 						</div>
 
-						<div className="my-1 flex justify-center text-[9px] text-[var(--color-text-tertiary)] italic">
+						<div className="my-1 flex justify-center text-[9px] text-[var(--color-mute)] italic">
 							Submix
 						</div>
 
 						{/* Bus Pan Slider */}
 						<div className="flex flex-col items-center gap-0.5">
-							<div className="flex w-full justify-between font-mono text-[9px] text-[var(--color-text-muted)]">
+							<div className="flex w-full justify-between font-mono text-[9px] text-[var(--color-mute)]">
 								<span>L</span>
 								<span>
 									{bus.pan === 0
@@ -270,7 +269,7 @@ export const MixerPanel: React.FC = () => {
 								onChange={(e) =>
 									store.getState().setBusAudioPan(bus.id, parseFloat(e.target.value), true)
 								}
-								className="h-1 w-full cursor-pointer accent-[var(--color-accent)]"
+								className="h-1 w-full cursor-pointer accent-[var(--color-link)]"
 								title="Bus Pan"
 							/>
 						</div>
@@ -286,7 +285,7 @@ export const MixerPanel: React.FC = () => {
 								onChange={(e) =>
 									store.getState().setBusAudioGain(bus.id, parseFloat(e.target.value), true)
 								}
-								className="cursor-pointer accent-[var(--color-accent)]"
+								className="cursor-pointer accent-[var(--color-link)]"
 								style={{
 									writingMode: 'vertical-lr',
 									direction: 'rtl',
@@ -295,7 +294,7 @@ export const MixerPanel: React.FC = () => {
 								}}
 								title="Bus Gain (dB)"
 							/>
-							<div className="w-full text-center font-mono text-[10px]">
+							<div className="w-full text-center font-mono text-[10px] text-[var(--color-ink)]">
 								{bus.gainDb <= -96 ? '-inf' : bus.gainDb.toFixed(1)}
 							</div>
 						</div>
@@ -305,10 +304,10 @@ export const MixerPanel: React.FC = () => {
 							<button
 								type="button"
 								onClick={() => store.getState().setBusAudioMute(bus.id, !bus.muted)}
-								className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+								className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${
 									bus.muted
 										? 'bg-[var(--color-error)] text-white'
-										: 'bg-[var(--color-surface-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+										: 'border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-mute)] hover:text-[var(--color-ink)]'
 								}`}
 							>
 								M
@@ -316,25 +315,25 @@ export const MixerPanel: React.FC = () => {
 							<button
 								type="button"
 								onClick={() => store.getState().setBusAudioSolo(bus.id, !bus.solo)}
-								className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+								className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${
 									bus.solo
 										? 'bg-[var(--color-warning)] text-black'
-										: 'bg-[var(--color-surface-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+										: 'border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-mute)] hover:text-[var(--color-ink)]'
 								}`}
 							>
 								S
 							</button>
 						</div>
 
-						<div className="mt-1 text-center font-mono text-[9px] text-[var(--color-text-muted)]">
+						<div className="mt-1 text-center font-mono text-[9px] text-[var(--color-mute)]">
 							→ {bus.output}
 						</div>
 					</div>
 				))}
 
 				{/* Master Channel Strip */}
-				<div className="channel-strip master-strip flex w-28 shrink-0 flex-col justify-between rounded border-2 border-[var(--color-accent)] bg-[var(--color-surface-elevated)] p-2 shadow-xs">
-					<div className="truncate text-center text-xs font-bold text-[var(--color-accent)]">
+				<div className="channel-strip master-strip flex w-28 shrink-0 flex-col justify-between rounded border-2 border-[var(--color-link)] bg-[var(--color-canvas-elevated)] p-2 shadow-xs">
+					<div className="truncate text-center text-xs font-bold text-[var(--color-link)]">
 						MASTER
 					</div>
 
@@ -343,10 +342,10 @@ export const MixerPanel: React.FC = () => {
 						<button
 							type="button"
 							onClick={() => store.getState().setMasterAudioLimiter(!masterAudio.limiter)}
-							className={`rounded border px-2 py-0.5 font-mono text-[9px] font-medium ${
+							className={`rounded border px-2 py-0.5 font-mono text-[9px] font-medium transition-colors ${
 								masterAudio.limiter
-									? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-contrast)]'
-									: 'border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+									? 'border-[var(--color-link)] bg-[var(--color-link)] text-white'
+									: 'border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-mute)] hover:text-[var(--color-ink)]'
 							}`}
 						>
 							LIMITER
@@ -364,7 +363,7 @@ export const MixerPanel: React.FC = () => {
 							onChange={(e) =>
 								store.getState().setMasterAudioGain(parseFloat(e.target.value), true)
 							}
-							className="cursor-pointer accent-[var(--color-accent)]"
+							className="cursor-pointer accent-[var(--color-link)]"
 							style={{
 								writingMode: 'vertical-lr',
 								direction: 'rtl',
@@ -373,7 +372,7 @@ export const MixerPanel: React.FC = () => {
 							}}
 							title="Master Gain (dB)"
 						/>
-						<div className="w-full text-center font-mono text-[10px] font-bold">
+						<div className="w-full text-center font-mono text-[10px] font-bold text-[var(--color-ink)]">
 							{masterAudio.gainDb <= -96
 								? '-inf'
 								: masterAudio.gainDb > 0
@@ -382,7 +381,7 @@ export const MixerPanel: React.FC = () => {
 						</div>
 					</div>
 
-					<div className="mt-1 text-center font-mono text-[9px] text-[var(--color-text-muted)]">
+					<div className="mt-1 text-center font-mono text-[9px] text-[var(--color-mute)]">
 						0.0 dBFS Peak
 					</div>
 				</div>

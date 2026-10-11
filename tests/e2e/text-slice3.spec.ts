@@ -68,4 +68,3 @@ test.describe('Gate O: Inline Editing, Gizmo & Shortcuts (Slice 3)', () => {
 		await expect(contentInput).toHaveValue('Updated In Place');
 	});
 });
-

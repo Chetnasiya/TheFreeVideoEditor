@@ -67,23 +67,26 @@ async function expectDominantColor(
 	color: 'red' | 'green' | 'blue' | 'yellow' | 'magenta' | 'cyan'
 ): Promise<void> {
 	await expect
-		.poll(async () => {
-			const [red = 0, green = 0, blue = 0] = await readCenterPixel(page);
-			switch (color) {
-				case 'red':
-					return red > 170 && green < 90 && blue < 90;
-				case 'green':
-					return green > 150 && red < 100 && blue < 100;
-				case 'blue':
-					return blue > 150 && red < 100 && green < 100;
-				case 'yellow':
-					return red > 160 && green > 150 && blue < 100;
-				case 'magenta':
-					return red > 160 && blue > 150 && green < 100;
-				case 'cyan':
-					return green > 150 && blue > 150 && red < 100;
-			}
-		}, { timeout: 10_000 })
+		.poll(
+			async () => {
+				const [red = 0, green = 0, blue = 0] = await readCenterPixel(page);
+				switch (color) {
+					case 'red':
+						return red > 170 && green < 90 && blue < 90;
+					case 'green':
+						return green > 150 && red < 100 && blue < 100;
+					case 'blue':
+						return blue > 150 && red < 100 && green < 100;
+					case 'yellow':
+						return red > 160 && green > 150 && blue < 100;
+					case 'magenta':
+						return red > 160 && blue > 150 && green < 100;
+					case 'cyan':
+						return green > 150 && blue > 150 && red < 100;
+				}
+			},
+			{ timeout: 10_000 }
+		)
 		.toBe(true);
 }
 

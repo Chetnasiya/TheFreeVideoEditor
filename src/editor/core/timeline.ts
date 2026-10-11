@@ -1,4 +1,5 @@
 import { ticksToTimecode } from './time';
+import { sourceToTimeline } from './timeRemap';
 import type { Clip, ClipId, Project, Time, Track } from './types';
 
 export interface SnapOptions {
@@ -93,7 +94,33 @@ export function collectSnapPoints(project: Project, options: SnapOptions = {}): 
 		}
 	}
 	if (options.includeMarkers) {
-		for (const marker of project.markers) points.add(marker.time);
+		for (const marker of project.markers) {
+			points.add(marker.time);
+			if (marker.duration && marker.duration > 0) {
+				points.add(marker.time + marker.duration);
+			}
+		}
+		for (const track of project.tracks) {
+			for (const clip of track.clips) {
+				if (excluded.has(clip.id) || !clip.markers) continue;
+				for (const m of clip.markers) {
+					const sMin = Math.min(clip.sourceIn, clip.sourceOut);
+					const sMax = Math.max(clip.sourceIn, clip.sourceOut);
+					if (m.time >= sMin && m.time <= sMax) {
+						const t = sourceToTimeline(clip, m.time, clip.duration);
+						if (Number.isSafeInteger(t) && t >= 0) {
+							points.add(t);
+							if (m.duration && m.duration > 0) {
+								const tEnd = sourceToTimeline(clip, m.time + m.duration, clip.duration);
+								if (Number.isSafeInteger(tEnd) && tEnd >= 0) {
+									points.add(tEnd);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	return [...points].toSorted((first, second) => first - second);
 }

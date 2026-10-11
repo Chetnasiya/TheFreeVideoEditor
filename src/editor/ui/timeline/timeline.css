@@ -1060,3 +1060,180 @@
 .caption-segment-view:hover .caption-trim-handle {
 	background: color-mix(in srgb, #f59e0b 40%, transparent);
 }
+
+/* Markers Row & Item Styling */
+.timeline-marker-track {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 18px;
+	pointer-events: none;
+	z-index: 5;
+}
+
+.timeline-marker-item {
+	position: absolute;
+	top: 0;
+	height: 18px;
+	pointer-events: auto;
+	cursor: pointer;
+	user-select: none;
+	touch-action: none;
+	outline: none;
+}
+
+.timeline-marker-item.is-point {
+	width: 12px;
+	margin-left: -6px; /* pin apex (x=6 in 12px svg) aligns exactly with startPx */
+	z-index: 6;
+}
+
+.timeline-marker-item:focus-visible {
+	outline: 2px solid var(--color-link);
+	outline-offset: 1px;
+}
+
+.timeline-marker-pin-wrapper {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 12px;
+	height: 18px;
+	filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.timeline-marker-pin {
+	display: block;
+	flex-shrink: 0;
+}
+
+.timeline-marker-item.is-selected .timeline-marker-pin-wrapper {
+	filter: drop-shadow(0 0 3px var(--color-link));
+}
+
+.timeline-marker-label {
+	max-width: 60px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.timeline-marker-item.is-range {
+	position: absolute;
+	z-index: 2;
+}
+
+.timeline-marker-item.is-range .timeline-marker-pin-wrapper.start-pin {
+	position: absolute;
+	top: 0;
+	left: -6px; /* start pin apex aligns at startPx */
+	z-index: 2;
+}
+
+.timeline-marker-item.is-range .timeline-marker-pin-wrapper.end-pin {
+	position: absolute;
+	top: 0;
+	right: -6px; /* end pin apex aligns at startPx + durPx */
+	z-index: 2;
+}
+
+.timeline-marker-range-bar {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 12px;
+	opacity: 0.85;
+	border-radius: 2px;
+	display: flex;
+	align-items: center;
+	padding: 0 8px;
+	font-family: var(--font-sans);
+	font-size: 9px;
+	font-weight: 500;
+	color: #ffffff;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+	overflow: hidden;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+	z-index: 1;
+}
+
+.timeline-marker-handle {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 10px;
+	cursor: ew-resize;
+	z-index: 4;
+}
+
+.timeline-marker-handle.handle-start {
+	left: -5px;
+}
+
+.timeline-marker-handle.handle-end {
+	right: -5px;
+}
+
+.timeline-marker-handle:hover {
+	background: rgba(255, 255, 255, 0.25);
+}
+
+/* Marker Context Menu & Swatches */
+.marker-context-menu {
+	position: fixed;
+	background: var(--color-canvas-elevated);
+	border: 1px solid var(--color-hairline);
+	border-radius: var(--radius-sm);
+	padding: var(--spacing-xxs);
+	box-shadow: var(--shadow-floating);
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 160px;
+}
+
+.marker-context-menu button {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	padding: 4px 8px;
+	border: none;
+	background: transparent;
+	color: var(--color-ink);
+	font-size: var(--text-body-sm);
+	border-radius: var(--radius-sm);
+	text-align: left;
+	cursor: pointer;
+}
+
+.marker-context-menu button:hover {
+	background: var(--color-hairline-soft);
+}
+
+.marker-context-menu .menu-divider {
+	height: 1px;
+	background: var(--color-hairline);
+	margin: 2px 0;
+}
+
+.marker-context-menu .menu-swatches-row {
+	display: grid;
+	grid-template-columns: repeat(8, 1fr);
+	gap: 3px;
+	padding: 4px 6px;
+}
+
+.marker-context-menu .swatch-btn {
+	width: 14px;
+	height: 14px;
+	padding: 0;
+	border-radius: 2px;
+	border: 1px solid rgba(0, 0, 0, 0.2);
+	cursor: pointer;
+}
+
+.marker-context-menu .swatch-btn:hover {
+	transform: scale(1.2);
+}

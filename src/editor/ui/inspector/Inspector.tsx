@@ -322,54 +322,59 @@ export default function Inspector() {
 								onStartDisableConfirm={setConfirmDisable}
 								onCancelDisableConfirm={() => setConfirmDisable(null)}
 							/>
-							<div className="mt-2 flex flex-col gap-2 border-t border-[var(--color-border-subtle)] p-2 text-xs">
-								<div className="font-medium text-[var(--color-text-secondary)]">Fades</div>
-								<div className="flex items-center justify-between">
-									<label className="text-[11px] text-[var(--color-text-muted)]">Fade In (s)</label>
-									<input
-										type="number"
-										min="0"
-										step="0.1"
-										value={((selectedClip.fadeInUs ?? 0) / 1_000_000).toFixed(2)}
-										onChange={(e) => {
-											const sec = Math.max(0, parseFloat(e.target.value) || 0);
-											store
-												.getState()
-												.setClipFade(selectedClip.id, { fadeInUs: Math.round(sec * 1_000_000) });
-										}}
-										className="w-16 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-1.5 py-0.5 text-right font-mono"
-									/>
-								</div>
-								<div className="flex items-center justify-between">
-									<label className="text-[11px] text-[var(--color-text-muted)]">Fade Out (s)</label>
-									<input
-										type="number"
-										min="0"
-										step="0.1"
-										value={((selectedClip.fadeOutUs ?? 0) / 1_000_000).toFixed(2)}
-										onChange={(e) => {
-											const sec = Math.max(0, parseFloat(e.target.value) || 0);
-											store
-												.getState()
-												.setClipFade(selectedClip.id, { fadeOutUs: Math.round(sec * 1_000_000) });
-										}}
-										className="w-16 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-1.5 py-0.5 text-right font-mono"
-									/>
-								</div>
-								<div className="flex items-center justify-between">
-									<label className="text-[11px] text-[var(--color-text-muted)]">Curve</label>
-									<select
-										value={selectedClip.fadeCurve ?? 'equalPower'}
-										onChange={(e) => {
-											store.getState().setClipFade(selectedClip.id, {
-												fadeCurve: e.target.value as 'equalPower' | 'linear'
-											});
-										}}
-										className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] px-1.5 py-0.5"
-									>
-										<option value="equalPower">Equal Power (sin)</option>
-										<option value="linear">Linear</option>
-									</select>
+							<div className="mt-2 border-t border-[var(--color-hairline)] pt-2">
+								<div className="audio-fade-grid">
+									<div className="audio-fade-row">
+										<span className="audio-fade-label">Fade In (s)</span>
+										<div className="flex items-center gap-1">
+											<input
+												type="number"
+												min="0"
+												step="0.1"
+												value={((selectedClip.fadeInUs ?? 0) / 1_000_000).toFixed(2)}
+												onChange={(e) => {
+													const sec = Math.max(0, parseFloat(e.target.value) || 0);
+													store.getState().setClipFade(selectedClip.id, {
+														fadeInUs: Math.round(sec * 1_000_000)
+													});
+												}}
+												className="audio-fade-input"
+											/>
+										</div>
+									</div>
+									<div className="audio-fade-row">
+										<span className="audio-fade-label">Fade Out (s)</span>
+										<div className="flex items-center gap-1">
+											<input
+												type="number"
+												min="0"
+												step="0.1"
+												value={((selectedClip.fadeOutUs ?? 0) / 1_000_000).toFixed(2)}
+												onChange={(e) => {
+													const sec = Math.max(0, parseFloat(e.target.value) || 0);
+													store.getState().setClipFade(selectedClip.id, {
+														fadeOutUs: Math.round(sec * 1_000_000)
+													});
+												}}
+												className="audio-fade-input"
+											/>
+										</div>
+									</div>
+									<div className="audio-fade-row">
+										<span className="audio-fade-label">Fade Curve</span>
+										<select
+											value={selectedClip.fadeCurve ?? 'equalPower'}
+											onChange={(e) => {
+												store.getState().setClipFade(selectedClip.id, {
+													fadeCurve: e.target.value as 'equalPower' | 'linear'
+												});
+											}}
+											className="tracking-select"
+										>
+											<option value="equalPower">Equal Power (sin)</option>
+											<option value="linear">Linear</option>
+										</select>
+									</div>
 								</div>
 							</div>
 						</div>

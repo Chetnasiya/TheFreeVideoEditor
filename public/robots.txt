@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Disallow error pages from crawler index
+Disallow: /404
+Disallow: /500
+
+# XML Sitemap
+Sitemap: https://thefreevideoeditor.com/sitemap.xml
+

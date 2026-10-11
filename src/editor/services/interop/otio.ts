@@ -113,7 +113,8 @@ export function exportOtio(project: Project, options: InteropOptions = {}): stri
 				markers: project.markers.map((marker) => ({
 					id: marker.id,
 					time: time(frames(marker.time, project), fps),
-					label: marker.label,
+					name: marker.name ?? marker.label ?? 'Marker',
+					label: marker.name ?? marker.label ?? 'Marker',
 					color: marker.color ?? null
 				}))
 			}

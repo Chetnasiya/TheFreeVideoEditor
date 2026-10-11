@@ -122,6 +122,24 @@ import { captureBindingOffsets, bakeTrackingToKeyframes } from '../core/tracking
 import { bakeTrackingToMask } from '../core/tracking/maskTracking';
 import { computeStabilization, bakeStabilizationToClip } from '../core/tracking/stabilize';
 import {
+	addMarker as addMarkerCore,
+	updateMarker as updateMarkerCore,
+	deleteMarker as deleteMarkerCore,
+	deleteMarkers as deleteMarkersCore,
+	moveMarker as moveMarkerCore,
+	convertMarkerRange,
+	duplicateMarker as duplicateMarkerCore,
+	setMarkerColor as setMarkerColorCore,
+	setMarkerType as setMarkerTypeCore,
+	findNextMarker,
+	findPrevMarker,
+	generateMarkerId,
+	type Marker,
+	type MarkerColor,
+	type MarkerId,
+	type MarkerType
+} from '../core';
+import {
 	ROOT_SEQUENCE_ID,
 	viewProject,
 	applyToSequence,
@@ -257,6 +275,7 @@ export interface TimelineSelection {
 	trackId?: TrackId;
 	transitionId?: string;
 	captionId?: string;
+	markerIds?: MarkerId[];
 }
 
 export type TimelineTool =
@@ -270,6 +289,7 @@ export interface TimelineState {
 	selection: TimelineSelection;
 	drag: DragSession | null;
 	snapEnabled: boolean;
+	snapToMarkers: boolean;
 	rippleMode: false;
 	message: string;
 	followPlayhead: boolean;
@@ -393,6 +413,7 @@ function createTimelineState(): TimelineState {
 		selection: { clipIds: [] },
 		drag: null,
 		snapEnabled: true,
+		snapToMarkers: true,
 		rippleMode: false,
 		message: '',
 		followPlayhead: false,
@@ -462,6 +483,11 @@ export interface EditorState {
 	sequencePlayheads: Record<SequenceId, Time>;
 	isSequenceSettingsDialogOpen: boolean;
 	sequenceSettingsDialogId: SequenceId | null;
+	// Markers State
+	selectedMarkerId: MarkerId | null;
+	selectedMarkerIds: MarkerId[];
+	isMarkerDialogOpen: boolean;
+	editingMarkerId: MarkerId | null;
 	// Workspace Layout State
 	workspaces: UserWorkspaceState;
 	activeWorkspaceId: string;
@@ -864,6 +890,23 @@ export interface EditorState {
 		trackerId: TrackerId,
 		options?: import('../core/tracking/stabilize').StabilizationOptions
 	) => boolean;
+	// Marker Actions
+	addMarker: (options?: Time | Partial<Marker>) => MarkerId | null;
+	updateMarker: (id: MarkerId, patch: Partial<Marker>, options?: { coalesce?: boolean }) => void;
+	deleteMarker: (id: MarkerId) => void;
+	deleteMarkers: (ids: MarkerId[]) => void;
+	moveMarker: (id: MarkerId, newTime: Time, options?: { coalesce?: boolean }) => void;
+	setMarkerRange: (id: MarkerId, duration: Time) => void;
+	duplicateMarker: (id: MarkerId) => void;
+	setMarkerColor: (ids: MarkerId | MarkerId[], color: MarkerColor) => void;
+	setMarkerType: (ids: MarkerId | MarkerId[], type: MarkerType) => void;
+	selectMarker: (id: MarkerId | null, multi?: boolean) => void;
+	clearMarkerSelection: () => void;
+	seekToNextMarker: () => void;
+	seekToPrevMarker: () => void;
+	setSnapToMarkers: (enabled: boolean) => void;
+	openMarkerDialog: (id?: MarkerId) => void;
+	closeMarkerDialog: () => void;
 }
 
 function errorMessage(error: unknown): string {
@@ -1225,6 +1268,10 @@ export function createEditorStore() {
 				speedDialogClipId: null,
 				isSequenceSettingsDialogOpen: false,
 				sequenceSettingsDialogId: null,
+				selectedMarkerId: null,
+				selectedMarkerIds: [],
+				isMarkerDialogOpen: false,
+				editingMarkerId: null,
 				proxySuggestion: null,
 				recovery: null,
 				media: {
@@ -6786,6 +6833,326 @@ export function createEditorStore() {
 					} catch {
 						return false;
 					}
+				},
+				addMarker(options) {
+					const project = get().project;
+					if (!project) return null;
+					const fps = project.settings.fps;
+					const markerOpts =
+						typeof options === 'number'
+							? { time: options }
+							: options && typeof options === 'object'
+								? options
+								: {};
+					const time = markerOpts.time !== undefined ? markerOpts.time : get().timeline.playhead;
+					const targetId: MarkerId = markerOpts.id ?? generateMarkerId();
+					const activeSeqId = get().activeSequenceId;
+
+					try {
+						mutateProject(
+							'Add marker',
+							(proj: Project) => {
+								return applyToSequence(proj, activeSeqId, (view) => {
+									const updated = addMarkerCore(
+										view.markers,
+										{
+											...markerOpts,
+											id: targetId,
+											time
+										},
+										fps
+									);
+									return {
+										...view,
+										markers: updated
+									};
+								});
+							},
+							{ history: 'record' }
+						);
+					} catch {
+						return null;
+					}
+
+					set((state) => {
+						state.selectedMarkerId = targetId;
+						state.selectedMarkerIds = [targetId];
+					});
+					return targetId;
+				},
+				updateMarker(id, patch, options) {
+					const project = get().project;
+					if (!project) return;
+					const fps = project.settings.fps;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Update marker',
+							(proj: Project) => {
+								return applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									markers: updateMarkerCore(view.markers, id, patch, fps)
+								}));
+							},
+							{
+								history: 'record',
+								...(options?.coalesce ? { mergeKey: `marker:${id}:update` } : {})
+							}
+						);
+					} catch {
+						// ignore
+					}
+				},
+				deleteMarker(id) {
+					const project = get().project;
+					if (!project) return;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Delete marker',
+							(proj: Project) => {
+								return applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									markers: deleteMarkerCore(view.markers, id)
+								}));
+							},
+							{ history: 'record' }
+						);
+						set((state) => {
+							if (state.selectedMarkerId === id) state.selectedMarkerId = null;
+							state.selectedMarkerIds = state.selectedMarkerIds.filter((mid) => mid !== id);
+							if (state.editingMarkerId === id) {
+								state.isMarkerDialogOpen = false;
+								state.editingMarkerId = null;
+							}
+						});
+					} catch {
+						// ignore
+					}
+				},
+				deleteMarkers(ids) {
+					const project = get().project;
+					if (!project || ids.length === 0) return;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Delete markers',
+							(proj: Project) => {
+								return applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									markers: deleteMarkersCore(view.markers, ids)
+								}));
+							},
+							{ history: 'record' }
+						);
+						set((state) => {
+							const idSet = new Set(ids);
+							if (state.selectedMarkerId && idSet.has(state.selectedMarkerId)) {
+								state.selectedMarkerId = null;
+							}
+							state.selectedMarkerIds = state.selectedMarkerIds.filter((id) => !idSet.has(id));
+							if (state.editingMarkerId && idSet.has(state.editingMarkerId)) {
+								state.isMarkerDialogOpen = false;
+								state.editingMarkerId = null;
+							}
+						});
+					} catch {
+						// ignore
+					}
+				},
+				moveMarker(id, newTime, options) {
+					const project = get().project;
+					if (!project) return;
+					const fps = project.settings.fps;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Move marker',
+							(proj: Project) => {
+								return applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									markers: moveMarkerCore(view.markers, id, newTime, fps)
+								}));
+							},
+							{
+								history: 'record',
+								...(options?.coalesce ? { mergeKey: `marker:${id}:move` } : {})
+							}
+						);
+					} catch {
+						// ignore
+					}
+				},
+				setMarkerRange(id, duration) {
+					const project = get().project;
+					if (!project) return;
+					const fps = project.settings.fps;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Set marker range',
+							(proj: Project) => {
+								return applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									markers: convertMarkerRange(view.markers, id, duration, fps)
+								}));
+							},
+							{ history: 'record' }
+						);
+					} catch {
+						// ignore
+					}
+				},
+				duplicateMarker(id) {
+					const project = get().project;
+					if (!project) return;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Duplicate marker',
+							(proj: Project) => {
+								return applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									markers: duplicateMarkerCore(view.markers, id)
+								}));
+							},
+							{ history: 'record' }
+						);
+					} catch {
+						// ignore
+					}
+				},
+				setMarkerColor(ids, color) {
+					const project = get().project;
+					const idList = Array.isArray(ids) ? ids : [ids];
+					if (!project || idList.length === 0) return;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Set marker color',
+							(proj: Project) => {
+								return applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									markers: setMarkerColorCore(view.markers, idList, color)
+								}));
+							},
+							{ history: 'record' }
+						);
+					} catch {
+						// ignore
+					}
+				},
+				setMarkerType(ids, type) {
+					const project = get().project;
+					const idList = Array.isArray(ids) ? ids : [ids];
+					if (!project || idList.length === 0) return;
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Set marker type',
+							(proj: Project) => {
+								return applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									markers: setMarkerTypeCore(view.markers, idList, type)
+								}));
+							},
+							{ history: 'record' }
+						);
+					} catch {
+						// ignore
+					}
+				},
+				selectMarker(id, multi = false) {
+					set((state) => {
+						if (!id) {
+							state.selectedMarkerId = null;
+							state.selectedMarkerIds = [];
+							return;
+						}
+						if (multi) {
+							if (state.selectedMarkerIds.includes(id)) {
+								state.selectedMarkerIds = state.selectedMarkerIds.filter((mid) => mid !== id);
+								state.selectedMarkerId = state.selectedMarkerIds[0] ?? null;
+							} else {
+								state.selectedMarkerIds.push(id);
+								state.selectedMarkerId = id;
+							}
+						} else {
+							state.selectedMarkerId = id;
+							state.selectedMarkerIds = [id];
+						}
+					});
+				},
+				clearMarkerSelection() {
+					set((state) => {
+						state.selectedMarkerId = null;
+						state.selectedMarkerIds = [];
+					});
+				},
+				seekToNextMarker() {
+					const project = get().project;
+					if (!project) return;
+					const activeProj = viewProject(project, get().activeSequenceId);
+					const currentPlayhead = get().timeline.playhead;
+					const next = findNextMarker(activeProj.markers, currentPlayhead, { wrap: true });
+					if (next) {
+						get().setPlayhead(next.time);
+						set((state) => {
+							state.selectedMarkerId = next.id;
+							state.selectedMarkerIds = [next.id];
+						});
+					}
+				},
+				seekToPrevMarker() {
+					const project = get().project;
+					if (!project) return;
+					const activeProj = viewProject(project, get().activeSequenceId);
+					const currentPlayhead = get().timeline.playhead;
+					const prev = findPrevMarker(activeProj.markers, currentPlayhead, { wrap: true });
+					if (prev) {
+						get().setPlayhead(prev.time);
+						set((state) => {
+							state.selectedMarkerId = prev.id;
+							state.selectedMarkerIds = [prev.id];
+						});
+					}
+				},
+				setSnapToMarkers(enabled) {
+					set((state) => {
+						state.timeline.snapToMarkers = enabled;
+					});
+				},
+				openMarkerDialog(id) {
+					const project = get().project;
+					if (!project) return;
+					const activeProj = viewProject(project, get().activeSequenceId);
+					const targetId = id ?? get().selectedMarkerId;
+					if (targetId) {
+						set((state) => {
+							state.editingMarkerId = targetId;
+							state.isMarkerDialogOpen = true;
+						});
+					} else {
+						const curPlayhead = get().timeline.playhead;
+						const onMarker = activeProj.markers.find((m) => {
+							const end = m.duration && m.duration > 0 ? m.time + m.duration : m.time;
+							return curPlayhead >= m.time && curPlayhead <= end;
+						});
+						if (onMarker) {
+							set((state) => {
+								state.editingMarkerId = onMarker.id;
+								state.selectedMarkerId = onMarker.id;
+								state.selectedMarkerIds = [onMarker.id];
+								state.isMarkerDialogOpen = true;
+							});
+						}
+					}
+				},
+				closeMarkerDialog() {
+					set((state) => {
+						state.isMarkerDialogOpen = false;
+						state.editingMarkerId = null;
+					});
 				}
 			};
 		})

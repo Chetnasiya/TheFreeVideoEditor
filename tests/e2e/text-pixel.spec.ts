@@ -129,4 +129,3 @@ test.describe('Text Rendering & Export Verification', () => {
 		expect(download.suggestedFilename()).toMatch(/\.webm$/);
 	});
 });
-

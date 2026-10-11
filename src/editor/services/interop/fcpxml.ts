@@ -19,7 +19,7 @@ function clipXml(
 		.filter((marker) => marker.time >= clip.start && marker.time < clip.start + clip.duration)
 		.map(
 			(marker) =>
-				`<marker start="${secondsAsRational(frames(marker.time - clip.start, project), project.settings.fps)}" value="${escapeXml(marker.label)}"/>`
+				`<marker start="${secondsAsRational(frames(marker.time - clip.start, project), project.settings.fps)}" value="${escapeXml(marker.name ?? marker.label ?? 'Marker')}"/>`
 		)
 		.join('');
 	return `<asset-clip name="${escapeXml(asset.name)}" ref="${ref}" offset="${secondsAsRational(start, project.settings.fps)}" start="${secondsAsRational(sourceIn, project.settings.fps)}" duration="${secondsAsRational(duration, project.settings.fps)}" lane="0" enabled="${track.hidden || track.muted ? '0' : '1'}">${content}${markers}</asset-clip>`;

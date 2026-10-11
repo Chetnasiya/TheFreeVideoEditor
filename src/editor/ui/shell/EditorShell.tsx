@@ -16,6 +16,7 @@ import SaveCopyPrompt from '../project/SaveCopyPrompt';
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog';
 import SpeedDurationDialog from '../dialogs/SpeedDurationDialog';
 import SequenceSettingsDialog from '../dialogs/SequenceSettingsDialog';
+import MarkerDialog from '../dialogs/MarkerDialog';
 import ExportDialog from '../export/ExportDialog';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
 import SourceMonitor from '../preview/SourceMonitor';
@@ -296,6 +297,14 @@ function EditorShell() {
 			split: () => state().splitAtPlayhead(),
 			delete: () => {
 				const current = state();
+				if (current.selectedMarkerIds && current.selectedMarkerIds.length > 0) {
+					current.deleteMarkers(current.selectedMarkerIds);
+					return;
+				}
+				if (current.selectedMarkerId) {
+					current.deleteMarker(current.selectedMarkerId);
+					return;
+				}
 				if (current.keyframes.selection.length > 0) {
 					current.deleteSelectedKeyframes();
 					return;
@@ -494,6 +503,35 @@ function EditorShell() {
 				const current = state();
 				// Toggle maximize active or program panel
 				current.toggleMaximizePanel(current.maximizedPanelId ?? 'program');
+			},
+			'add-marker': () => {
+				const current = state();
+				const isPlaying = playbackRef.current?.snapshot.playing ?? false;
+				const time =
+					isPlaying && playbackRef.current
+						? playbackRef.current.snapshot.time
+						: current.timeline.playhead;
+				current.addMarker(time);
+			},
+			'add-marker-edit': () => {
+				const current = state();
+				const isPlaying = playbackRef.current?.snapshot.playing ?? false;
+				const time =
+					isPlaying && playbackRef.current
+						? playbackRef.current.snapshot.time
+						: current.timeline.playhead;
+				const id = current.addMarker(time);
+				if (id) {
+					current.openMarkerDialog(id);
+				}
+			},
+			'next-marker': () => {
+				const current = state();
+				current.seekToNextMarker();
+			},
+			'prev-marker': () => {
+				const current = state();
+				current.seekToPrevMarker();
 			}
 		});
 	}, [editorStore, openShortcutsDialog]);
@@ -542,6 +580,7 @@ function EditorShell() {
 								aria-expanded={isFileMenuOpen}
 								onClick={() => {
 									setIsEditMenuOpen(false);
+									setIsWindowMenuOpen(false);
 									setIsHelpMenuOpen(false);
 									toggleFileMenu();
 								}}
@@ -657,6 +696,7 @@ function EditorShell() {
 								aria-expanded={isEditMenuOpen}
 								onClick={() => {
 									closeFileMenu();
+									setIsWindowMenuOpen(false);
 									setIsHelpMenuOpen(false);
 									setIsEditMenuOpen((open) => !open);
 								}}
@@ -1472,6 +1512,7 @@ function EditorShell() {
 			<ExportDialog />
 			<SpeedDurationDialog />
 			<SequenceSettingsDialog />
+			<MarkerDialog />
 			<EditWorkspacesDialog
 				isOpen={isEditWorkspacesOpen}
 				onClose={() => setIsEditWorkspacesOpen(false)}
