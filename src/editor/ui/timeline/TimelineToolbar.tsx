@@ -55,18 +55,17 @@ export default function TimelineToolbar({
 				>
 					<svg
 						className="tool-btn-icon"
-						viewBox="0 0 24 24"
+						viewBox="0 0 16 16"
 						width="14"
 						height="14"
-						fill="none"
+						fill="currentColor"
 						aria-hidden="true"
 					>
-						<g transform="rotate(45 12 12)">
+						<g transform="rotate(45 8 8)">
 							<path
-								fill="currentColor"
 								fillRule="evenodd"
 								clipRule="evenodd"
-								d="M 4.5 7 h 15 l 1.5 1.5 v 2 h -1.5 v 3 H 21 v 2 l -1.5 1.5 h -15 L 3 15.5 v -2 h 1.5 v -3 H 3 V 8.5 L 4.5 7 Z M 12 9.8 a 2.2 2.2 0 1 0 0.001 0 Z M 5.5 11.3 h 13 v 1.4 h -13 Z M 5.5 10.4 h 1.5 v 3.2 h -1.5 Z M 17 10.4 h 1.5 v 3.2 h -1.5 Z"
+								d="M2.5 4.5h11l1 1.5v1.2h-1.2v1.6h1.2v1.2l-1 1.5h-11l-1-1.5V8.8h1.2V7.2H1.5V6l1-1.5zm2 3h7v1h-7v-1zm3.5-1.5a1 1 0 100 2 1 1 0 000-2z"
 							/>
 						</g>
 					</svg>

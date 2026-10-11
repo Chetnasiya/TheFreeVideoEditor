@@ -1,5 +1,5 @@
 import type { KeyboardEvent, PointerEvent } from 'react';
-import { rulerTickStep, rulerLabel, timeToPixels } from '../../core';
+import { rulerTickStep, rulerLabel, timeToPixels, ticksToTimecode } from '../../core';
 import type { Project, Time } from '../../core';
 
 interface TimelineRulerProps {
@@ -29,6 +29,7 @@ export default function TimelineRuler({
 }: TimelineRulerProps) {
 	const step = rulerTickStep(pixelsPerSecond, project.settings.fps);
 	const count = Math.ceil(duration / step);
+	const timecodeStr = ticksToTimecode(playhead, project.settings.fps);
 
 	// Virtualize ruler ticks if visible pixel range is provided
 	let firstIndex = 0;
@@ -48,7 +49,12 @@ export default function TimelineRuler({
 	return (
 		<div className="timeline-ruler-row">
 			<div className="timeline-ruler-corner" style={{ width: headerWidth }}>
-				Timecode
+				<div
+					className="timeline-corner-timecode"
+					title={`Current Timecode (${project.settings.fps} fps)`}
+				>
+					<span className="timecode-digits">{timecodeStr}</span>
+				</div>
 			</div>
 			<div
 				className="timeline-ruler"

@@ -17,7 +17,8 @@ const TOOLS: ToolItem[] = [
 		description: 'Select, move, and trim individual clips on the timeline',
 		icon: (
 			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
-				<path d="M2.5 1.5l10.5 7.5-5 1-2.5 4.5-2-1 2.5-4.5-3.5-0.5V1.5z" />
+				{/* Premiere Pro standard pointer cursor */}
+				<path d="M2.5 1.5l10 6.5-4.8.8 2.6 4.7-1.8 1-2.6-4.7-3.4 3.2V1.5z" />
 			</svg>
 		)
 	},
@@ -27,19 +28,10 @@ const TOOLS: ToolItem[] = [
 		shortcut: 'A',
 		description: 'Select all clips forward (to the right) across all tracks',
 		icon: (
-			<svg
-				viewBox="0 0 16 16"
-				width="15"
-				height="15"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="1.6"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				aria-hidden="true"
-			>
-				<path d="M2.5 3v10M6 8h7.5M10.5 5l3 3-3 3" />
-				<path d="M5.5 5.5v5" strokeDasharray="1 1.5" />
+			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
+				{/* Vertical track bar with double forward arrows */}
+				<rect x="2" y="2.5" width="2" height="11" rx="0.5" />
+				<path d="M6 4.5l4 3.5-4 3.5V4.5zM10.5 4.5l4 3.5-4 3.5V4.5z" />
 			</svg>
 		)
 	},
@@ -50,7 +42,8 @@ const TOOLS: ToolItem[] = [
 		description: 'Trim a clip while automatically adjusting the rest of the timeline',
 		icon: (
 			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
-				<path d="M8 2v12M5 5L2 8l3 3V5zm6 0l3 3-3 3V5z" />
+				{/* Premiere Ripple Edit bracket with inward directional arrows */}
+				<path d="M4 3h3v2H6v6h1v2H4V3zm5 2.5l3.5 2.5-3.5 2.5v-5z" />
 			</svg>
 		)
 	},
@@ -60,13 +53,13 @@ const TOOLS: ToolItem[] = [
 		shortcut: 'C',
 		description: 'Make precise cuts and split clips into separate sections',
 		icon: (
-			<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
-				<g transform="rotate(45 12 12)">
+			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
+				{/* Premiere Pro classic angled razor blade */}
+				<g transform="rotate(45 8 8)">
 					<path
-						fill="currentColor"
 						fillRule="evenodd"
 						clipRule="evenodd"
-						d="M 4.5 7 h 15 l 1.5 1.5 v 2 h -1.5 v 3 H 21 v 2 l -1.5 1.5 h -15 L 3 15.5 v -2 h 1.5 v -3 H 3 V 8.5 L 4.5 7 Z M 12 9.8 a 2.2 2.2 0 1 0 0.001 0 Z M 5.5 11.3 h 13 v 1.4 h -13 Z M 5.5 10.4 h 1.5 v 3.2 h -1.5 Z M 17 10.4 h 1.5 v 3.2 h -1.5 Z"
+						d="M2.5 4.5h11l1 1.5v1.2h-1.2v1.6h1.2v1.2l-1 1.5h-11l-1-1.5V8.8h1.2V7.2H1.5V6l1-1.5zm2 3h7v1h-7v-1zm3.5-1.5a1 1 0 100 2 1 1 0 000-2z"
 					/>
 				</g>
 			</svg>
@@ -79,7 +72,8 @@ const TOOLS: ToolItem[] = [
 		description: "Shift clip's internal in and out points without moving its position",
 		icon: (
 			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
-				<path d="M1.5 3v10H3V3H1.5zm11.5 0v10h1.5V3H13zM7 6L4.5 8 7 10V6zm2 0v4l2.5-2L9 6z" />
+				{/* Two boundary brackets with inward slip arrows */}
+				<path d="M2 3h2v10H2V3zm10 0h2v10h-2V3zM7.5 5.5L5 8l2.5 2.5V5.5zm1 5L11 8 8.5 5.5v5z" />
 			</svg>
 		)
 	},
@@ -90,8 +84,9 @@ const TOOLS: ToolItem[] = [
 		description: 'Create and adjust keyframes and bezier masks directly on clips',
 		icon: (
 			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
-				<path d="M3 13l1-3.5 7.5-7.5a1.5 1.5 0 0 1 2 2L6 11.5 2.5 13.5 3 13zm7-8.5l1.5 1.5M4 11l1 1" />
-				<circle cx="8" cy="8" r="0.6" fill="currentColor" />
+				{/* Fountain pen nib with slit and breather hole */}
+				<path d="M12.8 1.8a1.5 1.5 0 012.1 2.1l-6.9 6.9-2.8.7.7-2.8 6.9-6.9zm-4.7 9.8l-4.5 1.2a.5.5 0 01-.6-.6l1.2-4.5 3.9 3.9zm-1.8.4l-.8.8-1.5-.4.4-1.5.8.8.7.1-.6.2z" />
+				<circle cx="9.2" cy="6.8" r="0.8" fill="currentColor" />
 			</svg>
 		)
 	},
@@ -122,7 +117,8 @@ const TOOLS: ToolItem[] = [
 		description: 'Click and drag to pan across the timeline',
 		icon: (
 			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
-				<path d="M6 1.5a.75.75 0 0 1 .75.75v4.5h.5V1a.75.75 0 0 1 1.5 0v5.75h.5V1.75a.75.75 0 0 1 1.5 0v5h.5v-3.5a.75.75 0 0 1 1.5 0v6.25c0 3-2 5-4.5 5S3.5 12.5 3.5 10V5.75a.75.75 0 0 1 1.5 0V7.5h.5V2.25A.75.75 0 0 1 6 1.5z" />
+				{/* Hand tool palm */}
+				<path d="M6 1.5a.75.75 0 01.75.75v4.5h.5V1a.75.75 0 011.5 0v5.75h.5V1.75a.75.75 0 011.5 0v5h.5v-3.5a.75.75 0 011.5 0v6.25c0 3-2 5-4.5 5S3.5 12.5 3.5 10V5.75a.75.75 0 011.5 0V7.5h.5V2.25A.75.75 0 016 1.5z" />
 			</svg>
 		)
 	},
@@ -133,7 +129,8 @@ const TOOLS: ToolItem[] = [
 		description: 'Create horizontal text layers and titles over your video track',
 		icon: (
 			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
-				<path d="M2.5 3.5V2h11v1.5H9.5v9h1.5V14H5v-1.5h1.5v-9H2.5z" />
+				{/* Clean bold capital T */}
+				<path d="M2.5 3.5V2h11v1.5H9.5v10.5H6.5V3.5H2.5z" />
 			</svg>
 		)
 	}
