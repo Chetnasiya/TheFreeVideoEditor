@@ -111,8 +111,16 @@ import {
 	type CaptionWord,
 	type CaptionStyle,
 	type ProjectProxySettings,
-	type SequenceId
+	type SequenceId,
+	type Tracker,
+	type TrackerId,
+	type TrackerRegion,
+	type TrackerType
 } from '../core';
+import { trackingService } from '../services/tracking/trackingService';
+import { captureBindingOffsets, bakeTrackingToKeyframes } from '../core/tracking/apply';
+import { bakeTrackingToMask } from '../core/tracking/maskTracking';
+import { computeStabilization, bakeStabilizationToClip } from '../core/tracking/stabilize';
 import {
 	ROOT_SEQUENCE_ID,
 	viewProject,
@@ -811,6 +819,51 @@ export interface EditorState {
 	reorderWorkspaces: (order: string[]) => void;
 	togglePanelVisibility: (panelId: PanelId) => void;
 	toggleMaximizePanel: (panelId?: PanelId) => void;
+	// Tracking actions
+	selectedTrackerId: TrackerId | null;
+	isTrackingActive: boolean;
+	trackingProgress: { processedFrames: number; totalFrames: number } | null;
+	selectTracker: (trackerId: TrackerId | null) => void;
+	addTracker: (
+		clipId: ClipId,
+		type?: TrackerType,
+		initialRegion?: Partial<TrackerRegion>
+	) => TrackerId | null;
+	removeTracker: (clipId: ClipId, trackerId: TrackerId) => boolean;
+	updateTracker: (clipId: ClipId, trackerId: TrackerId, patch: Partial<Tracker>) => boolean;
+	startTracking: (
+		clipId: ClipId,
+		trackerId: TrackerId,
+		direction: 'forward' | 'backward'
+	) => Promise<boolean>;
+	cancelTracking: () => Promise<void>;
+	bindToTracker: (
+		trackedClipId: ClipId,
+		trackerId: TrackerId,
+		config: {
+			targetClipId: ClipId;
+			applyPosition: boolean;
+			applyRotation: boolean;
+			applyScale: boolean;
+		}
+	) => boolean;
+	unbindTracker: (trackedClipId: ClipId, trackerId: TrackerId) => boolean;
+	bakeTracker: (
+		trackedClipId: ClipId,
+		trackerId: TrackerId,
+		thinningTolerancePx?: number
+	) => boolean;
+	bakeTrackerToMask: (
+		clipId: ClipId,
+		maskId: string,
+		trackerId: TrackerId,
+		thinningTolerancePx?: number
+	) => boolean;
+	stabilizeClip: (
+		clipId: ClipId,
+		trackerId: TrackerId,
+		options?: import('../core/tracking/stabilize').StabilizationOptions
+	) => boolean;
 }
 
 function errorMessage(error: unknown): string {
@@ -6289,6 +6342,450 @@ export function createEditorStore() {
 							state.maximizedPanelId = panelId;
 						}
 					});
+				},
+
+				// Tracking state & actions
+				selectedTrackerId: null,
+				isTrackingActive: false,
+				trackingProgress: null,
+
+				selectTracker(trackerId) {
+					set((state) => {
+						state.selectedTrackerId = trackerId;
+					});
+				},
+
+				addTracker(clipId, type = 'point', initialRegion) {
+					const project = get().project;
+					if (!project) return null;
+					const trackerId =
+						`trk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` as TrackerId;
+
+					const defaultRegion: TrackerRegion = {
+						x: initialRegion?.x ?? 0.5,
+						y: initialRegion?.y ?? 0.5,
+						width: initialRegion?.width ?? 0.08,
+						height: initialRegion?.height ?? 0.08,
+						searchMultiplier: initialRegion?.searchMultiplier ?? 2.5
+					};
+
+					let targetClip: Clip | null = null;
+					for (const track of project.tracks) {
+						for (const c of track.clips) {
+							if (c.id === clipId) targetClip = c;
+						}
+					}
+					const seedSourceTime = targetClip ? targetClip.sourceIn : 0;
+
+					const newTracker: Tracker = {
+						id: trackerId,
+						name: `Tracker ${trackerId.slice(-4)}`,
+						type,
+						enabled: true,
+						seedTime: seedSourceTime,
+						initialRegion: defaultRegion,
+						params: {
+							trackTranslation: true,
+							trackRotation: type !== 'point',
+							trackScale: type !== 'point',
+							pyramidLevels: 3,
+							searchRadiusPx: 32,
+							maxIterations: 20,
+							tolerance: 0.01,
+							nccThreshold: 0.65,
+							huberThreshold: 0.1,
+							confidenceThreshold: 0.5
+						},
+						samples: []
+					};
+
+					try {
+						mutateProject(
+							'Add tracker',
+							(proj: Project) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId) return c;
+										return {
+											...c,
+											trackers: [...(c.trackers ?? []), newTracker]
+										};
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						set((state) => {
+							state.selectedTrackerId = trackerId;
+						});
+						return trackerId;
+					} catch {
+						return null;
+					}
+				},
+
+				removeTracker(clipId, trackerId) {
+					try {
+						mutateProject(
+							'Remove tracker',
+							(proj: Project) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId || !c.trackers) return c;
+										return {
+											...c,
+											trackers: c.trackers.filter((t) => t.id !== trackerId)
+										};
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						set((state) => {
+							if (state.selectedTrackerId === trackerId) {
+								state.selectedTrackerId = null;
+							}
+						});
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				updateTracker(clipId, trackerId, patch) {
+					try {
+						mutateProject(
+							'Update tracker',
+							(proj: Project) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId || !c.trackers) return c;
+										return {
+											...c,
+											trackers: c.trackers.map((t) => (t.id === trackerId ? { ...t, ...patch } : t))
+										};
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				async startTracking(clipId, trackerId, direction) {
+					const project = get().project;
+					if (!project || get().isTrackingActive) return false;
+
+					let targetClip: Clip | null = null;
+					for (const track of project.tracks) {
+						const found = track.clips.find((c) => c.id === clipId);
+						if (found) {
+							targetClip = found;
+							break;
+						}
+					}
+					if (!targetClip || !targetClip.assetId) return false;
+
+					const asset = project.assets[targetClip.assetId];
+					if (!asset) return false;
+
+					const tracker = targetClip.trackers?.find((t) => t.id === trackerId);
+					if (!tracker) return false;
+
+					set((state) => {
+						state.isTrackingActive = true;
+						state.trackingProgress = { processedFrames: 0, totalFrames: 1 };
+					});
+
+					try {
+						const samples = await trackingService.track(
+							project.id,
+							asset,
+							targetClip,
+							tracker,
+							direction,
+							(prog) => {
+								set((state) => {
+									state.trackingProgress = {
+										processedFrames: prog.processedFrames,
+										totalFrames: prog.totalFrames
+									};
+								});
+							}
+						);
+
+						get().updateTracker(clipId, trackerId, { samples });
+						return true;
+					} catch (err) {
+						console.error('Tracking error:', err);
+						return false;
+					} finally {
+						set((state) => {
+							state.isTrackingActive = false;
+							state.trackingProgress = null;
+						});
+					}
+				},
+
+				async cancelTracking() {
+					await trackingService.cancel();
+					set((state) => {
+						state.isTrackingActive = false;
+						state.trackingProgress = null;
+					});
+				},
+
+				bindToTracker(trackedClipId, trackerId, config) {
+					const project = get().project;
+					if (!project) return false;
+
+					let trackedClip: Clip | null = null;
+					let targetClip: Clip | null = null;
+
+					for (const track of project.tracks) {
+						for (const c of track.clips) {
+							if (c.id === trackedClipId) trackedClip = c;
+							if (c.id === config.targetClipId) targetClip = c;
+						}
+					}
+
+					if (!trackedClip || !targetClip) return false;
+					const tracker = trackedClip.trackers?.find((t) => t.id === trackerId);
+					if (!tracker) return false;
+
+					const playhead = get().timeline.playhead;
+					const offsets = captureBindingOffsets(
+						project,
+						trackedClip,
+						targetClip,
+						tracker,
+						playhead,
+						trackedClip.assetId ? (project.assets[trackedClip.assetId]?.width ?? 1920) : 1920,
+						trackedClip.assetId ? (project.assets[trackedClip.assetId]?.height ?? 1080) : 1080
+					);
+
+					return get().updateTracker(trackedClipId, trackerId, {
+						binding: {
+							targetClipId: config.targetClipId,
+							applyPosition: config.applyPosition,
+							applyRotation: config.applyRotation,
+							applyScale: config.applyScale,
+							offsetPosition: offsets.offsetPosition,
+							offsetRotation: offsets.offsetRotation,
+							offsetScale: offsets.offsetScale
+						}
+					});
+				},
+
+				unbindTracker(trackedClipId, trackerId) {
+					return get().updateTracker(trackedClipId, trackerId, {
+						binding: undefined
+					});
+				},
+
+				bakeTracker(trackedClipId, trackerId, thinningTolerancePx = 0.5) {
+					const project = get().project;
+					if (!project) return false;
+
+					let trackedClip: Clip | null = null;
+					let targetClip: Clip | null = null;
+
+					for (const track of project.tracks) {
+						for (const c of track.clips) {
+							if (c.id === trackedClipId) trackedClip = c;
+						}
+					}
+					if (!trackedClip) return false;
+					const tracker = trackedClip.trackers?.find((t) => t.id === trackerId);
+					if (!tracker || !tracker.binding) return false;
+
+					for (const track of project.tracks) {
+						for (const c of track.clips) {
+							if (c.id === tracker.binding.targetClipId) targetClip = c;
+						}
+					}
+					if (!targetClip) return false;
+
+					const bakedProps = bakeTrackingToKeyframes(
+						project,
+						trackedClip,
+						targetClip,
+						tracker,
+						thinningTolerancePx,
+						trackedClip.assetId ? (project.assets[trackedClip.assetId]?.width ?? 1920) : 1920,
+						trackedClip.assetId ? (project.assets[trackedClip.assetId]?.height ?? 1080) : 1080
+					);
+
+					try {
+						mutateProject(
+							'Bake tracking to keyframes',
+							(proj: Project) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id === trackedClipId && c.trackers) {
+											// Unbind live tracker upon baking
+											return {
+												...c,
+												trackers: c.trackers.map((tr) =>
+													tr.id === trackerId ? { ...tr, binding: undefined } : tr
+												)
+											};
+										}
+										if (c.id === targetClip.id) {
+											const cleanBaked: Record<
+												string,
+												import('../core/types').AnimatedValue<unknown>
+											> = {};
+											for (const [k, v] of Object.entries(bakedProps)) {
+												if (v !== undefined) {
+													cleanBaked[k] = v;
+												}
+											}
+											return {
+												...c,
+												properties: {
+													...(c.properties ?? {}),
+													...cleanBaked
+												}
+											};
+										}
+										return c;
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+				bakeTrackerToMask(clipId, maskId, trackerId, thinningTolerancePx = 0.5) {
+					const project = get().project;
+					if (!project) return false;
+
+					let targetClip: Clip | null = null;
+					for (const track of project.tracks) {
+						for (const c of track.clips) {
+							if (c.id === clipId) targetClip = c;
+						}
+					}
+					if (!targetClip) return false;
+					const tracker = targetClip.trackers?.find((t) => t.id === trackerId);
+					const mask = targetClip.masks?.find((m) => m.id === maskId);
+					if (!tracker || !mask) return false;
+
+					const fps = project.settings.fps;
+					const width = targetClip.assetId
+						? (project.assets[targetClip.assetId]?.width ?? 1920)
+						: 1920;
+					const height = targetClip.assetId
+						? (project.assets[targetClip.assetId]?.height ?? 1080)
+						: 1080;
+
+					const bakedShape = bakeTrackingToMask(
+						targetClip,
+						maskId,
+						tracker,
+						fps,
+						thinningTolerancePx,
+						width,
+						height
+					);
+					if (!bakedShape) return false;
+
+					const shapePropId = `mask:${maskId}:shape` as PropertyId;
+
+					try {
+						mutateProject(
+							'Bake tracking to mask shape',
+							(proj: Project) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId) return c;
+										return {
+											...c,
+											properties: {
+												...(c.properties ?? {}),
+												[shapePropId]: bakedShape
+											}
+										};
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+				stabilizeClip(clipId, trackerId, options) {
+					const project = get().project;
+					if (!project) return false;
+
+					let targetClip: Clip | null = null;
+					for (const track of project.tracks) {
+						for (const c of track.clips) {
+							if (c.id === clipId) targetClip = c;
+						}
+					}
+					if (!targetClip) return false;
+					const tracker = targetClip.trackers?.find((t) => t.id === trackerId);
+					if (!tracker || tracker.samples.length === 0) return false;
+
+					const width = targetClip.assetId
+						? (project.assets[targetClip.assetId]?.width ?? 1920)
+						: 1920;
+					const height = targetClip.assetId
+						? (project.assets[targetClip.assetId]?.height ?? 1080)
+						: 1080;
+
+					const stabilization = computeStabilization(
+						tracker.samples,
+						width,
+						height,
+						targetClip.start,
+						options
+					);
+
+					const updatedProperties = bakeStabilizationToClip(targetClip, stabilization);
+
+					try {
+						mutateProject(
+							'Stabilize clip',
+							(proj: Project) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => ({
+									...t,
+									clips: t.clips.map((c) => {
+										if (c.id !== clipId) return c;
+										return {
+											...c,
+											properties: updatedProperties
+										};
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
 				}
 			};
 		})

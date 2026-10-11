@@ -427,6 +427,33 @@ export default function MasksSection({
 														</div>
 
 														<div className="property-controls">
+															{clip.trackers && clip.trackers.length > 0 && (
+																<select
+																	defaultValue=""
+																	onChange={(e) => {
+																		const trkId = e.target
+																			.value as import('../../core/types').TrackerId;
+																		if (trkId) {
+																			store
+																				.getState()
+																				.bakeTrackerToMask(clip.id, mask.id, trkId, 0.5);
+																			e.target.value = '';
+																		}
+																	}}
+																	className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-raised)] px-1.5 py-0.5 text-[10px]"
+																	title="Track mask to motion tracker"
+																	aria-label="Track mask to motion tracker"
+																>
+																	<option value="" disabled>
+																		Track with...
+																	</option>
+																	{clip.trackers.map((t) => (
+																		<option key={t.id} value={t.id}>
+																			{t.name}
+																		</option>
+																	))}
+																</select>
+															)}
 															{isShapeAnimated && (
 																<div className="keyframe-nav">
 																	<button

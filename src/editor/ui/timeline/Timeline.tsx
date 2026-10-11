@@ -1501,19 +1501,19 @@ function ActiveTimeline({ project }: { project: Project }) {
 									? `Drop to add a ${newTrackDropKind} track`
 									: 'Drop media here to create a new track'}
 							</div>
-							{marquee && (
-								<div
-									className="timeline-marquee"
-									style={{
-										left: marquee.left,
-										top: marquee.top,
-										width: marquee.width,
-										height: marquee.height
-									}}
-									aria-hidden="true"
-								/>
-							)}
 						</div>
+						{marquee && (
+							<div
+								className="timeline-marquee"
+								style={{
+									left: marquee.left,
+									top: marquee.top,
+									width: marquee.width,
+									height: marquee.height
+								}}
+								aria-hidden="true"
+							/>
+						)}
 						<ConnectedPlayhead pixelsPerSecond={pixelsPerSecond} offset={HEADER_WIDTH} />
 						{drag?.snappedTo !== undefined && (
 							<div

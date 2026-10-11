@@ -1,0 +1,215 @@
+diff --git a/src/editor/services/playback/mediaPool.test.ts b/src/editor/services/playback/mediaPool.test.ts
+index c8942d2..4817d3d 100644
+--- a/src/editor/services/playback/mediaPool.test.ts
++++ b/src/editor/services/playback/mediaPool.test.ts
+@@ -41,7 +41,7 @@ function makeProject(count: number, existing?: Project): Project {
+ 	};
+ }
+ 
+-function fakeVideo(): HTMLVideoElement {
++function fakeVideo(readyState = 0): HTMLVideoElement {
+ 	const listeners = new Map<string, EventListener[]>();
+ 	const element = {
+ 		tagName: 'VIDEO',
+@@ -50,7 +50,7 @@ function fakeVideo(): HTMLVideoElement {
+ 		playsInline: false,
+ 		playbackRate: 1,
+ 		currentTime: 0,
+-		readyState: 0,
++		readyState,
+ 		paused: true,
+ 		src: '',
+ 		addEventListener(type: string, listener: EventListener) {
+@@ -94,6 +94,37 @@ describe('media pool', () => {
+ 		expect(needsDriftCorrection(0.9, 1)).toBe(true);
+ 	});
+ 
++	it('nudges playbackRate on minor drift during playback instead of seeking', () => {
++		const project = makeProject(1);
++		const video = fakeVideo(2);
++		video.currentTime = 0.1;
++		const pool = new MediaPool(project, {
++			createVideo: () => video,
++			getUrl: async () => ({ url: 'blob:test', release: () => {} })
++		});
++		const layer = layers(project, [0])[0]!;
++		layer.sourceTime = 180_000;
++		pool.getFrameSource(layer, true, 1);
++		expect(video.playbackRate).toBeCloseTo(1.05);
++		expect(video.currentTime).toBe(0.1);
++		pool.dispose();
++	});
++
++	it('hard seeks on severe drift during playback exceeding threshold', () => {
++		const project = makeProject(1);
++		const video = fakeVideo(2);
++		video.currentTime = 0.1;
++		const pool = new MediaPool(project, {
++			createVideo: () => video,
++			getUrl: async () => ({ url: 'blob:test', release: () => {} })
++		});
++		const layer = layers(project, [0])[0]!;
++		layer.sourceTime = 600_000;
++		pool.getFrameSource(layer, true, 1);
++		expect(video.currentTime).toBe(0.6);
++		pool.dispose();
++	});
++
+ 	it('releases the least-recently-used preloaded clip at the hard element cap', async () => {
+ 		const project = makeProject(2);
+ 		let now = 0;
+diff --git a/src/editor/services/playback/mediaPool.ts b/src/editor/services/playback/mediaPool.ts
+index 8a91d03..61435ca 100644
+--- a/src/editor/services/playback/mediaPool.ts
++++ b/src/editor/services/playback/mediaPool.ts
+@@ -8,6 +8,8 @@ export const MEDIA_LOOKAHEAD_SECONDS = 1.5;
+ export const MEDIA_IDLE_RELEASE_MS = 5_000;
+ export const MEDIA_POOL_LIMIT = 6;
+ export const VIDEO_DRIFT_THRESHOLD_SECONDS = 0.08;
++export const PLAYBACK_HARD_SEEK_THRESHOLD_SECONDS = 0.35;
++export const PLAYBACK_NUDGE_DRIFT_THRESHOLD_SECONDS = 0.04;
+ const MEDIA_HAVE_METADATA = 1;
+ const MEDIA_HAVE_CURRENT_DATA = 2;
+ 
+@@ -42,6 +44,7 @@ interface PoolEntryBase {
+ 	releaseUrl?: () => void;
+ 	lastUsed: number;
+ 	idleTimer: ReturnType<typeof setTimeout> | null;
++	stallTimer: ReturnType<typeof setTimeout> | null;
+ 	seeking: boolean;
+ 	pendingSeek: number | null;
+ 	seekResolvers: Array<() => void>;
+@@ -252,9 +255,18 @@ export class MediaPool {
+ 		const isConstantInRange = !clip.timeRemap && clip.speed >= 0.25 && clip.speed <= 4;
+ 		if (playing && rate > 0 && isConstantInRange) {
+ 			const effectiveRate = rate * clip.speed;
+-			video.playbackRate = effectiveRate;
+ 			video.preservesPitch = clip.maintainPitch ?? true;
+-			if (needsDriftCorrection(video.currentTime, expected)) this.requestSeek(entry, expected);
++			const drift = video.currentTime - expected;
++			const absDrift = Math.abs(drift);
++			if (absDrift > PLAYBACK_HARD_SEEK_THRESHOLD_SECONDS) {
++				this.requestSeek(entry, expected);
++				video.playbackRate = effectiveRate;
++			} else if (absDrift > PLAYBACK_NUDGE_DRIFT_THRESHOLD_SECONDS) {
++				const nudge = drift < 0 ? 1.05 : 0.95;
++				video.playbackRate = effectiveRate * nudge;
++			} else {
++				video.playbackRate = effectiveRate;
++			}
+ 			if (video.paused)
+ 				void video.play().catch((error: unknown) => {
+ 					if (error instanceof DOMException && error.name === 'AbortError') return;
+@@ -286,12 +298,20 @@ export class MediaPool {
+ 		const audio = entry.element;
+ 		if (audio.readyState >= MEDIA_HAVE_METADATA) {
+ 			const isConstantInRange = !clip.timeRemap && clip.speed >= 0.25 && clip.speed <= 4;
+-			if (isConstantInRange) {
+-				audio.playbackRate = clip.speed;
+-				audio.preservesPitch = clip.maintainPitch ?? true;
+-			}
++			const targetSpeed = isConstantInRange ? clip.speed : 1;
+ 			const expected = source.sourceTime / 1_000_000;
+-			if (needsDriftCorrection(audio.currentTime, expected)) this.requestSeek(entry, expected);
++			const drift = audio.currentTime - expected;
++			const absDrift = Math.abs(drift);
++			if (absDrift > PLAYBACK_HARD_SEEK_THRESHOLD_SECONDS) {
++				this.requestSeek(entry, expected);
++				audio.playbackRate = targetSpeed;
++			} else if (absDrift > PLAYBACK_NUDGE_DRIFT_THRESHOLD_SECONDS) {
++				const nudge = drift < 0 ? 1.05 : 0.95;
++				audio.playbackRate = targetSpeed * nudge;
++			} else {
++				audio.playbackRate = targetSpeed;
++			}
++			audio.preservesPitch = clip.maintainPitch ?? true;
+ 		}
+ 		return audio;
+ 	}
+@@ -349,6 +369,7 @@ export class MediaPool {
+ 			ready: Promise.resolve(),
+ 			lastUsed: this.now(),
+ 			idleTimer: null,
++			stallTimer: null,
+ 			seeking: false,
+ 			pendingSeek: null,
+ 			seekResolvers: []
+@@ -379,17 +400,34 @@ export class MediaPool {
+ 			this.options.onFrame?.();
+ 		});
+ 		element.addEventListener('loadeddata', () => this.options.onFrame?.());
++		const clearStallTimer = () => {
++			if (entry.stallTimer !== null) {
++				clearTimeout(entry.stallTimer);
++				entry.stallTimer = null;
++			}
++		};
+ 		const markStalled = () => {
+-			if (!element.paused) this.options.onStall?.(clip.id);
++			if (element.paused) return;
++			if (entry.stallTimer === null) {
++				entry.stallTimer = setTimeout(() => {
++					entry.stallTimer = null;
++					if (!element.paused) this.options.onStall?.(clip.id);
++				}, 250);
++			}
+ 		};
+ 		element.addEventListener('waiting', markStalled);
+ 		element.addEventListener('stalled', markStalled);
+ 		element.addEventListener('canplay', () => {
++			clearStallTimer();
+ 			this.options.onReady?.(clip.id);
+ 			this.options.onFrame?.();
+ 		});
+-		element.addEventListener('playing', () => this.options.onReady?.(clip.id));
++		element.addEventListener('playing', () => {
++			clearStallTimer();
++			this.options.onReady?.(clip.id);
++		});
+ 		element.addEventListener('error', () => {
++			clearStallTimer();
+ 			this.reportError(new Error(`Browser could not decode “${asset.name}”.`), asset.id);
+ 		});
+ 		this.entries.set(key, entry);
+@@ -431,7 +469,9 @@ export class MediaPool {
+ 			return;
+ 		}
+ 		if (entry.seeking) {
+-			entry.pendingSeek = seconds;
++			if (entry.pendingSeek === null || Math.abs(entry.pendingSeek - seconds) > 0.05) {
++				entry.pendingSeek = seconds;
++			}
+ 			return;
+ 		}
+ 		if (!needsDriftCorrection(element.currentTime, seconds, 0.015)) return;
+@@ -447,17 +487,12 @@ export class MediaPool {
+ 
+ 	private onSeeked(entry: PoolEntry): void {
+ 		const pending = entry.pendingSeek;
+-		if (pending !== null && needsDriftCorrection(entry.element.currentTime, pending, 0.015)) {
+-			entry.pendingSeek = null;
+-			try {
+-				entry.element.currentTime = pending;
+-				return;
+-			} catch (error) {
+-				this.reportError(error, entry.assetId);
+-			}
+-		}
+ 		entry.pendingSeek = null;
+ 		entry.seeking = false;
++		if (pending !== null && needsDriftCorrection(entry.element.currentTime, pending, 0.05)) {
++			this.requestSeek(entry, pending);
++			return;
++		}
+ 		const video = entry.kind === 'video' ? entry.element : null;
+ 		if (video?.requestVideoFrameCallback) {
+ 			video.requestVideoFrameCallback(() => {
+@@ -493,6 +528,7 @@ export class MediaPool {
+ 		const key = poolKey(entry.entryKey, entry.kind);
+ 		if (this.entries.get(key) === entry) this.entries.delete(key);
+ 		if (entry.idleTimer !== null) clearTimeout(entry.idleTimer);
++		if (entry.stallTimer !== null) clearTimeout(entry.stallTimer);
+ 		entry.element.pause();
+ 		if (entry.kind === 'audio') {
+ 			this.options.onReleaseAudioElement?.(entry.element);
+

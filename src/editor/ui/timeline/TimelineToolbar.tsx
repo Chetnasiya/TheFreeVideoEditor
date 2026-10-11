@@ -165,7 +165,6 @@ export default function TimelineToolbar({
 						onClick={onToggleGraph}
 						title="Toggle Graph Editor (Shift+G)"
 						aria-pressed={graphOpen}
-						aria-label="Toggle Graph Editor"
 					>
 						<svg
 							className="tool-btn-icon"

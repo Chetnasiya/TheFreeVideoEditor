@@ -8,6 +8,7 @@ export type AssetId = Brand<string, 'AssetId'>;
 export type TrackId = Brand<string, 'TrackId'>;
 export type ClipId = Brand<string, 'ClipId'>;
 export type MarkerId = Brand<string, 'MarkerId'>;
+export type TrackerId = Brand<string, 'TrackerId'>;
 
 export type Time = number;
 
@@ -285,6 +286,89 @@ export interface Clip {
 	fadeInUs?: Time;
 	fadeOutUs?: Time;
 	fadeCurve?: 'equalPower' | 'linear';
+	trackers?: Tracker[];
+}
+
+export type TrackerType = 'point' | 'planar' | 'stabilize';
+
+export interface TrackerRegion {
+	/** Normalized center x in source coordinates [0, 1] */
+	x: number;
+	/** Normalized center y in source coordinates [0, 1] */
+	y: number;
+	/** Normalized feature search template width [0, 1] */
+	width: number;
+	/** Normalized feature search template height [0, 1] */
+	height: number;
+	/** Normalized search area padding multiplier or width [0, 1] */
+	searchMultiplier?: number;
+}
+
+export interface TrackerParams {
+	trackTranslation: boolean;
+	trackRotation: boolean;
+	trackScale: boolean;
+	pyramidLevels: number;
+	searchRadiusPx: number;
+	maxIterations: number;
+	tolerance: number;
+	nccThreshold: number;
+	huberThreshold: number;
+	confidenceThreshold: number;
+	analysisWidth?: number;
+}
+
+export interface TrackerSample {
+	/** Source time in microseconds */
+	sourceTime: Time;
+	/** Normalized center x [0, 1] */
+	x: number;
+	/** Normalized center y [0, 1] */
+	y: number;
+	/** Rotation angle in radians relative to seed frame */
+	rotation: number;
+	/** Scale multiplier relative to seed frame */
+	scale: number;
+	/** Tracking match confidence [0, 1] */
+	confidence: number;
+	/** Whether tracking lost or below threshold at this frame */
+	lost?: boolean;
+	/** Stop or loss reason if tracking ended/failed here */
+	reason?: 'loss' | 'occlusion' | 'out_of_bounds' | 'user_cancel' | 'complete';
+}
+
+export interface TrackerSmoothing {
+	enabled: boolean;
+	windowFrames: number;
+	positionSigma?: number;
+	rotationSigma?: number;
+	scaleSigma?: number;
+}
+
+export interface Tracker {
+	id: TrackerId;
+	name: string;
+	type: TrackerType;
+	enabled: boolean;
+	/** Source time in microseconds when tracking was initiated / seeded */
+	seedTime: Time;
+	/** Initial normalized feature region at seedTime */
+	initialRegion: TrackerRegion;
+	params: TrackerParams;
+	samples: TrackerSample[];
+	smoothing?: TrackerSmoothing;
+	/** Hash of source asset at time of tracking to detect stale cache */
+	assetFingerprint?: string;
+	/** Target layer or property live binding if connected */
+	binding?: {
+		targetClipId: ClipId;
+		applyPosition: boolean;
+		applyRotation: boolean;
+		applyScale: boolean;
+		offsetPosition: [number, number];
+		offsetRotation: number;
+		offsetScale: [number, number];
+	};
 }
 
 export type TrackKind = 'video' | 'audio' | 'caption';

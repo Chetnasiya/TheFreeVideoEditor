@@ -13,6 +13,7 @@ export default defineConfig({
 			include: ['@huggingface/transformers']
 		},
 		build: {
+			chunkSizeWarningLimit: 1500,
 			rolldownOptions: {
 				output: {
 					codeSplitting: {

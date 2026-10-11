@@ -7,6 +7,7 @@ import { observePreviewScale } from '../../services/playback/previewLayout';
 import TransformGizmo from './TransformGizmo';
 import MaskOverlay from './MaskOverlay';
 import TextInlineEditor from './TextInlineEditor';
+import { TrackingOverlay } from './TrackingOverlay';
 
 interface PreviewPlayerProps {
 	project: Project | null;
@@ -82,6 +83,11 @@ export default function PreviewPlayer({
 							renderedHeight={renderedHeight}
 						/>
 						<TextInlineEditor
+							project={project}
+							renderedWidth={renderedWidth}
+							renderedHeight={renderedHeight}
+						/>
+						<TrackingOverlay
 							project={project}
 							renderedWidth={renderedWidth}
 							renderedHeight={renderedHeight}
@@ -205,13 +211,6 @@ function PreviewNotice({
 			</div>
 		);
 	}
-	if (state.loading) {
-		return (
-			<div className="preview-loading-indicator" role="status" aria-live="polite">
-				Decoding frame…
-			</div>
-		);
-	}
 	// Check if any active clip at playhead uses seeking mode (reverse, time remap, or speed outside [0.25, 4])
 	const hasChoppySpeed =
 		engine?.snapshot.playing &&
@@ -229,6 +228,11 @@ function PreviewNotice({
 		);
 	return (
 		<>
+			{state.loading && (
+				<div className="preview-loading-indicator" role="status" aria-live="polite">
+					Decoding frame…
+				</div>
+			)}
 			{state.proxyActive && (
 				<div
 					className="preview-proxy-badge"

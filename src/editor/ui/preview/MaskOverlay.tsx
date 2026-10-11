@@ -286,7 +286,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 	if (!showOverlay || !selectedClip) return null;
 
 	const localTime = playhead - selectedClip.start;
-	const evaluatedMasks = masks.map((m) => evaluateMask(m, localTime));
+	const evaluatedMasks = masks.map((m) => evaluateMask(m, localTime, selectedClip.properties));
 	const activeMaskId = maskTool.selectedMaskId ?? (masks.length > 0 ? masks[0]!.id : null);
 	const activeMask = evaluatedMasks.find((m) => m.id === activeMaskId);
 

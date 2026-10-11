@@ -9,6 +9,7 @@ import { transitionWindow, transitionProgress, transitionGain } from './transiti
 import { DEFAULT_CAPTION_STYLE } from './captions/presets';
 import { findWordSpanInText } from './captions/operations';
 import { viewProject, getSequence } from './sequences/access';
+import { evaluateLiveTrackingBinding } from './tracking/apply';
 import type {
 	AnimatedValue,
 	AssetId,
@@ -44,6 +45,12 @@ function finite(value: unknown, fallback: number): number {
 	return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+export interface TrackingEvaluationContext {
+	deltaPosition?: [number, number];
+	deltaRotation?: number;
+	deltaScale?: [number, number];
+}
+
 /**
  * Evaluates animated clip properties at a clip-local time and merges them over the legacy
  * static transform. Property ids: position [x, y], scale [x, y], rotation (deg), opacity (0–1),
@@ -51,13 +58,24 @@ function finite(value: unknown, fallback: number): number {
  */
 export function evaluateLayerProperties(
 	clip: Clip,
-	localTime: Time
+	localTime: Time,
+	trackingContext?: TrackingEvaluationContext
 ): Pick<ActiveLayer, 'transform' | 'anchor' | 'blendMode' | 'crop'> {
 	const properties = clip.properties;
 	const result: Pick<ActiveLayer, 'transform' | 'anchor' | 'blendMode' | 'crop'> = {};
 	if (clip.blendMode && clip.blendMode !== 'normal') result.blendMode = clip.blendMode;
 	if (!properties) {
-		if (clip.transform) result.transform = clip.transform;
+		if (clip.transform || trackingContext) {
+			const base = clip.transform ?? IDENTITY_TRANSFORM;
+			result.transform = {
+				x: base.x + (trackingContext?.deltaPosition ? trackingContext.deltaPosition[0] : 0),
+				y: base.y + (trackingContext?.deltaPosition ? trackingContext.deltaPosition[1] : 0),
+				scaleX: base.scaleX * (trackingContext?.deltaScale ? trackingContext.deltaScale[0] : 1),
+				scaleY: base.scaleY * (trackingContext?.deltaScale ? trackingContext.deltaScale[1] : 1),
+				rotation: base.rotation + (trackingContext?.deltaRotation ?? 0),
+				opacity: base.opacity
+			};
+		}
 		return result;
 	}
 	const read = (id: string): unknown => {
@@ -68,12 +86,24 @@ export function evaluateLayerProperties(
 	const position = numberPair(read('position'));
 	const scale = numberPair(read('scale'));
 	const anchor = numberPair(read('anchor'));
+	const posX =
+		(position?.[0] ?? base.x) +
+		(trackingContext?.deltaPosition ? trackingContext.deltaPosition[0] : 0);
+	const posY =
+		(position?.[1] ?? base.y) +
+		(trackingContext?.deltaPosition ? trackingContext.deltaPosition[1] : 0);
+	const sX =
+		(scale?.[0] ?? base.scaleX) * (trackingContext?.deltaScale ? trackingContext.deltaScale[0] : 1);
+	const sY =
+		(scale?.[1] ?? base.scaleY) * (trackingContext?.deltaScale ? trackingContext.deltaScale[1] : 1);
+	const rot = finite(read('rotation'), base.rotation) + (trackingContext?.deltaRotation ?? 0);
+
 	result.transform = {
-		x: position?.[0] ?? base.x,
-		y: position?.[1] ?? base.y,
-		scaleX: scale?.[0] ?? base.scaleX,
-		scaleY: scale?.[1] ?? base.scaleY,
-		rotation: finite(read('rotation'), base.rotation),
+		x: posX,
+		y: posY,
+		scaleX: sX,
+		scaleY: sY,
+		rotation: rot,
 		opacity: Math.min(1, Math.max(0, finite(read('opacity'), base.opacity)))
 	};
 	if (anchor && (anchor[0] !== 0 || anchor[1] !== 0))
@@ -333,8 +363,36 @@ export function resolveFrame(
 					: undefined;
 			const evaluatedMasks =
 				clip.masks && clip.masks.length > 0
-					? clip.masks.map((m) => evaluateMask(m, localTime))
+					? clip.masks.map((m) => evaluateMask(m, localTime, clip.properties))
 					: undefined;
+
+			// Check if any tracked clip in the project binds to this clip
+			let trackingCtx: TrackingEvaluationContext | undefined;
+			for (const trk of project.tracks) {
+				for (const c of trk.clips) {
+					if (!c.trackers || c.trackers.length === 0) continue;
+					for (const tracker of c.trackers) {
+						if (tracker.binding && tracker.binding.targetClipId === clip.id && tracker.enabled) {
+							// Evaluate live motion from c at timeline time t
+							const motion = evaluateLiveTrackingBinding(
+								project,
+								c,
+								tracker,
+								t,
+								c.assetId ? (project.assets[c.assetId]?.width ?? 1920) : 1920,
+								c.assetId ? (project.assets[c.assetId]?.height ?? 1080) : 1080
+							);
+							if (motion && motion.active && !motion.lost) {
+								trackingCtx = {
+									deltaPosition: tracker.binding.applyPosition ? motion.position : undefined,
+									deltaRotation: tracker.binding.applyRotation ? motion.rotation : undefined,
+									deltaScale: tracker.binding.applyScale ? motion.scale : undefined
+								};
+							}
+						}
+					}
+				}
+			}
 
 			if (clip.source?.type === 'adjustment') {
 				if (track.kind !== 'video') return null;
@@ -347,7 +405,7 @@ export function resolveFrame(
 					opacity: 1,
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
-					...evaluateLayerProperties(clip, localTime)
+					...evaluateLayerProperties(clip, localTime, trackingCtx)
 				};
 			}
 
@@ -425,7 +483,7 @@ export function resolveFrame(
 					},
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
-					...evaluateLayerProperties(clip, localTime)
+					...evaluateLayerProperties(clip, localTime, trackingCtx)
 				};
 			}
 
@@ -468,7 +526,7 @@ export function resolveFrame(
 					},
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
-					...evaluateLayerProperties(clip, localTime)
+					...evaluateLayerProperties(clip, localTime, trackingCtx)
 				};
 			}
 
@@ -496,7 +554,7 @@ export function resolveFrame(
 					opacity: 1,
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
-					...evaluateLayerProperties(clip, localTime)
+					...evaluateLayerProperties(clip, localTime, trackingCtx)
 				};
 			}
 			return null;
@@ -662,7 +720,7 @@ export function resolveFrame(
 					: undefined;
 			const evaluatedMasks =
 				clip.masks && clip.masks.length > 0
-					? clip.masks.map((m) => evaluateMask(m, localTime))
+					? clip.masks.map((m) => evaluateMask(m, localTime, clip.properties))
 					: undefined;
 
 			if (clip.source?.type === 'adjustment') {

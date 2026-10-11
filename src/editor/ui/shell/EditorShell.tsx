@@ -1264,18 +1264,24 @@ function EditorShell() {
 								viewBox="0 0 16 16"
 								width="13"
 								height="13"
-								fill="currentColor"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.6"
+								strokeLinecap="round"
+								strokeLinejoin="round"
 								aria-hidden="true"
 								style={{
-									marginRight: '4px',
+									marginRight: '5px',
 									display: 'inline-block',
 									verticalAlign: 'text-bottom'
 								}}
 							>
 								{isAppFullscreen ? (
-									<path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z" />
+									/* Exit Fullscreen: inward corners */
+									<path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4" />
 								) : (
-									<path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zm10-1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1 0-1h4zm-10 15a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 1 0v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5zm14.5 0a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4z" />
+									/* Enter Fullscreen: 4 expanding corner brackets */
+									<path d="M2 6V2h4M10 2h4v4M2 10v4h4M14 10v4h-4" />
 								)}
 							</svg>
 							{isAppFullscreen ? 'Windowed' : 'Fullscreen'}
@@ -1297,124 +1303,128 @@ function EditorShell() {
 				</div>
 
 				<nav className="workspace-bar" aria-label="Workspace layout" role="tablist">
-					{workspaces.order.map((wsId, idx) => {
-						const customWs = workspaces.custom.find((c) => c.id === wsId);
-						const nameMap: Record<string, string> = {
-							assembly: 'Assembly',
-							editing: 'Editing',
-							color: 'Color',
-							effects: 'Effects',
-							audio: 'Audio',
-							graphics: 'Graphics'
-						};
-						const name = customWs ? customWs.name : (nameMap[wsId] ?? wsId);
-						const isActive = wsId === activeWorkspaceId;
+					<div className="workspace-bar-left" aria-hidden="true" />
+					<div className="workspace-bar-center">
+						{workspaces.order.map((wsId, idx) => {
+							const customWs = workspaces.custom.find((c) => c.id === wsId);
+							const nameMap: Record<string, string> = {
+								assembly: 'Assembly',
+								editing: 'Editing',
+								color: 'Color',
+								effects: 'Effects',
+								audio: 'Audio',
+								graphics: 'Graphics'
+							};
+							const name = customWs ? customWs.name : (nameMap[wsId] ?? wsId);
+							const isActive = wsId === activeWorkspaceId;
 
-						return (
-							<button
-								key={wsId}
-								type="button"
-								role="tab"
-								aria-selected={isActive}
-								data-active={isActive ? 'true' : undefined}
-								className={`workspace-tab ${isActive ? 'is-active' : ''}`}
-								tabIndex={isActive ? 0 : -1}
-								onClick={() => switchWorkspace(wsId)}
-								onKeyDown={(e) => {
-									if (e.key === 'ArrowRight') {
-										e.preventDefault();
-										const next = workspaces.order[(idx + 1) % workspaces.order.length]!;
-										switchWorkspace(next);
-									} else if (e.key === 'ArrowLeft') {
-										e.preventDefault();
-										const prev =
-											workspaces.order[
-												(idx - 1 + workspaces.order.length) % workspaces.order.length
-											]!;
-										switchWorkspace(prev);
-									} else if (e.key === 'Home') {
-										e.preventDefault();
-										switchWorkspace(workspaces.order[0]!);
-									} else if (e.key === 'End') {
-										e.preventDefault();
-										switchWorkspace(workspaces.order[workspaces.order.length - 1]!);
-									}
-								}}
-							>
-								{name}
-							</button>
-						);
-					})}
-					<div
-						ref={workspaceOverflowRef}
-						style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
-					>
-						<button
-							type="button"
-							className="workspace-overflow-btn"
-							aria-label="More workspaces and layout options"
-							title="More workspaces"
-							aria-haspopup="menu"
-							aria-expanded={isWorkspaceOverflowOpen}
-							onClick={() => setIsWorkspaceOverflowOpen((open) => !open)}
+							return (
+								<button
+									key={wsId}
+									type="button"
+									role="tab"
+									aria-selected={isActive}
+									data-active={isActive ? 'true' : undefined}
+									className={`workspace-tab ${isActive ? 'is-active' : ''}`}
+									tabIndex={isActive ? 0 : -1}
+									onClick={() => switchWorkspace(wsId)}
+									onKeyDown={(e) => {
+										if (e.key === 'ArrowRight') {
+											e.preventDefault();
+											const next = workspaces.order[(idx + 1) % workspaces.order.length]!;
+											switchWorkspace(next);
+										} else if (e.key === 'ArrowLeft') {
+											e.preventDefault();
+											const prev =
+												workspaces.order[
+													(idx - 1 + workspaces.order.length) % workspaces.order.length
+												]!;
+											switchWorkspace(prev);
+										} else if (e.key === 'Home') {
+											e.preventDefault();
+											switchWorkspace(workspaces.order[0]!);
+										} else if (e.key === 'End') {
+											e.preventDefault();
+											switchWorkspace(workspaces.order[workspaces.order.length - 1]!);
+										}
+									}}
+								>
+									{name}
+								</button>
+							);
+						})}
+						<div
+							ref={workspaceOverflowRef}
+							style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
 						>
-							»
-						</button>
-						{isWorkspaceOverflowOpen && (
-							<div
-								className="workspace-overflow-menu"
-								role="menu"
-								aria-label="Workspace options"
-								onKeyDown={(e) => {
-									if (e.key === 'Escape') {
-										setIsWorkspaceOverflowOpen(false);
-										e.preventDefault();
-									}
-								}}
+							<button
+								type="button"
+								className="workspace-overflow-btn"
+								aria-label="More workspaces and layout options"
+								title="More workspaces"
+								aria-haspopup="menu"
+								aria-expanded={isWorkspaceOverflowOpen}
+								onClick={() => setIsWorkspaceOverflowOpen((open) => !open)}
 							>
-								<button
-									type="button"
-									role="menuitem"
-									className="workspace-overflow-item"
-									onClick={() => {
-										setIsWorkspaceOverflowOpen(false);
-										resetWorkspaceLayout();
+								»
+							</button>
+							{isWorkspaceOverflowOpen && (
+								<div
+									className="workspace-overflow-menu"
+									role="menu"
+									aria-label="Workspace options"
+									onKeyDown={(e) => {
+										if (e.key === 'Escape') {
+											setIsWorkspaceOverflowOpen(false);
+											e.preventDefault();
+										}
 									}}
 								>
-									Reset to Saved Layout
-								</button>
-								<button
-									type="button"
-									role="menuitem"
-									className="workspace-overflow-item"
-									onClick={() => {
-										setIsWorkspaceOverflowOpen(false);
-										const name = window.prompt('Enter name for new workspace:');
-										if (name) saveAsNewWorkspace(name);
-									}}
-								>
-									Save as New Workspace…
-								</button>
-								<button
-									type="button"
-									role="menuitem"
-									className="workspace-overflow-item"
-									onClick={() => {
-										setIsWorkspaceOverflowOpen(false);
-										setIsEditWorkspacesOpen(true);
-									}}
-								>
-									Edit Workspaces…
-								</button>
-							</div>
+									<button
+										type="button"
+										role="menuitem"
+										className="workspace-overflow-item"
+										onClick={() => {
+											setIsWorkspaceOverflowOpen(false);
+											resetWorkspaceLayout();
+										}}
+									>
+										Reset to Saved Layout
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										className="workspace-overflow-item"
+										onClick={() => {
+											setIsWorkspaceOverflowOpen(false);
+											const name = window.prompt('Enter name for new workspace:');
+											if (name) saveAsNewWorkspace(name);
+										}}
+									>
+										Save as New Workspace…
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										className="workspace-overflow-item"
+										onClick={() => {
+											setIsWorkspaceOverflowOpen(false);
+											setIsEditWorkspacesOpen(true);
+										}}
+									>
+										Edit Workspaces…
+									</button>
+								</div>
+							)}
+						</div>
+					</div>
+					<div className="workspace-bar-right">
+						{project && (
+							<span className="workspace-resolution">
+								Sequence 01 <span>·</span> {project.settings.width} × {project.settings.height}
+							</span>
 						)}
 					</div>
-					<span className="workspace-spacer" />
-					{project && (
-						<span className="workspace-resolution">
-							Sequence 01 <span>·</span> {project.settings.width} × {project.settings.height}
-						</span>
-					)}
 				</nav>
 			</header>
 

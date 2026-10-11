@@ -16,42 +16,101 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 6px 8px;
-	border-bottom: 1px solid var(--color-hairline);
-	background: #141414;
+	padding: 4px 8px;
+	border-bottom: 1px solid var(--color-hairline, #222);
+	background: var(--color-canvas, #0e0e0e);
+	gap: 8px;
+	flex-wrap: nowrap;
+	min-height: 28px;
+}
+
+.scopes-view-nav {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+.scopes-view-btn {
+	padding: 2px 7px;
+	border-radius: var(--radius-sm, 3px);
+	border: 1px solid transparent;
+	background: transparent;
+	color: var(--color-mute, #888);
+	font-size: 0.6875rem;
+	font-weight: var(--font-weight-normal, 400);
+	cursor: pointer;
+	white-space: nowrap;
+	transition:
+		color 0.1s ease,
+		background 0.1s ease;
+}
+
+.scopes-view-btn:hover {
+	color: var(--color-ink, #eee);
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.scopes-view-btn.is-active {
+	background: rgba(255, 255, 255, 0.08);
+	color: var(--color-ink, #fff);
+	border-color: rgba(255, 255, 255, 0.15);
+	font-weight: 500;
+}
+
+.scopes-nav-divider {
+	color: #333;
+	font-size: 0.75rem;
+	margin: 0 4px;
+	user-select: none;
 }
 
 .scopes-mode-tabs {
 	display: flex;
+	align-items: center;
 	gap: 2px;
+	flex-shrink: 0;
 }
 
 .scopes-tab-btn {
-	padding: 2px 6px;
-	border-radius: var(--radius-sm);
+	padding: 2px 7px;
+	border-radius: var(--radius-sm, 3px);
 	border: 1px solid transparent;
 	background: transparent;
-	color: var(--color-mute);
+	color: var(--color-mute, #888);
 	font-size: 0.6875rem;
 	cursor: pointer;
+	white-space: nowrap;
+	transition:
+		color 0.1s ease,
+		background 0.1s ease;
 }
 
 .scopes-tab-btn:hover {
 	color: #fff;
-	background: #222;
+	background: #1f1f1f;
 }
 
 .scopes-tab-btn.is-active {
-	background: #2a2a2a;
-	color: #fff;
-	border-color: #444;
-	font-weight: var(--font-weight-medium);
+	background: #262626;
+	color: #38bdf8;
+	border-color: #38bdf844;
+	font-weight: 500;
+}
+
+.scopes-channel-btn {
+	color: #38bdf8;
+	border-color: #0284c7;
+	font-size: 0.625rem;
+	padding: 1px 5px;
+	letter-spacing: 0.5px;
 }
 
 .scopes-channel-toggle {
 	display: flex;
 	align-items: center;
 	gap: 4px;
+	margin-left: auto;
 }
 
 .scopes-close-btn {

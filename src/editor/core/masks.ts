@@ -11,7 +11,7 @@ import {
 	type EllipseShape,
 	type RectShape
 } from './maskGeometry';
-import type { AnimatedValue, Clip, Mask, MaskPoint, Time } from './types';
+import type { AnimatedValue, Clip, Mask, MaskPoint, PropertyId, Time } from './types';
 
 export interface EvaluatedMask {
 	id: string;
@@ -73,19 +73,24 @@ export function createMask(type: 'rect' | 'ellipse' | 'path', overrides: Partial
 	};
 }
 
-export function evaluateMask(mask: Mask, localTime: Time): EvaluatedMask {
+export function evaluateMask(
+	mask: Mask,
+	localTime: Time,
+	clipProperties?: Record<PropertyId, AnimatedValue<unknown>>
+): EvaluatedMask {
 	const props = mask.properties ?? {};
 
 	const evalProp = (key: string, fallback: number): number => {
-		const curve = props[key];
+		const curve = props[key] ?? clipProperties?.[`mask:${mask.id}:${key}`];
 		if (!curve) return fallback;
 		const val = evaluate(curve as AnimatedValue<number>, localTime);
 		return typeof val === 'number' ? val : fallback;
 	};
 
 	let shape = mask.shape ?? (mask.type === 'rect' ? DEFAULT_RECT_SHAPE : DEFAULT_ELLIPSE_SHAPE);
-	if (props.shape) {
-		const val = evaluate(props.shape as AnimatedValue<number[]>, localTime);
+	const shapeCurve = props.shape ?? clipProperties?.[`mask:${mask.id}:shape`];
+	if (shapeCurve) {
+		const val = evaluate(shapeCurve as AnimatedValue<number[]>, localTime);
 		if (Array.isArray(val)) shape = val;
 	}
 

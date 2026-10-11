@@ -24,6 +24,7 @@ import {
 } from '../../core';
 import EffectsSection from './EffectsSection';
 import MasksSection from './MasksSection';
+import { TrackingSection } from './TrackingSection';
 import TimeRemapSection from './TimeRemapSection';
 import { TextSection } from './TextSection';
 import { TransitionInspector } from './TransitionInspector';
@@ -475,6 +476,41 @@ export default function Inspector() {
 					</div>
 				)}
 			</section>
+
+			{/* Motion Tracking Section */}
+			{!isText && !isSolid && !isAdjustment && (
+				<section
+					className={`inspector-section ${inspector.expanded.tracking !== false ? 'is-open' : ''}`}
+				>
+					<button
+						type="button"
+						className="inspector-section-header"
+						onClick={() =>
+							store
+								.getState()
+								.setInspectorExpanded('tracking', inspector.expanded.tracking === false)
+						}
+						aria-expanded={inspector.expanded.tracking !== false}
+					>
+						<span className="inspector-section-title">
+							<span className="section-chevron" aria-hidden="true">
+								{inspector.expanded.tracking !== false ? '▼' : '▶'}
+							</span>
+							Motion Tracking
+							{selectedClip.trackers && selectedClip.trackers.length > 0 && (
+								<span className="section-badge" style={{ marginLeft: 6, fontSize: '0.6875rem' }}>
+									({selectedClip.trackers.length})
+								</span>
+							)}
+						</span>
+					</button>
+					{inspector.expanded.tracking !== false && (
+						<div className="inspector-section-content">
+							<TrackingSection clip={selectedClip} fps={project.settings.fps} />
+						</div>
+					)}
+				</section>
+			)}
 
 			{/* Effects Section */}
 			<section className={`inspector-section ${isEffectsExpanded ? 'is-open' : ''}`}>

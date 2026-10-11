@@ -68,6 +68,16 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 						</h3>
 					</div>
 					<div className="flex items-center gap-3">
+						<label className="flex cursor-pointer items-center gap-1.5 text-xs text-[#94a3b8] select-none">
+							<input
+								type="checkbox"
+								checked={currentComp.enabled}
+								onChange={toggleEnabled}
+								className="rounded border-[#32323e] accent-[#0070f3]"
+								aria-label="Enabled"
+							/>
+							<span className="text-[11px] font-medium text-[#cbd5e1]">Enabled</span>
+						</label>
 						<button
 							type="button"
 							onClick={toggleEnabled}

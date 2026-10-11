@@ -72,10 +72,20 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 					<div className="flex items-center gap-2.5">
 						<span className="h-2.5 w-2.5 rounded-full bg-[#0070f3] shadow-[0_0_8px_rgba(0,112,243,0.6)]" />
 						<h3 id={titleId} className="text-sm font-semibold tracking-tight text-[#f1f5f9]">
-							Track Parametric EQ — {trackName}
+							Track EQ — {trackName}
 						</h3>
 					</div>
 					<div className="flex items-center gap-3">
+						<label className="flex cursor-pointer items-center gap-1.5 text-xs text-[#94a3b8] select-none">
+							<input
+								type="checkbox"
+								checked={currentEq.enabled}
+								onChange={toggleEnabled}
+								className="rounded border-[#32323e] accent-[#0070f3]"
+								aria-label="Enabled"
+							/>
+							<span className="text-[11px] font-medium text-[#cbd5e1]">Enabled</span>
+						</label>
 						<button
 							type="button"
 							onClick={toggleEnabled}

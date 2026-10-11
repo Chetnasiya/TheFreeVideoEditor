@@ -1,0 +1,30 @@
+diff --git a/src/editor/ui/captions/AutoCaptionModal.tsx b/src/editor/ui/captions/AutoCaptionModal.tsx
+index e00d3e2..67649cd 100644
+--- a/src/editor/ui/captions/AutoCaptionModal.tsx
++++ b/src/editor/ui/captions/AutoCaptionModal.tsx
+@@ -188,17 +188,21 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
+ 						</p>
+ 					</div>
+ 
+-					<div style={{ display: 'flex', gap: '6px' }}>
++					<div className="captions-view-tabs" role="tablist">
+ 						<button
+ 							type="button"
+-							className={`caption-cue-tool-btn ${activeTab === 'transcribe' ? 'is-active' : ''}`}
++							role="tab"
++							aria-selected={activeTab === 'transcribe'}
++							className={`captions-view-tab ${activeTab === 'transcribe' ? 'is-active' : ''}`}
+ 							onClick={() => setActiveTab('transcribe')}
+ 						>
+ 							Transcribe
+ 						</button>
+ 						<button
+ 							type="button"
+-							className={`caption-cue-tool-btn ${activeTab === 'models' ? 'is-active' : ''}`}
++							role="tab"
++							aria-selected={activeTab === 'models'}
++							className={`captions-view-tab ${activeTab === 'models' ? 'is-active' : ''}`}
+ 							onClick={() => setActiveTab('models')}
+ 						>
+ 							Models Manager
+

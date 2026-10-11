@@ -171,10 +171,10 @@ export default function TransportBar({
 				>
 					<button
 						type="button"
-						className="preview-mute-button"
+						className={`preview-mute-button ${snapshot?.muted ? 'is-muted' : ''}`}
 						aria-label={snapshot?.muted ? 'Unmute audio' : 'Mute audio'}
 						aria-pressed={snapshot?.muted ?? false}
-						title="Mute / unmute (M)"
+						title={snapshot?.muted ? 'Unmute audio (M)' : 'Mute audio (M)'}
 						disabled={disabled}
 						onClick={() => engine?.setMuted(!snapshot?.muted)}
 					>
@@ -184,16 +184,39 @@ export default function TransportBar({
 							height="13"
 							fill="currentColor"
 							aria-hidden="true"
-							style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'text-bottom' }}
+							style={{ display: 'inline-block', verticalAlign: 'text-bottom' }}
 						>
-							{snapshot?.muted ? (
+							{snapshot?.muted || (snapshot?.volume ?? 1) === 0 ? (
 								<path d="M6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06zm7.137 2.096a.5.5 0 0 1 0 .708L12.207 8l1.647 1.646a.5.5 0 0 1-.708.708L11.5 8.707l-1.646 1.647a.5.5 0 0 1-.708-.708L10.793 8 9.146 6.354a.5.5 0 1 1 .708-.708L11.5 7.293l1.646-1.647a.5.5 0 0 1 .708 0z" />
 							) : (
 								<path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707zM10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.482 5.482 0 0 1 11.025 8a5.482 5.482 0 0 1-1.611 3.889l.707.707zM8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z" />
 							)}
 						</svg>
-						{snapshot?.muted ? 'Muted' : 'Audio'}
+						<span className="preview-audio-label">{snapshot?.muted ? 'Muted' : 'Audio'}</span>
 					</button>
+					<label
+						className="preview-volume-control"
+						title={`Master Volume: ${Math.round((snapshot?.muted ? 0 : (snapshot?.volume ?? 1)) * 100)}%`}
+					>
+						<span className="sr-only">Master volume</span>
+						<input
+							type="range"
+							className="preview-volume-slider"
+							min="0"
+							max="1"
+							step="0.01"
+							disabled={disabled}
+							value={snapshot?.muted ? 0 : (snapshot?.volume ?? 1)}
+							onChange={(e) => {
+								const val = Number(e.currentTarget.value);
+								if (snapshot?.muted && val > 0) {
+									engine?.setMuted(false);
+								}
+								engine?.setVolume(val);
+							}}
+							aria-label="Master playback volume"
+						/>
+					</label>
 					<div
 						className="preview-level-meter"
 						role="meter"
@@ -201,7 +224,7 @@ export default function TransportBar({
 						aria-valuemin={0}
 						aria-valuemax={1}
 						aria-valuenow={level}
-						title={`Level: ${Math.round(level * 100)}%`}
+						title={`Live Peak Level: ${Math.round(level * 100)}%`}
 					>
 						<span style={{ width: `${level * 100}%` }} />
 					</div>
@@ -261,18 +284,24 @@ export default function TransportBar({
 								viewBox="0 0 16 16"
 								width="13"
 								height="13"
-								fill="currentColor"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.6"
+								strokeLinecap="round"
+								strokeLinejoin="round"
 								aria-hidden="true"
 								style={{
-									marginRight: '4px',
+									marginRight: '5px',
 									display: 'inline-block',
 									verticalAlign: 'text-bottom'
 								}}
 							>
 								{isFullscreen ? (
-									<path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z" />
+									/* Exit Fullscreen */
+									<path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4" />
 								) : (
-									<path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zm10-1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1 0-1h4zm-10 15a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 1 0v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5zm14.5 0a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4z" />
+									/* Enter Fullscreen */
+									<path d="M2 6V2h4M10 2h4v4M2 10v4h4M14 10v4h-4" />
 								)}
 							</svg>
 							{isFullscreen ? 'Windowed' : 'Fullscreen'}

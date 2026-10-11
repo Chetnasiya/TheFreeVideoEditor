@@ -9,7 +9,8 @@ import type {
 	Project,
 	ProjectId,
 	SequenceId,
-	TrackId
+	TrackId,
+	TrackerId
 } from './types';
 
 export const CURRENT_SCHEMA_VERSION = 2;
@@ -27,6 +28,9 @@ export const clipIdSchema = z.custom<ClipId>(
 	(value) => typeof value === 'string' && value.length > 0
 );
 export const markerIdSchema = z.custom<MarkerId>(
+	(value) => typeof value === 'string' && value.length > 0
+);
+export const trackerIdSchema = z.custom<TrackerId>(
 	(value) => typeof value === 'string' && value.length > 0
 );
 const timeSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -255,7 +259,73 @@ export const clipSchema = z.object({
 	maintainPitch: z.boolean().optional(),
 	fadeInUs: timeSchema.nonnegative().optional(),
 	fadeOutUs: timeSchema.nonnegative().optional(),
-	fadeCurve: z.enum(['equalPower', 'linear']).optional()
+	fadeCurve: z.enum(['equalPower', 'linear']).optional(),
+	trackers: z.array(z.lazy(() => trackerSchema)).optional()
+});
+
+export const trackerRegionSchema = z.object({
+	x: z.number().min(0).max(1),
+	y: z.number().min(0).max(1),
+	width: z.number().positive().max(1),
+	height: z.number().positive().max(1),
+	searchMultiplier: z.number().positive().optional()
+});
+
+export const trackerParamsSchema = z.object({
+	trackTranslation: z.boolean(),
+	trackRotation: z.boolean(),
+	trackScale: z.boolean(),
+	pyramidLevels: z.number().int().min(1).max(6),
+	searchRadiusPx: z.number().positive(),
+	maxIterations: z.number().int().positive(),
+	tolerance: z.number().positive(),
+	nccThreshold: z.number().min(0).max(1),
+	huberThreshold: z.number().positive(),
+	confidenceThreshold: z.number().min(0).max(1),
+	analysisWidth: z.number().int().positive().optional()
+});
+
+export const trackerSampleSchema = z.object({
+	sourceTime: timeSchema,
+	x: z.number(),
+	y: z.number(),
+	rotation: z.number(),
+	scale: z.number().positive(),
+	confidence: z.number().min(0).max(1),
+	lost: z.boolean().optional(),
+	reason: z.enum(['loss', 'occlusion', 'out_of_bounds', 'user_cancel', 'complete']).optional()
+});
+
+export const trackerSmoothingSchema = z.object({
+	enabled: z.boolean(),
+	windowFrames: z.number().int().positive(),
+	positionSigma: z.number().positive().optional(),
+	rotationSigma: z.number().positive().optional(),
+	scaleSigma: z.number().positive().optional()
+});
+
+export const trackerSchema = z.object({
+	id: trackerIdSchema,
+	name: z.string().min(1),
+	type: z.enum(['point', 'planar', 'stabilize']),
+	enabled: z.boolean(),
+	seedTime: timeSchema,
+	initialRegion: trackerRegionSchema,
+	params: trackerParamsSchema,
+	samples: z.array(trackerSampleSchema),
+	smoothing: trackerSmoothingSchema.optional(),
+	assetFingerprint: z.string().optional(),
+	binding: z
+		.object({
+			targetClipId: clipIdSchema,
+			applyPosition: z.boolean(),
+			applyRotation: z.boolean(),
+			applyScale: z.boolean(),
+			offsetPosition: z.tuple([z.number(), z.number()]),
+			offsetRotation: z.number(),
+			offsetScale: z.tuple([z.number(), z.number()])
+		})
+		.optional()
 });
 
 export const eqBandSchema = z.object({

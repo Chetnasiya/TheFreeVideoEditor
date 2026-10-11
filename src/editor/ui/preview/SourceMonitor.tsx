@@ -140,33 +140,37 @@ export default function SourceMonitor({ engine = null }: SourceMonitorProps) {
 
 	return (
 		<div className="source-monitor-content">
-			<div className="source-monitor-header">
-				<div className="source-monitor-tabs" role="tablist" aria-label="Source monitor views">
-					<button
-						type="button"
-						role="tab"
-						aria-selected={viewMode === 'source'}
-						className={`source-monitor-tab ${viewMode === 'source' ? 'is-active' : ''}`}
-						onClick={() => handleSelectView('source')}
-					>
-						Source Media
-					</button>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={viewMode === 'scopes'}
-						className={`source-monitor-tab ${viewMode === 'scopes' ? 'is-active' : ''}`}
-						onClick={() => handleSelectView('scopes')}
-					>
-						Scopes
-					</button>
-				</div>
-			</div>
-
 			{viewMode === 'scopes' ? (
-				<ScopesPanel engine={engine} onClose={() => handleSelectView('source')} />
+				<ScopesPanel
+					engine={engine}
+					onClose={() => handleSelectView('source')}
+					onSelectView={handleSelectView}
+					activeView="scopes"
+				/>
 			) : (
 				<>
+					<div className="source-monitor-header">
+						<div className="source-monitor-tabs" role="tablist" aria-label="Source monitor views">
+							<button
+								type="button"
+								role="tab"
+								aria-selected={viewMode === 'source'}
+								className={`source-monitor-tab ${viewMode === 'source' ? 'is-active' : ''}`}
+								onClick={() => handleSelectView('source')}
+							>
+								Source Media
+							</button>
+							<button
+								type="button"
+								role="tab"
+								aria-selected={false}
+								className="source-monitor-tab"
+								onClick={() => handleSelectView('scopes')}
+							>
+								Scopes
+							</button>
+						</div>
+					</div>
 					<div className="source-media-stage" data-testid="source-media-stage">
 						{!project ? (
 							<div className="source-placeholder">

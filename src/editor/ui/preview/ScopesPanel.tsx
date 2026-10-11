@@ -7,9 +7,16 @@ import './scopes.css';
 interface ScopesPanelProps {
 	engine: PlaybackEngine | null;
 	onClose?: () => void;
+	onSelectView?: (view: 'source' | 'scopes') => void;
+	activeView?: 'source' | 'scopes';
 }
 
-export default function ScopesPanel({ engine, onClose }: ScopesPanelProps) {
+export default function ScopesPanel({
+	engine,
+	onClose,
+	onSelectView,
+	activeView = 'scopes'
+}: ScopesPanelProps) {
 	const store = useEditorStoreApi();
 	const mode = useEditorStore((state) => state.scopes.mode);
 	const channel = useEditorStore((state) => state.scopes.channel);
@@ -47,6 +54,32 @@ export default function ScopesPanel({ engine, onClose }: ScopesPanelProps) {
 	return (
 		<div className="scopes-panel" role="region" aria-label="Video Scopes">
 			<div className="scopes-header">
+				{onSelectView && (
+					<div className="scopes-view-nav" role="tablist" aria-label="Source monitor views">
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeView === 'source'}
+							className={`scopes-view-btn ${activeView === 'source' ? 'is-active' : ''}`}
+							onClick={() => onSelectView('source')}
+						>
+							Source Media
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeView === 'scopes'}
+							className={`scopes-view-btn ${activeView === 'scopes' ? 'is-active' : ''}`}
+							onClick={() => onSelectView('scopes')}
+						>
+							Scopes
+						</button>
+						<span className="scopes-nav-divider" aria-hidden="true">
+							|
+						</span>
+					</div>
+				)}
+
 				<div className="scopes-mode-tabs" role="tablist">
 					{(['waveform', 'parade', 'histogram', 'vectorscope'] as const).map((m) => (
 						<button
@@ -66,7 +99,7 @@ export default function ScopesPanel({ engine, onClose }: ScopesPanelProps) {
 					{mode === 'waveform' && (
 						<button
 							type="button"
-							className="scopes-tab-btn"
+							className="scopes-tab-btn scopes-channel-btn"
 							onClick={() => store.getState().setScopesChannel(channel === 'luma' ? 'rgb' : 'luma')}
 						>
 							{channel.toUpperCase()}
@@ -105,14 +138,28 @@ function drawScope(
 	mode: 'waveform' | 'parade' | 'histogram' | 'vectorscope',
 	channel: 'luma' | 'rgb'
 ): void {
+	// Sync canvas logical resolution to physical element display size
+	const rect = canvas.getBoundingClientRect();
+	const dpr = Math.min(window.devicePixelRatio || 1, 2);
+	const targetWidth = Math.max(320, Math.round((rect.width || 320) * dpr));
+	const targetHeight = Math.max(200, Math.round((rect.height || 200) * dpr));
+
+	if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+		canvas.width = targetWidth;
+		canvas.height = targetHeight;
+	}
+
 	const ctx = canvas.getContext('2d');
 	if (!ctx) return;
 
 	const w = canvas.width;
 	const h = canvas.height;
 
-	// Clear background
-	ctx.fillStyle = '#050505';
+	// Deep studio black canvas with subtle vignette
+	const bg = ctx.createLinearGradient(0, 0, 0, h);
+	bg.addColorStop(0, '#0a0d11');
+	bg.addColorStop(1, '#05070a');
+	ctx.fillStyle = bg;
 	ctx.fillRect(0, 0, w, h);
 
 	switch (mode) {
@@ -131,22 +178,57 @@ function drawScope(
 	}
 }
 
-function drawGraticule(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-	ctx.strokeStyle = '#222';
-	ctx.lineWidth = 1;
-	ctx.fillStyle = '#555';
-	ctx.font = '8px monospace';
+function drawGraticule(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	channelLabel?: string,
+	labelColor?: string
+) {
+	const usableH = h - 28;
+	const topOffset = 14;
 
-	const ireLevels = [0, 25, 50, 75, 100];
-	for (const ire of ireLevels) {
-		const lineY = y + (1 - ire / 100) * (h - 16) + 8;
+	// Reference IRE levels (0% to 100% plus broadcast limits)
+	const ireLevels = [
+		{ ire: 100, label: '100', color: 'rgba(239, 68, 68, 0.35)', dash: [] },
+		{ ire: 80, label: '80', color: 'rgba(255, 255, 255, 0.08)', dash: [2, 4] },
+		{ ire: 60, label: '60', color: 'rgba(255, 255, 255, 0.08)', dash: [2, 4] },
+		{ ire: 40, label: '40', color: 'rgba(255, 255, 255, 0.08)', dash: [2, 4] },
+		{ ire: 20, label: '20', color: 'rgba(255, 255, 255, 0.08)', dash: [2, 4] },
+		{ ire: 0, label: '0', color: 'rgba(56, 189, 248, 0.35)', dash: [] }
+	];
+
+	ctx.save();
+	ctx.lineWidth = 1;
+	ctx.font = '9px "JetBrains Mono", Menlo, Consolas, monospace';
+
+	for (const { ire, label, color, dash } of ireLevels) {
+		const lineY = Math.round(y + topOffset + (1 - ire / 100) * usableH) + 0.5;
+
 		ctx.beginPath();
-		ctx.moveTo(x, lineY);
-		ctx.lineTo(x + w, lineY);
+		ctx.setLineDash(dash);
+		ctx.strokeStyle = color;
+		ctx.moveTo(x + 24, lineY);
+		ctx.lineTo(x + w - 6, lineY);
 		ctx.stroke();
 
-		ctx.fillText(`${ire}`, x + 4, lineY - 2);
+		// IRE Label
+		ctx.fillStyle = ire === 100 ? '#f87171' : ire === 0 ? '#38bdf8' : '#64748b';
+		ctx.textAlign = 'right';
+		ctx.fillText(label, x + 20, lineY + 3);
 	}
+
+	// Channel title if provided
+	if (channelLabel) {
+		ctx.fillStyle = labelColor || '#94a3b8';
+		ctx.font = 'bold 10px sans-serif';
+		ctx.textAlign = 'center';
+		ctx.fillText(channelLabel, x + w / 2, y + 12);
+	}
+
+	ctx.restore();
 }
 
 function drawWaveform(
@@ -156,39 +238,49 @@ function drawWaveform(
 	h: number,
 	channel: 'luma' | 'rgb'
 ) {
-	drawGraticule(ctx, 0, 0, w, h);
+	drawGraticule(ctx, 0, 0, w, h, channel === 'luma' ? 'LUMA (IRE)' : 'RGB OVERLAY');
 	if (!frame) return;
 
 	const { width: fw, height: fh, data } = frame;
-	const usableH = h - 16;
-	const topOffset = 8;
+	const usableH = h - 28;
+	const topOffset = 14;
+	const plotLeft = 25;
+	const plotWidth = w - 32;
 
+	ctx.save();
 	ctx.globalCompositeOperation = 'screen';
 
-	for (let py = 0; py < fh; py += 2) {
-		for (let px = 0; px < fw; px += 2) {
+	for (let py = 0; py < fh; py += 1) {
+		for (let px = 0; px < fw; px += 1) {
 			const i = (py * fw + px) * 4;
 			const r = data[i]! / 255;
 			const g = data[i + 1]! / 255;
 			const b = data[i + 2]! / 255;
-			const targetX = (px / fw) * w;
+			const targetX = plotLeft + (px / fw) * plotWidth;
 
 			if (channel === 'luma') {
+				// Rec.709 Luminance
 				const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 				const targetY = topOffset + (1 - y) * usableH;
-				ctx.fillStyle = 'rgba(70, 255, 70, 0.25)';
+				// Phosphor green waveform
+				ctx.fillStyle = 'rgba(74, 222, 128, 0.28)';
 				ctx.fillRect(targetX, targetY, 1.5, 1.5);
 			} else {
-				ctx.fillStyle = 'rgba(255, 60, 60, 0.2)';
-				ctx.fillRect(targetX, topOffset + (1 - r) * usableH, 1.2, 1.2);
-				ctx.fillStyle = 'rgba(60, 255, 60, 0.2)';
-				ctx.fillRect(targetX, topOffset + (1 - g) * usableH, 1.2, 1.2);
-				ctx.fillStyle = 'rgba(60, 100, 255, 0.2)';
-				ctx.fillRect(targetX, topOffset + (1 - b) * usableH, 1.2, 1.2);
+				// Premiere Pro RGB Overlay
+				const ry = topOffset + (1 - r) * usableH;
+				const gy = topOffset + (1 - g) * usableH;
+				const by = topOffset + (1 - b) * usableH;
+
+				ctx.fillStyle = 'rgba(248, 113, 113, 0.22)';
+				ctx.fillRect(targetX, ry, 1.4, 1.4);
+				ctx.fillStyle = 'rgba(74, 222, 128, 0.22)';
+				ctx.fillRect(targetX, gy, 1.4, 1.4);
+				ctx.fillStyle = 'rgba(96, 165, 250, 0.22)';
+				ctx.fillRect(targetX, by, 1.4, 1.4);
 			}
 		}
 	}
-	ctx.globalCompositeOperation = 'source-over';
+	ctx.restore();
 }
 
 function drawParade(
@@ -198,41 +290,57 @@ function drawParade(
 	h: number
 ) {
 	const colW = w / 3;
-	const usableH = h - 16;
-	const topOffset = 8;
+	const usableH = h - 28;
+	const topOffset = 14;
 
-	drawGraticule(ctx, 0, 0, colW, h);
-	drawGraticule(ctx, colW, 0, colW, h);
-	drawGraticule(ctx, colW * 2, 0, colW, h);
+	drawGraticule(ctx, 0, 0, colW, h, 'RED', '#f87171');
+	drawGraticule(ctx, colW, 0, colW, h, 'GREEN', '#4ade80');
+	drawGraticule(ctx, colW * 2, 0, colW, h, 'BLUE', '#60a5fa');
+
+	// Column separators
+	ctx.save();
+	ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(colW, 4);
+	ctx.lineTo(colW, h - 4);
+	ctx.moveTo(colW * 2, 4);
+	ctx.lineTo(colW * 2, h - 4);
+	ctx.stroke();
+	ctx.restore();
 
 	if (!frame) return;
 
 	const { width: fw, height: fh, data } = frame;
+	const plotLeft = 24;
+	const plotColWidth = colW - 30;
 
+	ctx.save();
 	ctx.globalCompositeOperation = 'screen';
-	for (let py = 0; py < fh; py += 2) {
-		for (let px = 0; px < fw; px += 2) {
+
+	for (let py = 0; py < fh; py += 1) {
+		for (let px = 0; px < fw; px += 1) {
 			const i = (py * fw + px) * 4;
 			const r = data[i]! / 255;
 			const g = data[i + 1]! / 255;
 			const b = data[i + 2]! / 255;
 
-			const relX = (px / fw) * colW;
+			const relX = plotLeft + (px / fw) * plotColWidth;
 
 			// Red column
-			ctx.fillStyle = 'rgba(255, 70, 70, 0.22)';
+			ctx.fillStyle = 'rgba(248, 113, 113, 0.28)';
 			ctx.fillRect(relX, topOffset + (1 - r) * usableH, 1.5, 1.5);
 
 			// Green column
-			ctx.fillStyle = 'rgba(70, 255, 70, 0.22)';
+			ctx.fillStyle = 'rgba(74, 222, 128, 0.28)';
 			ctx.fillRect(colW + relX, topOffset + (1 - g) * usableH, 1.5, 1.5);
 
 			// Blue column
-			ctx.fillStyle = 'rgba(70, 120, 255, 0.22)';
+			ctx.fillStyle = 'rgba(96, 165, 250, 0.28)';
 			ctx.fillRect(colW * 2 + relX, topOffset + (1 - b) * usableH, 1.5, 1.5);
 		}
 	}
-	ctx.globalCompositeOperation = 'source-over';
+	ctx.restore();
 }
 
 function drawHistogram(
@@ -241,12 +349,35 @@ function drawHistogram(
 	w: number,
 	h: number
 ) {
-	const usableH = h - 16;
-	const bottom = h - 8;
+	const usableH = h - 36;
+	const top = 16;
+	const bottom = h - 20;
+	const left = 24;
+	const right = w - 16;
+	const graphW = right - left;
 
-	// Grid
-	ctx.strokeStyle = '#222';
-	ctx.strokeRect(8, 8, w - 16, usableH);
+	// Grid border & divisions
+	ctx.save();
+	ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+	ctx.lineWidth = 1;
+	ctx.strokeRect(left, top, graphW, usableH);
+
+	// Ticks (0, 64, 128, 192, 255)
+	ctx.fillStyle = '#64748b';
+	ctx.font = '9px "JetBrains Mono", Menlo, Consolas, monospace';
+	ctx.textAlign = 'center';
+	const ticks = [0, 64, 128, 192, 255];
+	for (const t of ticks) {
+		const tx = left + (t / 255) * graphW;
+		ctx.beginPath();
+		ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+		ctx.setLineDash([2, 4]);
+		ctx.moveTo(tx, top);
+		ctx.lineTo(tx, bottom);
+		ctx.stroke();
+		ctx.fillText(`${t}`, tx, bottom + 12);
+	}
+	ctx.restore();
 
 	if (!frame) return;
 
@@ -269,26 +400,35 @@ function drawHistogram(
 		if (bHist[i]! > maxCount) maxCount = bHist[i]!;
 	}
 
-	const drawChannel = (hist: Uint32Array, color: string) => {
-		ctx.fillStyle = color;
+	const drawChannelCurve = (hist: Uint32Array, fillColor: string, strokeColor: string) => {
+		ctx.save();
 		ctx.beginPath();
-		ctx.moveTo(8, bottom);
+		ctx.moveTo(left, bottom);
 		for (let i = 0; i < 256; i++) {
-			const x = 8 + (i / 255) * (w - 16);
+			const x = left + (i / 255) * graphW;
 			const count = hist[i]!;
-			const barH = (count / maxCount) * usableH;
+			// Gentle log-like dampening to prevent shadow spikes from flattening the curve
+			const normalized = Math.pow(count / maxCount, 0.85);
+			const barH = normalized * usableH;
 			ctx.lineTo(x, bottom - barH);
 		}
-		ctx.lineTo(w - 8, bottom);
+		ctx.lineTo(right, bottom);
 		ctx.closePath();
+		ctx.fillStyle = fillColor;
 		ctx.fill();
+
+		ctx.strokeStyle = strokeColor;
+		ctx.lineWidth = 1.2;
+		ctx.stroke();
+		ctx.restore();
 	};
 
+	ctx.save();
 	ctx.globalCompositeOperation = 'screen';
-	drawChannel(rHist, 'rgba(255, 50, 50, 0.4)');
-	drawChannel(gHist, 'rgba(50, 255, 50, 0.4)');
-	drawChannel(bHist, 'rgba(50, 100, 255, 0.4)');
-	ctx.globalCompositeOperation = 'source-over';
+	drawChannelCurve(rHist, 'rgba(239, 68, 68, 0.35)', 'rgba(248, 113, 113, 0.8)');
+	drawChannelCurve(gHist, 'rgba(34, 197, 94, 0.35)', 'rgba(74, 222, 128, 0.8)');
+	drawChannelCurve(bHist, 'rgba(59, 130, 246, 0.35)', 'rgba(96, 165, 250, 0.8)');
+	ctx.restore();
 }
 
 function drawVectorscope(
@@ -299,55 +439,79 @@ function drawVectorscope(
 ) {
 	const cx = w / 2;
 	const cy = h / 2;
-	const radius = Math.min(cx, cy) - 16;
+	const radius = Math.min(cx, cy) - 22;
 
-	// Graticule circles
-	ctx.strokeStyle = '#222';
+	ctx.save();
+	// Graticule concentric rings
 	ctx.lineWidth = 1;
+	ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
 	ctx.beginPath();
-	ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-	ctx.arc(cx, cy, radius * 0.75, 0, Math.PI * 2);
-	ctx.moveTo(cx - radius, cy);
-	ctx.lineTo(cx + radius, cy);
-	ctx.moveTo(cx, cy - radius);
-	ctx.lineTo(cx, cy + radius);
+	ctx.arc(cx, cy, radius, 0, Math.PI * 2); // 100% saturation boundary
 	ctx.stroke();
 
-	// Skin tone indicator (123 degrees)
+	ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+	ctx.setLineDash([3, 3]);
+	ctx.beginPath();
+	ctx.arc(cx, cy, radius * 0.75, 0, Math.PI * 2); // 75% broadcast limit
+	ctx.stroke();
+
+	// Crosshairs
+	ctx.setLineDash([2, 4]);
+	ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+	ctx.beginPath();
+	ctx.moveTo(cx - radius - 6, cy);
+	ctx.lineTo(cx + radius + 6, cy);
+	ctx.moveTo(cx, cy - radius - 6);
+	ctx.lineTo(cx, cy + radius + 6);
+	ctx.stroke();
+
+	// Skin tone line (I-axis ~ 123 degrees)
 	const skinAngle = ((123 - 90) * Math.PI) / 180;
-	ctx.strokeStyle = '#664422';
+	ctx.setLineDash([]);
+	ctx.strokeStyle = 'rgba(251, 146, 60, 0.65)';
+	ctx.lineWidth = 1.2;
 	ctx.beginPath();
 	ctx.moveTo(cx, cy);
-	ctx.lineTo(cx + Math.cos(skinAngle) * radius, cy + Math.sin(skinAngle) * radius);
+	ctx.lineTo(cx + Math.cos(skinAngle) * radius * 0.95, cy + Math.sin(skinAngle) * radius * 0.95);
 	ctx.stroke();
 
-	// Rec.709 Color targets (75% Saturation)
+	// Target boxes (Rec. 709 75% Saturation)
 	const targets = [
-		{ label: 'R', cb: -0.1687 * 0.75, cr: 0.5 * 0.75 },
-		{ label: 'G', cb: -0.3313 * 0.75, cr: -0.4187 * 0.75 },
-		{ label: 'B', cb: 0.5 * 0.75, cr: -0.0813 * 0.75 },
-		{ label: 'Cy', cb: 0.1687 * 0.75, cr: -0.5 * 0.75 },
-		{ label: 'Mg', cb: 0.3313 * 0.75, cr: 0.4187 * 0.75 },
-		{ label: 'Yl', cb: -0.5 * 0.75, cr: 0.0813 * 0.75 }
+		{ label: 'R', color: '#f87171', cb: -0.1687 * 0.75, cr: 0.5 * 0.75 },
+		{ label: 'Mg', color: '#e879f9', cb: 0.3313 * 0.75, cr: 0.4187 * 0.75 },
+		{ label: 'B', color: '#60a5fa', cb: 0.5 * 0.75, cr: -0.0813 * 0.75 },
+		{ label: 'Cy', color: '#22d3ee', cb: 0.1687 * 0.75, cr: -0.5 * 0.75 },
+		{ label: 'G', color: '#4ade80', cb: -0.3313 * 0.75, cr: -0.4187 * 0.75 },
+		{ label: 'Yl', color: '#facc15', cb: -0.5 * 0.75, cr: 0.0813 * 0.75 }
 	];
 
-	ctx.strokeStyle = '#444';
-	ctx.fillStyle = '#666';
-	ctx.font = '8px monospace';
+	ctx.font = 'bold 9px "JetBrains Mono", Menlo, Consolas, monospace';
 	for (const t of targets) {
 		const tx = cx + t.cb * radius * 2.2;
 		const ty = cy - t.cr * radius * 2.2;
-		ctx.strokeRect(tx - 3, ty - 3, 6, 6);
-		ctx.fillText(t.label, tx + 5, ty + 3);
+
+		// Precision target square + center dot
+		ctx.strokeStyle = t.color;
+		ctx.strokeRect(tx - 3.5, ty - 3.5, 7, 7);
+		ctx.fillStyle = t.color;
+		ctx.fillRect(tx - 0.5, ty - 0.5, 1, 1);
+
+		// Label
+		ctx.fillStyle = '#cbd5e1';
+		ctx.textAlign = 'left';
+		ctx.fillText(t.label, tx + 6, ty + 3);
 	}
+	ctx.restore();
 
 	if (!frame) return;
 
-	// Plot frame points
+	// High density chromatic phosphor points
 	const { width: fw, height: fh, data } = frame;
+	ctx.save();
 	ctx.globalCompositeOperation = 'screen';
-	for (let py = 0; py < fh; py += 2) {
-		for (let px = 0; px < fw; px += 2) {
+
+	for (let py = 0; py < fh; py += 1) {
+		for (let px = 0; px < fw; px += 1) {
 			const i = (py * fw + px) * 4;
 			const r = data[i]! / 255;
 			const g = data[i + 1]! / 255;
@@ -359,9 +523,10 @@ function drawVectorscope(
 			const px_out = cx + cb * radius * 2.2;
 			const py_out = cy - cr * radius * 2.2;
 
-			ctx.fillStyle = 'rgba(70, 255, 120, 0.25)';
-			ctx.fillRect(px_out, py_out, 1.5, 1.5);
+			// Phosphor green hue scatter
+			ctx.fillStyle = 'rgba(74, 222, 128, 0.28)';
+			ctx.fillRect(px_out, py_out, 1.4, 1.4);
 		}
 	}
-	ctx.globalCompositeOperation = 'source-over';
+	ctx.restore();
 }
