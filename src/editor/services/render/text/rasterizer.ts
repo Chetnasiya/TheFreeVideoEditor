@@ -208,6 +208,7 @@ export function rasterizeText(
 	// Setup font styling
 	ctx.font = fontString;
 	ctx.textBaseline = 'top';
+	ctx.textAlign = 'left';
 
 	const supportsSpacing = hasCanvasLetterSpacing();
 	if (supportsSpacing && effectiveLetterSpacing !== 0) {

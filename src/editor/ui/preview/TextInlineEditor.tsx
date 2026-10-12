@@ -18,9 +18,18 @@ export default function TextInlineEditor({
 	const editingClipId = useEditorStore((state) => state.editingTextClipId);
 	const playhead = useEditorStore((state) => state.timeline.playhead);
 
-	const clip = editingClipId
+	let clip = editingClipId
 		? (project.tracks.flatMap((t) => t.clips).find((c) => c.id === editingClipId) ?? null)
 		: null;
+	if (!clip && editingClipId && project.sequences) {
+		for (const seq of Object.values(project.sequences)) {
+			const found = seq.tracks.flatMap((t) => t.clips).find((c) => c.id === editingClipId);
+			if (found) {
+				clip = found;
+				break;
+			}
+		}
+	}
 
 	const textSource = clip?.source?.type === 'text' ? clip.source : null;
 	const [textValue, setTextValue] = useState(textSource?.text ?? '');
@@ -55,9 +64,20 @@ export default function TextInlineEditor({
 		textSource.style?.lineHeight ??
 		1.2;
 
-	// Center in preview plus clip position offset
+	// Base anchor point in preview plus clip position offset
 	const centerX = renderedWidth / 2 + position[0] * monitorScale;
 	const centerY = renderedHeight / 2 + position[1] * monitorScale;
+
+	const isAutoSize = textSource.box?.autoSize !== false;
+	const alignment = textSource.style?.alignment || 'center';
+	const verticalAnchor = textSource.box?.verticalAnchor || 'center';
+
+	let transformTranslate = 'translate(-50%, -50%)';
+	if (isAutoSize) {
+		const translateX = alignment === 'left' ? '0%' : alignment === 'right' ? '-100%' : '-50%';
+		const translateY = verticalAnchor === 'top' ? '0%' : verticalAnchor === 'bottom' ? '-100%' : '-50%';
+		transformTranslate = `translate(${translateX}, ${translateY})`;
+	}
 
 	const handleCommit = () => {
 		if (clip) {
@@ -102,7 +122,7 @@ export default function TextInlineEditor({
 					position: 'absolute',
 					left: `${centerX}px`,
 					top: `${centerY}px`,
-					transform: 'translate(-50%, -50%)',
+					transform: transformTranslate,
 					minWidth: '200px',
 					maxWidth: '80%',
 					minHeight: '60px',

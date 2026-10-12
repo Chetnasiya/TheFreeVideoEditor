@@ -4,6 +4,8 @@ import type { Project } from '../../core';
 import type { PlaybackEngine, PlaybackSnapshot } from '../../services/playback/engine';
 import type { RendererKind } from '../../services/render';
 import { observePreviewScale } from '../../services/playback/previewLayout';
+import { useEditorStore } from '../../state/EditorProvider';
+import { viewProject } from '../../core/sequences/access';
 import TransformGizmo from './TransformGizmo';
 import MaskOverlay from './MaskOverlay';
 import TextInlineEditor from './TextInlineEditor';
@@ -36,6 +38,8 @@ export default function PreviewPlayer({
 }: PreviewPlayerProps) {
 	const viewportRef = useRef<HTMLDivElement>(null);
 	const [fitScale, setFitScale] = useState(0);
+	const activeSeqId = useEditorStore((state) => state.activeSequenceId);
+	const activeProject = project ? viewProject(project, activeSeqId) : null;
 	const scale = Number(zoom) || 1;
 	const projectWidth = project?.settings.width;
 	const projectHeight = project?.settings.height;
@@ -73,22 +77,22 @@ export default function PreviewPlayer({
 							data-testid="preview-canvas"
 						/>
 						<TransformGizmo
-							project={project}
+							project={activeProject ?? project}
 							renderedWidth={renderedWidth}
 							renderedHeight={renderedHeight}
 						/>
 						<MaskOverlay
-							project={project}
+							project={activeProject ?? project}
 							renderedWidth={renderedWidth}
 							renderedHeight={renderedHeight}
 						/>
 						<TextInlineEditor
-							project={project}
+							project={activeProject ?? project}
 							renderedWidth={renderedWidth}
 							renderedHeight={renderedHeight}
 						/>
 						<TrackingOverlay
-							project={project}
+							project={activeProject ?? project}
 							renderedWidth={renderedWidth}
 							renderedHeight={renderedHeight}
 						/>

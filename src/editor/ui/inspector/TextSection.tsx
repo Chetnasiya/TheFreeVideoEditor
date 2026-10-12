@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Clip, Time } from '../../core';
+import { readProperty } from '../../core';
 import { TEXT_TEMPLATE_PRESETS, TEXT_ANIMATION_PRESETS } from '../../core/text/presets';
 import { useEditorStoreApi } from '../../state/EditorProvider';
 import { PropertyRow, type ConfirmDisableState } from './Inspector';
@@ -74,7 +75,11 @@ export function TextSection({
 		if (mode === 'auto') {
 			store.getState().setTextBox(clip.id, { autoSize: true });
 		} else {
-			store.getState().setTextBox(clip.id, { autoSize: false, width: textBox?.width ?? 600 });
+			store.getState().setTextBox(clip.id, {
+				autoSize: false,
+				width: textBox?.width ?? 600,
+				height: textBox?.height ?? 200
+			});
 		}
 	};
 
@@ -83,8 +88,45 @@ export function TextSection({
 		store.getState().setTextBox(clip.id, { width, autoSize: false });
 	};
 
+	const handleBoxHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const height = Math.max(20, Number(e.target.value) || 20);
+		store.getState().setTextBox(clip.id, { height, autoSize: false });
+	};
+
 	const handleVerticalAnchorChange = (anchor: 'top' | 'center' | 'bottom') => {
 		store.getState().setTextBox(clip.id, { verticalAnchor: anchor });
+	};
+
+	const handleAlignToFrame = (
+		horizontal: 'left' | 'center' | 'right' | null,
+		vertical: 'top' | 'center' | 'bottom' | null
+	) => {
+		const project = store.getState().project;
+		const width = project?.settings.width ?? 1920;
+		const height = project?.settings.height ?? 1080;
+		const currentPos = (readProperty(clip, 'position', localTime) as [number, number]) ?? [0, 0];
+		let [newX, newY] = currentPos;
+
+		const marginX = Math.round(width * 0.1);
+		const marginY = Math.round(height * 0.1);
+
+		if (horizontal === 'left') {
+			newX = -Math.round(width / 2 - marginX);
+		} else if (horizontal === 'center') {
+			newX = 0;
+		} else if (horizontal === 'right') {
+			newX = Math.round(width / 2 - marginX);
+		}
+
+		if (vertical === 'top') {
+			newY = -Math.round(height / 2 - marginY);
+		} else if (vertical === 'center') {
+			newY = 0;
+		} else if (vertical === 'bottom') {
+			newY = Math.round(height / 2 - marginY);
+		}
+
+		store.getState().setProperty(clip.id, 'position', [newX, newY], { autoKey: true });
 	};
 
 	const filteredFonts = BUNDLED_FONTS.filter(
@@ -365,18 +407,33 @@ export function TextSection({
 			</div>
 
 			{textBox?.autoSize === false && (
-				<div className="property-row">
-					<div className="property-header">
-						<span className="property-label">Width (px)</span>
+				<div className="flex gap-2">
+					<div className="flex-1 property-row">
+						<div className="property-header">
+							<span className="property-label">Width (px)</span>
+						</div>
+						<input
+							type="number"
+							min="50"
+							max="3840"
+							className="text-select font-mono"
+							value={textBox?.width ?? 600}
+							onChange={handleBoxWidthChange}
+						/>
 					</div>
-					<input
-						type="number"
-						min="50"
-						max="3840"
-						className="text-select font-mono"
-						value={textBox?.width ?? 600}
-						onChange={handleBoxWidthChange}
-					/>
+					<div className="flex-1 property-row">
+						<div className="property-header">
+							<span className="property-label">Height (px)</span>
+						</div>
+						<input
+							type="number"
+							min="20"
+							max="2160"
+							className="text-select font-mono"
+							value={textBox?.height ?? 200}
+							onChange={handleBoxHeightChange}
+						/>
+					</div>
 				</div>
 			)}
 
@@ -419,6 +476,91 @@ export function TextSection({
 							</button>
 						);
 					})}
+				</div>
+			</div>
+
+			{/* Align to Video Frame */}
+			<div className="property-row">
+				<div className="property-header">
+					<span className="property-label">Align to Video</span>
+				</div>
+				<div className="flex flex-col gap-1.5 w-full">
+					<div className="segmented-pill-group" role="group" aria-label="Horizontal Frame Alignment">
+						<button
+							type="button"
+							className="segmented-pill-btn"
+							onClick={() => handleAlignToFrame('left', null)}
+							title="Align Left of Video Frame"
+						>
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+								<line x1="4" y1="4" x2="4" y2="20" />
+								<rect x="8" y="7" width="12" height="10" rx="1" />
+							</svg>
+							<span>Left</span>
+						</button>
+						<button
+							type="button"
+							className="segmented-pill-btn"
+							onClick={() => handleAlignToFrame('center', null)}
+							title="Center Horizontally in Video Frame"
+						>
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+								<line x1="12" y1="4" x2="12" y2="20" />
+								<rect x="6" y="7" width="12" height="10" rx="1" />
+							</svg>
+							<span>Center</span>
+						</button>
+						<button
+							type="button"
+							className="segmented-pill-btn"
+							onClick={() => handleAlignToFrame('right', null)}
+							title="Align Right of Video Frame"
+						>
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+								<line x1="20" y1="4" x2="20" y2="20" />
+								<rect x="4" y="7" width="12" height="10" rx="1" />
+							</svg>
+							<span>Right</span>
+						</button>
+					</div>
+					<div className="segmented-pill-group" role="group" aria-label="Vertical Frame Alignment">
+						<button
+							type="button"
+							className="segmented-pill-btn"
+							onClick={() => handleAlignToFrame(null, 'top')}
+							title="Align Top of Video Frame"
+						>
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+								<line x1="4" y1="4" x2="20" y2="4" />
+								<rect x="7" y="8" width="10" height="12" rx="1" />
+							</svg>
+							<span>Top</span>
+						</button>
+						<button
+							type="button"
+							className="segmented-pill-btn"
+							onClick={() => handleAlignToFrame(null, 'center')}
+							title="Center Vertically in Video Frame"
+						>
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+								<line x1="4" y1="12" x2="20" y2="12" />
+								<rect x="7" y="6" width="10" height="12" rx="1" />
+							</svg>
+							<span>Middle</span>
+						</button>
+						<button
+							type="button"
+							className="segmented-pill-btn"
+							onClick={() => handleAlignToFrame(null, 'bottom')}
+							title="Align Bottom of Video Frame"
+						>
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+								<line x1="4" y1="20" x2="20" y2="20" />
+								<rect x="7" y="4" width="10" height="12" rx="1" />
+							</svg>
+							<span>Bottom</span>
+						</button>
+					</div>
 				</div>
 			</div>
 

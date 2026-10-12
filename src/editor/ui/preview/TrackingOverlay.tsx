@@ -29,6 +29,18 @@ export function TrackingOverlay({ project, renderedWidth, renderedHeight }: Trac
 			break;
 		}
 	}
+	if (!targetClip && project.sequences) {
+		for (const seq of Object.values(project.sequences)) {
+			for (const track of seq.tracks) {
+				const found = track.clips.find((c) => c.id === selectedClipId);
+				if (found) {
+					targetClip = found;
+					break;
+				}
+			}
+			if (targetClip) break;
+		}
+	}
 
 	if (!targetClip || !targetClip.trackers || targetClip.trackers.length === 0) return null;
 

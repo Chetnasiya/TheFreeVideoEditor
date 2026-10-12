@@ -5622,26 +5622,28 @@ export function createEditorStore() {
 				},
 
 				setTextContent(clipId, text) {
+					const activeSeqId = get().activeSequenceId;
 					try {
 						mutateProject(
 							'Update text content',
-							(proj) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId || c.source?.type !== 'text') return c;
-										return {
-											...c,
-											text,
-											source: {
-												...c.source,
-												text
-											}
-										};
-									})
-								}))
-							}),
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'text') return c;
+											return {
+												...c,
+												text,
+												source: {
+													...c.source,
+													text
+												}
+											};
+										})
+									}))
+								})),
 							{ history: 'record', mergeKey: `text-edit-${clipId}` }
 						);
 						return true;
@@ -5651,28 +5653,30 @@ export function createEditorStore() {
 				},
 
 				setTextStyle(clipId, style) {
+					const activeSeqId = get().activeSequenceId;
 					try {
 						mutateProject(
 							'Update text style',
-							(proj) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId || c.source?.type !== 'text') return c;
-										return {
-											...c,
-											source: {
-												...c.source,
-												style: {
-													...(c.source.style ?? { fontFamily: 'sans-serif' }),
-													...style
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'text') return c;
+											return {
+												...c,
+												source: {
+													...c.source,
+													style: {
+														...(c.source.style ?? { fontFamily: 'sans-serif' }),
+														...style
+													}
 												}
-											}
-										};
-									})
-								}))
-							}),
+											};
+										})
+									}))
+								})),
 							{ history: 'record', mergeKey: `text-style-${clipId}` }
 						);
 						return true;
@@ -5682,28 +5686,30 @@ export function createEditorStore() {
 				},
 
 				setTextBox(clipId, box) {
+					const activeSeqId = get().activeSequenceId;
 					try {
 						mutateProject(
 							'Update text box',
-							(proj) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId || c.source?.type !== 'text') return c;
-										return {
-											...c,
-											source: {
-												...c.source,
-												box: {
-													...(c.source.box ?? {}),
-													...box
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'text') return c;
+											return {
+												...c,
+												source: {
+													...c.source,
+													box: {
+														...(c.source.box ?? {}),
+														...box
+													}
 												}
-											}
-										};
-									})
-								}))
-							}),
+											};
+										})
+									}))
+								})),
 							{ history: 'record', mergeKey: `text-box-${clipId}` }
 						);
 						return true;
@@ -5713,19 +5719,21 @@ export function createEditorStore() {
 				},
 
 				applyTextTemplate(clipId, templateId) {
+					const activeSeqId = get().activeSequenceId;
 					try {
 						mutateProject(
 							'Apply text template',
-							(proj) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId || c.source?.type !== 'text') return c;
-										return applyTextTemplatePreset(c, templateId, true);
-									})
-								}))
-							}),
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'text') return c;
+											return applyTextTemplatePreset(c, templateId, true);
+										})
+									}))
+								})),
 							{ history: 'record' }
 						);
 						return true;
@@ -5735,19 +5743,21 @@ export function createEditorStore() {
 				},
 
 				applyTextAnimation(clipId, presetId) {
+					const activeSeqId = get().activeSequenceId;
 					try {
 						mutateProject(
 							'Apply text animation',
-							(proj) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId || c.source?.type !== 'text') return c;
-										return applyTextAnimationPreset(c, presetId);
-									})
-								}))
-							}),
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'text') return c;
+											return applyTextAnimationPreset(c, presetId);
+										})
+									}))
+								})),
 							{ history: 'record' }
 						);
 						return true;
@@ -5757,19 +5767,21 @@ export function createEditorStore() {
 				},
 
 				clearTextAnimations(clipId) {
+					const activeSeqId = get().activeSequenceId;
 					try {
 						mutateProject(
 							'Clear text animations',
-							(proj) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId || c.source?.type !== 'text') return c;
-										return clearTextAnimations(c);
-									})
-								}))
-							}),
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'text') return c;
+											return clearTextAnimations(c);
+										})
+									}))
+								})),
 							{ history: 'record' }
 						);
 						return true;
@@ -5779,30 +5791,32 @@ export function createEditorStore() {
 				},
 
 				setSolidColor(clipId, color) {
+					const activeSeqId = get().activeSequenceId;
 					try {
 						mutateProject(
 							'Update solid color',
-							(proj) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId || c.source?.type !== 'solid') return c;
-										return {
-											...c,
-											source: {
-												...c.source,
-												color: {
-													r: color.r,
-													g: color.g,
-													b: color.b,
-													a: color.a ?? 1
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'solid') return c;
+											return {
+												...c,
+												source: {
+													...c.source,
+													color: {
+														r: color.r,
+														g: color.g,
+														b: color.b,
+														a: color.a ?? 1
+													}
 												}
-											}
-										};
-									})
-								}))
-							}),
+											};
+										})
+									}))
+								})),
 							{ history: 'record', mergeKey: `solid-color-${clipId}` }
 						);
 						return true;
@@ -6464,6 +6478,8 @@ export function createEditorStore() {
 				addTracker(clipId, type = 'point', initialRegion) {
 					const project = get().project;
 					if (!project) return null;
+					const activeSeqId = get().activeSequenceId;
+					const activeProj = viewProject(project, activeSeqId);
 					const trackerId =
 						`trk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` as TrackerId;
 
@@ -6476,7 +6492,7 @@ export function createEditorStore() {
 					};
 
 					let targetClip: Clip | null = null;
-					for (const track of project.tracks) {
+					for (const track of activeProj.tracks) {
 						for (const c of track.clips) {
 							if (c.id === clipId) targetClip = c;
 						}
@@ -6508,19 +6524,20 @@ export function createEditorStore() {
 					try {
 						mutateProject(
 							'Add tracker',
-							(proj: Project) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId) return c;
-										return {
-											...c,
-											trackers: [...(c.trackers ?? []), newTracker]
-										};
-									})
-								}))
-							}),
+							(proj: Project) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId) return c;
+											return {
+												...c,
+												trackers: [...(c.trackers ?? []), newTracker]
+											};
+										})
+									}))
+								})),
 							{ history: 'record' }
 						);
 						set((state) => {
@@ -6533,22 +6550,24 @@ export function createEditorStore() {
 				},
 
 				removeTracker(clipId, trackerId) {
+					const activeSeqId = get().activeSequenceId;
 					try {
 						mutateProject(
 							'Remove tracker',
-							(proj: Project) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId || !c.trackers) return c;
-										return {
-											...c,
-											trackers: c.trackers.filter((t) => t.id !== trackerId)
-										};
-									})
-								}))
-							}),
+							(proj: Project) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || !c.trackers) return c;
+											return {
+												...c,
+												trackers: c.trackers.filter((t) => t.id !== trackerId)
+											};
+										})
+									}))
+								})),
 							{ history: 'record' }
 						);
 						set((state) => {
@@ -6563,22 +6582,24 @@ export function createEditorStore() {
 				},
 
 				updateTracker(clipId, trackerId, patch) {
+					const activeSeqId = get().activeSequenceId;
 					try {
 						mutateProject(
 							'Update tracker',
-							(proj: Project) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId || !c.trackers) return c;
-										return {
-											...c,
-											trackers: c.trackers.map((t) => (t.id === trackerId ? { ...t, ...patch } : t))
-										};
-									})
-								}))
-							}),
+							(proj: Project) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || !c.trackers) return c;
+											return {
+												...c,
+												trackers: c.trackers.map((t) => (t.id === trackerId ? { ...t, ...patch } : t))
+											};
+										})
+									}))
+								})),
 							{ history: 'record' }
 						);
 						return true;
@@ -6590,9 +6611,11 @@ export function createEditorStore() {
 				async startTracking(clipId, trackerId, direction) {
 					const project = get().project;
 					if (!project || get().isTrackingActive) return false;
+					const activeSeqId = get().activeSequenceId;
+					const activeProj = viewProject(project, activeSeqId);
 
 					let targetClip: Clip | null = null;
-					for (const track of project.tracks) {
+					for (const track of activeProj.tracks) {
 						const found = track.clips.find((c) => c.id === clipId);
 						if (found) {
 							targetClip = found;
@@ -6653,11 +6676,13 @@ export function createEditorStore() {
 				bindToTracker(trackedClipId, trackerId, config) {
 					const project = get().project;
 					if (!project) return false;
+					const activeSeqId = get().activeSequenceId;
+					const activeProj = viewProject(project, activeSeqId);
 
 					let trackedClip: Clip | null = null;
 					let targetClip: Clip | null = null;
 
-					for (const track of project.tracks) {
+					for (const track of activeProj.tracks) {
 						for (const c of track.clips) {
 							if (c.id === trackedClipId) trackedClip = c;
 							if (c.id === config.targetClipId) targetClip = c;
@@ -6701,11 +6726,13 @@ export function createEditorStore() {
 				bakeTracker(trackedClipId, trackerId, thinningTolerancePx = 0.5) {
 					const project = get().project;
 					if (!project) return false;
+					const activeSeqId = get().activeSequenceId;
+					const activeProj = viewProject(project, activeSeqId);
 
 					let trackedClip: Clip | null = null;
 					let targetClip: Clip | null = null;
 
-					for (const track of project.tracks) {
+					for (const track of activeProj.tracks) {
 						for (const c of track.clips) {
 							if (c.id === trackedClipId) trackedClip = c;
 						}
@@ -6714,7 +6741,7 @@ export function createEditorStore() {
 					const tracker = trackedClip.trackers?.find((t) => t.id === trackerId);
 					if (!tracker || !tracker.binding) return false;
 
-					for (const track of project.tracks) {
+					for (const track of activeProj.tracks) {
 						for (const c of track.clips) {
 							if (c.id === tracker.binding.targetClipId) targetClip = c;
 						}
@@ -6734,42 +6761,43 @@ export function createEditorStore() {
 					try {
 						mutateProject(
 							'Bake tracking to keyframes',
-							(proj: Project) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id === trackedClipId && c.trackers) {
-											// Unbind live tracker upon baking
-											return {
-												...c,
-												trackers: c.trackers.map((tr) =>
-													tr.id === trackerId ? { ...tr, binding: undefined } : tr
-												)
-											};
-										}
-										if (c.id === targetClip.id) {
-											const cleanBaked: Record<
-												string,
-												import('../core/types').AnimatedValue<unknown>
-											> = {};
-											for (const [k, v] of Object.entries(bakedProps)) {
-												if (v !== undefined) {
-													cleanBaked[k] = v;
-												}
+							(proj: Project) =>
+								applyToSequence(proj, activeSeqId, (seqView) => ({
+									...seqView,
+									tracks: seqView.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id === trackedClipId && c.trackers) {
+												// Unbind live tracker upon baking
+												return {
+													...c,
+													trackers: c.trackers.map((tr) =>
+														tr.id === trackerId ? { ...tr, binding: undefined } : tr
+													)
+												};
 											}
-											return {
-												...c,
-												properties: {
-													...(c.properties ?? {}),
-													...cleanBaked
+											if (c.id === targetClip.id) {
+												const cleanBaked: Record<
+													string,
+													import('../core/types').AnimatedValue<unknown>
+												> = {};
+												for (const [k, v] of Object.entries(bakedProps)) {
+													if (v !== undefined) {
+														cleanBaked[k] = v;
+													}
 												}
-											};
-										}
-										return c;
-									})
-								}))
-							}),
+												return {
+													...c,
+													properties: {
+														...(c.properties ?? {}),
+														...cleanBaked
+													}
+												};
+											}
+											return c;
+										})
+									}))
+								})),
 							{ history: 'record' }
 						);
 						return true;
@@ -6780,9 +6808,11 @@ export function createEditorStore() {
 				bakeTrackerToMask(clipId, maskId, trackerId, thinningTolerancePx = 0.5) {
 					const project = get().project;
 					if (!project) return false;
+					const activeSeqId = get().activeSequenceId;
+					const activeProj = viewProject(project, activeSeqId);
 
 					let targetClip: Clip | null = null;
-					for (const track of project.tracks) {
+					for (const track of activeProj.tracks) {
 						for (const c of track.clips) {
 							if (c.id === clipId) targetClip = c;
 						}
@@ -6816,22 +6846,23 @@ export function createEditorStore() {
 					try {
 						mutateProject(
 							'Bake tracking to mask shape',
-							(proj: Project) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId) return c;
-										return {
-											...c,
-											properties: {
-												...(c.properties ?? {}),
-												[shapePropId]: bakedShape
-											}
-										};
-									})
-								}))
-							}),
+							(proj: Project) =>
+								applyToSequence(proj, activeSeqId, (seqView) => ({
+									...seqView,
+									tracks: seqView.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId) return c;
+											return {
+												...c,
+												properties: {
+													...(c.properties ?? {}),
+													[shapePropId]: bakedShape
+												}
+											};
+										})
+									}))
+								})),
 							{ history: 'record' }
 						);
 						return true;
@@ -6842,9 +6873,11 @@ export function createEditorStore() {
 				stabilizeClip(clipId, trackerId, options) {
 					const project = get().project;
 					if (!project) return false;
+					const activeSeqId = get().activeSequenceId;
+					const activeProj = viewProject(project, activeSeqId);
 
 					let targetClip: Clip | null = null;
-					for (const track of project.tracks) {
+					for (const track of activeProj.tracks) {
 						for (const c of track.clips) {
 							if (c.id === clipId) targetClip = c;
 						}
@@ -6873,19 +6906,20 @@ export function createEditorStore() {
 					try {
 						mutateProject(
 							'Stabilize clip',
-							(proj: Project) => ({
-								...proj,
-								tracks: proj.tracks.map((t) => ({
-									...t,
-									clips: t.clips.map((c) => {
-										if (c.id !== clipId) return c;
-										return {
-											...c,
-											properties: updatedProperties
-										};
-									})
-								}))
-							}),
+							(proj: Project) =>
+								applyToSequence(proj, activeSeqId, (seqView) => ({
+									...seqView,
+									tracks: seqView.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId) return c;
+											return {
+												...c,
+												properties: updatedProperties
+											};
+										})
+									}))
+								})),
 							{ history: 'record' }
 						);
 						return true;

@@ -1,4 +1,5 @@
 import { fitRect } from '../../core/composition';
+import { croppedFitRect } from '../../core/layerGeometry';
 import type { ActiveLayer } from '../../core/playback';
 import type { BlendMode } from '../../core/types';
 
@@ -175,15 +176,20 @@ export function renderFrame(
 		if (dimensions.width <= 0 || dimensions.height <= 0) continue;
 		lastGoodFrames.set(layer.clipId, source);
 		const fit = layer.fit ?? 'contain';
-		const rect =
-			fit === 'none'
-				? {
-						x: (size.width - dimensions.width) / 2,
-						y: (size.height - dimensions.height) / 2,
-						width: dimensions.width,
-						height: dimensions.height
-					}
-				: fitRect(dimensions.width, dimensions.height, size.width, size.height);
+		const isText = layer.kind === 'text';
+		const isAutoSize = layer.textData?.box?.autoSize !== false;
+		const alignment = isText && isAutoSize ? layer.textData?.style?.alignment : undefined;
+		const verticalAnchor = isText && isAutoSize ? layer.textData?.box?.verticalAnchor : undefined;
+		const rect = croppedFitRect(
+			undefined,
+			dimensions.width,
+			dimensions.height,
+			size.width,
+			size.height,
+			fit,
+			alignment,
+			verticalAnchor
+		);
 		const transform = layer.transform;
 		const blendMode = layer.blendMode ?? 'normal';
 		const [cropLeft, cropTop, cropRight, cropBottom] = layer.crop ?? [0, 0, 0, 0];

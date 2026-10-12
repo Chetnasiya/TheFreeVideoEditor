@@ -52,6 +52,15 @@ export default function TransformGizmo({
 			const clip = track.clips.find((c) => c.id === selectedClipIds[0]);
 			if (clip) return clip;
 		}
+		if (project.sequences) {
+			for (const seq of Object.values(project.sequences)) {
+				for (const track of seq.tracks) {
+					if (track.kind !== 'video') continue;
+					const clip = track.clips.find((c) => c.id === selectedClipIds[0]);
+					if (clip) return clip;
+				}
+			}
+		}
 		return null;
 	}, [project, selectedClipIds]);
 
@@ -110,7 +119,21 @@ export default function TransformGizmo({
 				sourceHeight: dims.height,
 				width: project.settings.width,
 				height: project.settings.height,
-				crop
+				crop,
+				fit: 'none',
+				kind: 'text',
+				textData: {
+					text: selectedClip.source.text,
+					style: selectedClip.source.style ?? { fontFamily: 'sans-serif', alignment: 'center' },
+					box: selectedClip.source.box,
+					fontSize,
+					fillColor: { r: 1, g: 1, b: 1, a: 1 },
+					strokeColor: { r: 0, g: 0, b: 0, a: 1 },
+					strokeWidth: 0,
+					letterSpacing,
+					lineHeight,
+					reveal: 1
+				}
 			};
 		}
 		const asset = selectedClip?.assetId ? project.assets[selectedClip.assetId] : undefined;

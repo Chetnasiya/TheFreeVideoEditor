@@ -1,4 +1,6 @@
-import type { Clip, Project, TrackerId, TrackerType } from '../../core/types';
+import { useMemo } from 'react';
+import type { Clip, ClipId, Project, TrackerId, TrackerType } from '../../core/types';
+import { viewProject } from '../../core/sequences/access';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 
 interface TrackingSectionProps {
@@ -12,10 +14,10 @@ function getClipLabel(targetClip: Clip, project: Project | null): string {
 		return `T "${text.length > 20 ? text.slice(0, 18) + '…' : text}"`;
 	}
 	if (targetClip.source?.type === 'solid') {
-		return 'Solid Color';
+		return '■ Solid Color';
 	}
 	if (targetClip.source?.type === 'adjustment') {
-		return 'Adjustment Layer';
+		return '⚡ Adjustment Layer';
 	}
 	if (targetClip.assetId && project?.assets[targetClip.assetId]) {
 		const asset = project.assets[targetClip.assetId]!;
@@ -29,6 +31,12 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 	const selectedTrackerId = useEditorStore((state) => state.selectedTrackerId);
 	const isTrackingActive = useEditorStore((state) => state.isTrackingActive);
 	const trackingProgress = useEditorStore((state) => state.trackingProgress);
+	const project = useEditorStore((state) => state.project);
+	const activeSeqId = useEditorStore((state) => state.activeSequenceId);
+
+	const activeProject = useMemo(() => {
+		return project ? viewProject(project, activeSeqId) : null;
+	}, [project, activeSeqId]);
 
 	const trackers = clip.trackers ?? [];
 	const selectedTracker = trackers.find((t) => t.id === selectedTrackerId) ?? trackers[0] ?? null;
@@ -58,28 +66,134 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 		await store.getState().cancelTracking();
 	};
 
+	// Target clips eligible for binding (non-audio, excluding current clip)
+	const eligibleTargets = useMemo(() => {
+		if (!activeProject) return [];
+		return (activeProject.tracks ?? [])
+			.filter((t) => t.kind !== 'audio')
+			.flatMap((t) => t.clips)
+			.filter((c) => {
+				if (c.id === clip.id) return false;
+				if (
+					c.source?.type === 'text' ||
+					c.source?.type === 'solid' ||
+					c.source?.type === 'adjustment'
+				) {
+					return true;
+				}
+				if (c.assetId && project?.assets[c.assetId]) {
+					const a = project.assets[c.assetId]!;
+					return a.kind === 'video' || a.kind === 'image';
+				}
+				return true;
+			});
+	}, [activeProject, clip.id, project]);
+
+	// Bound target clip
+	const boundClip = useMemo(() => {
+		if (!selectedTracker?.binding || !activeProject) return null;
+		return (activeProject.tracks ?? [])
+			.flatMap((t) => t.clips)
+			.find((c) => c.id === selectedTracker.binding?.targetClipId);
+	}, [activeProject, selectedTracker?.binding]);
+
+	// Confidence average
+	const avgConfidence = useMemo(() => {
+		if (!selectedTracker || selectedTracker.samples.length === 0) return 0;
+		const sum = selectedTracker.samples.reduce((acc, s) => acc + (s.confidence ?? 1), 0);
+		return Math.round((sum / selectedTracker.samples.length) * 100);
+	}, [selectedTracker]);
+
 	return (
 		<div className="tracking-container">
+			{/* Header Row */}
 			<div className="tracking-header-row">
-				<span className="font-medium text-[var(--color-mute)]">Trackers ({trackers.length})</span>
-				<div className="flex items-center gap-1">
+				<div className="timeline-counter-badge" style={{ margin: 0 }}>
+					<span className="timeline-badge-dot" />
+					<span>
+						{trackers.length} {trackers.length === 1 ? 'Tracker' : 'Trackers'}
+					</span>
+				</div>
+				<button
+					type="button"
+					onClick={() => handleAddTracker('point')}
+					className="tracking-pill-btn-add"
+					title="Add Point Tracker"
+				>
+					<svg
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2.5"
+						aria-hidden="true"
+					>
+						<line x1="12" y1="5" x2="12" y2="19" />
+						<line x1="5" y1="12" x2="19" y2="12" />
+					</svg>
+					<span>Add Tracker</span>
+				</button>
+			</div>
+
+			{/* Empty State when no trackers exist */}
+			{trackers.length === 0 ? (
+				<div className="tracking-empty-card">
+					<div className="tracking-empty-icon-wrap">
+						<svg
+							width="22"
+							height="22"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.75"
+							aria-hidden="true"
+						>
+							<circle cx="12" cy="12" r="9" strokeDasharray="3 3" opacity="0.6" />
+							<circle cx="12" cy="12" r="4" />
+							<line x1="12" y1="2" x2="12" y2="7" />
+							<line x1="12" y1="17" x2="12" y2="22" />
+							<line x1="2" y1="12" x2="7" y2="12" />
+							<line x1="17" y1="12" x2="22" y2="12" />
+							<circle cx="12" cy="12" r="1.5" fill="currentColor" />
+						</svg>
+					</div>
+					<div>
+						<div className="tracking-empty-title">No Motion Trackers</div>
+						<p className="tracking-empty-desc">
+							Track motion points in your clip to lock text, media layers, or stabilize camera
+							movement.
+						</p>
+					</div>
 					<button
 						type="button"
 						onClick={() => handleAddTracker('point')}
-						className="tracking-btn tracking-btn-accent"
+						className="tracking-action-btn-primary"
 					>
-						+ Add Point Tracker
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2.5"
+							aria-hidden="true"
+						>
+							<line x1="12" y1="5" x2="12" y2="19" />
+							<line x1="5" y1="12" x2="19" y2="12" />
+						</svg>
+						<span>Add Point Tracker</span>
 					</button>
 				</div>
-			</div>
-
-			{trackers.length > 0 && (
+			) : (
 				<div className="tracking-card">
+					{/* Tracker Selector Header */}
 					<div className="tracking-card-header">
 						<select
 							value={selectedTracker?.id ?? ''}
 							onChange={(e) => store.getState().selectTracker(e.target.value as TrackerId)}
 							className="tracking-select flex-1"
+							aria-label="Select motion tracker"
 						>
 							{trackers.map((t) => (
 								<option key={t.id} value={t.id}>
@@ -87,33 +201,55 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 								</option>
 							))}
 						</select>
+
 						{selectedTracker && (
-							<button
-								type="button"
-								onClick={() => handleRemoveTracker(selectedTracker.id)}
-								className="tracking-btn tracking-btn-danger"
-								title="Delete tracker"
-							>
-								Delete
-							</button>
+							<>
+								<span className="tracking-pts-badge" title="Tracked sample points">
+									{selectedTracker.samples.length} pts
+								</span>
+								<button
+									type="button"
+									onClick={() => handleRemoveTracker(selectedTracker.id)}
+									className="tracking-icon-btn-danger"
+									title="Delete tracker"
+									aria-label="Delete tracker"
+								>
+									<svg
+										width="13"
+										height="13"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										aria-hidden="true"
+									>
+										<polyline points="3 6 5 6 21 6" />
+										<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+										<line x1="10" y1="11" x2="10" y2="17" />
+										<line x1="14" y1="11" x2="14" y2="17" />
+									</svg>
+								</button>
+							</>
 						)}
 					</div>
 
 					{selectedTracker && (
-						<div className="flex flex-col gap-2 pt-1">
-							{/* Controls: Track forward / backward */}
-							<div className="flex items-center gap-2">
+						<div className="flex flex-col gap-2.5">
+							{/* Direction Controls (Segmented Pill Group) */}
+							<div className="segmented-pill-group">
 								<button
 									type="button"
 									disabled={isTrackingActive}
 									onClick={handleTrackBackward}
-									className="tracking-btn flex-1 gap-1.5"
-									title="Track backward from playhead"
+									className="segmented-pill-btn"
+									title="Track backward from current playhead position"
 									aria-label="Track Backward"
 								>
 									<svg
-										width="12"
-										height="12"
+										width="11"
+										height="11"
 										viewBox="0 0 16 16"
 										fill="currentColor"
 										aria-hidden="true"
@@ -127,14 +263,14 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 									type="button"
 									disabled={isTrackingActive}
 									onClick={handleTrackForward}
-									className="tracking-btn flex-1 gap-1.5"
-									title="Track forward from playhead"
+									className="segmented-pill-btn"
+									title="Track forward from current playhead position"
 									aria-label="Track Forward"
 								>
 									<span>Track Forward</span>
 									<svg
-										width="12"
-										height="12"
+										width="11"
+										height="11"
 										viewBox="0 0 16 16"
 										fill="currentColor"
 										aria-hidden="true"
@@ -145,21 +281,34 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 								</button>
 							</div>
 
-							{/* Progress Bar & Cancel */}
+							{/* Progress Bar & Live State Indicator */}
 							{isTrackingActive && trackingProgress && (
-								<div className="flex flex-col gap-1.5 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-2">
+								<div className="tracking-progress-card">
 									<div className="flex items-center justify-between text-[11px]">
-										<span className="text-[var(--color-mute)]">
-											Tracking frame {trackingProgress.processedFrames} /{' '}
-											{trackingProgress.totalFrames}
-										</span>
-										<button
-											type="button"
-											onClick={handleCancel}
-											className="font-medium text-[var(--color-error)] hover:underline"
-										>
-											Cancel
-										</button>
+										<div className="flex items-center gap-2">
+											<span className="tracking-live-pulse-dot" />
+											<span className="font-mono text-[#94a3b8]">
+												Frame {trackingProgress.processedFrames} / {trackingProgress.totalFrames}
+											</span>
+										</div>
+										<div className="flex items-center gap-2">
+											<span className="font-mono text-[11px] font-semibold text-[#38bdf8]">
+												{Math.round(
+													(trackingProgress.processedFrames /
+														Math.max(1, trackingProgress.totalFrames)) *
+														100
+												)}
+												%
+											</span>
+											<button
+												type="button"
+												onClick={handleCancel}
+												className="tracking-cancel-btn"
+												title="Cancel current tracking operation"
+											>
+												Cancel
+											</button>
+										</div>
 									</div>
 									<div className="tracking-progress-bar">
 										<div
@@ -178,144 +327,181 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 
 							{/* Confidence Graph */}
 							{selectedTracker.samples.length > 0 && (
-								<div className="flex flex-col gap-1 pt-1">
-									<span className="text-[10px] text-[var(--color-mute)]">Confidence History</span>
-									<div className="h-8 w-full rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-0.5">
-										<svg className="h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 24">
+								<div className="flex flex-col gap-1.5">
+									<div className="text-divider" style={{ marginTop: 2, paddingTop: 6 }}>
+										<span className="text-divider-title">Confidence</span>
+										<span className="tracking-confidence-badge">{avgConfidence}% avg</span>
+									</div>
+									<div className="tracking-graph-card">
+										<svg className="h-8 w-full" preserveAspectRatio="none" viewBox="0 0 100 24">
+											<defs>
+												<linearGradient id="trackerConfidenceGrad" x1="0" y1="0" x2="0" y2="1">
+													<stop offset="0%" stopColor="#38bdf8" stopOpacity="0.35" />
+													<stop offset="100%" stopColor="#38bdf8" stopOpacity="0.0" />
+												</linearGradient>
+											</defs>
+											{/* Area fill */}
+											<path
+												d={`M 0 24 ${selectedTracker.samples
+													.map((s, idx) => {
+														const x = (idx / Math.max(1, selectedTracker.samples.length - 1)) * 100;
+														const y = 24 - Math.max(0, Math.min(1, s.confidence)) * 20;
+														return `L ${x.toFixed(1)} ${y.toFixed(1)}`;
+													})
+													.join(' ')} L 100 24 Z`}
+												fill="url(#trackerConfidenceGrad)"
+											/>
+											{/* Line stroke */}
 											<path
 												d={selectedTracker.samples
 													.map((s, idx) => {
 														const x = (idx / Math.max(1, selectedTracker.samples.length - 1)) * 100;
-														const y = 24 - Math.max(0, Math.min(1, s.confidence)) * 22;
+														const y = 24 - Math.max(0, Math.min(1, s.confidence)) * 20;
 														return `${idx === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
 													})
 													.join(' ')}
 												fill="none"
-												stroke="var(--color-link)"
+												stroke="#38bdf8"
 												strokeWidth="1.5"
+												strokeLinecap="round"
+												strokeLinejoin="round"
 											/>
 										</svg>
 									</div>
 								</div>
 							)}
 
-							{/* Apply / Follow / Bake Section (Slice 2) */}
-							<div className="flex flex-col gap-1.5 border-t border-[var(--color-hairline)] pt-2">
-								<span className="text-[11px] font-medium text-[var(--color-body)]">
-									Apply / Follow
-								</span>
+							{/* Apply / Follow / Bake Section */}
+							<div className="flex flex-col gap-1.5">
+								<div className="text-divider" style={{ marginTop: 4, paddingTop: 6 }}>
+									<span className="text-divider-title">Attach & Follow</span>
+									{selectedTracker.binding && (
+										<span className="tracking-live-badge">
+											<span className="tracking-green-dot" />
+											Live Follow
+										</span>
+									)}
+								</div>
+
 								{selectedTracker.binding ? (
-									<div className="flex flex-col gap-2 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-2">
+									<div className="tracking-bound-card">
 										<div className="flex items-center justify-between text-[11px]">
-											<span className="text-[var(--color-mute)]">
-												Bound to:{' '}
-												<span className="font-medium text-[var(--color-ink)]">
-													{(() => {
-														const boundClip = (store.getState().project?.tracks ?? [])
-															.flatMap((t) => t.clips)
-															.find((c) => c.id === selectedTracker.binding?.targetClipId);
-														return boundClip
-															? getClipLabel(boundClip, store.getState().project)
-															: selectedTracker.binding.targetClipId;
-													})()}
-												</span>
-											</span>
-											<span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-												Live Follow
+											<span className="text-[#94a3b8]">Attached Layer:</span>
+											<span className="font-medium text-[#f1f5f9] truncate max-w-[180px]">
+												{boundClip
+													? getClipLabel(boundClip, project)
+													: selectedTracker.binding.targetClipId}
 											</span>
 										</div>
-										<div className="flex items-center gap-1.5">
+										<div className="flex items-center gap-2 pt-1">
 											<button
 												type="button"
 												onClick={() =>
 													store.getState().bakeTracker(clip.id, selectedTracker.id, 0.5)
 												}
-												className="tracking-btn tracking-btn-primary flex-1"
+												className="tracking-btn-bake"
+												title="Convert live tracked motion into permanent clip keyframes"
 											>
-												Bake to Keyframes
+												<svg
+													width="12"
+													height="12"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													aria-hidden="true"
+												>
+													<polygon points="12 2 22 12 12 22 2 12" />
+												</svg>
+												<span>Bake Keyframes</span>
 											</button>
 											<button
 												type="button"
 												onClick={() => store.getState().unbindTracker(clip.id, selectedTracker.id)}
-												className="tracking-btn"
+												className="tracking-btn-unbind"
+												title="Unbind layer from tracking"
 											>
 												Unbind
 											</button>
 										</div>
 									</div>
 								) : (
-									<div className="flex flex-col gap-2 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-2">
-										<div className="flex items-center gap-2">
-											<label
-												htmlFor="target-clip-select"
-												className="text-[11px] text-[var(--color-mute)]"
-											>
-												Target:
-											</label>
-											<select
-												id="target-clip-select"
-												className="tracking-select flex-1"
-												defaultValue=""
-												onChange={(e) => {
-													const targetId = e.target.value as import('../../core/types').ClipId;
-													if (targetId) {
-														store.getState().bindToTracker(clip.id, selectedTracker.id, {
-															targetClipId: targetId,
-															applyPosition: true,
-															applyRotation: false,
-															applyScale: false
-														});
-													}
-												}}
-											>
-												<option value="" disabled>
-													Select clip, text, or image to attach...
+									<div className="tracking-bound-card">
+										<select
+											id="target-clip-select"
+											className="tracking-select w-full"
+											defaultValue=""
+											aria-label="Select layer to attach to tracker"
+											onChange={(e) => {
+												const targetId = e.target.value as ClipId;
+												if (targetId) {
+													store.getState().bindToTracker(clip.id, selectedTracker.id, {
+														targetClipId: targetId,
+														applyPosition: true,
+														applyRotation: false,
+														applyScale: false
+													});
+												}
+											}}
+										>
+											<option value="" disabled>
+												Select layer to attach (text, image, solid)...
+											</option>
+											{eligibleTargets.map((c) => (
+												<option key={c.id} value={c.id}>
+													{getClipLabel(c, project)}
 												</option>
-												{(store.getState().project?.tracks ?? [])
-													.filter((t) => t.kind !== 'audio')
-													.flatMap((t) => t.clips)
-													.filter((c) => {
-														if (c.id === clip.id) return false;
-														if (
-															c.source?.type === 'text' ||
-															c.source?.type === 'solid' ||
-															c.source?.type === 'adjustment'
-														) {
-															return true;
-														}
-														if (c.assetId && store.getState().project?.assets[c.assetId]) {
-															const a = store.getState().project!.assets[c.assetId]!;
-															return a.kind === 'video' || a.kind === 'image';
-														}
-														return true;
-													})
-													.map((c) => (
-														<option key={c.id} value={c.id}>
-															{getClipLabel(c, store.getState().project)}
-														</option>
-													))}
-											</select>
-										</div>
+											))}
+										</select>
+										<span className="text-[10px] text-[#64748b] leading-tight">
+											Binds this layer's position to the tracker in real-time.
+										</span>
 									</div>
 								)}
 							</div>
 
 							{/* Stabilization panel */}
-							<div className="mt-2 flex flex-col gap-2 border-t border-[var(--color-hairline)] pt-2">
-								<div className="flex items-center justify-between">
-									<span className="font-medium text-[var(--color-body)]">Stabilization</span>
+							<div className="flex flex-col gap-1.5">
+								<div className="text-divider" style={{ marginTop: 4, paddingTop: 6 }}>
+									<span className="text-divider-title">Stabilization</span>
+									{selectedTracker.samples.length >= 2 && (
+										<span className="font-mono text-[10px] text-[#94a3b8]">
+											{selectedTracker.samples.length} frames ready
+										</span>
+									)}
+								</div>
+								<div className="tracking-stabilize-card">
+									<span className="text-[10px] text-[#64748b] leading-relaxed">
+										Applies counter-motion smoothing and auto-zoom to eliminate camera shake.
+									</span>
 									<button
 										type="button"
 										disabled={isTrackingActive || selectedTracker.samples.length < 2}
 										onClick={() => store.getState().stabilizeClip(clip.id, selectedTracker.id)}
-										className="tracking-btn tracking-btn-accent"
+										className="tracking-stabilize-btn"
+										title={
+											selectedTracker.samples.length < 2
+												? 'Track points first before stabilizing'
+												: 'Apply camera stabilization to this clip'
+										}
 									>
-										Stabilize Clip
+										<svg
+											width="12"
+											height="12"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="2"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											aria-hidden="true"
+										>
+											<polygon points="23 7 16 12 23 17 23 7" />
+											<rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+										</svg>
+										<span>Stabilize Clip</span>
 									</button>
 								</div>
-								<span className="text-[10px] text-[var(--color-mute)]">
-									Applies counter-motion smoothing and auto-zoom to eliminate camera shake.
-								</span>
 							</div>
 						</div>
 					)}

@@ -67,4 +67,84 @@ describe('layerAffine', () => {
 		expect(bottomRight.x).toBeCloseTo(1160);
 		expect(bottomRight.y).toBeCloseTo(640);
 	});
+
+	it('supports text alignment (left, center, right) with fit: none', () => {
+		// Left alignment: starts at center X (960)
+		const leftAffine = layerAffine(
+			{
+				fit: 'none',
+				kind: 'text',
+				textData: {
+					text: 'Hi',
+					style: { fontFamily: 'sans-serif', alignment: 'left' },
+					box: { autoSize: true }
+				} as any
+			},
+			200,
+			100,
+			1920,
+			1080
+		);
+		const leftTop = applyAffine(leftAffine, 0, 0);
+		expect(leftTop.x).toBeCloseTo(960);
+
+		// Right alignment: ends at center X (960) -> starts at 960 - 200 = 760
+		const rightAffine = layerAffine(
+			{
+				fit: 'none',
+				kind: 'text',
+				textData: {
+					text: 'Hi',
+					style: { fontFamily: 'sans-serif', alignment: 'right' },
+					box: { autoSize: true }
+				} as any
+			},
+			200,
+			100,
+			1920,
+			1080
+		);
+		const rightTop = applyAffine(rightAffine, 0, 0);
+		expect(rightTop.x).toBeCloseTo(760);
+	});
+
+	it('supports vertical anchor (top, center, bottom) with fit: none', () => {
+		// Top anchor: starts at center Y (540)
+		const topAffine = layerAffine(
+			{
+				fit: 'none',
+				kind: 'text',
+				textData: {
+					text: 'Hi',
+					style: { fontFamily: 'sans-serif', alignment: 'center' },
+					box: { autoSize: true, verticalAnchor: 'top' }
+				} as any
+			},
+			200,
+			100,
+			1920,
+			1080
+		);
+		const topPoint = applyAffine(topAffine, 0, 0);
+		expect(topPoint.y).toBeCloseTo(540);
+
+		// Bottom anchor: ends at center Y (540) -> starts at 540 - 100 = 440
+		const bottomAffine = layerAffine(
+			{
+				fit: 'none',
+				kind: 'text',
+				textData: {
+					text: 'Hi',
+					style: { fontFamily: 'sans-serif', alignment: 'center' },
+					box: { autoSize: true, verticalAnchor: 'bottom' }
+				} as any
+			},
+			200,
+			100,
+			1920,
+			1080
+		);
+		const bottomPoint = applyAffine(bottomAffine, 0, 0);
+		expect(bottomPoint.y).toBeCloseTo(440);
+	});
 });

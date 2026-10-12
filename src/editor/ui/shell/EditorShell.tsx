@@ -88,10 +88,19 @@ function EditorShell() {
 	const togglePanelVisibility = useEditorStore((state) => state.togglePanelVisibility);
 	const workspaces = useEditorStore((state) => state.workspaces);
 	const activeWorkspaceId = useEditorStore((state) => state.activeWorkspaceId);
+	const activeSequenceId = useEditorStore((state) => state.activeSequenceId);
 	const switchWorkspace = useEditorStore((state) => state.switchWorkspace);
 	const resetWorkspaceLayout = useEditorStore((state) => state.resetWorkspaceLayout);
 	const saveAsNewWorkspace = useEditorStore((state) => state.saveAsNewWorkspace);
 	const workspaceMessage = useEditorStore((state) => state.workspaceMessage);
+
+	const activeSequence = useMemo(() => {
+		if (!project || !activeSequenceId || !project.sequences) return null;
+		return project.sequences[activeSequenceId] ?? null;
+	}, [project, activeSequenceId]);
+	const seqName = activeSequence ? activeSequence.name : 'Sequence 01';
+	const seqWidth = activeSequence?.settings?.width ?? project?.settings.width ?? 1920;
+	const seqHeight = activeSequence?.settings?.height ?? project?.settings.height ?? 1080;
 
 	const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
 	const [isWindowMenuOpen, setIsWindowMenuOpen] = useState(false);
@@ -1233,7 +1242,23 @@ function EditorShell() {
 										{projectName}
 									</button>
 								</h1>
-								<span className="project-status">On this device</span>
+								<span className="project-status">
+									<svg
+										viewBox="0 0 16 16"
+										width="10"
+										height="10"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="1.6"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										aria-hidden="true"
+									>
+										<rect x="2" y="3" width="12" height="10" rx="2" />
+										<line x1="8" y1="10" x2="8.01" y2="10" strokeWidth="2" />
+									</svg>
+									<span>On this device</span>
+								</span>
 							</>
 						) : (
 							<h1 id="project-title">No project open</h1>
@@ -1282,7 +1307,20 @@ function EditorShell() {
 							disabled={!history.canUndo}
 							onClick={() => editorStore.getState().undo()}
 						>
-							<span aria-hidden="true">↶</span>
+							<svg
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.8"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M4.5 7.5L2 5l2.5-2.5" />
+								<path d="M2 5h7a4 4 0 0 1 4 4v1.5" />
+							</svg>
 						</button>
 						<button
 							className="toolbar-button history-button"
@@ -1296,7 +1334,20 @@ function EditorShell() {
 							disabled={!history.canRedo}
 							onClick={() => editorStore.getState().redo()}
 						>
-							<span aria-hidden="true">↷</span>
+							<svg
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.8"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M11.5 7.5L14 5l-2.5-2.5" />
+								<path d="M14 5H7a4 4 0 0 0-4 4v1.5" />
+							</svg>
 						</button>
 						<button
 							className="toolbar-button theme-button"
@@ -1305,7 +1356,7 @@ function EditorShell() {
 							onClick={toggleTheme}
 						>
 							<span className="theme-indicator" aria-hidden="true" />
-							{theme === 'dark' ? 'Light' : 'Dark'}
+							<span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
 						</button>
 						<button
 							className="toolbar-button fullscreen-button"
@@ -1316,8 +1367,8 @@ function EditorShell() {
 						>
 							<svg
 								viewBox="0 0 16 16"
-								width="13"
-								height="13"
+								width="12"
+								height="12"
 								fill="none"
 								stroke="currentColor"
 								strokeWidth="1.6"
@@ -1338,7 +1389,7 @@ function EditorShell() {
 									<path d="M2 6V2h4M10 2h4v4M2 10v4h4M14 10v4h-4" />
 								)}
 							</svg>
-							{isAppFullscreen ? 'Windowed' : 'Fullscreen'}
+							<span>{isAppFullscreen ? 'Windowed' : 'Fullscreen'}</span>
 						</button>
 						<button
 							className="export-button"
@@ -1351,7 +1402,25 @@ function EditorShell() {
 							}
 							onClick={openExportDialog}
 						>
-							{isExporting ? 'Exporting…' : 'Export'}
+							<svg
+								viewBox="0 0 16 16"
+								width="12"
+								height="12"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.8"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+								style={{
+									marginRight: '5px',
+									display: 'inline-block',
+									verticalAlign: 'text-bottom'
+								}}
+							>
+								<path d="M8 2v7M5 6l3 3 3-3M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
+							</svg>
+							<span>{isExporting ? 'Exporting…' : 'Export'}</span>
 						</button>
 					</div>
 				</div>
@@ -1475,7 +1544,22 @@ function EditorShell() {
 					<div className="workspace-bar-right">
 						{project && (
 							<span className="workspace-resolution">
-								Sequence 01 <span>·</span> {project.settings.width} × {project.settings.height}
+								<svg
+									viewBox="0 0 16 16"
+									width="11"
+									height="11"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="1.5"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									aria-hidden="true"
+									className="workspace-resolution-icon"
+								>
+									<rect x="2" y="2" width="12" height="12" rx="2" />
+									<path d="M2 6h12M6 2v4M10 2v4M6 10v4M10 10v4" />
+								</svg>
+								{seqName} <span>·</span> {seqWidth} × {seqHeight}
 							</span>
 						)}
 					</div>

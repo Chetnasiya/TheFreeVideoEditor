@@ -540,7 +540,9 @@ class PlaybackEngineImpl implements PlaybackEngine {
 				if (layer.kind === 'text' && layer.textData) {
 					const data = layer.textData;
 					if (data.style.fontFamily) {
-						void ensureFontLoaded(data.style.fontFamily);
+						void ensureFontLoaded(data.style.fontFamily).then((loaded) => {
+							if (loaded) this.requestRender();
+						});
 					}
 					const scale = Math.max(layer.transform?.scaleX ?? 1, layer.transform?.scaleY ?? 1);
 					return this.textCache.get({

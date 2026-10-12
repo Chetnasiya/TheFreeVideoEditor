@@ -24,6 +24,9 @@ export interface GizmoGeometry {
 	width: number;
 	height: number;
 	crop?: Crop;
+	fit?: 'contain' | 'none';
+	kind?: string;
+	textData?: ActiveLayer['textData'];
 }
 
 export interface GizmoState {
@@ -58,7 +61,10 @@ type Corners = [Point, Point, Point, Point];
 function layerOf(
 	state: GizmoState,
 	geometry: GizmoGeometry
-): Pick<ActiveLayer, 'transform' | 'anchor' | 'crop'> {
+): Pick<ActiveLayer, 'transform' | 'anchor' | 'crop' | 'fit'> & {
+	kind?: string;
+	textData?: ActiveLayer['textData'];
+} {
 	return {
 		transform: {
 			x: state.position[0],
@@ -69,7 +75,10 @@ function layerOf(
 			opacity: 1
 		},
 		anchor: { x: state.anchor[0], y: state.anchor[1] },
-		...(geometry.crop ? { crop: geometry.crop } : {})
+		...(geometry.crop ? { crop: geometry.crop } : {}),
+		fit: geometry.fit ?? 'contain',
+		kind: geometry.kind as ActiveLayer['kind'],
+		textData: geometry.textData
 	};
 }
 
@@ -196,12 +205,20 @@ function rotateVector(vector: Point, degrees: number): Point {
 
 /** Rest-frame (unscaled, pivot-relative) coordinates of the unit-quad point (u, v). */
 function restPoint(state: GizmoState, geometry: GizmoGeometry, u: number, v: number): Point {
+	const isText = geometry.kind === 'text';
+	const isAutoSize = geometry.textData?.box?.autoSize !== false;
+	const alignment = isText && isAutoSize ? geometry.textData?.style?.alignment : undefined;
+	const verticalAnchor = isText && isAutoSize ? geometry.textData?.box?.verticalAnchor : undefined;
+
 	const rect = croppedFitRect(
 		geometry.crop,
 		geometry.sourceWidth,
 		geometry.sourceHeight,
 		geometry.width,
-		geometry.height
+		geometry.height,
+		geometry.fit ?? 'contain',
+		alignment,
+		verticalAnchor
 	);
 	return {
 		x: rect.x + u * rect.width - geometry.width / 2 - state.anchor[0],

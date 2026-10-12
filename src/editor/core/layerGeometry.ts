@@ -8,13 +8,36 @@ export function croppedFitRect(
 	sourceHeight: number,
 	width: number,
 	height: number,
-	fit: 'contain' | 'none' = 'contain'
+	fit: 'contain' | 'none' = 'contain',
+	alignment?: 'left' | 'center' | 'right',
+	verticalAnchor?: 'top' | 'center' | 'bottom'
 ): { x: number; y: number; width: number; height: number } {
+	let fitX = (width - sourceWidth) / 2;
+	let fitY = (height - sourceHeight) / 2;
+
+	if (fit === 'none') {
+		if (alignment === 'left') {
+			fitX = width / 2;
+		} else if (alignment === 'right') {
+			fitX = width / 2 - sourceWidth;
+		} else {
+			fitX = (width - sourceWidth) / 2;
+		}
+
+		if (verticalAnchor === 'top') {
+			fitY = height / 2;
+		} else if (verticalAnchor === 'bottom') {
+			fitY = height / 2 - sourceHeight;
+		} else {
+			fitY = (height - sourceHeight) / 2;
+		}
+	}
+
 	const fitted =
 		fit === 'none'
 			? {
-					x: (width - sourceWidth) / 2,
-					y: (height - sourceHeight) / 2,
+					x: fitX,
+					y: fitY,
 					width: sourceWidth,
 					height: sourceHeight
 				}
@@ -44,19 +67,29 @@ export interface Affine2D {
  * its tests; it mirrors the Canvas2D reference path exactly.
  */
 export function layerAffine(
-	layer: Pick<ActiveLayer, 'transform' | 'anchor' | 'crop' | 'fit'>,
+	layer: Pick<ActiveLayer, 'transform' | 'anchor' | 'crop' | 'fit'> & {
+		kind?: string;
+		textData?: ActiveLayer['textData'];
+	},
 	sourceWidth: number,
 	sourceHeight: number,
 	width: number,
 	height: number
 ): Affine2D {
+	const isText = layer.kind === 'text';
+	const isAutoSize = layer.textData?.box?.autoSize !== false;
+	const alignment = isText && isAutoSize ? layer.textData?.style?.alignment : undefined;
+	const verticalAnchor = isText && isAutoSize ? layer.textData?.box?.verticalAnchor : undefined;
+
 	const rect = croppedFitRect(
 		layer.crop,
 		sourceWidth,
 		sourceHeight,
 		width,
 		height,
-		layer.fit ?? 'contain'
+		layer.fit ?? 'contain',
+		alignment,
+		verticalAnchor
 	);
 	const transform = layer.transform;
 	const anchor = layer.anchor ?? { x: 0, y: 0 };
