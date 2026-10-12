@@ -2518,11 +2518,14 @@ export function createEditorStore() {
 					if (!drag || !project) return;
 					const activeSeqId = get().activeSequenceId;
 					const activeView = viewProject(project, activeSeqId);
-					let targetTrackId = options.targetTrackId !== undefined ? options.targetTrackId : drag.targetTrackId;
+					let targetTrackId = 'targetTrackId' in options ? options.targetTrackId : drag.targetTrackId;
 					const createTrackKind =
-						options.createTrackKind !== undefined
+						'createTrackKind' in options
 							? options.createTrackKind
 							: drag.createTrackKind;
+					if (!createTrackKind && targetTrackId && !activeView.tracks.some((t) => t.id === targetTrackId)) {
+						targetTrackId = undefined;
+					}
 					const unlink = options.unlink ?? drag.unlink;
 					const snappedTime = snapToFrame(
 						Math.max(0, Math.round(pointerTime)),
@@ -2683,6 +2686,9 @@ export function createEditorStore() {
 								applyToSequence(project, activeSeqId, (view) => {
 									let currentView = view;
 									let actualTargetTrackId = drag.targetTrackId;
+									if (!drag.createTrackKind && actualTargetTrackId && !view.tracks.some((t) => t.id === actualTargetTrackId)) {
+										actualTargetTrackId = undefined;
+									}
 									if (drag.createTrackKind) {
 										currentView = addTrackOperation(view, drag.createTrackKind);
 										const created = currentView.tracks.find(

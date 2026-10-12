@@ -1024,6 +1024,41 @@
 	color: var(--color-link);
 }
 
+.timeline-track-row.is-new-track-preview {
+	border: 1px dashed var(--color-link);
+	background: color-mix(in srgb, var(--color-link) 10%, transparent);
+	opacity: 0.95;
+	animation: pulse-track-preview 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-track-preview {
+	0% {
+		border-color: color-mix(in srgb, var(--color-link) 60%, transparent);
+	}
+	100% {
+		border-color: var(--color-link);
+	}
+}
+
+.timeline-track-row.is-new-track-preview .timeline-track-header {
+	background: color-mix(in srgb, var(--color-link) 18%, var(--color-canvas-elevated));
+	border-right: 1px dashed var(--color-link);
+	border-bottom: 1px dashed var(--color-link);
+}
+
+.timeline-track-row.is-new-track-preview .track-kind.is-new-badge {
+	color: #ffffff;
+	background: var(--color-link);
+	border-color: var(--color-link);
+	font-weight: 700;
+}
+
+.timeline-track-lane.is-preview-lane {
+	background: color-mix(in srgb, var(--color-link) 6%, transparent);
+	border-bottom: 1px dashed var(--color-link);
+}
+
+
 .timeline-status-row {
 	display: flex;
 	min-height: 1.75rem;

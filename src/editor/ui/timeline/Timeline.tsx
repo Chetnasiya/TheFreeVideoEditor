@@ -367,7 +367,6 @@ function ActiveTimeline({ project }: { project: Project }) {
 		startHeight: number;
 	} | null>(null);
 	const [removePending, setRemovePending] = useState<Track | null>(null);
-	const [newTrackDropKind, setNewTrackDropKind] = useState<Track['kind'] | null>(null);
 	const removeDialogRef = useRef<HTMLDialogElement>(null);
 	const contextMenuRef = useRef<HTMLDivElement>(null);
 	const contextTriggerRef = useRef<HTMLElement | null>(null);
@@ -833,13 +832,44 @@ function ActiveTimeline({ project }: { project: Project }) {
 				pointerStartTime: 0,
 				pointerTime: time,
 				targetTrackId,
+				createTrackKind: undefined,
 				assetId: asset.id,
 				allowed: true,
 				unlink: false
 			});
 		}
 		const activeDrag = store.getState().timeline.drag;
-		if (activeDrag) setSnappedDragTime(activeDrag, time, targetTrackId);
+		if (activeDrag) scheduleDragPreview(activeDrag, time, targetTrackId, false, false, undefined);
+		return assetId;
+	}
+
+	function beginAssetNewTrackPreview(
+		event: DragEvent<HTMLElement>,
+		kind: Track['kind']
+	): AssetId | null {
+		const assetId = assetFromData(event.dataTransfer);
+		const asset = assetId ? activeProject.assets[assetId] : undefined;
+		if (!asset) return null;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+		const time = pointerTime(event.clientX);
+		if (drag?.assetId !== assetId) {
+			beginTimelineDrag({
+				kind: 'asset',
+				clipIds: [],
+				original: [],
+				preview: [],
+				pointerStartTime: 0,
+				pointerTime: time,
+				targetTrackId: undefined,
+				createTrackKind: kind,
+				assetId: asset.id,
+				allowed: true,
+				unlink: false
+			});
+		}
+		const activeDrag = store.getState().timeline.drag;
+		if (activeDrag) scheduleDragPreview(activeDrag, time, undefined, false, false, kind);
 		return assetId;
 	}
 
@@ -978,7 +1008,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 		const session = store.getState().timeline.drag;
 		if (session?.assetId === assetId) {
 			const activeDrag = store.getState().timeline.drag;
-			if (activeDrag) setSnappedDragTime(activeDrag, time, track.id);
+			if (activeDrag) setSnappedDragTime(activeDrag, time, track.id, false, false, undefined);
 			commitTimelineDrag();
 		} else addAssetToTimeline(assetId, track.id, time);
 	}
@@ -987,9 +1017,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 		const assetId = assetFromData(event.dataTransfer);
 		const asset = assetId ? activeProject.assets[assetId] : undefined;
 		if (!asset) return;
-		event.preventDefault();
-		setNewTrackDropKind(asset.kind === 'audio' ? 'audio' : 'video');
-		event.dataTransfer.dropEffect = 'copy';
+		const kind: Track['kind'] = asset.kind === 'audio' ? 'audio' : 'video';
+		beginAssetNewTrackPreview(event, kind);
 	}
 
 	function dropOnNewTrack(event: DragEvent<HTMLDivElement>): void {
@@ -997,12 +1026,121 @@ function ActiveTimeline({ project }: { project: Project }) {
 		const asset = assetId ? activeProject.assets[assetId] : undefined;
 		if (!asset) return;
 		event.preventDefault();
-		addAssetOnNewTrack(
-			asset.id,
-			asset.kind === 'audio' ? 'audio' : 'video',
-			pointerTime(event.clientX)
-		);
-		setNewTrackDropKind(null);
+		const session = store.getState().timeline.drag;
+		if (session?.assetId === assetId && session.createTrackKind) {
+			commitTimelineDrag();
+		} else {
+			addAssetOnNewTrack(
+				asset.id,
+				asset.kind === 'audio' ? 'audio' : 'video',
+				pointerTime(event.clientX)
+			);
+		}
+	}
+
+	function handleTimelineDragOver(event: DragEvent<HTMLDivElement>): void {
+		if (event.dataTransfer.types.includes('application/x-tfve-transition')) return;
+		if (event.dataTransfer.types.includes('application/x-tfve-sequence')) return;
+		const assetId = assetFromData(event.dataTransfer);
+		if (!assetId) return;
+		const asset = activeProject.assets[assetId];
+		if (!asset) return;
+		const assetTrackKind: Track['kind'] = asset.kind === 'audio' ? 'audio' : 'video';
+
+		const target = document.elementFromPoint(event.clientX, event.clientY);
+		const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
+
+		if (
+			trackLaneEl &&
+			!trackLaneEl.classList.contains('is-preview-lane') &&
+			activeProject.tracks.some((t) => t.id === trackLaneEl.dataset.trackLane)
+		) {
+			const track = activeProject.tracks.find((t) => t.id === trackLaneEl.dataset.trackLane);
+			if (track) {
+				const compatible =
+					track.kind === 'video'
+						? asset.kind === 'video' || asset.kind === 'image'
+						: asset.kind === 'audio';
+				if (compatible) {
+					event.preventDefault();
+					event.dataTransfer.dropEffect = 'copy';
+					beginAssetPreview(event, track.id);
+				} else {
+					event.dataTransfer.dropEffect = 'none';
+				}
+			}
+			return;
+		}
+
+		const scroller = scrollerRef.current;
+		if (!scroller) return;
+		const rowsContainer = scroller.querySelector('.timeline-track-rows');
+		if (rowsContainer) {
+			const trackRows = Array.from(
+				rowsContainer.querySelectorAll<HTMLElement>(
+					'.timeline-track-row:not(.is-new-track-preview)'
+				)
+			);
+			if (trackRows.length > 0) {
+				const firstRowRect = trackRows[0]!.getBoundingClientRect();
+				const lastRowRect = trackRows[trackRows.length - 1]!.getBoundingClientRect();
+
+				if (event.clientY < firstRowRect.top || event.clientY > lastRowRect.bottom) {
+					beginAssetNewTrackPreview(event, assetTrackKind);
+				} else {
+					for (const row of trackRows) {
+						const r = row.getBoundingClientRect();
+						if (event.clientY >= r.top && event.clientY <= r.bottom) {
+							const lane = row.querySelector<HTMLElement>('[data-track-lane]');
+							const tId = lane?.dataset.trackLane as TrackId | undefined;
+							const track = activeProject.tracks.find((t) => t.id === tId);
+							if (track) {
+								const compatible =
+									track.kind === 'video'
+										? asset.kind === 'video' || asset.kind === 'image'
+										: asset.kind === 'audio';
+								if (compatible) {
+									event.preventDefault();
+									event.dataTransfer.dropEffect = 'copy';
+									beginAssetPreview(event, track.id);
+								}
+							}
+							break;
+						}
+					}
+				}
+			} else {
+				beginAssetNewTrackPreview(event, assetTrackKind);
+			}
+		}
+	}
+
+	function handleTimelineDrop(event: DragEvent<HTMLDivElement>): void {
+		const assetId = assetFromData(event.dataTransfer);
+		if (!assetId) return;
+		const session = store.getState().timeline.drag;
+		if (session?.assetId === assetId) {
+			if (session.createTrackKind) {
+				event.preventDefault();
+				commitTimelineDrag();
+				return;
+			}
+			if (session.targetTrackId) {
+				event.preventDefault();
+				commitTimelineDrag();
+				return;
+			}
+		}
+	}
+
+	function handleTimelineDragLeave(event: DragEvent<HTMLDivElement>): void {
+		if (
+			event.relatedTarget &&
+			scrollerRef.current?.contains(event.relatedTarget as Node)
+		) {
+			return;
+		}
+		cancelTimelineDrag();
 	}
 
 	function beginMarquee(event: PointerEvent<HTMLDivElement>): void {
@@ -1112,38 +1250,64 @@ function ActiveTimeline({ project }: { project: Project }) {
 
 		const target = document.elementFromPoint(event.clientX, event.clientY);
 		const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
-		if (trackLaneEl) {
+		if (
+			trackLaneEl &&
+			!trackLaneEl.classList.contains('is-preview-lane') &&
+			activeProject.tracks.some((t) => t.id === trackLaneEl.dataset.trackLane)
+		) {
 			targetTrackId = trackLaneEl.dataset.trackLane as TrackId | undefined;
+			createTrackKind = undefined;
 		} else {
-			// Check if dragged outside existing tracks
-			const primary = session.original[0];
-			const primaryTrack = primary
-				? activeProject.tracks.find((t) => t.id === primary.trackId)
-				: undefined;
-			const draggedKind = primaryTrack?.kind ?? (session.assetId ? activeProject.assets[session.assetId]?.kind : undefined) ?? 'video';
-			const normalizedKind: Track['kind'] = draggedKind === 'audio' ? 'audio' : 'video';
+			const scrollerRect = scroller.getBoundingClientRect();
+			if (
+				event.clientX < scrollerRect.left - 40 ||
+				event.clientX > scrollerRect.right + 40 ||
+				event.clientY < scrollerRect.top - 60 ||
+				event.clientY > scrollerRect.bottom + 60
+			) {
+				targetTrackId = undefined;
+				createTrackKind = undefined;
+			} else {
+				// Check if dragged outside existing tracks
+				const primary = session.original[0];
+				const primaryTrack = primary
+					? activeProject.tracks.find((t) => t.id === primary.trackId)
+					: undefined;
+				const draggedKind =
+					primaryTrack?.kind ??
+					(session.assetId ? activeProject.assets[session.assetId]?.kind : undefined) ??
+					'video';
+				const normalizedKind: Track['kind'] = draggedKind === 'audio' ? 'audio' : 'video';
 
-			const rowsContainer = scroller.querySelector('.timeline-track-rows');
-			if (rowsContainer) {
-				const trackRows = Array.from(rowsContainer.querySelectorAll<HTMLElement>('.timeline-track-row'));
-				if (trackRows.length > 0) {
-					const firstRowRect = trackRows[0]!.getBoundingClientRect();
-					const lastRowRect = trackRows[trackRows.length - 1]!.getBoundingClientRect();
+				const rowsContainer = scroller.querySelector('.timeline-track-rows');
+				if (rowsContainer) {
+					const trackRows = Array.from(
+						rowsContainer.querySelectorAll<HTMLElement>(
+							'.timeline-track-row:not(.is-new-track-preview)'
+						)
+					);
+					if (trackRows.length > 0) {
+						const firstRowRect = trackRows[0]!.getBoundingClientRect();
+						const lastRowRect = trackRows[trackRows.length - 1]!.getBoundingClientRect();
 
-					if (event.clientY < firstRowRect.top) {
-						// Dragged above the top track (Premiere Pro style: add track at top)
-						createTrackKind = normalizedKind;
-					} else if (event.clientY > lastRowRect.bottom) {
-						// Dragged below the bottom track (add track at bottom)
-						createTrackKind = normalizedKind;
-					} else {
-						// Inside container vertically but maybe over header or padding: find closest track row
-						for (const row of trackRows) {
-							const r = row.getBoundingClientRect();
-							if (event.clientY >= r.top && event.clientY <= r.bottom) {
-								const lane = row.querySelector<HTMLElement>('[data-track-lane]');
-								targetTrackId = lane?.dataset.trackLane as TrackId | undefined;
-								break;
+						if (event.clientY < firstRowRect.top) {
+							// Dragged above the top track (Premiere Pro style: add track at top)
+							createTrackKind = normalizedKind;
+							targetTrackId = undefined;
+						} else if (event.clientY > lastRowRect.bottom) {
+							// Dragged below the bottom track (add track at bottom)
+							createTrackKind = normalizedKind;
+							targetTrackId = undefined;
+						} else {
+							// Inside tracks vertically: definitely do NOT create a new track
+							createTrackKind = undefined;
+							for (const row of trackRows) {
+								const r = row.getBoundingClientRect();
+								if (event.clientY >= r.top && event.clientY <= r.bottom) {
+									const lane = row.querySelector<HTMLElement>('[data-track-lane]');
+									targetTrackId = lane?.dataset.trackLane as TrackId | undefined;
+									break;
+								}
 							}
 						}
 					}
@@ -1184,34 +1348,65 @@ function ActiveTimeline({ project }: { project: Project }) {
 		pendingDragPreview.current = null;
 		const session = store.getState().timeline.drag;
 		if (session) {
+			const scroller = scrollerRef.current;
+			if (!scroller) {
+				cancelTimelineInteraction();
+				return;
+			}
+			const scrollerRect = scroller.getBoundingClientRect();
+			// If released outside the timeline scroller, CANCEL drag! Do not create a new track!
+			if (
+				event.clientX < scrollerRect.left ||
+				event.clientX > scrollerRect.right ||
+				event.clientY < scrollerRect.top - 10 ||
+				event.clientY > scrollerRect.bottom + 10
+			) {
+				cancelTimelineInteraction();
+				return;
+			}
+
 			let targetTrackId: TrackId | undefined;
 			let createTrackKind: Track['kind'] | undefined;
 
 			const target = document.elementFromPoint(event.clientX, event.clientY);
 			const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
-			if (trackLaneEl) {
+			if (
+				trackLaneEl &&
+				!trackLaneEl.classList.contains('is-preview-lane') &&
+				activeProject.tracks.some((t) => t.id === trackLaneEl.dataset.trackLane)
+			) {
 				targetTrackId = trackLaneEl.dataset.trackLane as TrackId | undefined;
+				createTrackKind = undefined;
 			} else {
 				const primary = session.original[0];
 				const primaryTrack = primary
 					? activeProject.tracks.find((t) => t.id === primary.trackId)
 					: undefined;
-				const draggedKind = primaryTrack?.kind ?? (session.assetId ? activeProject.assets[session.assetId]?.kind : undefined) ?? 'video';
+				const draggedKind =
+					primaryTrack?.kind ??
+					(session.assetId ? activeProject.assets[session.assetId]?.kind : undefined) ??
+					'video';
 				const normalizedKind: Track['kind'] = draggedKind === 'audio' ? 'audio' : 'video';
 
-				const scroller = scrollerRef.current;
-				const rowsContainer = scroller?.querySelector('.timeline-track-rows');
+				const rowsContainer = scroller.querySelector('.timeline-track-rows');
 				if (rowsContainer) {
-					const trackRows = Array.from(rowsContainer.querySelectorAll<HTMLElement>('.timeline-track-row'));
+					const trackRows = Array.from(
+						rowsContainer.querySelectorAll<HTMLElement>(
+							'.timeline-track-row:not(.is-new-track-preview)'
+						)
+					);
 					if (trackRows.length > 0) {
 						const firstRowRect = trackRows[0]!.getBoundingClientRect();
 						const lastRowRect = trackRows[trackRows.length - 1]!.getBoundingClientRect();
 
 						if (event.clientY < firstRowRect.top) {
 							createTrackKind = normalizedKind;
+							targetTrackId = undefined;
 						} else if (event.clientY > lastRowRect.bottom) {
 							createTrackKind = normalizedKind;
+							targetTrackId = undefined;
 						} else {
+							createTrackKind = undefined;
 							for (const row of trackRows) {
 								const r = row.getBoundingClientRect();
 								if (event.clientY >= r.top && event.clientY <= r.bottom) {
@@ -1233,8 +1428,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 				event.ctrlKey || event.metaKey,
 				createTrackKind
 			);
+			commitTimelineDrag();
 		}
-		commitTimelineDrag();
 	}
 
 	function cancelTimelineInteraction(): void {
@@ -1358,6 +1553,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 					onPointerCancel={() => {
 						cancelTimelineInteraction();
 					}}
+					onDragOver={handleTimelineDragOver}
+					onDrop={handleTimelineDrop}
+					onDragLeave={handleTimelineDragLeave}
 					onKeyDown={(event) => {
 						if (event.key !== 'Escape') return;
 						cancelTimelineInteraction();
@@ -1387,45 +1585,140 @@ function ActiveTimeline({ project }: { project: Project }) {
 							onScrubEnd={endRulerScrub}
 							onRulerKeyDown={rulerKeyDown}
 						/>
-						<div className="timeline-track-rows" role="grid" aria-label="Project timeline tracks">
-							{activeProject.tracks.map((track, index) => {
-								const previewPositions = dragPositionsByTrack.get(track.id) ?? [];
-								return (
+						{(() => {
+							const newTrackPreviewRow =
+								drag?.createTrackKind &&
+								drag?.targetTrackId &&
+								!activeProject.tracks.some((t) => t.id === drag.targetTrackId) ? (
 									<div
-										className={`timeline-track-row track-${track.kind}`}
+										className={`timeline-track-row track-${drag.createTrackKind} is-new-track-preview`}
 										role="row"
-										key={track.id}
-										style={
-											{
-												'--track-height': `${trackHeights[track.id] ?? 45}px`,
-												zIndex: activeProject.tracks.length - index
-											} as CSSProperties
-										}
+										style={{ '--track-height': '45px', zIndex: 100 } as CSSProperties}
 									>
-										<TrackHeader
-											track={track}
-											index={index}
-											onRename={renameTimelineTrack}
-											onRemove={handleTrackRemoval}
-											onFlag={setTimelineTrackFlags}
-											onReorder={reorderTimelineTrack}
-										/>
+										<div className={`timeline-track-header track-${drag.createTrackKind}`}>
+											<span className="track-kind is-new-badge" aria-hidden="true">
+												{drag.createTrackKind === 'audio' ? 'A+' : 'V+'}
+											</span>
+											<span className="timeline-track-name">
+												New {drag.createTrackKind === 'audio' ? 'Audio' : 'Video'} Track
+											</span>
+										</div>
 										<div
-											className={`timeline-track-lane ${drag?.targetTrackId === track.id && !drag.allowed ? 'is-invalid-drop' : ''}`}
-											data-track-lane={track.id}
+											className="timeline-track-lane is-preview-lane"
+											data-track-lane={drag.targetTrackId}
 											role="gridcell"
-											aria-label={`${track.name} track lane`}
-											tabIndex={0}
-											onKeyDown={(event) => handleLaneKeyDown(event, track)}
-											onDragOver={(event) => handleTrackDragOver(event, track)}
-											onDragLeave={(event) => {
-												if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-													if (drag?.kind === 'asset') cancelTimelineDrag();
+											aria-label={`New ${drag.createTrackKind} track preview`}
+											onDragOver={(event) => {
+												if (drag?.createTrackKind) {
+													beginAssetNewTrackPreview(event, drag.createTrackKind);
 												}
 											}}
-											onDrop={(event) => handleTrackDrop(event, track)}
-											onDragEnd={() => cancelTimelineDrag()}
+											onDrop={(event) => {
+												event.preventDefault();
+												const session = store.getState().timeline.drag;
+												if (session?.createTrackKind) {
+													commitTimelineDrag();
+												}
+											}}
 										>
+											{drag.preview.map((position) => {
+												let sourceClip: Clip | undefined;
+												for (const row of activeProject.tracks) {
+													const found = row.clips.find((c) => c.id === position.clipId);
+													if (found) {
+														sourceClip = found;
+														break;
+													}
+												}
+												const assetId = drag.assetId ?? sourceClip?.assetId;
+												const asset = assetId ? activeProject.assets[assetId] : undefined;
+												if (!asset && (!sourceClip?.source || sourceClip.source.type === 'asset')) {
+													return null;
+												}
+												const previewTrack: Track = {
+													id: position.trackId,
+													kind: drag.createTrackKind!,
+													name: `New ${drag.createTrackKind === 'audio' ? 'Audio' : 'Video'} Track`,
+													muted: false,
+													locked: false,
+													hidden: false,
+													clips: []
+												};
+												const ghostClip: Clip = sourceClip
+													? {
+															...sourceClip,
+															start: position.start,
+															duration: position.duration,
+															sourceIn: position.sourceIn,
+															sourceOut: position.sourceOut
+														}
+													: {
+															id: position.clipId,
+															assetId: asset?.id,
+															start: position.start,
+															duration: position.duration,
+															sourceIn: position.sourceIn,
+															sourceOut: position.sourceOut,
+															speed: 1,
+															volume: 1
+														};
+												return (
+													<ClipView
+														key={`preview-track-ghost-${position.clipId}`}
+														clip={ghostClip}
+														asset={asset}
+														track={previewTrack}
+														project={activeProject}
+														pixelsPerSecond={pixelsPerSecond}
+														selected={false}
+														tabIndex={-1}
+														ghost
+														onPointerDown={() => undefined}
+														onKeyboardTrim={() => undefined}
+														onSelect={() => undefined}
+														onContextMenu={() => undefined}
+													/>
+												);
+											})}
+										</div>
+									</div>
+								) : null;
+
+							return (
+								<div className="timeline-track-rows" role="grid" aria-label="Project timeline tracks">
+									{drag?.createTrackKind === 'video' && newTrackPreviewRow}
+									{activeProject.tracks.map((track, index) => {
+										const previewPositions = dragPositionsByTrack.get(track.id) ?? [];
+										return (
+											<div
+												className={`timeline-track-row track-${track.kind}`}
+												role="row"
+												key={track.id}
+												style={
+													{
+														'--track-height': `${trackHeights[track.id] ?? 45}px`,
+														zIndex: activeProject.tracks.length - index
+													} as CSSProperties
+												}
+											>
+												<TrackHeader
+													track={track}
+													index={index}
+													onRename={renameTimelineTrack}
+													onRemove={handleTrackRemoval}
+													onFlag={setTimelineTrackFlags}
+													onReorder={reorderTimelineTrack}
+												/>
+												<div
+													className={`timeline-track-lane ${drag?.targetTrackId === track.id && !drag.allowed ? 'is-invalid-drop' : ''}`}
+													data-track-lane={track.id}
+													role="gridcell"
+													aria-label={`${track.name} track lane`}
+													tabIndex={0}
+													onKeyDown={(event) => handleLaneKeyDown(event, track)}
+													onDragOver={(event) => handleTrackDragOver(event, track)}
+													onDrop={(event) => handleTrackDrop(event, track)}
+												>
 											{track.kind === 'caption' ? (
 												<>
 													{(track.captions ?? []).length === 0 && (
@@ -1631,22 +1924,21 @@ function ActiveTimeline({ project }: { project: Project }) {
 									</div>
 								);
 							})}
+							{drag?.createTrackKind === 'audio' && newTrackPreviewRow}
 							<div
-								className={`timeline-new-track-drop ${newTrackDropKind || drag?.createTrackKind ? 'is-active' : ''}`}
+								className={`timeline-new-track-drop ${drag?.createTrackKind ? 'is-active' : ''}`}
 								role="group"
 								aria-label="Drop outside tracks to create a new track"
 								onDragOver={beginEmptyTrackDrop}
-								onDragLeave={() => setNewTrackDropKind(null)}
 								onDrop={dropOnNewTrack}
-								onDragEnd={() => setNewTrackDropKind(null)}
 							>
 								{drag?.createTrackKind
 									? `Release to create a new ${drag.createTrackKind} track`
-									: newTrackDropKind
-										? `Drop to add a ${newTrackDropKind} track`
-										: 'Drop media or drag clips outside tracks to create a new track'}
+									: 'Drop media or drag clips outside tracks to create a new track'}
 							</div>
 						</div>
+					);
+				})()}
 						{marquee && (
 							<div
 								className="timeline-marquee"

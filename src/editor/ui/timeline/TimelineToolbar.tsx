@@ -129,7 +129,7 @@ export default function TimelineToolbar({
 				</div>
 				<div className="timeline-toolbar-separator" aria-hidden="true" />
 				<div className="timeline-tool-group" role="group" aria-label="Add tracks and layers">
-					<button type="button" className="tool-button" onClick={() => onAddTrack('video')} title="Add video track">
+					{/* <button type="button" className="tool-button" onClick={() => onAddTrack('video')} title="Add video track">
 						<svg className="tool-btn-icon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
 							<path d="M0 3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2.5l3.5-2.5v9L12 10.5V13a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3z" />
 						</svg>
@@ -142,7 +142,7 @@ export default function TimelineToolbar({
 							<path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A1.5 1.5 0 0 1 0 9V7a1.5 1.5 0 0 1 1.5-1.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z" />
 						</svg>
 						<span>+ Audio</span>
-					</button>
+					</button> */}
 					{onAddAdjustment && (
 						<button
 							type="button"
@@ -153,7 +153,7 @@ export default function TimelineToolbar({
 							<svg className="tool-btn-icon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
 								<path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5v11A5.5 5.5 0 0 1 8 2.5z" />
 							</svg>
-							<span>+ Adjust</span>
+							<span>Adjustment Layer</span>
 						</button>
 					)}
 					{onAddSolid && (
@@ -166,7 +166,7 @@ export default function TimelineToolbar({
 							<svg className="tool-btn-icon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
 								<rect x="2" y="2" width="12" height="12" rx="2" />
 							</svg>
-							<span>+ Solid</span>
+							<span>Solid Layer</span>
 						</button>
 					)}
 					{onAddCaption && (
@@ -179,7 +179,7 @@ export default function TimelineToolbar({
 							<svg className="tool-btn-icon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
 								<path d="M2 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1.5v2.5L7 13h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H2zm3.5 3h1.5a.5.5 0 0 1 .5.5v.5h-1v-.5H5.5v3H6v-.5h1v.5a.5.5 0 0 1-.5.5h-1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5zm5 0H12a.5.5 0 0 1 .5.5v.5h-1v-.5H10.5v3H11v-.5h1v.5a.5.5 0 0 1-.5.5h-1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5z" />
 							</svg>
-							<span>+ Caption</span>
+							<span>Caption Layer</span>
 						</button>
 					)}
 				</div>
