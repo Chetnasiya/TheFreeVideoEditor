@@ -301,7 +301,7 @@ export default function TimelineRuler({
 					<div className="timeline-snap-control" ref={snapControlRef}>
 						<button
 							type="button"
-							className={`timeline-corner-btn timeline-snap-btn ${snapEnabled ? 'is-active' : ''}`}
+							className={`timeline-corner-btn timeline-snap-main-btn ${snapEnabled ? 'is-active' : ''}`}
 							onClick={toggleSnap}
 							title={`Snap in Timeline: ${snapEnabled ? 'On' : 'Off'} (S)`}
 							aria-label="Toggle Snapping"
@@ -320,7 +320,7 @@ export default function TimelineRuler({
 						</button>
 						<button
 							type="button"
-							className={`timeline-corner-btn timeline-corner-dropdown-trigger ${snapMenuOpen ? 'is-open' : ''}`}
+							className={`timeline-corner-btn timeline-snap-trigger-btn ${snapMenuOpen ? 'is-open' : ''}`}
 							onClick={(e) => {
 								e.stopPropagation();
 								setSnapMenuOpen((prev) => !prev);
@@ -330,8 +330,8 @@ export default function TimelineRuler({
 							aria-haspopup="true"
 							aria-expanded={snapMenuOpen}
 						>
-							<svg viewBox="0 0 10 10" width="7" height="7" fill="currentColor" aria-hidden="true">
-								<path d="M2 3.5l3 3 3-3z" />
+							<svg viewBox="0 0 8 6" width="7" height="5" fill="currentColor" aria-hidden="true">
+								<path d="M0.5 1l3.5 4 3.5-4z" />
 							</svg>
 						</button>
 						{snapMenuOpen && (

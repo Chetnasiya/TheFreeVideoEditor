@@ -501,6 +501,7 @@ export interface DragSession {
 	pointerStartTime: Time;
 	pointerTime: Time;
 	targetTrackId?: TrackId;
+	createTrackKind?: Track['kind'];
 	assetId?: AssetId;
 	snappedTo?: Time;
 	allowed: boolean;

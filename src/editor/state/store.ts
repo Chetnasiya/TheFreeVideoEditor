@@ -572,7 +572,12 @@ export interface EditorState {
 	beginTimelineDrag: (session: DragSession) => void;
 	updateTimelineDrag: (
 		pointerTime: Time,
-		options?: { targetTrackId?: TrackId; unlink?: boolean; snappedTo?: Time }
+		options?: {
+			targetTrackId?: TrackId;
+			createTrackKind?: Track['kind'];
+			unlink?: boolean;
+			snappedTo?: Time;
+		}
 	) => void;
 	cancelTimelineDrag: () => void;
 	commitTimelineDrag: () => boolean;
@@ -2513,22 +2518,37 @@ export function createEditorStore() {
 					if (!drag || !project) return;
 					const activeSeqId = get().activeSequenceId;
 					const activeView = viewProject(project, activeSeqId);
-					const targetTrackId = options.targetTrackId ?? drag.targetTrackId;
+					let targetTrackId = options.targetTrackId !== undefined ? options.targetTrackId : drag.targetTrackId;
+					const createTrackKind =
+						options.createTrackKind !== undefined
+							? options.createTrackKind
+							: drag.createTrackKind;
 					const unlink = options.unlink ?? drag.unlink;
 					const snappedTime = snapToFrame(
 						Math.max(0, Math.round(pointerTime)),
 						project.settings.fps
 					);
 					try {
-						let previewProject = activeView;
+						let previewBase = activeView;
+						if (createTrackKind) {
+							previewBase = addTrackOperation(activeView, createTrackKind);
+							const created = previewBase.tracks.find(
+								(candidate) => !activeView.tracks.some((existing) => existing.id === candidate.id)
+							);
+							if (created) {
+								targetTrackId = created.id;
+							}
+						}
+
+						let previewProject = previewBase;
 						if (drag.kind === 'asset' && drag.assetId && targetTrackId) {
-							previewProject = addClipFromAssetOperation(activeView, {
+							previewProject = addClipFromAssetOperation(previewBase, {
 								assetId: drag.assetId,
 								trackId: targetTrackId,
 								start: snappedTime
 							});
 						} else if (drag.kind === 'move') {
-							previewProject = moveClipsOperation(activeView, {
+							previewProject = moveClipsOperation(previewBase, {
 								clipIds: drag.clipIds,
 								deltaTime: snappedTime - drag.pointerStartTime,
 								targetTrackId,
@@ -2541,8 +2561,8 @@ export function createEditorStore() {
 								const candidateIn = Math.max(0, original.sourceIn + delta);
 								const candidateOut = candidateIn + original.duration;
 								previewProject = {
-									...activeView,
-									tracks: activeView.tracks.map((t) => ({
+									...previewBase,
+									tracks: previewBase.tracks.map((t) => ({
 										...t,
 										clips: t.clips.map((c) =>
 											c.id === drag.clipIds[0]
@@ -2562,7 +2582,7 @@ export function createEditorStore() {
 										: undefined;
 							if (baseTime !== undefined) {
 								previewProject = trimClipOperation(
-									activeView,
+									previewBase,
 									drag.clipIds[0],
 									drag.kind === 'trim-start' ? 'start' : 'end',
 									baseTime + snappedTime - drag.pointerStartTime,
@@ -2588,6 +2608,7 @@ export function createEditorStore() {
 							if (!state.timeline.drag) return;
 							state.timeline.drag.pointerTime = snappedTime;
 							state.timeline.drag.targetTrackId = targetTrackId;
+							state.timeline.drag.createTrackKind = createTrackKind;
 							state.timeline.drag.unlink = unlink;
 							state.timeline.drag.allowed = true;
 							state.timeline.drag.snappedTo = options.snappedTo;
@@ -2603,6 +2624,7 @@ export function createEditorStore() {
 							if (!state.timeline.drag) return;
 							state.timeline.drag.pointerTime = snappedTime;
 							state.timeline.drag.targetTrackId = targetTrackId;
+							state.timeline.drag.createTrackKind = createTrackKind;
 							state.timeline.drag.unlink = unlink;
 							state.timeline.drag.allowed = false;
 							delete state.timeline.drag.snappedTo;
@@ -2632,6 +2654,7 @@ export function createEditorStore() {
 					const unchangedMove =
 						drag.kind === 'move' &&
 						delta === 0 &&
+						!drag.createTrackKind &&
 						(!drag.targetTrackId || !originalAnchor || drag.targetTrackId === originalAnchor.trackId);
 					const unchangedTrimOrSlip =
 						(drag.kind === 'trim-start' || drag.kind === 'trim-end' || drag.kind === 'slip') &&
@@ -2658,18 +2681,30 @@ export function createEditorStore() {
 									: 'Trim clip',
 							(project) =>
 								applyToSequence(project, activeSeqId, (view) => {
-									if (drag.kind === 'asset' && drag.assetId && drag.targetTrackId) {
-										return addClipFromAssetOperation(view, {
+									let currentView = view;
+									let actualTargetTrackId = drag.targetTrackId;
+									if (drag.createTrackKind) {
+										currentView = addTrackOperation(view, drag.createTrackKind);
+										const created = currentView.tracks.find(
+											(candidate) => !view.tracks.some((existing) => existing.id === candidate.id)
+										);
+										if (created) {
+											actualTargetTrackId = created.id;
+										}
+									}
+
+									if (drag.kind === 'asset' && drag.assetId && actualTargetTrackId) {
+										return addClipFromAssetOperation(currentView, {
 											assetId: drag.assetId,
-											trackId: drag.targetTrackId,
+											trackId: actualTargetTrackId,
 											start: drag.pointerTime
 										});
 									}
 									if (drag.kind === 'move') {
-										return moveClipsOperation(view, {
+										return moveClipsOperation(currentView, {
 											clipIds: drag.clipIds,
 											deltaTime: drag.pointerTime - drag.pointerStartTime,
-											targetTrackId: drag.targetTrackId,
+											targetTrackId: actualTargetTrackId,
 											unlink: drag.unlink
 										});
 									}

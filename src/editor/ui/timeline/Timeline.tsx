@@ -47,7 +47,7 @@ import TimelineTools from './TimelineTools';
 import GraphEditor from '../graph/GraphEditor';
 import './timeline.css';
 
-const HEADER_WIDTH = 188;
+const HEADER_WIDTH = 212;
 const TAIL_SECONDS = 12;
 
 interface ContextPosition {
@@ -346,6 +346,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 		targetTrackId?: TrackId;
 		altKey: boolean;
 		commandKey: boolean;
+		createTrackKind?: Track['kind'];
 	} | null>(null);
 	const marqueeStart = useRef<{ x: number; y: number; clientX: number; clientY: number } | null>(
 		null
@@ -376,7 +377,6 @@ function ActiveTimeline({ project }: { project: Project }) {
 	const visibleDuration = Math.max(duration + TAIL_SECONDS * 1_000_000, 60_000_000);
 	const laneWidth = Math.max(760, timeToPixels(visibleDuration, pixelsPerSecond));
 	const worldWidth = HEADER_WIDTH + laneWidth;
-	const snapTolerance = Math.round((8 / pixelsPerSecond) * 1_000_000);
 	const clipOverscan = 600;
 	const visibleClipRange = {
 		start: Math.max(0, scrollLeft - HEADER_WIDTH - clipOverscan),
@@ -504,10 +504,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 		rawTime: Time,
 		targetTrackId?: TrackId,
 		altKey = false,
-		commandKey = false
+		commandKey = false,
+		createTrackKind?: Track['kind']
 	) {
 		if (!snapEnabled || commandKey || (session.kind === 'asset' && !session.assetId)) {
-			updateTimelineDrag(rawTime, { targetTrackId, unlink: altKey });
+			updateTimelineDrag(rawTime, { targetTrackId, createTrackKind, unlink: altKey });
 			return;
 		}
 		const excluded = session.clipIds.flatMap((id) =>
@@ -527,24 +528,53 @@ function ActiveTimeline({ project }: { project: Project }) {
 					: session.kind === 'trim-end' && primary
 						? primary.start + primary.duration + rawTime - session.pointerStartTime
 						: rawTime;
-		const candidates = [Math.max(0, referenceStart)];
+
+		const snapTolerance = framesToTicks(5, activeProject.settings.fps);
+
 		if (session.kind === 'move' && primary) {
-			candidates.push(Math.max(0, referenceStart + primary.duration));
+			const refStart = Math.max(0, referenceStart);
+			const refEnd = refStart + primary.duration;
+			const snapStart = snapTime(refStart, points, snapTolerance);
+			const snapEnd = snapTime(refEnd, points, snapTolerance);
+
+			let bestDelta: number | undefined;
+			let snappedToVal: Time | undefined;
+
+			const startDist = snapStart.snappedTo !== undefined ? Math.abs(snapStart.snappedTo - refStart) : Infinity;
+			const endDist = snapEnd.snappedTo !== undefined ? Math.abs(snapEnd.snappedTo - refEnd) : Infinity;
+
+			if (startDist <= endDist && snapStart.snappedTo !== undefined) {
+				bestDelta = snapStart.snappedTo - referenceStart;
+				snappedToVal = snapStart.snappedTo;
+			} else if (endDist < Infinity && snapEnd.snappedTo !== undefined) {
+				bestDelta = snapEnd.snappedTo - primary.duration - referenceStart;
+				snappedToVal = snapEnd.snappedTo;
+			}
+
+			if (bestDelta !== undefined) {
+				updateTimelineDrag(rawTime + bestDelta, {
+					targetTrackId,
+					createTrackKind,
+					unlink: altKey,
+					snappedTo: snappedToVal
+				});
+				return;
+			}
+		} else {
+			const snapResult = snapTime(Math.max(0, referenceStart), points, snapTolerance);
+			if (snapResult.snappedTo !== undefined) {
+				const delta = snapResult.snappedTo - referenceStart;
+				updateTimelineDrag(rawTime + delta, {
+					targetTrackId,
+					createTrackKind,
+					unlink: altKey,
+					snappedTo: snapResult.snappedTo
+				});
+				return;
+			}
 		}
-		const snappedCandidates = candidates
-			.map((candidate) => snapTime(candidate, points, snapTolerance))
-			.filter((result) => result.snappedTo !== undefined)
-			.toSorted(
-				(first, second) =>
-					Math.abs(first.time - candidates[0]!) - Math.abs(second.time - candidates[0]!)
-			);
-		const snappedTo = snappedCandidates[0]?.snappedTo;
-		if (snappedTo === undefined) {
-			updateTimelineDrag(rawTime, { targetTrackId, unlink: altKey });
-			return;
-		}
-		const delta = snappedTo - referenceStart;
-		updateTimelineDrag(rawTime + delta, { targetTrackId, unlink: altKey, snappedTo });
+
+		updateTimelineDrag(rawTime, { targetTrackId, createTrackKind, unlink: altKey });
 	}
 
 	function scheduleDragPreview(
@@ -552,9 +582,17 @@ function ActiveTimeline({ project }: { project: Project }) {
 		time: Time,
 		targetTrackId: TrackId | undefined,
 		altKey: boolean,
-		commandKey: boolean
+		commandKey: boolean,
+		createTrackKind?: Track['kind']
 	): void {
-		pendingDragPreview.current = { session, time, targetTrackId, altKey, commandKey };
+		pendingDragPreview.current = {
+			session,
+			time,
+			targetTrackId,
+			altKey,
+			commandKey,
+			createTrackKind
+		};
 		if (dragFrame.current !== null) return;
 		dragFrame.current = requestAnimationFrame(() => {
 			dragFrame.current = null;
@@ -566,7 +604,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 					pending.time,
 					pending.targetTrackId,
 					pending.altKey,
-					pending.commandKey
+					pending.commandKey,
+					pending.createTrackKind
 				);
 			}
 		});
@@ -1067,11 +1106,61 @@ function ActiveTimeline({ project }: { project: Project }) {
 		if (!session || dragPointer.current !== event.pointerId) return;
 		const scroller = scrollerRef.current;
 		if (!scroller) return;
+
+		let targetTrackId: TrackId | undefined;
+		let createTrackKind: Track['kind'] | undefined;
+
 		const target = document.elementFromPoint(event.clientX, event.clientY);
-		const targetTrackId = target?.closest<HTMLElement>('[data-track-lane]')?.dataset.trackLane as
-			TrackId | undefined;
+		const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
+		if (trackLaneEl) {
+			targetTrackId = trackLaneEl.dataset.trackLane as TrackId | undefined;
+		} else {
+			// Check if dragged outside existing tracks
+			const primary = session.original[0];
+			const primaryTrack = primary
+				? activeProject.tracks.find((t) => t.id === primary.trackId)
+				: undefined;
+			const draggedKind = primaryTrack?.kind ?? (session.assetId ? activeProject.assets[session.assetId]?.kind : undefined) ?? 'video';
+			const normalizedKind: Track['kind'] = draggedKind === 'audio' ? 'audio' : 'video';
+
+			const rowsContainer = scroller.querySelector('.timeline-track-rows');
+			if (rowsContainer) {
+				const trackRows = Array.from(rowsContainer.querySelectorAll<HTMLElement>('.timeline-track-row'));
+				if (trackRows.length > 0) {
+					const firstRowRect = trackRows[0]!.getBoundingClientRect();
+					const lastRowRect = trackRows[trackRows.length - 1]!.getBoundingClientRect();
+
+					if (event.clientY < firstRowRect.top) {
+						// Dragged above the top track (Premiere Pro style: add track at top)
+						createTrackKind = normalizedKind;
+					} else if (event.clientY > lastRowRect.bottom) {
+						// Dragged below the bottom track (add track at bottom)
+						createTrackKind = normalizedKind;
+					} else {
+						// Inside container vertically but maybe over header or padding: find closest track row
+						for (const row of trackRows) {
+							const r = row.getBoundingClientRect();
+							if (event.clientY >= r.top && event.clientY <= r.bottom) {
+								const lane = row.querySelector<HTMLElement>('[data-track-lane]');
+								targetTrackId = lane?.dataset.trackLane as TrackId | undefined;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
 		const time = pointerTime(event.clientX);
-		scheduleDragPreview(session, time, targetTrackId, event.altKey, event.ctrlKey || event.metaKey);
+		scheduleDragPreview(
+			session,
+			time,
+			targetTrackId,
+			event.altKey,
+			event.ctrlKey || event.metaKey,
+			createTrackKind
+		);
+
 		const rect = scroller.getBoundingClientRect();
 		if (event.clientX > rect.right - 28) scroller.scrollLeft += 14;
 		else if (event.clientX < rect.left + HEADER_WIDTH + 28)
@@ -1095,15 +1184,54 @@ function ActiveTimeline({ project }: { project: Project }) {
 		pendingDragPreview.current = null;
 		const session = store.getState().timeline.drag;
 		if (session) {
+			let targetTrackId: TrackId | undefined;
+			let createTrackKind: Track['kind'] | undefined;
+
 			const target = document.elementFromPoint(event.clientX, event.clientY);
-			const targetTrackId = target?.closest<HTMLElement>('[data-track-lane]')?.dataset.trackLane as
-				TrackId | undefined;
+			const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
+			if (trackLaneEl) {
+				targetTrackId = trackLaneEl.dataset.trackLane as TrackId | undefined;
+			} else {
+				const primary = session.original[0];
+				const primaryTrack = primary
+					? activeProject.tracks.find((t) => t.id === primary.trackId)
+					: undefined;
+				const draggedKind = primaryTrack?.kind ?? (session.assetId ? activeProject.assets[session.assetId]?.kind : undefined) ?? 'video';
+				const normalizedKind: Track['kind'] = draggedKind === 'audio' ? 'audio' : 'video';
+
+				const scroller = scrollerRef.current;
+				const rowsContainer = scroller?.querySelector('.timeline-track-rows');
+				if (rowsContainer) {
+					const trackRows = Array.from(rowsContainer.querySelectorAll<HTMLElement>('.timeline-track-row'));
+					if (trackRows.length > 0) {
+						const firstRowRect = trackRows[0]!.getBoundingClientRect();
+						const lastRowRect = trackRows[trackRows.length - 1]!.getBoundingClientRect();
+
+						if (event.clientY < firstRowRect.top) {
+							createTrackKind = normalizedKind;
+						} else if (event.clientY > lastRowRect.bottom) {
+							createTrackKind = normalizedKind;
+						} else {
+							for (const row of trackRows) {
+								const r = row.getBoundingClientRect();
+								if (event.clientY >= r.top && event.clientY <= r.bottom) {
+									const lane = row.querySelector<HTMLElement>('[data-track-lane]');
+									targetTrackId = lane?.dataset.trackLane as TrackId | undefined;
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+
 			setSnappedDragTime(
 				session,
 				pointerTime(event.clientX),
 				targetTrackId,
 				event.altKey,
-				event.ctrlKey || event.metaKey
+				event.ctrlKey || event.metaKey,
+				createTrackKind
 			);
 		}
 		commitTimelineDrag();
@@ -1388,28 +1516,42 @@ function ActiveTimeline({ project }: { project: Project }) {
 													/>
 												))}
 											{previewPositions.map((position) => {
-												const assetId =
-													drag?.assetId ??
-													activeProject.tracks
-														.flatMap((row) => row.clips)
-														.find((clip) => clip.id === position.clipId)?.assetId;
-												const asset = assetId ? activeProject.assets[assetId] : undefined;
-												const sourceTrack = activeProject.tracks.find((row) =>
-													row.clips.some((clip) => clip.id === position.clipId)
-												);
-												if (!asset || sourceTrack?.id === position.trackId) {
+												let sourceClip: Clip | undefined;
+												let sourceTrack: Track | undefined;
+												for (const row of activeProject.tracks) {
+													const found = row.clips.find((c) => c.id === position.clipId);
+													if (found) {
+														sourceClip = found;
+														sourceTrack = row;
+														break;
+													}
+												}
+												if (sourceTrack?.id === position.trackId) {
 													return null;
 												}
-												const ghostClip: Clip = {
-													id: position.clipId,
-													assetId: asset.id,
-													start: position.start,
-													duration: position.duration,
-													sourceIn: position.sourceIn,
-													sourceOut: position.sourceOut,
-													speed: 1,
-													volume: 1
-												};
+												const assetId = drag?.assetId ?? sourceClip?.assetId;
+												const asset = assetId ? activeProject.assets[assetId] : undefined;
+												if (!asset && (!sourceClip?.source || sourceClip.source.type === 'asset')) {
+													return null;
+												}
+												const ghostClip: Clip = sourceClip
+													? {
+															...sourceClip,
+															start: position.start,
+															duration: position.duration,
+															sourceIn: position.sourceIn,
+															sourceOut: position.sourceOut
+														}
+													: {
+															id: position.clipId,
+															assetId: asset?.id,
+															start: position.start,
+															duration: position.duration,
+															sourceIn: position.sourceIn,
+															sourceOut: position.sourceOut,
+															speed: 1,
+															volume: 1
+														};
 												return (
 													<ClipView
 														key={`ghost-${position.clipId}`}
@@ -1490,17 +1632,19 @@ function ActiveTimeline({ project }: { project: Project }) {
 								);
 							})}
 							<div
-								className={`timeline-new-track-drop ${newTrackDropKind ? 'is-active' : ''}`}
+								className={`timeline-new-track-drop ${newTrackDropKind || drag?.createTrackKind ? 'is-active' : ''}`}
 								role="group"
-								aria-label="Drop below the tracks to create a new track"
+								aria-label="Drop outside tracks to create a new track"
 								onDragOver={beginEmptyTrackDrop}
 								onDragLeave={() => setNewTrackDropKind(null)}
 								onDrop={dropOnNewTrack}
 								onDragEnd={() => setNewTrackDropKind(null)}
 							>
-								{newTrackDropKind
-									? `Drop to add a ${newTrackDropKind} track`
-									: 'Drop media here to create a new track'}
+								{drag?.createTrackKind
+									? `Release to create a new ${drag.createTrackKind} track`
+									: newTrackDropKind
+										? `Drop to add a ${newTrackDropKind} track`
+										: 'Drop media or drag clips outside tracks to create a new track'}
 							</div>
 						</div>
 						{marquee && (
