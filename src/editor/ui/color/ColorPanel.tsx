@@ -144,6 +144,24 @@ export default function ColorPanel() {
 				{activeTab === 'basic' && (
 					<div className="basic-tab">
 						<ColorSlider
+							label="Temperature"
+							value={getCcParam('temperature', 0)}
+							min={-1}
+							max={1}
+							step={0.01}
+							defaultValue={0}
+							onChange={(v) => setCcParam('temperature', v)}
+						/>
+						<ColorSlider
+							label="Tint"
+							value={getCcParam('tint', 0)}
+							min={-1}
+							max={1}
+							step={0.01}
+							defaultValue={0}
+							onChange={(v) => setCcParam('tint', v)}
+						/>
+						<ColorSlider
 							label="Exposure"
 							value={getCcParam('exposure', 0)}
 							min={-5}
@@ -197,24 +215,6 @@ export default function ColorPanel() {
 							step={0.01}
 							defaultValue={0}
 							onChange={(v) => setCcParam('blacks', v)}
-						/>
-						<ColorSlider
-							label="Temperature"
-							value={getCcParam('temperature', 0)}
-							min={-1}
-							max={1}
-							step={0.01}
-							defaultValue={0}
-							onChange={(v) => setCcParam('temperature', v)}
-						/>
-						<ColorSlider
-							label="Tint"
-							value={getCcParam('tint', 0)}
-							min={-1}
-							max={1}
-							step={0.01}
-							defaultValue={0}
-							onChange={(v) => setCcParam('tint', v)}
 						/>
 						<ColorSlider
 							label="Saturation"
