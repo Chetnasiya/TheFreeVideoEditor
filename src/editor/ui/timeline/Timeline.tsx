@@ -117,6 +117,11 @@ function ConnectedPlayhead({
 	offset: number;
 }) {
 	const playhead = useEditorStore((state) => state.timeline.playhead);
+	const scrollLeft = useEditorStore((state) => state.timeline.scrollLeft);
+	const playheadPx = timeToPixels(playhead, pixelsPerSecond);
+	if (playheadPx < scrollLeft) {
+		return null;
+	}
 	return <Playhead time={playhead} pixelsPerSecond={pixelsPerSecond} offset={offset} />;
 }
 
@@ -1722,8 +1727,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 												key={track.id}
 												style={
 													{
-														'--track-height': `${trackHeights[track.id] ?? 45}px`,
-														zIndex: activeProject.tracks.length - index
+														'--track-height': `${trackHeights[track.id] ?? 45}px`
 													} as CSSProperties
 												}
 											>
@@ -1978,7 +1982,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 							/>
 						)}
 						<ConnectedPlayhead pixelsPerSecond={pixelsPerSecond} offset={HEADER_WIDTH} />
-						{drag?.snappedTo !== undefined && (
+						{drag?.snappedTo !== undefined &&
+							timeToPixels(drag.snappedTo, pixelsPerSecond) >= scrollLeft && (
 							<div
 								className="timeline-snap-guide"
 								style={{ left: HEADER_WIDTH + timeToPixels(drag.snappedTo, pixelsPerSecond) }}
