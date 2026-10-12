@@ -44,8 +44,12 @@ export default function RecoveryDialog() {
 		>
 			{recovery && (
 				<div className="dialog-content">
-					<p className="dialog-eyebrow">PROJECT RECOVERY</p>
-					<h2 id="recovery-title">This project could not be opened</h2>
+					<div className="dialog-heading">
+						<div>
+							<p className="dialog-eyebrow">PROJECT RECOVERY</p>
+							<h2 id="recovery-title">This project could not be opened</h2>
+						</div>
+					</div>
 					<p>{recovery.message}</p>
 					<p>
 						The saved record is preserved. Export its raw JSON before deleting it if you want to

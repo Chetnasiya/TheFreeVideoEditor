@@ -549,30 +549,10 @@
 	display: none;
 }
 
-.media-delete-dialog[open],
-.media-relink-dialog[open] {
-	position: fixed;
-	z-index: 20;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-}
-
-.media-delete-dialog::backdrop,
-.media-relink-dialog::backdrop {
-	background: rgb(0 0 0 / 60%);
-}
-
-.media-delete-dialog .dialog-content,
-.media-relink-dialog .dialog-content {
-	padding: var(--spacing-lg);
-}
-
-.media-delete-dialog .dialog-actions,
-.media-relink-dialog .dialog-actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: var(--spacing-xs);
+.media-delete-dialog,
+.media-relink-dialog,
+.media-proxy-dialog {
+	width: min(34rem, calc(100vw - 2rem));
 }
 
 @media (prefers-reduced-motion: reduce) {

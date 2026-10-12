@@ -171,10 +171,10 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 	return (
 		<dialog
 			ref={dialogRef}
-			className="editor-dialog"
-			style={{ maxWidth: '520px', padding: '22px', borderRadius: '10px' }}
+			className="editor-dialog auto-caption-dialog"
+			style={{ width: 'min(540px, 94vw)', maxWidth: '540px' }}
 		>
-			<div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+			<div className="dialog-content">
 				{/* Header */}
 				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
 					<div>
@@ -513,12 +513,11 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 				)}
 
 				{/* Modal Footer Actions */}
-				<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+				<div className="dialog-actions">
 					<button
 						type="button"
-						className="captions-btn-icon"
+						className="secondary-button"
 						onClick={handleCancel}
-						style={{ height: '32px', padding: '0 14px' }}
 					>
 						{status.phase === 'completed' ? 'Done' : isRunning ? 'Cancel' : 'Close'}
 					</button>
@@ -526,10 +525,9 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 					{consentGranted && activeTab === 'transcribe' && status.phase !== 'completed' && (
 						<button
 							type="button"
-							className="captions-btn-icon captions-btn-primary"
+							className="primary-button"
 							disabled={isRunning}
 							onClick={() => void handleStart()}
-							style={{ height: '32px', padding: '0 16px' }}
 						>
 							{isRunning ? 'Transcribing…' : 'Start Auto-Caption'}
 						</button>

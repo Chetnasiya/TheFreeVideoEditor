@@ -82,37 +82,23 @@ export default function SequenceSettingsDialog() {
 	return (
 		<dialog
 			ref={dialogRef}
-			className="dialog sequence-settings-dialog"
+			className="editor-dialog sequence-settings-dialog"
 			onClick={handleBackdropClick}
 			onClose={close}
 			aria-labelledby="seq-settings-title"
-			style={{
-				padding: 'var(--spacing-lg, 24px)',
-				borderRadius: 'var(--radius-md, 8px)',
-				background: 'var(--color-surface, #1e1e1e)',
-				color: 'var(--color-ink, #ffffff)',
-				border: '1px solid var(--color-stroke, #333)',
-				maxWidth: '440px',
-				width: '100%',
-				boxShadow: '0 12px 32px rgba(0, 0, 0, 0.4)'
-			}}
+			style={{ width: 'min(460px, 94vw)', maxWidth: '460px' }}
 		>
-			<form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-					<h2 id="seq-settings-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600 }}>
-						Sequence Settings: {sequenceName}
-					</h2>
+			<form className="dialog-content" onSubmit={handleSave}>
+				<div className="dialog-heading">
+					<div>
+						<p className="dialog-eyebrow">SEQUENCE</p>
+						<h2 id="seq-settings-title">Sequence Settings: {sequenceName}</h2>
+					</div>
 					<button
 						type="button"
+						className="icon-button dialog-close"
 						onClick={close}
 						aria-label="Close"
-						style={{
-							background: 'transparent',
-							border: 'none',
-							color: 'var(--color-ink-muted, #888)',
-							cursor: 'pointer',
-							fontSize: '1.25rem'
-						}}
 					>
 						✕
 					</button>
@@ -124,7 +110,8 @@ export default function SequenceSettingsDialog() {
 							display: 'flex',
 							alignItems: 'center',
 							gap: '8px',
-							fontSize: '0.875rem',
+							fontSize: '12px',
+							color: '#cbd5e1',
 							cursor: 'pointer'
 						}}
 					>
@@ -133,6 +120,7 @@ export default function SequenceSettingsDialog() {
 							checked={inheritFromProject}
 							onChange={(e) => setInheritFromProject(e.target.checked)}
 							data-testid="inherit-settings-checkbox"
+							style={{ accentColor: '#38bdf8', width: '15px', height: '15px' }}
 						/>
 						<span>Inherit resolution and frame rate from main project</span>
 					</label>
@@ -147,13 +135,11 @@ export default function SequenceSettingsDialog() {
 						display: 'flex',
 						flexDirection: 'column',
 						gap: '12px',
-						opacity: !isRoot && inheritFromProject ? 0.5 : 1
+						opacity: !isRoot && inheritFromProject ? 0.45 : 1
 					}}
 				>
-					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-						<label
-							style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.75rem' }}
-						>
+					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+						<label className="dialog-field">
 							<span>Width (px)</span>
 							<input
 								type="number"
@@ -163,19 +149,10 @@ export default function SequenceSettingsDialog() {
 								value={width}
 								onChange={(e) => setWidth(Math.max(16, Number(e.target.value) || 16))}
 								data-testid="seq-width-input"
-								style={{
-									padding: '6px 8px',
-									background: 'var(--color-surface-subtle, #282828)',
-									color: 'var(--color-ink, #fff)',
-									border: '1px solid var(--color-stroke, #444)',
-									borderRadius: '4px'
-								}}
 							/>
 						</label>
 
-						<label
-							style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.75rem' }}
-						>
+						<label className="dialog-field">
 							<span>Height (px)</span>
 							<input
 								type="number"
@@ -185,33 +162,17 @@ export default function SequenceSettingsDialog() {
 								value={height}
 								onChange={(e) => setHeight(Math.max(16, Number(e.target.value) || 16))}
 								data-testid="seq-height-input"
-								style={{
-									padding: '6px 8px',
-									background: 'var(--color-surface-subtle, #282828)',
-									color: 'var(--color-ink, #fff)',
-									border: '1px solid var(--color-stroke, #444)',
-									borderRadius: '4px'
-								}}
 							/>
 						</label>
 					</div>
 
-					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-						<label
-							style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.75rem' }}
-						>
+					<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+						<label className="dialog-field">
 							<span>Frame Rate (fps)</span>
 							<select
 								value={fps}
 								onChange={(e) => setFps(Number(e.target.value))}
 								data-testid="seq-fps-select"
-								style={{
-									padding: '6px 8px',
-									background: 'var(--color-surface-subtle, #282828)',
-									color: 'var(--color-ink, #fff)',
-									border: '1px solid var(--color-stroke, #444)',
-									borderRadius: '4px'
-								}}
 							>
 								<option value="24">24 fps (Cinema)</option>
 								<option value="25">25 fps (PAL)</option>
@@ -221,21 +182,12 @@ export default function SequenceSettingsDialog() {
 							</select>
 						</label>
 
-						<label
-							style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.75rem' }}
-						>
+						<label className="dialog-field">
 							<span>Sample Rate (Hz)</span>
 							<select
 								value={sampleRate}
 								onChange={(e) => setSampleRate(Number(e.target.value))}
 								data-testid="seq-samplerate-select"
-								style={{
-									padding: '6px 8px',
-									background: 'var(--color-surface-subtle, #282828)',
-									color: 'var(--color-ink, #fff)',
-									border: '1px solid var(--color-stroke, #444)',
-									borderRadius: '4px'
-								}}
 							>
 								<option value="44100">44,100 Hz (CD)</option>
 								<option value="48000">48,000 Hz (Pro Video)</option>
@@ -244,33 +196,18 @@ export default function SequenceSettingsDialog() {
 					</div>
 				</fieldset>
 
-				<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+				<div className="dialog-actions">
 					<button
 						type="button"
+						className="secondary-button"
 						onClick={close}
-						style={{
-							padding: '6px 14px',
-							background: 'transparent',
-							border: '1px solid var(--color-stroke, #444)',
-							borderRadius: '4px',
-							color: 'var(--color-ink, #fff)',
-							cursor: 'pointer'
-						}}
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
+						className="primary-button"
 						data-testid="seq-settings-save-button"
-						style={{
-							padding: '6px 14px',
-							background: 'var(--color-accent, #3b82f6)',
-							border: 'none',
-							borderRadius: '4px',
-							color: '#fff',
-							fontWeight: 500,
-							cursor: 'pointer'
-						}}
 					>
 						Apply Settings
 					</button>

@@ -50,7 +50,20 @@ export default function KeyboardShortcutsDialog({
 			}}
 		>
 			<div className="dialog-content">
-				<h2 id="shortcut-dialog-title">Keyboard Shortcuts</h2>
+				<div className="dialog-heading">
+					<div>
+						<p className="dialog-eyebrow">HELP</p>
+						<h2 id="shortcut-dialog-title">Keyboard Shortcuts</h2>
+					</div>
+					<button
+						className="icon-button dialog-close"
+						type="button"
+						aria-label="Close shortcuts dialog"
+						onClick={onClose}
+					>
+						✕
+					</button>
+				</div>
 				<label htmlFor="shortcut-search">Search shortcuts</label>
 				<input
 					ref={searchRef}

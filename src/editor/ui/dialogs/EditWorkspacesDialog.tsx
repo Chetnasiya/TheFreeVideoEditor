@@ -133,17 +133,19 @@ export default function EditWorkspacesDialog({ isOpen, onClose }: EditWorkspaces
 										display: 'flex',
 										alignItems: 'center',
 										justifyContent: 'space-between',
-										padding: '6px 10px',
+										padding: '8px 12px',
 										background: isActive
-											? 'rgba(0, 112, 243, 0.15)'
-											: 'var(--color-surface, #1e1e1e)',
-										border: '1px solid var(--color-hairline, #333)',
-										borderRadius: '4px'
+											? 'rgba(56, 189, 248, 0.12)'
+											: '#161620',
+										border: isActive
+											? '1px solid rgba(56, 189, 248, 0.35)'
+											: '1px solid #242432',
+										borderRadius: '6px'
 									}}
 								>
 									<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
 										<span
-											style={{ fontSize: '11px', color: 'var(--color-faint, #666)', width: '16px' }}
+											style={{ fontSize: '11px', color: '#64748b', width: '16px', fontFamily: 'var(--font-mono)' }}
 										>
 											{index + 1}
 										</span>
@@ -158,12 +160,12 @@ export default function EditWorkspacesDialog({ isOpen, onClose }: EditWorkspaces
 													onChange={(e) => setEditName(e.target.value)}
 													autoFocus
 													style={{
-														padding: '2px 6px',
+														padding: '3px 8px',
 														fontSize: '12px',
-														background: 'var(--color-canvas, #000)',
-														color: 'var(--color-ink, #fff)',
-														border: '1px solid var(--color-link, #0070f3)',
-														borderRadius: '3px',
+														background: '#0d0d12',
+														color: '#f1f5f9',
+														border: '1px solid #38bdf8',
+														borderRadius: '4px',
 														flex: 1
 													}}
 												/>

@@ -127,8 +127,20 @@ export default function SaveCopyPrompt() {
 			}}
 		>
 			<div className="dialog-content">
-				<p className="dialog-eyebrow">LOCAL PROJECT</p>
-				<h2 id="save-copy-title">Save a project copy?</h2>
+				<div className="dialog-heading">
+					<div>
+						<p className="dialog-eyebrow">LOCAL PROJECT</p>
+						<h2 id="save-copy-title">Save a project copy?</h2>
+					</div>
+					<button
+						className="icon-button dialog-close"
+						type="button"
+						aria-label="Close save copy prompt"
+						onClick={close}
+					>
+						✕
+					</button>
+				</div>
 				<p>
 					Save a portable <code>.tfve</code> file that you can reopen on this device or another
 					browser.

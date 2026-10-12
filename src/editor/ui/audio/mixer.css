@@ -498,6 +498,7 @@
 	background: #ef4444;
 	opacity: 0.15;
 	transition: opacity 0.1s ease;
+	z-index: 2;
 }
 
 .strip-meter-clip-led.is-clipped {

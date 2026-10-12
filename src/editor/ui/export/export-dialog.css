@@ -1,76 +1,100 @@
+/* Export Dialog - Studio Console UI */
 .export-dialog {
-	width: min(100% - 2rem, 34rem);
+	width: min(100% - 2rem, 36rem);
 	overscroll-behavior: contain;
 }
 
 .export-dialog .dialog-content {
-	gap: var(--spacing-md);
+	gap: 14px;
 }
 
 .export-tabs {
 	display: flex;
-	gap: var(--spacing-xs);
-	border-bottom: 1px solid var(--color-hairline);
+	gap: 4px;
+	background: #0d0d12;
+	padding: 4px;
+	border-radius: 8px;
+	border: 1px solid #242432;
+	margin-bottom: 2px;
 }
 
 .export-tabs button {
-	border: 0;
-	border-bottom: 2px solid transparent;
+	flex: 1;
+	border: 1px solid transparent;
+	border-radius: 6px;
 	background: transparent;
-	padding: var(--spacing-xs) var(--spacing-sm);
-	color: var(--color-body);
+	padding: 6px 12px;
+	color: #94a3b8;
 	font: inherit;
+	font-size: 12px;
+	font-weight: 500;
 	cursor: pointer;
+	transition: all 0.15s ease;
+	text-align: center;
 }
 
 .export-tabs button[aria-selected='true'] {
-	border-bottom-color: var(--color-ink);
-	color: var(--color-ink);
+	background: #1c1c28;
+	border-color: #2e2e42;
+	color: #f1f5f9;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.export-tabs button:hover:not([aria-selected='true']) {
+	color: #cbd5e1;
+	background: rgba(255, 255, 255, 0.04);
 }
 
 .export-tabs button:focus-visible,
 .export-checkbox input:focus-visible {
-	outline: 2px solid var(--color-link);
+	outline: 2px solid #38bdf8;
 	outline-offset: 2px;
 }
 
 .export-form {
 	display: grid;
-	gap: var(--spacing-sm);
+	gap: 10px;
 }
 
 .export-checkbox {
 	display: flex;
-	align-items: flex-start;
-	gap: var(--spacing-xs);
-	color: var(--color-body);
-	font-size: var(--text-body-sm);
+	align-items: center;
+	gap: 8px;
+	color: #cbd5e1;
+	font-size: 12px;
+	user-select: none;
+	cursor: pointer;
 }
 
 .export-checkbox input {
-	margin: 0.2rem 0 0;
-	accent-color: var(--color-primary);
+	margin: 0;
+	accent-color: #38bdf8;
+	cursor: pointer;
+	width: 15px;
+	height: 15px;
 }
 
 .export-capability,
 .export-estimate,
 .export-notice {
 	margin: 0;
-	color: var(--color-mute);
-	font-size: var(--text-body-sm);
+	color: #94a3b8;
+	font-size: 11.5px;
+	line-height: 1.45;
 }
 
 .export-warning {
-	border: 1px solid var(--color-warning);
-	border-radius: var(--radius-sm);
-	background: var(--color-canvas);
-	padding: var(--spacing-sm);
-	color: var(--color-body);
-	font-size: var(--text-body-sm);
+	border: 1px solid rgba(245, 166, 35, 0.35);
+	border-radius: 8px;
+	background: rgba(245, 166, 35, 0.08);
+	padding: 10px 14px;
+	color: #fbd38d;
+	font-size: 12px;
+	line-height: 1.5;
 }
 
 .export-warning p {
-	margin: 0 0 var(--spacing-xs);
+	margin: 0 0 6px;
 }
 
 .export-warning p:last-child {
@@ -79,26 +103,48 @@
 
 .export-progress {
 	display: grid;
-	gap: var(--spacing-xs);
+	gap: 6px;
+	padding: 12px 14px;
+	background: #0d0d12;
+	border: 1px solid #242432;
+	border-radius: 8px;
 }
 
 .export-progress-label {
 	display: flex;
 	justify-content: space-between;
-	color: var(--color-body);
-	font-size: var(--text-body-sm);
+	color: #cbd5e1;
+	font-size: 12px;
+	font-weight: 500;
 }
 
 .export-progress progress {
 	width: 100%;
-	height: 0.5rem;
-	accent-color: var(--color-primary);
+	height: 8px;
+	border-radius: 4px;
+	overflow: hidden;
+	background: #1c1c28;
+	border: 1px solid #242432;
+}
+
+.export-progress progress::-webkit-progress-bar {
+	background: #1c1c28;
+}
+
+.export-progress progress::-webkit-progress-value {
+	background: linear-gradient(90deg, #38bdf8, #818cf8);
+	border-radius: 4px;
+}
+
+.export-progress progress::-moz-progress-bar {
+	background: linear-gradient(90deg, #38bdf8, #818cf8);
+	border-radius: 4px;
 }
 
 .export-progress p {
 	margin: 0;
-	color: var(--color-mute);
-	font-size: var(--text-body-sm);
+	color: #94a3b8;
+	font-size: 11.5px;
 }
 
 .export-close-dialog,
@@ -109,7 +155,7 @@
 
 .export-close-dialog .dialog-content,
 .export-confirm-dialog .dialog-content {
-	gap: var(--spacing-md);
+	gap: 14px;
 }
 
 @media (prefers-reduced-motion: reduce) {

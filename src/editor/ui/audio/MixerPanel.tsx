@@ -53,8 +53,10 @@ const MixerFader: React.FC<FaderProps> = ({ gainDb, onChange, isMuted = false })
 
 	// Calculate meter levels based on gain
 	const isClipped = !isMuted && gainDb > 0;
-	const meterLevelPct = isMuted || gainDb <= -96 ? 0 : Math.min(100, Math.max(4, pct * 0.92));
-	const meterLevelRightPct = isMuted || gainDb <= -96 ? 0 : Math.min(100, Math.max(4, pct * 0.88));
+	const meterLevelPct =
+		isMuted || gainDb <= -96 ? 0 : Math.min(100, Math.max(pct > 0 ? 3 : 0, pct >= 98 ? 100 : pct));
+	const meterLevelRightPct =
+		isMuted || gainDb <= -96 ? 0 : Math.min(100, Math.max(pct > 0 ? 3 : 0, pct >= 98 ? 100 : Math.round(pct * 0.96)));
 
 	const updateFromPointer = useCallback(
 		(clientY: number, shiftKey = false) => {

@@ -1,0 +1,1065 @@
+---
+// FeaturesShowcase.astro - Comprehensive feature suite showcase for The Free Video Editor
+
+interface Feature {
+	id: string;
+	title: string;
+	category: 'timeline' | 'ai' | 'tracking' | 'color' | 'audio' | 'vfx' | 'text' | 'export';
+	categoryLabel: string;
+	badge: string;
+	description: string;
+	highlights: string[];
+	icon: string;
+}
+
+const categories = [
+	{ id: 'all', label: 'All Features' },
+	{ id: 'timeline', label: 'Timeline & Cuts' },
+	{ id: 'ai', label: 'AI Magic Tools' },
+	{ id: 'tracking', label: 'Motion Tracking' },
+	{ id: 'color', label: 'Color & Scopes' },
+	{ id: 'audio', label: 'Audio Mixer & EQ' },
+	{ id: 'vfx', label: 'VFX & Transitions' },
+	{ id: 'text', label: 'Titles & Typography' },
+	{ id: 'export', label: 'Export & Interchange' }
+];
+
+const features: Feature[] = [
+	{
+		id: 'multi-track',
+		title: 'Magnetic Multi-Track Timeline',
+		category: 'timeline',
+		categoryLabel: 'Timeline & Cuts',
+		badge: 'Core NLE',
+		description: 'Frame-accurate magnetic timeline with multi-track video, audio, text, and adjustment layers. Snapping, track locking, solo, mute, and customizable vertical track sizing.',
+		highlights: ['Magnetic Snapping', '4K 60fps Tracks', 'Track Solo & Lock'],
+		icon: 'timeline'
+	},
+	{
+		id: 'advanced-trimming',
+		title: 'Advanced Trimming & Razor Cuts',
+		category: 'timeline',
+		categoryLabel: 'Timeline & Cuts',
+		badge: 'Precision',
+		description: 'Execute instant razor cuts (C), ripple delete (Shift+Del), roll edits, and slip & slide trimming without introducing sync drift or breaking downstream edits.',
+		highlights: ['Razor (C)', 'Ripple Delete', 'Slip & Slide Edits'],
+		icon: 'scissors'
+	},
+	{
+		id: 'j-l-cuts',
+		title: 'J-Cut & L-Cut Split Audio Transitions',
+		category: 'timeline',
+		categoryLabel: 'Timeline & Cuts',
+		badge: 'Storytelling',
+		description: 'Lead visual scenes with audio or let dialogue linger over incoming shots for broadcast-standard narrative flow and cinematic dialogue pacing.',
+		highlights: ['Independent Audio Head/Tail', 'Dialogue Continuity', 'Split Cuts'],
+		icon: 'split-cuts'
+	},
+	{
+		id: 'keyframing',
+		title: 'Keyframing with Bezier Easing Curves',
+		category: 'timeline',
+		categoryLabel: 'Timeline & Cuts',
+		badge: 'Animation',
+		description: 'Animate any property over time with smooth Bezier easing handles. Fine-tune position, scale, rotation, opacity, and audio gain with visual interpolation.',
+		highlights: ['Bezier Handles', 'Ease In / Ease Out', 'Multi-Param Keyframes'],
+		icon: 'keyframes'
+	},
+	{
+		id: 'canvas-gizmo',
+		title: 'Interactive Canvas Gizmo & Crop',
+		category: 'timeline',
+		categoryLabel: 'Timeline & Cuts',
+		badge: 'Direct Control',
+		description: 'Transform clips directly on the program monitor with interactive corner drag handles, anchor point positioning, 4-sided cropping, and smooth edge feathering.',
+		highlights: ['Direct Gizmo Drag', '4-Sided Crop', 'Edge Feathering'],
+		icon: 'gizmo'
+	},
+	{
+		id: 'speed-ramping',
+		title: 'Speed Ramping & Reverse Playback',
+		category: 'timeline',
+		categoryLabel: 'Timeline & Cuts',
+		badge: 'Time Control',
+		description: 'Create dramatic slow-motion shots (down to 0.1x) or rapid time-lapses (up to 16x) with pitch-preserved audio processing and instant reverse playback.',
+		highlights: ['0.1x to 16x Speed', 'Pitch Correction', 'Reverse Playback'],
+		icon: 'speed'
+	},
+	{
+		id: 'auto-captions',
+		title: 'On-Device AI Auto-Captions & Subtitles',
+		category: 'ai',
+		categoryLabel: 'AI Magic Tools',
+		badge: 'Neural AI',
+		description: 'Transcribe speech to text in seconds using browser-native AI models. Word-level timing precision, animated caption styles, and instant SRT/VTT export with zero cloud uploads.',
+		highlights: ['100% On-Device', 'Word-Level Sync', 'SRT & VTT Export'],
+		icon: 'captions'
+	},
+	{
+		id: 'silence-removal',
+		title: 'Smart Silence & Dead Air Removal',
+		category: 'ai',
+		categoryLabel: 'AI Magic Tools',
+		badge: 'Automation',
+		description: 'Automatically scan dialogue, interviews, and voiceovers for pauses and silence. Ripple-trim dead air with a single click using configurable threshold and padding sliders.',
+		highlights: ['One-Click Ripple Cuts', 'Configurable Threshold', 'Speech Trimming'],
+		icon: 'silence'
+	},
+	{
+		id: 'audio-ducking',
+		title: 'Intelligent Audio Ducking',
+		category: 'ai',
+		categoryLabel: 'AI Magic Tools',
+		badge: 'Audio AI',
+		description: 'Automatically attenuate background music whenever voiceover or speech is detected. Features smooth sidechain attack, release, and sensitivity adjustments.',
+		highlights: ['Auto Sidechain', 'Speech Isolation', 'Smooth Attenuation'],
+		icon: 'ducking'
+	},
+	{
+		id: 'video-stabilizer',
+		title: 'Smart Video Shake Stabilization',
+		category: 'ai',
+		categoryLabel: 'AI Magic Tools',
+		badge: 'Computer Vision',
+		description: 'Smooth shaky handheld camera motion directly in your browser. Advanced translation and warp motion analysis without sending video frames to external servers.',
+		highlights: ['Camera Shake Smoothing', 'Optical Analysis', 'GPU Accelerated'],
+		icon: 'stabilize'
+	},
+	{
+		id: 'motion-tracking',
+		title: 'Subpixel 2D Motion Tracking',
+		category: 'tracking',
+		categoryLabel: 'Motion Tracking',
+		badge: 'Tracking',
+		description: 'Track moving subjects with subpixel point and template matching. Pin floating text titles, callouts, emojis, or blur privacy masks to moving objects across scene cuts.',
+		highlights: ['Point & Region Tracking', 'Bidirectional Pass', 'Pin Text & Masks'],
+		icon: 'crosshair'
+	},
+	{
+		id: 'color-wheels',
+		title: '3-Way Color Wheels (Lift, Gamma, Gain)',
+		category: 'color',
+		categoryLabel: 'Color & Scopes',
+		badge: 'Cinematic',
+		description: 'Industry-standard 3-way color grading wheels for shadows (Lift), midtones (Gamma), highlights (Gain), and Master Offset for nuanced chromatic grading.',
+		highlights: ['Lift / Gamma / Gain', 'Master Pedestal', 'Hollywood Grade'],
+		icon: 'color-wheels'
+	},
+	{
+		id: 'primary-color',
+		title: 'Primary Color & Balance Controls',
+		category: 'color',
+		categoryLabel: 'Color & Scopes',
+		badge: 'Color Science',
+		description: 'Calibrate white balance with dedicated Kelvin Temperature and Magenta/Green Tint sliders, plus Exposure, Contrast, Highlights, Shadows, Whites, Blacks, and Vibrance.',
+		highlights: ['Temp & Tint', 'Tone Curve Sliders', 'Vibrance & Saturation'],
+		icon: 'sliders'
+	},
+	{
+		id: 'video-scopes',
+		title: 'Real-Time Scopes (Waveform & Vectorscope)',
+		category: 'color',
+		categoryLabel: 'Color & Scopes',
+		badge: 'Broadcast QC',
+		description: 'Monitor signal fidelity with 60fps real-time scopes: Luma Waveform, RGB Parade, Histogram, and Vectorscope with dedicated skin-tone reference line.',
+		highlights: ['Luma Waveform', 'RGB Parade', 'Vectorscope & Skin Tone'],
+		icon: 'scopes'
+	},
+	{
+		id: 'lut-support',
+		title: '3D LUT (.cube) Import & Blending',
+		category: 'color',
+		categoryLabel: 'Color & Scopes',
+		badge: 'LUTs',
+		description: 'Import standard 3D `.cube` LUTs for creative film-stock emulations, camera profiles, and brand aesthetics with adjustable blend opacity.',
+		highlights: ['.cube Compatibility', 'Opacity Blend', 'Instant Preview'],
+		icon: 'lut'
+	},
+	{
+		id: 'audio-mixer',
+		title: 'Multi-Channel Hardware Audio Mixer',
+		category: 'audio',
+		categoryLabel: 'Audio Mixer & EQ',
+		badge: 'Console Mix',
+		description: 'Tactile console-style audio mixer with vertical faders calibrated up to +12 dB, stereo peak level LED meters with clip detection, track pan, and submix routing.',
+		highlights: ['+12 dB Headroom', 'Peak LED Meters', 'Track Pan & Submix'],
+		icon: 'mixer'
+	},
+	{
+		id: 'parametric-eq',
+		title: '4-Band Parametric Equalizer (EQ)',
+		category: 'audio',
+		categoryLabel: 'Audio Mixer & EQ',
+		badge: 'Audio FX',
+		description: 'Sculpt audio frequencies with an interactive visual EQ graph. Cut mud, tame harsh sibilance, and add warm presence with real-time parametric bell and shelf filters.',
+		highlights: ['Interactive EQ Curve', 'Low/High Shelf & Bell', 'Frequency Shaping'],
+		icon: 'eq'
+	},
+	{
+		id: 'dynamics-compressor',
+		title: 'Dynamics Compressor, Limiter & Gate',
+		category: 'audio',
+		categoryLabel: 'Audio Mixer & EQ',
+		badge: 'Mastering',
+		description: 'Control dynamic range with visual compression curves. Tame loud spikes, boost quiet dialogue, and eliminate background room hum with threshold, ratio, attack, and release.',
+		highlights: ['Visual Dynamics Curve', 'Hard Limiting', 'Makeup Gain'],
+		icon: 'compressor'
+	},
+	{
+		id: 'webgl-vfx',
+		title: 'Hardware-Accelerated WebGL2 Shaders',
+		category: 'vfx',
+		categoryLabel: 'VFX & Transitions',
+		badge: 'GPU FX',
+		description: 'Real-time GPU shader effects: Gaussian Blur, Directional Motion Blur, Bloom Glow, Chromatic Aberration, Vignette, Film Grain, Sharpen, and Invert.',
+		highlights: ['Real-Time Shaders', 'Zero Render Wait', 'Stackable Effects'],
+		icon: 'sparkles'
+	},
+	{
+		id: 'transitions',
+		title: 'Cinematic Video Transitions',
+		category: 'vfx',
+		categoryLabel: 'VFX & Transitions',
+		badge: 'Transitions',
+		description: 'Seamless cut transitions including Cross Dissolve, Dip to Black/White, Directional Slides, Pushes, Radial Wipes, and Dynamic Whip Pans with custom duration.',
+		highlights: ['Cross Dissolve', 'Whip Pan & Zoom', 'Custom Durations'],
+		icon: 'transitions'
+	},
+	{
+		id: 'adjustment-layers',
+		title: 'Non-Destructive Adjustment Layers',
+		category: 'vfx',
+		categoryLabel: 'VFX & Transitions',
+		badge: 'Workflow',
+		description: 'Apply global color grades, LUTs, blurs, and styling filters across dozens of underlying clips simultaneously using stacked adjustment layers.',
+		highlights: ['Global Color Passes', 'Non-Destructive', 'Multi-Track Scope'],
+		icon: 'layers'
+	},
+	{
+		id: 'typography',
+		title: 'Rich Typography & Text Alignment',
+		category: 'text',
+		categoryLabel: 'Titles & Typography',
+		badge: 'Typography',
+		description: 'Full typographic control: custom web fonts, font weights, letter spacing, line height, text alignment (Left, Center, Right, Justify), stroke outlines, and glowing shadows.',
+		highlights: ['Full Text Align', 'Stroke Outlines', 'Background Pills'],
+		icon: 'text'
+	},
+	{
+		id: 'kinetic-titles',
+		title: 'Motion Titles & Subtitle Styling',
+		category: 'text',
+		categoryLabel: 'Titles & Typography',
+		badge: 'Motion Titles',
+		description: 'Create animated lower-thirds, YouTube title cards, and social media lyric reels with kinetic text animation presets and customized subtitle bounding pills.',
+		highlights: ['Lower Thirds', 'Kinetic Animation', 'Social Reel Presets'],
+		icon: 'motion-text'
+	},
+	{
+		id: 'multi-sequence',
+		title: 'Multi-Sequence & Nested Timelines',
+		category: 'export',
+		categoryLabel: 'Export & Interchange',
+		badge: 'Long-Form',
+		description: 'Build complex episodic projects with multiple sequences per project. Nest sub-timelines inside master timelines for clean, modular organization.',
+		highlights: ['Multi-Sequence Tabs', 'Compound Nesting', 'Modular Edits'],
+		icon: 'sequences'
+	},
+	{
+		id: 'smart-proxies',
+		title: 'Instant Smart Proxy Workflow',
+		category: 'export',
+		categoryLabel: 'Export & Interchange',
+		badge: 'Performance',
+		description: 'Generate 720p/1080p proxy media on-the-fly inside your browser. Enjoy silky smooth timeline playback on low-spec laptops, then export at full native 4K resolution.',
+		highlights: ['Instant 720p Proxies', 'Smooth on Any Laptop', 'Lossless 4K Export'],
+		icon: 'proxy'
+	},
+	{
+		id: 'gpu-export',
+		title: 'Blazing Fast Local GPU Export',
+		category: 'export',
+		categoryLabel: 'Export & Interchange',
+		badge: 'Rendering',
+		description: 'Render MP4 (H.264 / AV1) and WebM (VP9) at 60fps utilizing your hardware GPU. 100% free with no watermarks, no cloud queues, and no compression paywalls.',
+		highlights: ['4K 60fps MP4 & WebM', 'Zero Watermarks', 'No Cloud Queues'],
+		icon: 'export'
+	},
+	{
+		id: 'nle-interchange',
+		title: 'Pro NLE Interchange (OTIO, FCPXML, EDL)',
+		category: 'export',
+		categoryLabel: 'Export & Interchange',
+		badge: 'Studio Pipeline',
+		description: 'Export timeline metadata to OpenTimelineIO (OTIO), Final Cut Pro XML (FCPXML), and EDL. Seamlessly roundtrip cuts into DaVinci Resolve or Adobe Premiere Pro.',
+		highlights: ['OpenTimelineIO (OTIO)', 'Final Cut XML', 'DaVinci Resolve Roundtrip'],
+		icon: 'interchange'
+	},
+	{
+		id: 'privacy-offline',
+		title: '100% On-Device Privacy & Auto-Recovery',
+		category: 'export',
+		categoryLabel: 'Export & Interchange',
+		badge: 'Zero Trust',
+		description: 'Zero bytes uploaded to the cloud. Process sensitive commercial footage with complete peace of mind, backed by instant local IndexedDB autosave and crash recovery.',
+		highlights: ['Zero Cloud Upload', 'Encrypted Autosaves', 'Crash Recovery'],
+		icon: 'shield'
+	}
+];
+---
+
+<section class="features-section" id="features">
+	<!-- Ambient Background Glows -->
+	<div class="features-ambient-glow" aria-hidden="true"></div>
+
+	<div class="features-container">
+		<!-- Section Header -->
+		<div class="features-header">
+			<div class="features-eyebrow">
+				<span class="eyebrow-dot"></span>
+				<span>COMPLETE PROFESSIONAL FEATURE SUITE</span>
+			</div>
+			<h2 class="features-title">
+				Every Feature You Need to Create <span class="gradient-text">World-Class Edits</span>
+			</h2>
+			<p class="features-subtitle">
+				A complete non-linear editing studio engineered with WebCodecs and WebGL2. 
+				No downloads, no subscriptions, and zero cloud uploads — your footage stays completely on your device.
+			</p>
+
+			<!-- At a glance stats strip -->
+			<div class="features-stats-strip">
+				<div class="stat-item">
+					<span class="stat-number">28+</span>
+					<span class="stat-label">Pro Features</span>
+				</div>
+				<div class="stat-divider"></div>
+				<div class="stat-item">
+					<span class="stat-number">4K 60fps</span>
+					<span class="stat-label">GPU Acceleration</span>
+				</div>
+				<div class="stat-divider"></div>
+				<div class="stat-item">
+					<span class="stat-number">0 Bytes</span>
+					<span class="stat-label">Cloud Upload</span>
+				</div>
+				<div class="stat-divider"></div>
+				<div class="stat-item">
+					<span class="stat-number">100% Free</span>
+					<span class="stat-label">No Watermarks</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Interactive Category Filter Tabs -->
+		<div class="features-filter-bar" role="tablist" aria-label="Feature categories">
+			{categories.map((cat, idx) => (
+				<button
+					type="button"
+					class={`filter-tab ${idx === 0 ? 'is-active' : ''}`}
+					data-category={cat.id}
+					role="tab"
+					aria-selected={idx === 0 ? 'true' : 'false'}
+				>
+					{cat.label}
+				</button>
+			))}
+		</div>
+
+		<!-- Features Grid -->
+		<div class="features-grid" id="features-grid">
+			{features.map((feature) => (
+				<div class="feature-card" data-category={feature.category}>
+					<div class="card-top">
+						<div class="feature-icon-wrapper" aria-hidden="true">
+							{feature.icon === 'timeline' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<rect x="2" y="4" width="20" height="4" rx="1" />
+									<rect x="2" y="10" width="12" height="4" rx="1" />
+									<rect x="2" y="16" width="16" height="4" rx="1" />
+									<line x1="10" y1="2" x2="10" y2="22" stroke-dasharray="2 2" stroke="currentColor" />
+								</svg>
+							)}
+							{feature.icon === 'scissors' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<circle cx="6" cy="6" r="3" />
+									<circle cx="6" cy="18" r="3" />
+									<line x1="20" y1="4" x2="8.12" y2="15.88" />
+									<line x1="14.47" y1="14.48" x2="20" y2="20" />
+									<line x1="8.12" y1="8.12" x2="12" y2="12" />
+								</svg>
+							)}
+							{feature.icon === 'split-cuts' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M4 6h16M4 12h10M18 12h2M4 18h16" />
+									<polyline points="14 9 17 12 14 15" />
+								</svg>
+							)}
+							{feature.icon === 'keyframes' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M12 2L2 12l10 10 10-10L12 2z" />
+									<path d="M12 7l-5 5 5 5 5-5-5-5z" />
+								</svg>
+							)}
+							{feature.icon === 'gizmo' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M21 3H3v18h18V3z" stroke-dasharray="3 3" />
+									<rect x="2" y="2" width="3" height="3" fill="currentColor" />
+									<rect x="19" y="2" width="3" height="3" fill="currentColor" />
+									<rect x="2" y="19" width="3" height="3" fill="currentColor" />
+									<rect x="19" y="19" width="3" height="3" fill="currentColor" />
+									<circle cx="12" cy="12" r="2" />
+								</svg>
+							)}
+							{feature.icon === 'speed' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<circle cx="12" cy="12" r="10" />
+									<polyline points="12 6 12 12 16 14" />
+									<path d="M16 2l4 4" />
+								</svg>
+							)}
+							{feature.icon === 'captions' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<rect x="2" y="4" width="20" height="16" rx="3" />
+									<path d="M7 15h4M7 9h2M15 15h2M13 9h4" />
+								</svg>
+							)}
+							{feature.icon === 'silence' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M11 5L6 9H2v6h4l5 4V5z" />
+									<line x1="23" y1="9" x2="17" y2="15" />
+									<line x1="17" y1="9" x2="23" y2="15" />
+								</svg>
+							)}
+							{feature.icon === 'ducking' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M2 12h3l2-6 4 12 3-8 2 5 2-3h4" />
+								</svg>
+							)}
+							{feature.icon === 'stabilize' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<circle cx="12" cy="12" r="10" />
+									<circle cx="12" cy="12" r="4" />
+									<line x1="4.93" y1="4.93" x2="9.17" y2="9.17" />
+									<line x1="14.83" y1="14.83" x2="19.07" y2="19.07" />
+								</svg>
+							)}
+							{feature.icon === 'crosshair' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<circle cx="12" cy="12" r="8" />
+									<line x1="12" y1="2" x2="12" y2="6" />
+									<line x1="12" y1="18" x2="12" y2="22" />
+									<line x1="2" y1="12" x2="6" y2="12" />
+									<line x1="18" y1="12" x2="22" y2="12" />
+									<circle cx="12" cy="12" r="2" fill="currentColor" />
+								</svg>
+							)}
+							{feature.icon === 'color-wheels' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<circle cx="12" cy="12" r="10" />
+									<circle cx="12" cy="8" r="4" />
+									<circle cx="8" cy="14" r="4" />
+									<circle cx="16" cy="14" r="4" />
+								</svg>
+							)}
+							{feature.icon === 'sliders' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<line x1="4" y1="21" x2="4" y2="14" />
+									<line x1="4" y1="10" x2="4" y2="3" />
+									<line x1="12" y1="21" x2="12" y2="12" />
+									<line x1="12" y1="8" x2="12" y2="3" />
+									<line x1="20" y1="21" x2="20" y2="16" />
+									<line x1="20" y1="12" x2="20" y2="3" />
+									<circle cx="4" cy="12" r="2" />
+									<circle cx="12" cy="10" r="2" />
+									<circle cx="20" cy="14" r="2" />
+								</svg>
+							)}
+							{feature.icon === 'scopes' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<rect x="2" y="3" width="20" height="18" rx="2" />
+									<path d="M6 15l3-6 4 9 3-5 2 2" />
+								</svg>
+							)}
+							{feature.icon === 'lut' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+									<polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+									<line x1="12" y1="22.08" x2="12" y2="12" />
+								</svg>
+							)}
+							{feature.icon === 'mixer' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<rect x="3" y="3" width="6" height="18" rx="1" />
+									<rect x="15" y="3" width="6" height="18" rx="1" />
+									<line x1="6" y1="10" x2="6" y2="10.01" stroke-width="3" />
+									<line x1="18" y1="7" x2="18" y2="7.01" stroke-width="3" />
+								</svg>
+							)}
+							{feature.icon === 'eq' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M2 12c4-8 8-8 10 0s6 8 10 0" />
+									<circle cx="7" cy="8" r="2" fill="currentColor" />
+									<circle cx="17" cy="16" r="2" fill="currentColor" />
+								</svg>
+							)}
+							{feature.icon === 'compressor' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<circle cx="12" cy="12" r="10" />
+									<path d="M12 16v-4" />
+									<path d="M12 8h.01" />
+									<path d="M8 12h8" />
+								</svg>
+							)}
+							{feature.icon === 'sparkles' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="m12 3 1.912 5.885L20 10.8l-4.712 3.915L16.8 21 12 17.515 7.2 21l1.512-6.285L4 10.8l6.088-1.915L12 3z" />
+								</svg>
+							)}
+							{feature.icon === 'transitions' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<rect x="2" y="5" width="8" height="14" rx="1" />
+									<rect x="14" y="5" width="8" height="14" rx="1" />
+									<path d="M10 12h4m-2-2 2 2-2 2" />
+								</svg>
+							)}
+							{feature.icon === 'layers' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polygon points="12 2 2 7 12 12 22 7 12 2" />
+									<polyline points="2 17 12 22 22 17" />
+									<polyline points="2 12 12 17 22 12" />
+								</svg>
+							)}
+							{feature.icon === 'text' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="4 7 4 4 20 4 20 7" />
+									<line x1="9" y1="20" x2="15" y2="20" />
+									<line x1="12" y1="4" x2="12" y2="20" />
+								</svg>
+							)}
+							{feature.icon === 'motion-text' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M4 14h16M4 18h10" />
+									<path d="M4 6h16l-8 5-8-5z" />
+								</svg>
+							)}
+							{feature.icon === 'sequences' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<rect x="2" y="3" width="20" height="14" rx="2" />
+									<line x1="8" y1="21" x2="16" y2="21" />
+									<line x1="12" y1="17" x2="12" y2="21" />
+								</svg>
+							)}
+							{feature.icon === 'proxy' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+								</svg>
+							)}
+							{feature.icon === 'export' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+									<polyline points="7 10 12 15 17 10" />
+									<line x1="12" y1="15" x2="12" y2="3" />
+								</svg>
+							)}
+							{feature.icon === 'interchange' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="17 1 21 5 17 9" />
+									<path d="M3 11V9a4 4 0 0 1 4-4h14" />
+									<polyline points="7 23 3 19 7 15" />
+									<path d="M21 13v2a4 4 0 0 1-4 4H3" />
+								</svg>
+							)}
+							{feature.icon === 'shield' && (
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+									<path d="m9 12 2 2 4-4" />
+								</svg>
+							)}
+						</div>
+						<div class="feature-badges">
+							<span class="category-tag">{feature.categoryLabel}</span>
+							<span class="feature-pill">{feature.badge}</span>
+						</div>
+					</div>
+
+					<h3 class="feature-title">{feature.title}</h3>
+					<p class="feature-desc">{feature.description}</p>
+
+					<div class="feature-highlights">
+						{feature.highlights.map((highlight) => (
+							<span class="highlight-chip">
+								<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="20 6 9 17 4 12" />
+								</svg>
+								{highlight}
+							</span>
+						))}
+					</div>
+				</div>
+			))}
+		</div>
+
+		<!-- Bottom Launch Callout -->
+		<div class="features-launch-banner">
+			<div class="banner-content">
+				<h3 class="banner-title">Ready to Experience Modern In-Browser Editing?</h3>
+				<p class="banner-desc">No signup, no subscription, no watermark. Open the editor and start creating in seconds.</p>
+			</div>
+			<a href="/editor" class="banner-cta">
+				<span>Launch Free Video Editor</span>
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="5" y1="12" x2="19" y2="12"></line>
+					<polyline points="12 5 19 12 12 19"></polyline>
+				</svg>
+			</a>
+		</div>
+	</div>
+</section>
+
+<script is:inline>
+	document.addEventListener('DOMContentLoaded', () => {
+		const filterTabs = document.querySelectorAll('.features-filter-bar .filter-tab');
+		const featureCards = document.querySelectorAll('#features-grid .feature-card');
+
+		filterTabs.forEach((tab) => {
+			tab.addEventListener('click', () => {
+				// Update active state
+				filterTabs.forEach((t) => {
+					t.classList.remove('is-active');
+					t.setAttribute('aria-selected', 'false');
+				});
+				tab.classList.add('is-active');
+				tab.setAttribute('aria-selected', 'true');
+
+				const selectedCategory = tab.getAttribute('data-category');
+
+				// Filter cards
+				featureCards.forEach((card) => {
+					const cardCategory = card.getAttribute('data-category');
+					if (selectedCategory === 'all' || cardCategory === selectedCategory) {
+						card.classList.remove('is-hidden');
+					} else {
+						card.classList.add('is-hidden');
+					}
+				});
+			});
+		});
+	});
+</script>
+
+<style>
+	.features-section {
+		position: relative;
+		z-index: 10;
+		background: #08080c;
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		padding: 5rem 1.5rem 6rem;
+		overflow: hidden;
+	}
+
+	.features-ambient-glow {
+		position: absolute;
+		top: 10%;
+		left: 50%;
+		transform: translateX(-50%);
+		width: min(90vw, 900px);
+		height: 450px;
+		background: radial-gradient(
+			ellipse,
+			rgba(56, 189, 248, 0.08) 0%,
+			rgba(168, 85, 247, 0.05) 40%,
+			transparent 70%
+		);
+		pointer-events: none;
+		filter: blur(80px);
+	}
+
+	.features-container {
+		max-width: 76rem;
+		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 3rem;
+		position: relative;
+		z-index: 2;
+	}
+
+	/* Header */
+	.features-header {
+		text-align: center;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		max-width: 48rem;
+		margin: 0 auto;
+	}
+
+	.features-eyebrow {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 4px 14px;
+		border-radius: 9999px;
+		background: rgba(56, 189, 248, 0.08);
+		border: 1px solid rgba(56, 189, 248, 0.25);
+		color: #38bdf8;
+		font-family: var(--font-mono, monospace);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		margin-bottom: 1.25rem;
+		box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+	}
+
+	.eyebrow-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #38bdf8;
+		box-shadow: 0 0 8px #38bdf8;
+	}
+
+	.features-title {
+		font-size: clamp(2rem, 5vw, 3.25rem);
+		font-weight: 700;
+		line-height: 1.15;
+		letter-spacing: -0.03em;
+		color: #ffffff;
+		margin: 0 0 1rem;
+		text-wrap: balance;
+	}
+
+	.gradient-text {
+		background: linear-gradient(135deg, #38bdf8 20%, #818cf8 60%, #c084fc 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		display: inline-block;
+	}
+
+	.features-subtitle {
+		font-size: clamp(1rem, 2vw, 1.15rem);
+		line-height: 1.6;
+		color: #94a3b8;
+		margin: 0 0 2.25rem;
+		text-wrap: pretty;
+	}
+
+	/* Stats Strip */
+	.features-stats-strip {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1.5rem;
+		background: rgba(18, 18, 26, 0.7);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 14px;
+		padding: 0.85rem 1.75rem;
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+		flex-wrap: wrap;
+	}
+
+	.stat-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+	}
+
+	.stat-number {
+		font-size: 1.15rem;
+		font-weight: 700;
+		color: #ffffff;
+		font-family: var(--font-mono, monospace);
+		background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+	}
+
+	.stat-label {
+		font-size: 0.72rem;
+		color: #64748b;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		font-weight: 500;
+	}
+
+	.stat-divider {
+		width: 1px;
+		height: 24px;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	/* Filter Tabs */
+	.features-filter-bar {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		flex-wrap: wrap;
+		padding: 6px;
+		background: rgba(15, 15, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.07);
+		border-radius: 12px;
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+		max-width: 62rem;
+		margin: 0 auto;
+	}
+
+	.filter-tab {
+		border: 1px solid transparent;
+		background: transparent;
+		color: #94a3b8;
+		padding: 7px 14px;
+		font-size: 0.82rem;
+		font-weight: 500;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+		white-space: nowrap;
+	}
+
+	.filter-tab:hover {
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.filter-tab.is-active {
+		background: rgba(56, 189, 248, 0.14);
+		border-color: rgba(56, 189, 248, 0.4);
+		color: #38bdf8;
+		font-weight: 600;
+		box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
+	}
+
+	/* Feature Grid */
+	.features-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		gap: 1.25rem;
+	}
+
+	.feature-card {
+		background: rgba(16, 16, 24, 0.7);
+		border: 1px solid rgba(255, 255, 255, 0.07);
+		border-radius: 14px;
+		padding: 1.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+		transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+		position: relative;
+		overflow: hidden;
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+	}
+
+	.feature-card::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 1px;
+		background: linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.3) 50%, transparent 100%);
+		opacity: 0;
+		transition: opacity 0.25s ease;
+	}
+
+	.feature-card:hover {
+		border-color: rgba(56, 189, 248, 0.35);
+		background: rgba(22, 22, 34, 0.85);
+		transform: translateY(-3px);
+		box-shadow:
+			0 12px 32px rgba(0, 0, 0, 0.5),
+			0 0 24px rgba(56, 189, 248, 0.12);
+	}
+
+	.feature-card:hover::before {
+		opacity: 1;
+	}
+
+	.feature-card.is-hidden {
+		display: none;
+	}
+
+	.card-top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.feature-icon-wrapper {
+		width: 44px;
+		height: 44px;
+		border-radius: 10px;
+		background: rgba(56, 189, 248, 0.08);
+		border: 1px solid rgba(56, 189, 248, 0.22);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #38bdf8;
+		transition: all 0.25s ease;
+		flex-shrink: 0;
+	}
+
+	.feature-card:hover .feature-icon-wrapper {
+		background: rgba(56, 189, 248, 0.18);
+		border-color: #38bdf8;
+		color: #ffffff;
+		box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
+	}
+
+	.feature-badges {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+	}
+
+	.category-tag {
+		font-size: 0.7rem;
+		color: #64748b;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		padding: 2px 7px;
+		border-radius: 5px;
+		font-weight: 500;
+	}
+
+	.feature-pill {
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: #a855f7;
+		background: rgba(168, 85, 247, 0.1);
+		border: 1px solid rgba(168, 85, 247, 0.25);
+		padding: 2px 7px;
+		border-radius: 5px;
+	}
+
+	.feature-title {
+		font-size: 1.15rem;
+		font-weight: 600;
+		color: #f1f5f9;
+		margin: 0;
+		line-height: 1.3;
+	}
+
+	.feature-desc {
+		font-size: 0.88rem;
+		line-height: 1.55;
+		color: #94a3b8;
+		margin: 0;
+		flex: 1;
+	}
+
+	.feature-highlights {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-wrap: wrap;
+		padding-top: 0.5rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
+	}
+
+	.highlight-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 0.72rem;
+		font-family: var(--font-mono, monospace);
+		color: #cbd5e1;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 4px;
+		padding: 2px 7px;
+	}
+
+	.highlight-chip svg {
+		color: #10b981;
+	}
+
+	/* Launch Banner */
+	.features-launch-banner {
+		background: linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+		border: 1px solid rgba(56, 189, 248, 0.25);
+		border-radius: 18px;
+		padding: 2.25rem 2.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 2rem;
+		box-shadow:
+			0 16px 48px rgba(0, 0, 0, 0.6),
+			0 0 32px rgba(56, 189, 248, 0.1);
+		flex-wrap: wrap;
+	}
+
+	.banner-content {
+		max-width: 38rem;
+	}
+
+	.banner-title {
+		font-size: 1.45rem;
+		font-weight: 700;
+		color: #ffffff;
+		margin: 0 0 0.5rem;
+	}
+
+	.banner-desc {
+		font-size: 0.95rem;
+		line-height: 1.5;
+		color: #94a3b8;
+		margin: 0;
+	}
+
+	.banner-cta {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		background: #38bdf8;
+		color: #040914;
+		font-weight: 600;
+		font-size: 0.95rem;
+		padding: 0.85rem 1.75rem;
+		border-radius: 9999px;
+		text-decoration: none;
+		transition: all 0.2s ease;
+		box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+		white-space: nowrap;
+	}
+
+	.banner-cta:hover {
+		background: #ffffff;
+		transform: translateY(-2px);
+		box-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
+	}
+
+	@media (max-width: 768px) {
+		.features-section {
+			padding: 4rem 1rem 5rem;
+		}
+
+		.features-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.features-launch-banner {
+			flex-direction: column;
+			align-items: flex-start;
+			padding: 1.75rem 1.5rem;
+		}
+
+		.banner-cta {
+			width: 100%;
+			justify-content: center;
+		}
+	}
+</style>
+
