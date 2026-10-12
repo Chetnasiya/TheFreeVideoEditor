@@ -501,7 +501,7 @@ export default function MediaLibrary() {
 							>
 								<path d="M8 10V2M8 2L5 5M8 2L11 5M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
 							</svg>
-							<span>Import Media…</span>
+							<span>Import</span>
 						</button>
 						<button
 							className="secondary-button media-new-sequence-btn"
@@ -526,7 +526,7 @@ export default function MediaLibrary() {
 								<rect x="2" y="3" width="12" height="10" rx="1.5" />
 								<path d="M5 3v10M11 3v10M2 6.5h3M2 9.5h3M11 6.5h3M11 9.5h3" />
 							</svg>
-							<span>+ Sequence</span>
+							<span>Sequence</span>
 						</button>
 						<button
 							className="secondary-button media-proxy-settings-btn"
@@ -551,7 +551,7 @@ export default function MediaLibrary() {
 								<circle cx="8" cy="8" r="2.5" />
 								<path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" />
 							</svg>
-							<span>Proxies…</span>
+							<span>Proxies</span>
 						</button>
 					</div>
 					<input

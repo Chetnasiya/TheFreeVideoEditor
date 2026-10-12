@@ -71,6 +71,8 @@ export default function TimelineRuler({
 	const selectedMarkerIds = useEditorStore((state) => state.selectedMarkerIds);
 	const snapToMarkers = useEditorStore((state) => state.timeline.snapToMarkers);
 	const snapEnabled = useEditorStore((state) => state.timeline.snapEnabled);
+	const showLanes = useEditorStore((state) => state.keyframes.showLanes);
+	const graphOpen = useEditorStore((state) => state.keyframes.graph.open);
 
 	const selectMarker = useEditorStore((state) => state.selectMarker);
 	const moveMarker = useEditorStore((state) => state.moveMarker);
@@ -82,10 +84,18 @@ export default function TimelineRuler({
 	const setMarkerRange = useEditorStore((state) => state.setMarkerRange);
 	const openMarkerDialog = useEditorStore((state) => state.openMarkerDialog);
 	const setPlayhead = useEditorStore((state) => state.setPlayhead);
+	const toggleSnap = useEditorStore((state) => state.toggleSnap);
+	const setSnapToMarkers = useEditorStore((state) => state.setSnapToMarkers);
+	const toggleKeyframeLanes = useEditorStore((state) => state.toggleKeyframeLanes);
+	const toggleGraphEditor = useEditorStore((state) => state.toggleGraphEditor);
 
 	// Context menu
 	const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 	const contextMenuRef = useRef<HTMLDivElement>(null);
+
+	// Snap options dropdown menu
+	const [snapMenuOpen, setSnapMenuOpen] = useState(false);
+	const snapControlRef = useRef<HTMLDivElement>(null);
 
 	// Dragging state for marker movement or range resizing
 	const dragRef = useRef<{
@@ -119,12 +129,25 @@ export default function TimelineRuler({
 			if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
 				setContextMenu(null);
 			}
+			if (snapControlRef.current && !snapControlRef.current.contains(e.target as Node)) {
+				setSnapMenuOpen(false);
+			}
 		}
-		if (contextMenu) {
+		function handleKeyDown(e: globalThis.KeyboardEvent) {
+			if (e.key === 'Escape') {
+				setContextMenu(null);
+				setSnapMenuOpen(false);
+			}
+		}
+		if (contextMenu || snapMenuOpen) {
 			window.addEventListener('mousedown', handleClickOutside);
-			return () => window.removeEventListener('mousedown', handleClickOutside);
+			window.addEventListener('keydown', handleKeyDown);
+			return () => {
+				window.removeEventListener('mousedown', handleClickOutside);
+				window.removeEventListener('keydown', handleKeyDown);
+			};
 		}
-	}, [contextMenu]);
+	}, [contextMenu, snapMenuOpen]);
 
 	function handleMarkerPointerDown(
 		e: PointerEvent<HTMLDivElement>,
@@ -269,6 +292,120 @@ export default function TimelineRuler({
 					title={`Current Timecode (${project.settings.fps} fps)`}
 				>
 					<span className="timecode-digits">{timecodeStr}</span>
+				</div>
+				<div
+					className="timeline-corner-actions"
+					role="toolbar"
+					aria-label="Timeline display controls"
+				>
+					<div className="timeline-snap-control" ref={snapControlRef}>
+						<button
+							type="button"
+							className={`timeline-corner-btn timeline-snap-btn ${snapEnabled ? 'is-active' : ''}`}
+							onClick={toggleSnap}
+							title={`Snap in Timeline: ${snapEnabled ? 'On' : 'Off'} (S)`}
+							aria-label="Toggle Snapping"
+							aria-pressed={snapEnabled}
+						>
+							<svg
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path d="M3 2a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v5a1 1 0 0 1-2 0V2H5v5a3 3 0 0 0 6 0V2h-1V1h1a2 2 0 0 1 2 2v5a5 5 0 0 1-10 0V2z" />
+								<path d="M3 2h2v2H3V2zm8 0h2v2h-2V2z" />
+							</svg>
+						</button>
+						<button
+							type="button"
+							className={`timeline-corner-btn timeline-corner-dropdown-trigger ${snapMenuOpen ? 'is-open' : ''}`}
+							onClick={(e) => {
+								e.stopPropagation();
+								setSnapMenuOpen((prev) => !prev);
+							}}
+							title="Snap options (Click for dropdown)"
+							aria-label="Snap options dropdown"
+							aria-haspopup="true"
+							aria-expanded={snapMenuOpen}
+						>
+							<svg viewBox="0 0 10 10" width="7" height="7" fill="currentColor" aria-hidden="true">
+								<path d="M2 3.5l3 3 3-3z" />
+							</svg>
+						</button>
+						{snapMenuOpen && (
+							<div
+								className="timeline-dropdown-menu snap-dropdown-menu"
+								role="menu"
+								aria-label="Snap options"
+							>
+								<button
+									type="button"
+									role="menuitemcheckbox"
+									aria-checked={snapEnabled}
+									className={`dropdown-menu-item ${snapEnabled ? 'is-checked' : ''}`}
+									onClick={() => toggleSnap()}
+								>
+									<span className="menu-check">{snapEnabled ? '✓' : ''}</span>
+									<span className="menu-label">Snap in Timeline</span>
+									<span className="menu-shortcut">S</span>
+								</button>
+								<button
+									type="button"
+									role="menuitemcheckbox"
+									aria-checked={snapToMarkers}
+									className={`dropdown-menu-item ${snapToMarkers ? 'is-checked' : ''}`}
+									onClick={() => setSnapToMarkers(!snapToMarkers)}
+								>
+									<span className="menu-check">{snapToMarkers ? '✓' : ''}</span>
+									<span className="menu-label">Snap to Markers</span>
+								</button>
+							</div>
+						)}
+					</div>
+					<button
+						type="button"
+						className={`timeline-corner-btn ${showLanes !== 'off' ? 'is-active' : ''}`}
+						onClick={toggleKeyframeLanes}
+						title={`Keyframes: ${showLanes} (Cmd+K)`}
+						aria-label={`Keyframe display: ${showLanes}`}
+						aria-pressed={showLanes !== 'off'}
+					>
+						<svg
+							viewBox="0 0 16 16"
+							width="12"
+							height="12"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M8 1.5L14 8L8 14.5L2 8L8 1.5Z" />
+						</svg>
+					</button>
+					<button
+						type="button"
+						className={`timeline-corner-btn ${graphOpen ? 'is-active' : ''}`}
+						onClick={toggleGraphEditor}
+						title="Toggle Graph Editor (Shift+G)"
+						aria-label="Toggle Graph Editor"
+						aria-pressed={graphOpen}
+					>
+						<svg
+							viewBox="0 0 16 16"
+							width="12"
+							height="12"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.75"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M2 13C5 13 6 3 14 3" />
+							<circle cx="2" cy="13" r="1.5" fill="currentColor" />
+							<circle cx="14" cy="3" r="1.5" fill="currentColor" />
+						</svg>
+					</button>
 				</div>
 			</div>
 			<div

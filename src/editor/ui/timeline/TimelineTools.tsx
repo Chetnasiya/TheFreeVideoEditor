@@ -78,19 +78,6 @@ const TOOLS: ToolItem[] = [
 		)
 	},
 	{
-		id: 'pen',
-		label: 'Pen Tool',
-		shortcut: 'P',
-		description: 'Create and adjust keyframes and bezier masks directly on clips',
-		icon: (
-			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
-				{/* Fountain pen nib with slit and breather hole */}
-				<path d="M12.8 1.8a1.5 1.5 0 012.1 2.1l-6.9 6.9-2.8.7.7-2.8 6.9-6.9zm-4.7 9.8l-4.5 1.2a.5.5 0 01-.6-.6l1.2-4.5 3.9 3.9zm-1.8.4l-.8.8-1.5-.4.4-1.5.8.8.7.1-.6.2z" />
-				<circle cx="9.2" cy="6.8" r="0.8" fill="currentColor" />
-			</svg>
-		)
-	},
-	{
 		id: 'rect',
 		label: 'Rectangle Tool',
 		description: 'Draw shapes and graphics overlays inside the program monitor',

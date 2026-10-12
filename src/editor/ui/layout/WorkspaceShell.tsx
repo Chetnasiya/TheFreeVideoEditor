@@ -78,12 +78,13 @@ export default function WorkspaceShell({
 	// If a panel is maximized, render just that panel
 	if (maximizedPanelId) {
 		const def = PANEL_REGISTRY[maximizedPanelId];
+		const isMaxTimeline = maximizedPanelId === 'timeline';
 		return (
 			<div
 				className="workspace-shell-container workspace-root--maximized"
 				data-testid="workspace-shell"
 			>
-				<div className="layout-stack is-maximized">
+				<div className={`layout-stack is-maximized ${isMaxTimeline ? 'is-single-timeline' : ''}`}>
 					<div className="layout-stack-header">
 						<div className="layout-tablist" role="tablist">
 							<span className="layout-tab is-active" role="tab" aria-selected="true">
@@ -403,9 +404,13 @@ function StackRenderer({
 	};
 
 	const canClose = activePanel !== 'program' && activePanel !== 'timeline';
+	const isSingleTimeline = node.panelIds.length === 1 && node.panelIds[0] === 'timeline';
 
 	return (
-		<div className="layout-stack" data-testid={`stack-${activePanel}`}>
+		<div
+			className={`layout-stack ${isSingleTimeline ? 'is-single-timeline' : ''}`}
+			data-testid={`stack-${activePanel}`}
+		>
 			<div className="layout-stack-header">
 				<div className="layout-tablist" role="tablist" aria-label="Panel tabs">
 					{node.panelIds.map((panelId, idx) => {

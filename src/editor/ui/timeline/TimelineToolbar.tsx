@@ -1,8 +1,13 @@
+import type { ReactNode } from 'react';
+
 interface TimelineToolbarProps {
 	playheadLabel: string;
 	durationLabel: string;
 	clipCount: number;
-	snapEnabled: boolean;
+	sequenceTabs?: ReactNode;
+	isMaximized?: boolean;
+	onToggleMaximize?: () => void;
+	snapEnabled?: boolean;
 	snapToMarkers?: boolean;
 	onToggleSnapToMarkers?: () => void;
 	markerCount?: number;
@@ -14,7 +19,7 @@ interface TimelineToolbarProps {
 	onSplit: () => void;
 	onDelete: () => void;
 	onRippleDelete: () => void;
-	onToggleSnap: () => void;
+	onToggleSnap?: () => void;
 	onZoom: (value: number) => void;
 	onFit: () => void;
 	onAddTrack: (kind: 'video' | 'audio') => void;
@@ -28,29 +33,29 @@ export default function TimelineToolbar({
 	playheadLabel,
 	durationLabel,
 	clipCount,
-	snapEnabled,
-	snapToMarkers = true,
-	onToggleSnapToMarkers,
+	sequenceTabs,
+	isMaximized = false,
+	onToggleMaximize,
 	markerCount,
 	pixelsPerSecond,
-	showLanes = 'selected',
-	onToggleKeyframes,
-	graphOpen = false,
-	onToggleGraph,
 	onSplit,
 	onDelete,
 	onRippleDelete,
-	onToggleSnap,
 	onZoom,
 	onFit,
 	onAddTrack,
 	onAddAdjustment,
 	onAddSolid,
-	onAddText,
 	onAddCaption
 }: TimelineToolbarProps) {
 	return (
 		<div className="timeline-toolbar-row">
+			{sequenceTabs && (
+				<>
+					<div className="timeline-tabs-inline">{sequenceTabs}</div>
+					<div className="timeline-toolbar-separator" aria-hidden="true" />
+				</>
+			)}
 			<div className="timeline-tool-group" role="group" aria-label="Timeline edit actions">
 				<button
 					className="tool-button"
@@ -120,99 +125,6 @@ export default function TimelineToolbar({
 					</svg>
 					<span>Ripple</span>
 				</button>
-				<button
-					className={`tool-button ${snapEnabled ? 'is-active' : ''}`}
-					type="button"
-					aria-pressed={snapEnabled}
-					onClick={onToggleSnap}
-					title="Toggle snapping. Hold Ctrl/⌘ while dragging to temporarily disable."
-					aria-label="Toggle snapping"
-				>
-					<svg
-						className="tool-btn-icon"
-						viewBox="0 0 16 16"
-						width="13"
-						height="13"
-						fill="currentColor"
-						aria-hidden="true"
-					>
-						<path d="M3 2a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v5a1 1 0 0 1-2 0V2H5v5a3 3 0 0 0 6 0V2h-1V1h1a2 2 0 0 1 2 2v5a5 5 0 0 1-10 0V2z" />
-						<path d="M3 2h2v2H3V2zm8 0h2v2h-2V2z" />
-					</svg>
-					<span>Snap</span>
-				</button>
-				{onToggleSnapToMarkers && (
-					<button
-						className={`tool-button ${snapToMarkers ? 'is-active' : ''}`}
-						type="button"
-						aria-pressed={snapToMarkers}
-						onClick={onToggleSnapToMarkers}
-						title="Snap to markers (start and duration ends)"
-						aria-label="Snap to markers"
-					>
-						<svg
-							className="tool-btn-icon"
-							viewBox="0 0 16 16"
-							width="13"
-							height="13"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path d="M4 2v12h1.5V9.5h6l-1.5-3.5 1.5-4H5.5V2H4z" />
-						</svg>
-						<span>Snap to Markers</span>
-					</button>
-				)}
-				{onToggleKeyframes && (
-					<button
-						className={`tool-button ${showLanes !== 'off' ? 'is-active' : ''}`}
-						type="button"
-						onClick={onToggleKeyframes}
-						title={`Keyframes: ${showLanes} (Cmd+K)`}
-						aria-label={`Keyframes display mode: ${showLanes}`}
-					>
-						<svg
-							className="tool-btn-icon"
-							viewBox="0 0 16 16"
-							width="12"
-							height="12"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path d="M8 1.5L14 8L8 14.5L2 8L8 1.5Z" />
-						</svg>
-						<span>
-							Keyframes{showLanes === 'all' ? ' (All)' : showLanes === 'off' ? ' (Off)' : ''}
-						</span>
-					</button>
-				)}
-				{onToggleGraph && (
-					<button
-						className={`tool-button ${graphOpen ? 'is-active' : ''}`}
-						type="button"
-						onClick={onToggleGraph}
-						title="Toggle Graph Editor (Shift+G)"
-						aria-pressed={graphOpen}
-					>
-						<svg
-							className="tool-btn-icon"
-							viewBox="0 0 16 16"
-							width="13"
-							height="13"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="1.75"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							aria-hidden="true"
-						>
-							<path d="M2 14C5 14 6 2 14 2" />
-							<circle cx="2" cy="14" r="1.5" fill="currentColor" />
-							<circle cx="14" cy="2" r="1.5" fill="currentColor" />
-						</svg>
-						<span>Graph</span>
-					</button>
-				)}
 			</div>
 			<div className="timeline-tool-group">
 				<button type="button" className="tool-button" onClick={() => onAddTrack('video')}>
@@ -239,16 +151,6 @@ export default function TimelineToolbar({
 						title="Add solid color layer"
 					>
 						+ Solid Layer
-					</button>
-				)}
-				{onAddText && (
-					<button
-						type="button"
-						className="tool-button"
-						onClick={onAddText}
-						title="Add text layer across sequence"
-					>
-						+ Text
 					</button>
 				)}
 				{onAddCaption && (
@@ -283,9 +185,9 @@ export default function TimelineToolbar({
 				>
 					Fit
 				</button>
-				<output className="timeline-time-readout" aria-label="Playhead time and sequence duration">
+				{/* <output className="timeline-time-readout" aria-label="Playhead time and sequence duration">
 					{playheadLabel} / {durationLabel}
-				</output>
+				</output> */}
 				<span className="timeline-clip-count" aria-label={`${clipCount} clips`}>
 					{clipCount} clips
 				</span>
@@ -296,6 +198,17 @@ export default function TimelineToolbar({
 					>
 						{markerCount} markers
 					</span>
+				)}
+				{onToggleMaximize && (
+					<button
+						type="button"
+						className="tool-button timeline-maximize-btn"
+						title={isMaximized ? 'Restore panel' : 'Maximize timeline'}
+						aria-label={isMaximized ? 'Restore panel' : 'Maximize timeline'}
+						onClick={onToggleMaximize}
+					>
+						⤢
+					</button>
 				)}
 			</div>
 		</div>

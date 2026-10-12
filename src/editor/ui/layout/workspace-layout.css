@@ -94,6 +94,10 @@
 	user-select: none;
 }
 
+.layout-stack.is-single-timeline > .layout-stack-header {
+	display: none;
+}
+
 .layout-tablist {
 	display: flex;
 	align-items: center;

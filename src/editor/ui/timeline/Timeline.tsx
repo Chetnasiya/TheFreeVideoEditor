@@ -7,7 +7,8 @@ import {
 	type KeyboardEvent,
 	type PointerEvent,
 	type MouseEvent,
-	type CSSProperties
+	type CSSProperties,
+	type ReactNode
 } from 'react';
 import {
 	clientXToTimelineTime,
@@ -46,7 +47,7 @@ import TimelineTools from './TimelineTools';
 import GraphEditor from '../graph/GraphEditor';
 import './timeline.css';
 
-const HEADER_WIDTH = 176;
+const HEADER_WIDTH = 188;
 const TAIL_SECONDS = 12;
 
 interface ContextPosition {
@@ -58,33 +59,29 @@ interface ContextPosition {
 function ConnectedToolbar({
 	project,
 	clipCount,
+	sequenceTabs,
 	onSplit,
 	onDelete,
 	onRippleDelete,
-	onToggleSnap,
 	onZoom,
 	onFit,
 	onAddTrack,
-	pixelsPerSecond,
-	snapEnabled
+	pixelsPerSecond
 }: {
 	project: Project;
 	clipCount: number;
+	sequenceTabs?: ReactNode;
 	onSplit: () => void;
 	onDelete: () => void;
 	onRippleDelete: () => void;
-	onToggleSnap: () => void;
 	onZoom: (value: number) => void;
 	onFit: () => void;
 	onAddTrack: (kind: Track['kind']) => void;
 	pixelsPerSecond: number;
-	snapEnabled: boolean;
 }) {
 	const playhead = useEditorStore((state) => state.timeline.playhead);
-	const showLanes = useEditorStore((state) => state.keyframes.showLanes);
-	const graphOpen = useEditorStore((state) => state.keyframes.graph.open);
-	const snapToMarkers = useEditorStore((state) => state.timeline.snapToMarkers);
 	const activeSeqId = useEditorStore((state) => state.activeSequenceId);
+	const maximizedPanelId = useEditorStore((state) => state.maximizedPanelId);
 	const store = useEditorStoreApi();
 	const duration = timelineDuration(project);
 	const seqMarkers =
@@ -94,25 +91,19 @@ function ConnectedToolbar({
 			playheadLabel={ticksToTimecode(playhead, project.settings.fps)}
 			durationLabel={ticksToTimecode(duration, project.settings.fps)}
 			clipCount={clipCount}
-			snapEnabled={snapEnabled}
-			snapToMarkers={snapToMarkers}
-			onToggleSnapToMarkers={() => store.getState().setSnapToMarkers(!snapToMarkers)}
+			sequenceTabs={sequenceTabs}
+			isMaximized={maximizedPanelId === 'timeline'}
+			onToggleMaximize={() => store.getState().toggleMaximizePanel('timeline')}
 			markerCount={seqMarkers.length}
 			pixelsPerSecond={pixelsPerSecond}
-			showLanes={showLanes}
-			onToggleKeyframes={() => store.getState().toggleKeyframeLanes()}
-			graphOpen={graphOpen}
-			onToggleGraph={() => store.getState().toggleGraphEditor()}
 			onSplit={onSplit}
 			onDelete={onDelete}
 			onRippleDelete={onRippleDelete}
-			onToggleSnap={onToggleSnap}
 			onZoom={onZoom}
 			onFit={onFit}
 			onAddTrack={onAddTrack}
 			onAddAdjustment={() => store.getState().addAdjustmentLayer()}
 			onAddSolid={() => store.getState().addSolidLayer()}
-			onAddText={() => store.getState().addTextClip()}
 			onAddCaption={() => store.getState().addCaptionAtPlayhead()}
 		/>
 	);
@@ -321,7 +312,6 @@ function ActiveTimeline({ project }: { project: Project }) {
 	const setPlayhead = useEditorStore((state) => state.setPlayhead);
 	const selectClips = useEditorStore((state) => state.selectClips);
 	const clearSelection = useEditorStore((state) => state.clearSelection);
-	const toggleSnap = useEditorStore((state) => state.toggleSnap);
 	const beginTimelineDrag = useEditorStore((state) => state.beginTimelineDrag);
 	const updateTimelineDrag = useEditorStore((state) => state.updateTimelineDrag);
 	const cancelTimelineDrag = useEditorStore((state) => state.cancelTimelineDrag);
@@ -1167,55 +1157,57 @@ function ActiveTimeline({ project }: { project: Project }) {
 		dragPositionsByTrack.set(position.trackId, positions);
 	}
 
+	const sequenceTabs = (
+		<div className="timeline-tabs" role="group" aria-label="Timeline sequences">
+			<button
+				type="button"
+				className={`panel-tab ${isRootSequence(activeSequenceId) ? 'is-active' : ''}`}
+				aria-current={isRootSequence(activeSequenceId) ? 'page' : undefined}
+				onClick={() => store.getState().closeSequence()}
+			>
+				Main
+			</button>
+			{!isRootSequence(activeSequenceId) && (
+				<>
+					<span
+						className="panel-tab-separator"
+						aria-hidden="true"
+						style={{ padding: '0 4px', opacity: 0.6 }}
+					>
+						›
+					</span>
+					<button
+						type="button"
+						className="panel-tab is-active"
+						aria-current="page"
+						onClick={() => store.getState().openSequenceSettingsDialog(activeSequenceId)}
+						title="Click to view or edit Sequence Settings"
+						style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+					>
+						{project.sequences?.[activeSequenceId]?.name ?? 'Nested Sequence'} ⚙
+					</button>
+				</>
+			)}
+		</div>
+	);
+
 	return (
 		<div
 			className="timeline-editor"
 			style={{ '--timeline-world-width': `${worldWidth}px` } as CSSProperties}
 		>
 			<div className="timeline-topbar">
-				<div className="timeline-tabs" role="group" aria-label="Timeline sequences">
-					<button
-						type="button"
-						className={`panel-tab ${isRootSequence(activeSequenceId) ? 'is-active' : ''}`}
-						aria-current={isRootSequence(activeSequenceId) ? 'page' : undefined}
-						onClick={() => store.getState().closeSequence()}
-					>
-						Main
-					</button>
-					{!isRootSequence(activeSequenceId) && (
-						<>
-							<span
-								className="panel-tab-separator"
-								aria-hidden="true"
-								style={{ padding: '0 4px', opacity: 0.6 }}
-							>
-								›
-							</span>
-							<button
-								type="button"
-								className="panel-tab is-active"
-								aria-current="page"
-								onClick={() => store.getState().openSequenceSettingsDialog(activeSequenceId)}
-								title="Click to view or edit Sequence Settings"
-								style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
-							>
-								{project.sequences?.[activeSequenceId]?.name ?? 'Nested Sequence'} ⚙
-							</button>
-						</>
-					)}
-				</div>
 				<ConnectedToolbar
 					project={activeProject}
 					clipCount={clips.length}
+					sequenceTabs={sequenceTabs}
 					onSplit={() => splitAtPlayhead()}
 					onDelete={() => deleteSelection()}
 					onRippleDelete={() => rippleDeleteSelection()}
-					onToggleSnap={toggleSnap}
 					onZoom={(value) => zoomAt(value)}
 					onFit={handleZoomFit}
 					onAddTrack={addTimelineTrack}
 					pixelsPerSecond={pixelsPerSecond}
-					snapEnabled={snapEnabled}
 				/>
 			</div>
 			{graphOpen && <GraphEditor />}
