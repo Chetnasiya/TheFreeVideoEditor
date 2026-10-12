@@ -94,12 +94,14 @@ export function TextSection({
 	);
 
 	return (
-		<div className="inspector-section-content">
+		<div className="inspector-section-content text-section-container">
 			{/* Template Presets Picker */}
 			<div className="property-row">
-				<label className="property-label">Template</label>
+				<div className="property-header">
+					<span className="property-label">Template</span>
+				</div>
 				<select
-					className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+					className="text-select"
 					onChange={(e) => {
 						if (e.target.value) handleTemplateSelect(e.target.value);
 					}}
@@ -119,10 +121,12 @@ export function TextSection({
 
 			{/* Animation Presets */}
 			<div className="property-row">
-				<label className="property-label">Animation</label>
-				<div className="flex w-full gap-1">
+				<div className="property-header">
+					<span className="property-label">Animation</span>
+				</div>
+				<div className="flex w-full gap-1.5 items-center">
 					<select
-						className="flex-1 rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						className="text-select flex-1"
 						onChange={(e) => {
 							if (e.target.value) handleAnimationSelect(e.target.value);
 						}}
@@ -140,7 +144,7 @@ export function TextSection({
 					</select>
 					<button
 						type="button"
-						className="rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)] hover:bg-[var(--color-hairline)]"
+						className="text-action-btn"
 						onClick={handleClearAnimations}
 						title="Clear all animation keyframes on this text clip"
 					>
@@ -151,38 +155,58 @@ export function TextSection({
 
 			{/* Text Content */}
 			<div className="property-row">
-				<label className="property-label" htmlFor="text-content-input">
-					Content
-				</label>
+				<div className="property-header">
+					<span className="property-label" id="text-content-label">
+						Content
+					</span>
+				</div>
 				<textarea
 					id="text-content-input"
-					className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] p-2 font-mono text-xs text-[var(--color-ink)] focus:border-[var(--color-link)] focus:outline-none"
+					className="text-content-textarea"
 					rows={3}
 					value={textSource.text}
 					onChange={handleContentChange}
 					placeholder="Enter text..."
+					aria-labelledby="text-content-label"
 				/>
 			</div>
 
 			{/* Font Family Picker */}
 			<div className="property-row">
-				<label className="property-label">Font Family</label>
+				<div className="property-header">
+					<span className="property-label">Font Family</span>
+				</div>
 				<div className="relative w-full">
 					<button
 						type="button"
-						className="flex w-full items-center justify-between rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						className="font-picker-btn"
 						onClick={() => setFontPickerOpen(!fontPickerOpen)}
 						aria-label="Select font family"
 					>
-						<span>{textStyle.fontFamily || 'sans-serif'}</span>
-						<span aria-hidden="true">▾</span>
+						<span style={{ fontFamily: textStyle.fontFamily || 'sans-serif' }}>
+							{textStyle.fontFamily || 'sans-serif'}
+						</span>
+						<svg
+							width="10"
+							height="10"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2.5"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							style={{ transform: fontPickerOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
+							aria-hidden="true"
+						>
+							<polyline points="6 9 12 15 18 9" />
+						</svg>
 					</button>
 
 					{fontPickerOpen && (
-						<div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-y-auto rounded border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] p-1 shadow-lg">
+						<div className="font-picker-dropdown">
 							<input
 								type="text"
-								className="mb-1 w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)] focus:outline-none"
+								className="font-search-input"
 								placeholder="Search fonts..."
 								value={fontSearch}
 								onChange={(e) => setFontSearch(e.target.value)}
@@ -191,27 +215,29 @@ export function TextSection({
 							<div className="flex flex-col gap-0.5">
 								<button
 									type="button"
-									className="rounded px-2 py-1 text-left text-xs hover:bg-[var(--color-hairline)]"
+									className="font-option-btn"
 									onClick={() => handleFontSelect('sans-serif')}
 								>
-									System Sans-Serif
+									<span>System Sans-Serif</span>
 								</button>
 								<button
 									type="button"
-									className="rounded px-2 py-1 text-left text-xs hover:bg-[var(--color-hairline)]"
+									className="font-option-btn"
 									onClick={() => handleFontSelect('monospace')}
 								>
-									System Monospace
+									<span style={{ fontFamily: 'monospace' }}>System Monospace</span>
 								</button>
 								{filteredFonts.map((font) => (
 									<button
 										key={font.family}
 										type="button"
-										className="flex items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-[var(--color-hairline)]"
+										className="font-option-btn"
 										onClick={() => handleFontSelect(font.family)}
 									>
 										<span style={{ fontFamily: font.family }}>{font.displayName}</span>
-										<span className="text-[10px] text-[var(--color-mute)]">{font.category}</span>
+										<span className="text-[9px] font-mono text-[#64748b] bg-[#1a1a24] px-1.5 py-0.5 rounded border border-[#242430]">
+											{font.category}
+										</span>
 									</button>
 								))}
 							</div>
@@ -222,10 +248,12 @@ export function TextSection({
 
 			{/* Font Weight & Style */}
 			<div className="flex gap-2">
-				<div className="flex-1">
-					<label className="text-[11px] text-[var(--color-text-muted)]">Weight</label>
+				<div className="flex-1 property-row">
+					<div className="property-header">
+						<span className="property-label">Weight</span>
+					</div>
 					<select
-						className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						className="text-select"
 						value={textStyle.fontWeight || 'normal'}
 						onChange={handleWeightChange}
 					>
@@ -238,10 +266,12 @@ export function TextSection({
 						<option value="900">Black (900)</option>
 					</select>
 				</div>
-				<div className="flex-1">
-					<label className="text-[11px] text-[var(--color-text-muted)]">Style</label>
+				<div className="flex-1 property-row">
+					<div className="property-header">
+						<span className="property-label">Style</span>
+					</div>
 					<select
-						className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						className="text-select"
 						value={textStyle.fontStyle || 'normal'}
 						onChange={handleStyleChange}
 					>
@@ -253,62 +283,97 @@ export function TextSection({
 
 			{/* Alignment */}
 			<div className="property-row">
-				<label className="property-label">Alignment</label>
-				<div className="flex gap-1">
-					{(['left', 'center', 'right'] as const).map((align) => (
-						<button
-							key={align}
-							type="button"
-							className={`flex-1 rounded px-2 py-1 text-xs capitalize ${
-								(textStyle.alignment || 'center') === align
-									? 'bg-[var(--color-link)] text-white'
-									: 'border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] text-[var(--color-ink)]'
-							}`}
-							onClick={() => handleAlignmentChange(align)}
-						>
-							{align}
-						</button>
-					))}
+				<div className="property-header">
+					<span className="property-label">Alignment</span>
+				</div>
+				<div className="segmented-pill-group" role="group" aria-label="Text Alignment">
+					{(['left', 'center', 'right'] as const).map((align) => {
+						const isActive = (textStyle.alignment || 'center') === align;
+						return (
+							<button
+								key={align}
+								type="button"
+								className={`segmented-pill-btn ${isActive ? 'is-active' : ''}`}
+								onClick={() => handleAlignmentChange(align)}
+								title={`Align ${align}`}
+								aria-pressed={isActive}
+							>
+								{align === 'left' && (
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+										<line x1="17" y1="10" x2="3" y2="10" />
+										<line x1="21" y1="6" x2="3" y2="6" />
+										<line x1="21" y1="14" x2="3" y2="14" />
+										<line x1="17" y1="18" x2="3" y2="18" />
+									</svg>
+								)}
+								{align === 'center' && (
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+										<line x1="18" y1="10" x2="6" y2="10" />
+										<line x1="21" y1="6" x2="3" y2="6" />
+										<line x1="21" y1="14" x2="3" y2="14" />
+										<line x1="18" y1="18" x2="6" y2="18" />
+									</svg>
+								)}
+								{align === 'right' && (
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+										<line x1="21" y1="10" x2="7" y2="10" />
+										<line x1="21" y1="6" x2="3" y2="6" />
+										<line x1="21" y1="14" x2="3" y2="14" />
+										<line x1="21" y1="18" x2="7" y2="18" />
+									</svg>
+								)}
+								<span className="capitalize">{align}</span>
+							</button>
+						);
+					})}
 				</div>
 			</div>
 
 			{/* Box Sizing (Auto / Fixed Width) */}
 			<div className="property-row">
-				<label className="property-label">Box Mode</label>
-				<div className="flex gap-1">
+				<div className="property-header">
+					<span className="property-label">Box Mode</span>
+				</div>
+				<div className="segmented-pill-group" role="group" aria-label="Text Box Sizing">
 					<button
 						type="button"
-						className={`flex-1 rounded px-2 py-1 text-xs ${
-							textBox?.autoSize !== false
-								? 'bg-[var(--color-link)] text-white'
-								: 'border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] text-[var(--color-ink)]'
-						}`}
+						className={`segmented-pill-btn ${textBox?.autoSize !== false ? 'is-active' : ''}`}
 						onClick={() => handleBoxModeChange('auto')}
+						aria-pressed={textBox?.autoSize !== false}
 					>
-						Auto Size
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+							<polyline points="4 14 10 14 10 20" />
+							<polyline points="20 10 14 10 14 4" />
+							<line x1="14" y1="10" x2="21" y2="3" />
+							<line x1="3" y1="21" x2="10" y2="14" />
+						</svg>
+						<span>Auto Size</span>
 					</button>
 					<button
 						type="button"
-						className={`flex-1 rounded px-2 py-1 text-xs ${
-							textBox?.autoSize === false
-								? 'bg-[var(--color-link)] text-white'
-								: 'border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] text-[var(--color-ink)]'
-						}`}
+						className={`segmented-pill-btn ${textBox?.autoSize === false ? 'is-active' : ''}`}
 						onClick={() => handleBoxModeChange('fixed')}
+						aria-pressed={textBox?.autoSize === false}
 					>
-						Fixed Width
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+							<rect x="3" y="3" width="18" height="18" rx="2" />
+							<line x1="9" y1="12" x2="15" y2="12" />
+						</svg>
+						<span>Fixed Width</span>
 					</button>
 				</div>
 			</div>
 
 			{textBox?.autoSize === false && (
 				<div className="property-row">
-					<label className="property-label">Width (px)</label>
+					<div className="property-header">
+						<span className="property-label">Width (px)</span>
+					</div>
 					<input
 						type="number"
 						min="50"
 						max="3840"
-						className="w-full rounded border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] px-2 py-1 text-xs text-[var(--color-ink)]"
+						className="text-select font-mono"
 						value={textBox?.width ?? 600}
 						onChange={handleBoxWidthChange}
 					/>
@@ -317,101 +382,124 @@ export function TextSection({
 
 			{/* Vertical Anchor */}
 			<div className="property-row">
-				<label className="property-label">Vertical Anchor</label>
-				<div className="flex gap-1">
-					{(['top', 'center', 'bottom'] as const).map((anchor) => (
-						<button
-							key={anchor}
-							type="button"
-							className={`flex-1 rounded px-2 py-1 text-xs capitalize ${
-								(textBox?.verticalAnchor || 'center') === anchor
-									? 'bg-[var(--color-link)] text-white'
-									: 'border border-[var(--color-border-subtle)] bg-[var(--color-canvas)] text-[var(--color-ink)]'
-							}`}
-							onClick={() => handleVerticalAnchorChange(anchor)}
-						>
-							{anchor}
-						</button>
-					))}
+				<div className="property-header">
+					<span className="property-label">Vertical Anchor</span>
+				</div>
+				<div className="segmented-pill-group" role="group" aria-label="Vertical Anchor">
+					{(['top', 'center', 'bottom'] as const).map((anchor) => {
+						const isActive = (textBox?.verticalAnchor || 'center') === anchor;
+						return (
+							<button
+								key={anchor}
+								type="button"
+								className={`segmented-pill-btn ${isActive ? 'is-active' : ''}`}
+								onClick={() => handleVerticalAnchorChange(anchor)}
+								title={`Anchor ${anchor}`}
+								aria-pressed={isActive}
+							>
+								{anchor === 'top' && (
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+										<line x1="4" y1="4" x2="20" y2="4" />
+										<rect x="7" y="8" width="10" height="12" rx="1" />
+									</svg>
+								)}
+								{anchor === 'center' && (
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+										<line x1="4" y1="12" x2="20" y2="12" />
+										<rect x="7" y="6" width="10" height="12" rx="1" />
+									</svg>
+								)}
+								{anchor === 'bottom' && (
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+										<line x1="4" y1="20" x2="20" y2="20" />
+										<rect x="7" y="4" width="10" height="12" rx="1" />
+									</svg>
+								)}
+								<span className="capitalize">{anchor === 'center' ? 'Middle' : anchor}</span>
+							</button>
+						);
+					})}
 				</div>
 			</div>
 
 			{/* Animatable Text Properties */}
-			<div className="mt-3 flex flex-col gap-1 border-t border-[var(--color-border-subtle)] pt-2">
-				<span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
-					Styling Properties
-				</span>
-
-				<PropertyRow
-					clip={clip}
-					propertyId="text.fontSize"
-					localTime={localTime}
-					fps={fps}
-					confirmDisable={confirmDisable}
-					onStartDisableConfirm={onStartDisableConfirm}
-					onCancelDisableConfirm={onCancelDisableConfirm}
-				/>
-
-				<PropertyRow
-					clip={clip}
-					propertyId="text.fillColor"
-					localTime={localTime}
-					fps={fps}
-					confirmDisable={confirmDisable}
-					onStartDisableConfirm={onStartDisableConfirm}
-					onCancelDisableConfirm={onCancelDisableConfirm}
-				/>
-
-				<PropertyRow
-					clip={clip}
-					propertyId="text.strokeColor"
-					localTime={localTime}
-					fps={fps}
-					confirmDisable={confirmDisable}
-					onStartDisableConfirm={onStartDisableConfirm}
-					onCancelDisableConfirm={onCancelDisableConfirm}
-				/>
-
-				<PropertyRow
-					clip={clip}
-					propertyId="text.strokeWidth"
-					localTime={localTime}
-					fps={fps}
-					confirmDisable={confirmDisable}
-					onStartDisableConfirm={onStartDisableConfirm}
-					onCancelDisableConfirm={onCancelDisableConfirm}
-				/>
-
-				<PropertyRow
-					clip={clip}
-					propertyId="text.letterSpacing"
-					localTime={localTime}
-					fps={fps}
-					confirmDisable={confirmDisable}
-					onStartDisableConfirm={onStartDisableConfirm}
-					onCancelDisableConfirm={onCancelDisableConfirm}
-				/>
-
-				<PropertyRow
-					clip={clip}
-					propertyId="text.lineHeight"
-					localTime={localTime}
-					fps={fps}
-					confirmDisable={confirmDisable}
-					onStartDisableConfirm={onStartDisableConfirm}
-					onCancelDisableConfirm={onCancelDisableConfirm}
-				/>
-
-				<PropertyRow
-					clip={clip}
-					propertyId="text.reveal"
-					localTime={localTime}
-					fps={fps}
-					confirmDisable={confirmDisable}
-					onStartDisableConfirm={onStartDisableConfirm}
-					onCancelDisableConfirm={onCancelDisableConfirm}
-				/>
+			<div className="text-divider">
+				<span className="text-divider-title">Styling & Layout</span>
+				<div className="timeline-counter-badge" style={{ margin: 0 }}>
+					<span className="timeline-badge-dot" aria-hidden="true" />
+					7 channels
+				</div>
 			</div>
+
+			<PropertyRow
+				clip={clip}
+				propertyId="text.fontSize"
+				localTime={localTime}
+				fps={fps}
+				confirmDisable={confirmDisable}
+				onStartDisableConfirm={onStartDisableConfirm}
+				onCancelDisableConfirm={onCancelDisableConfirm}
+			/>
+
+			<PropertyRow
+				clip={clip}
+				propertyId="text.fillColor"
+				localTime={localTime}
+				fps={fps}
+				confirmDisable={confirmDisable}
+				onStartDisableConfirm={onStartDisableConfirm}
+				onCancelDisableConfirm={onCancelDisableConfirm}
+			/>
+
+			<PropertyRow
+				clip={clip}
+				propertyId="text.strokeColor"
+				localTime={localTime}
+				fps={fps}
+				confirmDisable={confirmDisable}
+				onStartDisableConfirm={onStartDisableConfirm}
+				onCancelDisableConfirm={onCancelDisableConfirm}
+			/>
+
+			<PropertyRow
+				clip={clip}
+				propertyId="text.strokeWidth"
+				localTime={localTime}
+				fps={fps}
+				confirmDisable={confirmDisable}
+				onStartDisableConfirm={onStartDisableConfirm}
+				onCancelDisableConfirm={onCancelDisableConfirm}
+			/>
+
+			<PropertyRow
+				clip={clip}
+				propertyId="text.letterSpacing"
+				localTime={localTime}
+				fps={fps}
+				confirmDisable={confirmDisable}
+				onStartDisableConfirm={onStartDisableConfirm}
+				onCancelDisableConfirm={onCancelDisableConfirm}
+			/>
+
+			<PropertyRow
+				clip={clip}
+				propertyId="text.lineHeight"
+				localTime={localTime}
+				fps={fps}
+				confirmDisable={confirmDisable}
+				onStartDisableConfirm={onStartDisableConfirm}
+				onCancelDisableConfirm={onCancelDisableConfirm}
+			/>
+
+			<PropertyRow
+				clip={clip}
+				propertyId="text.reveal"
+				localTime={localTime}
+				fps={fps}
+				confirmDisable={confirmDisable}
+				onStartDisableConfirm={onStartDisableConfirm}
+				onCancelDisableConfirm={onCancelDisableConfirm}
+			/>
 		</div>
 	);
 }

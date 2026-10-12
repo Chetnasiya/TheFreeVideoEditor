@@ -203,7 +203,22 @@ export function ColorPickerField({
 					title={showChannels ? 'Hide RGBA channels' : 'Show RGBA channels'}
 					aria-label={showChannels ? 'Hide RGBA channel inputs' : 'Show RGBA channel inputs'}
 				>
-					{showChannels ? '▲' : '▼'}
+					<svg
+						style={{
+							transform: showChannels ? 'rotate(180deg)' : 'none',
+							transition: 'transform 0.15s ease'
+						}}
+						width="10"
+						height="10"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<polyline points="6 9 12 15 18 9" />
+					</svg>
 				</button>
 			</div>
 

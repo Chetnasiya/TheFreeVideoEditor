@@ -214,9 +214,25 @@ export default function MasksSection({
 										store.getState().selectMask(mask.id);
 									}}
 								>
-									<span style={{ fontSize: '0.625rem', opacity: 0.6 }}>
-										{isExpanded ? '▼' : '▶'}
-									</span>
+									<svg
+										style={{
+											transform: isExpanded ? 'rotate(90deg)' : 'none',
+											transition: 'transform 0.15s ease',
+											opacity: 0.65,
+											flexShrink: 0
+										}}
+										width="10"
+										height="10"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.5"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										aria-hidden="true"
+									>
+										<polyline points="9 18 15 12 9 6" />
+									</svg>
 									<input
 										type="checkbox"
 										checked={mask.enabled !== false}
@@ -467,7 +483,9 @@ export default function MasksSection({
 																		title="Previous shape keyframe"
 																		aria-label="Previous shape keyframe"
 																	>
-																		◀
+																		<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																			<polyline points="15 18 9 12 15 6" />
+																		</svg>
 																	</button>
 																	<button
 																		type="button"
@@ -484,7 +502,9 @@ export default function MasksSection({
 																			hasShapeKey ? 'Remove shape keyframe' : 'Add shape keyframe'
 																		}
 																	>
-																		{hasShapeKey ? '◆' : '◇'}
+																		<svg width="10" height="10" viewBox="0 0 24 24" fill={hasShapeKey ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+																			<polygon points="12 2 22 12 12 22 2 12" />
+																		</svg>
 																	</button>
 																	<button
 																		type="button"
@@ -497,7 +517,9 @@ export default function MasksSection({
 																		title="Next shape keyframe"
 																		aria-label="Next shape keyframe"
 																	>
-																		▶
+																		<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																			<polyline points="9 18 15 12 9 6" />
+																		</svg>
 																	</button>
 																</div>
 															)}
