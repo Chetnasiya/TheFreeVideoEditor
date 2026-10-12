@@ -2224,3 +2224,126 @@
 		transition: none;
 	}
 }
+
+/* Light Theme Support */
+:root[data-theme='light'] .editor-topbar {
+	background: #ffffff;
+	border-bottom: 1px solid #e2e8f0;
+}
+
+:root[data-theme='light'] .application-bar {
+	border-bottom: 1px solid #e2e8f0;
+}
+
+:root[data-theme='light'] .menu-button {
+	color: #334155;
+}
+
+:root[data-theme='light'] .menu-button:hover {
+	color: #0f172a;
+	background: #f1f5f9;
+}
+
+:root[data-theme='light'] .menu-dropdown {
+	background: #ffffff;
+	border-color: #e2e8f0;
+	box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+
+:root[data-theme='light'] .menu-item {
+	color: #334155;
+}
+
+:root[data-theme='light'] .menu-item:hover,
+:root[data-theme='light'] .menu-item:focus-visible {
+	background: #f1f5f9;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .menu-shortcut {
+	color: #94a3b8;
+}
+
+:root[data-theme='light'] .menu-separator {
+	background: #e2e8f0;
+}
+
+:root[data-theme='light'] .project-name-trigger {
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .project-name-trigger:hover {
+	background: #f1f5f9;
+}
+
+:root[data-theme='light'] .project-rename-form input {
+	background: #ffffff;
+	border-color: #cbd5e1;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .rename-cancel {
+	background: #f1f5f9;
+	border-color: #cbd5e1;
+	color: #475569;
+}
+
+:root[data-theme='light'] .rename-cancel:hover {
+	background: #e2e8f0;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .workspace-bar {
+	background: #f8fafc;
+	border-top: 1px solid #e2e8f0;
+}
+
+:root[data-theme='light'] .workspace-tab {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .workspace-tab:hover:not(:disabled) {
+	color: #0f172a;
+	background: rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme='light'] .workspace-tab.is-active {
+	color: #0f172a;
+	background: #ffffff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme='light'] .workspace-resolution {
+	background: #ffffff;
+	border: 1px solid #e2e8f0;
+	color: #64748b;
+}
+
+:root[data-theme='light'] .toolbar-button,
+:root[data-theme='light'] .secondary-button,
+:root[data-theme='light'] .icon-button,
+:root[data-theme='light'] .view-toggle,
+:root[data-theme='light'] .transport-actions button,
+:root[data-theme='light'] .tool-button {
+	background: #ffffff;
+	border: 1px solid #e2e8f0;
+	color: #334155;
+}
+
+:root[data-theme='light'] .toolbar-button:hover:not(:disabled),
+:root[data-theme='light'] .secondary-button:hover:not(:disabled),
+:root[data-theme='light'] .icon-button:hover:not(:disabled),
+:root[data-theme='light'] .view-toggle:hover:not(:disabled),
+:root[data-theme='light'] .transport-actions button:hover:not(:disabled),
+:root[data-theme='light'] .tool-button:hover:not(:disabled) {
+	background: #f1f5f9;
+	border-color: #cbd5e1;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .save-status,
+:root[data-theme='light'] .project-status {
+	background: #ffffff;
+	border: 1px solid #e2e8f0;
+	color: #475569;
+}

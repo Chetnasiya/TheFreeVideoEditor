@@ -151,3 +151,55 @@
 	display: flex;
 	justify-content: space-between;
 }
+
+/* Light Theme Overrides */
+:root[data-theme='light'] .scopes-panel {
+	background: #ffffff;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .scopes-header {
+	background: #f8fafc;
+	border-color: #e2e8f0;
+}
+
+:root[data-theme='light'] .scopes-view-btn {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .scopes-view-btn:hover {
+	color: #0f172a;
+	background: #f1f5f9;
+}
+
+:root[data-theme='light'] .scopes-view-btn.is-active {
+	background: #e2e8f0;
+	color: #0f172a;
+	border-color: #cbd5e1;
+}
+
+:root[data-theme='light'] .scopes-tab-btn {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .scopes-tab-btn:hover {
+	color: #0f172a;
+	background: #f1f5f9;
+}
+
+:root[data-theme='light'] .scopes-tab-btn.is-active {
+	background: #e0f2fe;
+	color: #0284c7;
+	border-color: #7dd3fc;
+}
+
+:root[data-theme='light'] .scopes-close-btn:hover {
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .scopes-footer {
+	background: #f8fafc;
+	border-color: #e2e8f0;
+	color: #64748b;
+}
+

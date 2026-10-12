@@ -167,3 +167,48 @@
 		transition-duration: 0.01ms !important;
 	}
 }
+
+/* Light Theme Overrides */
+:root[data-theme='light'] .export-tabs {
+	background: #f1f5f9;
+	border-color: #e2e8f0;
+}
+
+:root[data-theme='light'] .export-tabs button {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .export-tabs button:hover:not([aria-selected='true']) {
+	color: #0f172a;
+	background: rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme='light'] .export-tabs button[aria-selected='true'] {
+	background: #ffffff;
+	border-color: #cbd5e1;
+	color: #0f172a;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme='light'] .export-checkbox {
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .export-progress {
+	background: #f8fafc;
+	border-color: #e2e8f0;
+}
+
+:root[data-theme='light'] .export-progress-label {
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .export-progress progress {
+	background: #e2e8f0;
+	border-color: #cbd5e1;
+}
+
+:root[data-theme='light'] .export-progress progress::-webkit-progress-bar {
+	background: #e2e8f0;
+}
+

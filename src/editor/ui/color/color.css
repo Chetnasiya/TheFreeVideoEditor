@@ -429,3 +429,49 @@
 	color: #f87171;
 	font-size: 12px;
 }
+
+/* Light Theme Support */
+:root[data-theme='light'] .color-panel {
+	background: #ffffff;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .color-panel-tabs {
+	background: #f8fafc;
+	border-bottom: 1px solid #e2e8f0;
+}
+
+:root[data-theme='light'] .color-tab-btn {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .color-tab-btn:hover {
+	color: #0f172a;
+	background: #f1f5f9;
+}
+
+:root[data-theme='light'] .color-tab-btn.is-active {
+	background: #ffffff;
+	color: #0284c7;
+	border-color: #38bdf8;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme='light'] .color-slider-input {
+	background: #ffffff;
+	border-color: #cbd5e1;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .lut-dropzone {
+	background: #f8fafc;
+	border-color: #cbd5e1;
+	color: #64748b;
+}
+
+:root[data-theme='light'] .lut-dropzone:hover,
+:root[data-theme='light'] .lut-dropzone.is-drag-over {
+	background: #e0f2fe;
+	border-color: #38bdf8;
+	color: #0284c7;
+}
