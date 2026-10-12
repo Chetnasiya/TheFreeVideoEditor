@@ -1,4 +1,5 @@
-import React, { useId } from 'react';
+import React, { useEffect, useId } from 'react';
+import { createPortal } from 'react-dom';
 import type { TrackEq } from '../../core/types';
 import { totalEqResponse, defaultTrackEq } from '../../core/audioMath';
 
@@ -12,6 +13,17 @@ interface EqPopupProps {
 export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChange }) => {
 	const currentEq = eq ?? defaultTrackEq();
 	const titleId = useId();
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') {
+				e.stopPropagation();
+				onClose();
+			}
+		};
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [onClose]);
 
 	// Frequencies across 20 Hz to 20 kHz (logarithmic)
 	const numPoints = 120;
@@ -59,43 +71,42 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 		onChange({ ...currentEq, bands });
 	};
 
-	return (
+	const modalContent = (
 		<div
-			className="eq-popup fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs"
+			className="mixer-popup-overlay"
 			role="dialog"
 			aria-labelledby={titleId}
 			aria-modal="true"
+			onClick={(e) => {
+				if (e.target === e.currentTarget) {
+					onClose();
+				}
+			}}
 		>
-			<div className="relative w-full max-w-xl overflow-hidden rounded-lg border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] text-[var(--color-ink)] shadow-2xl">
+			<div
+				className="mixer-popup-dialog is-eq"
+				style={{ width: 'min(640px, 95vw)', maxWidth: '640px' }}
+				onClick={(e) => e.stopPropagation()}
+			>
 				{/* Title Bar */}
-				<div className="flex items-center justify-between border-b border-[var(--color-hairline)] bg-[var(--color-canvas)] px-5 py-3">
+				<div className="flex items-center justify-between border-b border-[#242432] bg-[#14141c] px-5 py-3">
 					<div className="flex items-center gap-2.5">
-						<span className="h-2.5 w-2.5 rounded-full bg-[var(--color-link)]" />
+						<span className="h-2.5 w-2.5 rounded-full bg-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
 						<h3
 							id={titleId}
-							className="text-sm font-semibold tracking-tight text-[var(--color-ink)]"
+							className="text-sm font-semibold tracking-tight text-[#f1f5f9]"
 						>
 							Track EQ — {trackName}
 						</h3>
 					</div>
 					<div className="flex items-center gap-3">
-						<label className="flex cursor-pointer items-center gap-1.5 text-xs text-[var(--color-mute)] select-none">
-							<input
-								type="checkbox"
-								checked={currentEq.enabled}
-								onChange={toggleEnabled}
-								className="rounded border-[var(--color-hairline)] accent-[var(--color-link)]"
-								aria-label="Enabled"
-							/>
-							<span className="text-[11px] font-medium text-[var(--color-body)]">Enabled</span>
-						</label>
 						<button
 							type="button"
 							onClick={toggleEnabled}
-							className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+							className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
 								currentEq.enabled
-									? 'border border-emerald-600/40 bg-emerald-500/15 text-emerald-400'
-									: 'border border-[var(--color-hairline)] bg-[var(--color-canvas-elevated)] text-[var(--color-mute)]'
+									? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
+									: 'border border-[#282836] bg-[#161622] text-[#94a3b8]'
 							}`}
 							title="Toggle EQ processing bypass"
 						>
@@ -103,7 +114,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 								className={`h-2 w-2 rounded-full ${
 									currentEq.enabled
 										? 'bg-emerald-400 shadow-[0_0_6px_#22c55e]'
-										: 'bg-[var(--color-mute)]'
+										: 'bg-[#64748b]'
 								}`}
 							/>
 							<span>{currentEq.enabled ? 'Active' : 'Bypassed'}</span>
@@ -111,7 +122,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 						<button
 							type="button"
 							onClick={onClose}
-							className="rounded p-1 text-[var(--color-mute)] transition-colors hover:bg-[var(--color-hairline-soft)] hover:text-[var(--color-ink)]"
+							className="flex h-7 w-7 items-center justify-center rounded-lg text-[#94a3b8] transition-colors hover:bg-white/10 hover:text-[#f1f5f9]"
 							aria-label="Close EQ popup"
 						>
 							✕
@@ -121,7 +132,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 
 				<div className="p-5">
 					{/* Visual Frequency Response Display */}
-					<div className="relative overflow-hidden rounded border border-[#22222a] bg-[#09090d] p-3 shadow-inner">
+					<div className="relative overflow-hidden rounded-lg border border-[#22222a] bg-[#09090d] p-3 shadow-inner">
 						<svg
 							viewBox={`0 0 ${svgWidth} ${svgHeight}`}
 							className="h-40 w-full"
@@ -217,19 +228,19 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 						{currentEq.bands.map((band, idx) => (
 							<div
 								key={idx}
-								className="flex flex-col gap-2 rounded border border-[var(--color-hairline)] bg-[var(--color-canvas)] p-3 shadow-xs"
+								className="flex flex-col gap-2 rounded-lg border border-[#242432] bg-[#161620] p-3 shadow-xs"
 							>
-								<div className="flex items-center justify-between text-[11px] font-semibold text-[var(--color-ink)]">
+								<div className="flex items-center justify-between text-[11px] font-semibold text-[#f1f5f9]">
 									<span>Band {idx + 1}</span>
-									<span className="rounded bg-[var(--color-hairline-soft)] px-1 py-0.5 font-mono text-[10px] text-[var(--color-mute)] uppercase">
+									<span className="rounded bg-[#20202c] px-1.5 py-0.5 font-mono text-[9.5px] text-[#94a3b8] uppercase">
 										{band.type === 'peaking' ? 'Peak' : band.type === 'lowshelf' ? 'Low' : 'High'}
 									</span>
 								</div>
 
 								<div>
-									<div className="mb-1 flex justify-between font-mono text-[10px] text-[var(--color-mute)]">
+									<div className="mb-1 flex justify-between font-mono text-[10px] text-[#94a3b8]">
 										<span>Gain</span>
-										<span className={band.gainDb !== 0 ? 'font-bold text-[var(--color-link)]' : ''}>
+										<span className={band.gainDb !== 0 ? 'font-bold text-[#38bdf8]' : ''}>
 											{band.gainDb > 0 ? `+${band.gainDb}` : band.gainDb} dB
 										</span>
 									</div>
@@ -240,12 +251,12 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 										step="0.5"
 										value={band.gainDb}
 										onChange={(e) => updateBand(idx, { gainDb: parseFloat(e.target.value) })}
-										className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
+										className="h-1.5 w-full cursor-pointer rounded-full bg-[#242432] accent-[#38bdf8]"
 									/>
 								</div>
 
 								<div>
-									<div className="mb-1 flex justify-between font-mono text-[10px] text-[var(--color-mute)]">
+									<div className="mb-1 flex justify-between font-mono text-[10px] text-[#94a3b8]">
 										<span>Freq</span>
 										<span>
 											{band.frequencyHz >= 1000
@@ -261,12 +272,12 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 										step="10"
 										value={band.frequencyHz}
 										onChange={(e) => updateBand(idx, { frequencyHz: parseFloat(e.target.value) })}
-										className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
+										className="h-1.5 w-full cursor-pointer rounded-full bg-[#242432] accent-[#38bdf8]"
 									/>
 								</div>
 
 								<div>
-									<div className="mb-1 flex justify-between font-mono text-[10px] text-[var(--color-mute)]">
+									<div className="mb-1 flex justify-between font-mono text-[10px] text-[#94a3b8]">
 										<span>Q</span>
 										<span>{band.q.toFixed(1)}</span>
 									</div>
@@ -277,7 +288,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 										step="0.1"
 										value={band.q}
 										onChange={(e) => updateBand(idx, { q: parseFloat(e.target.value) })}
-										className="h-1.5 w-full cursor-pointer rounded-full accent-[var(--color-link)]"
+										className="h-1.5 w-full cursor-pointer rounded-full bg-[#242432] accent-[#38bdf8]"
 									/>
 								</div>
 							</div>
@@ -286,14 +297,18 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 				</div>
 
 				{/* Dialog Footer */}
-				<div className="flex items-center justify-between border-t border-[var(--color-hairline)] bg-[var(--color-canvas)] px-5 py-3">
-					<button type="button" onClick={resetFlat} className="tracking-btn">
+				<div className="flex items-center justify-between border-t border-[#242432] bg-[#14141c] px-5 py-3">
+					<button
+						type="button"
+						onClick={resetFlat}
+						className="inline-flex h-7 items-center justify-center rounded-md border border-[#242432] bg-[#161620] px-3 text-xs font-medium text-[#94a3b8] transition-all hover:border-[#38bdf8] hover:text-[#f1f5f9]"
+					>
 						Reset to Flat
 					</button>
 					<button
 						type="button"
 						onClick={onClose}
-						className="tracking-btn tracking-btn-primary px-5"
+						className="inline-flex h-7 items-center justify-center rounded-md border border-sky-400/40 bg-sky-500/20 px-5 text-xs font-semibold text-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.25)] transition-all hover:border-sky-400 hover:bg-sky-500/30"
 					>
 						Done
 					</button>
@@ -301,4 +316,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 			</div>
 		</div>
 	);
+
+	if (typeof document === 'undefined') return null;
+	return createPortal(modalContent, document.body);
 };

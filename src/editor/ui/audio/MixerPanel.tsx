@@ -182,12 +182,14 @@ const MixerFader: React.FC<FaderProps> = ({ gainDb, onChange, isMuted = false })
 export const MixerPanel: React.FC = () => {
 	const store = useEditorStoreApi();
 	const project = useEditorStore((state) => state.project);
-	const [activeEqTrack, setActiveEqTrack] = useState<Track | null>(null);
-	const [activeCompTrack, setActiveCompTrack] = useState<Track | null>(null);
+	const [activeEqTrackId, setActiveEqTrackId] = useState<string | null>(null);
+	const [activeCompTrackId, setActiveCompTrackId] = useState<string | null>(null);
 
 	if (!project) return null;
 
 	const audioTracks = project.tracks.filter((t) => t.kind === 'audio');
+	const activeEqTrack = audioTracks.find((t) => t.id === activeEqTrackId) ?? null;
+	const activeCompTrack = audioTracks.find((t) => t.id === activeCompTrackId) ?? null;
 	const audioBuses: AudioBus[] = project.audioBuses ?? [];
 	const masterAudio = project.masterAudio ?? { gainDb: 0, limiter: false };
 
@@ -262,7 +264,7 @@ export const MixerPanel: React.FC = () => {
 							<div className="strip-fx-row">
 								<button
 									type="button"
-									onClick={() => setActiveEqTrack(track)}
+									onClick={() => setActiveEqTrackId(track.id)}
 									className={`strip-fx-btn ${tAudio.eq?.enabled ? 'is-active' : ''}`}
 									title={tAudio.eq?.enabled ? 'Equalizer (Enabled)' : 'Equalizer'}
 								>
@@ -270,7 +272,7 @@ export const MixerPanel: React.FC = () => {
 								</button>
 								<button
 									type="button"
-									onClick={() => setActiveCompTrack(track)}
+									onClick={() => setActiveCompTrackId(track.id)}
 									className={`strip-fx-btn ${tAudio.compressor?.enabled ? 'is-active' : ''}`}
 									title={tAudio.compressor?.enabled ? 'Compressor / Dynamics (Enabled)' : 'Compressor / Dynamics'}
 								>
@@ -507,7 +509,7 @@ export const MixerPanel: React.FC = () => {
 				<EqPopup
 					eq={activeEqTrack.audio?.eq}
 					trackName={activeEqTrack.name}
-					onClose={() => setActiveEqTrack(null)}
+					onClose={() => setActiveEqTrackId(null)}
 					onChange={(nextEq) => {
 						store.getState().setTrackAudioEq(activeEqTrack.id, nextEq);
 					}}
@@ -519,7 +521,7 @@ export const MixerPanel: React.FC = () => {
 				<CompressorPopup
 					compressor={activeCompTrack.audio?.compressor}
 					trackName={activeCompTrack.name}
-					onClose={() => setActiveCompTrack(null)}
+					onClose={() => setActiveCompTrackId(null)}
 					onChange={(nextComp) => {
 						store.getState().setTrackAudioCompressor(activeCompTrack.id, nextComp);
 					}}

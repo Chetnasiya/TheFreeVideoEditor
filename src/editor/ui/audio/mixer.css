@@ -594,3 +594,36 @@
 	text-overflow: ellipsis;
 }
 
+/* Mixer Popups (EQ & Dynamics) */
+.mixer-popup-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.75);
+	backdrop-filter: blur(4px);
+	padding: 16px;
+	user-select: none;
+}
+
+.mixer-popup-dialog {
+	position: relative;
+	width: 100%;
+	border-radius: 12px;
+	border: 1px solid #242432;
+	background: #111116;
+	color: #f1f5f9;
+	box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05);
+	overflow: hidden;
+}
+
+.mixer-popup-dialog.is-eq {
+	max-width: 640px;
+}
+
+.mixer-popup-dialog.is-compressor {
+	max-width: 540px;
+}
+
