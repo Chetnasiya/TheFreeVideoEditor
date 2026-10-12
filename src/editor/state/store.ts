@@ -2626,6 +2626,24 @@ export function createEditorStore() {
 						}
 						return false;
 					}
+					// If the user just clicked without dragging/moving/trimming, do not mutate or trigger autosave
+					const delta = drag.pointerTime - drag.pointerStartTime;
+					const originalAnchor = drag.original[0];
+					const unchangedMove =
+						drag.kind === 'move' &&
+						delta === 0 &&
+						(!drag.targetTrackId || !originalAnchor || drag.targetTrackId === originalAnchor.trackId);
+					const unchangedTrimOrSlip =
+						(drag.kind === 'trim-start' || drag.kind === 'trim-end' || drag.kind === 'slip') &&
+						delta === 0;
+
+					if (unchangedMove || unchangedTrimOrSlip) {
+						set((state) => {
+							state.timeline.drag = null;
+						});
+						return false;
+					}
+
 					try {
 						const activeSeqId = get().activeSequenceId;
 						const activeViewBefore = viewProject(get().project!, activeSeqId);

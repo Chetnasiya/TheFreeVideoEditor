@@ -1240,34 +1240,6 @@ function EditorShell() {
 						)}
 					</div>
 					<div className="topbar-actions">
-						<button
-							className="toolbar-button history-button"
-							type="button"
-							aria-label="Undo"
-							title={
-								history.canUndo
-									? `Undo ${history.undoLabel} ${undoShortcut}`
-									: `Nothing to undo (${undoShortcut}).`
-							}
-							disabled={!history.canUndo}
-							onClick={() => editorStore.getState().undo()}
-						>
-							<span aria-hidden="true">↶</span>
-						</button>
-						<button
-							className="toolbar-button history-button"
-							type="button"
-							aria-label="Redo"
-							title={
-								history.canRedo
-									? `Redo ${history.redoLabel} ${redoShortcut}`
-									: `Nothing to redo (${redoShortcut}).`
-							}
-							disabled={!history.canRedo}
-							onClick={() => editorStore.getState().redo()}
-						>
-							<span aria-hidden="true">↷</span>
-						</button>
 						{project &&
 							(saveStatus === 'error' ? (
 								<button
@@ -1298,6 +1270,34 @@ function EditorShell() {
 											: 'Saved'}
 								</span>
 							))}
+						<button
+							className="toolbar-button history-button"
+							type="button"
+							aria-label="Undo"
+							title={
+								history.canUndo
+									? `Undo ${history.undoLabel} ${undoShortcut}`
+									: `Nothing to undo (${undoShortcut}).`
+							}
+							disabled={!history.canUndo}
+							onClick={() => editorStore.getState().undo()}
+						>
+							<span aria-hidden="true">↶</span>
+						</button>
+						<button
+							className="toolbar-button history-button"
+							type="button"
+							aria-label="Redo"
+							title={
+								history.canRedo
+									? `Redo ${history.redoLabel} ${redoShortcut}`
+									: `Nothing to redo (${redoShortcut}).`
+							}
+							disabled={!history.canRedo}
+							onClick={() => editorStore.getState().redo()}
+						>
+							<span aria-hidden="true">↷</span>
+						</button>
 						<button
 							className="toolbar-button theme-button"
 							type="button"

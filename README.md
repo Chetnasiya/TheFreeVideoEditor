@@ -161,29 +161,34 @@ npm run preview
 
 ---
 
-## 🌐 Deploying to Cloudflare Workers
+## 🌐 Deployment (Maintainers Only)
 
-The project is pre-configured for Cloudflare Workers Static Assets via `wrangler.toml`.
+The production site is hosted on Cloudflare Workers Static Assets.
 
+> [!IMPORTANT]
+> **Contributors will not have access to deploy.** Deployment keys and infrastructure environments are restricted exclusively to core project maintainers. Contributors should test changes locally using `npm run dev` and `npm run preview`.
+
+For project maintainers with active deployment credentials:
 ```bash
-# Build and deploy to Cloudflare Workers
+# Build and deploy to Cloudflare Workers (Maintainers only)
 npm run deploy
 ```
-
-*(Note: Deploy commands will only run when you explicitly execute them.)*
 
 ---
 
 ## 🤝 Contributing
 
-Contributions from the open-source community are warmly welcomed! Please read our [CONTRIBUTING.md](./CONTRIBUTING.md) guide for details on our code style, architecture principles, and pull request workflow.
+Contributions from the open-source community are warmly welcomed!
 
-1. Fork the Project
+- **GitHub Repository**: [https://github.com/GajananPalepwad/TheFreeVideoEditor](https://github.com/GajananPalepwad/TheFreeVideoEditor)
+- **Contribution Guide**: Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for architectural invariants, coding conventions, and pull request steps.
+
+1. Fork the Project: [https://github.com/GajananPalepwad/TheFreeVideoEditor/fork](https://github.com/GajananPalepwad/TheFreeVideoEditor/fork)
 2. Create your Feature Branch (`git checkout -b feature/amazing-feature`)
-3. Commit your Changes (`git commit -m 'Add amazing feature'`)
-4. Verify tests pass (`npm run typecheck && npm test && npm run lint`)
-5. Push to the Branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
+3. Test locally (`npm run dev`) and run verification checks (`npm run typecheck && npm test && npm run lint`)
+4. Commit your Changes (`git commit -m 'Add amazing feature'`)
+5. Push to your Fork (`git push origin feature/amazing-feature`)
+6. Open a Pull Request on the main repository
 
 ---
 

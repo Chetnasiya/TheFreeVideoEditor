@@ -22,7 +22,7 @@ We are committed to providing a welcoming, inclusive, and harassment-free enviro
 
 ### Setup Instructions
 
-1. **Fork the repository** on GitHub.
+1. **Fork the repository** on GitHub: [https://github.com/GajananPalepwad/TheFreeVideoEditor](https://github.com/GajananPalepwad/TheFreeVideoEditor)
 2. **Clone your fork** locally:
    ```bash
    git clone https://github.com/<your-username>/TheFreeVideoEditor.git
@@ -37,6 +37,9 @@ We are committed to providing a welcoming, inclusive, and harassment-free enviro
    npm run dev
    ```
 5. Open [http://localhost:4321](http://localhost:4321) in your browser.
+
+> [!NOTE]
+> **Deployment Access**: Contributors do not have access to deploy the application to Cloudflare Workers or production infrastructure. Testing and verification are done locally (`npm run dev`, `npm test`, `npm run preview`). Deployments are handled exclusively by maintainers.
 
 ---
 
@@ -146,5 +149,5 @@ npm run build
 
 ## Questions and Support
 
-Feel free to open a [GitHub Discussion](https://github.com/TheFreeVideoEditor/TheFreeVideoEditor/discussions) or file an [Issue](https://github.com/TheFreeVideoEditor/TheFreeVideoEditor/issues) if you have any questions or need guidance!
+Feel free to open an [Issue](https://github.com/GajananPalepwad/TheFreeVideoEditor/issues) or Pull Request at [https://github.com/GajananPalepwad/TheFreeVideoEditor](https://github.com/GajananPalepwad/TheFreeVideoEditor) if you have any questions or need guidance!
 
