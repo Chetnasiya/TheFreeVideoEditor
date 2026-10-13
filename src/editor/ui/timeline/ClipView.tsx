@@ -25,7 +25,7 @@ import {
 	type Track
 } from '../../core';
 import { getDerived, type DerivedData } from '../../services/storage/mediaCache';
-import { isSpeedExceedingMedia } from '../../core/timeRemap';
+import { isSpeedExceedingMedia, timelineToSource } from '../../core/timeRemap';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 
 interface ClipViewProps {
@@ -53,9 +53,171 @@ interface KeyframeContextMenuState {
 	time?: Time;
 }
 
-function ClipArtwork({ project, asset, track }: { project: Project; asset: Asset; track: Track }) {
+function WaveformCanvas({
+	peaks,
+	clipDuration,
+	pixelsPerSecond
+}: {
+	peaks: NonNullable<DerivedData['peaks']>;
+	clipDuration: Time;
+	pixelsPerSecond: number;
+}) {
+	const canvasRef = useRef<HTMLCanvasElement>(null);
+
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		if (!canvas) return;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+
+		const dpr = window.devicePixelRatio || 1;
+		const rect = canvas.getBoundingClientRect();
+		const width = Math.max(1, Math.floor(rect.width || timeToPixels(clipDuration, pixelsPerSecond)));
+		const height = Math.max(1, Math.floor(rect.height || 48));
+
+		canvas.width = Math.floor(width * dpr);
+		canvas.height = Math.floor(height * dpr);
+		ctx.scale(dpr, dpr);
+
+		const totalSamples = peaks.max.length;
+		if (totalSamples === 0) return;
+
+		const midY = height / 2;
+		const halfHeight = height / 2 - 2;
+
+		ctx.clearRect(0, 0, width, height);
+
+		// Center divider line (Premiere Pro style)
+		ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(0, midY);
+		ctx.lineTo(width, midY);
+		ctx.stroke();
+
+		// Premiere Pro waveform filled color
+		ctx.fillStyle = '#34d399';
+
+		const step = Math.max(1, width / 400); // 1-2px per column
+		for (let x = 0; x < width; x += step) {
+			const startSample = Math.floor((x / width) * totalSamples);
+			const endSample = Math.min(totalSamples, Math.floor(((x + step) / width) * totalSamples));
+
+			let peakMax = -128;
+			let peakMin = 127;
+			for (let s = startSample; s <= endSample && s < totalSamples; s++) {
+				const maxVal = peaks.max[s] ?? 0;
+				const minVal = peaks.min[s] ?? 0;
+				if (maxVal > peakMax) peakMax = maxVal;
+				if (minVal < peakMin) peakMin = minVal;
+			}
+			if (peakMax === -128) peakMax = 0;
+			if (peakMin === 127) peakMin = 0;
+
+			// Normalizing -128..127 to 0..1 amplitude
+			const ampMax = Math.min(1, Math.max(0, Math.abs(peakMax) / 100));
+			const ampMin = Math.min(1, Math.max(0, Math.abs(peakMin) / 100));
+			const amp = Math.max(0.04, Math.max(ampMax, ampMin));
+
+			const barH = amp * halfHeight;
+			const colW = Math.max(1, step - 0.5);
+
+			// Draw mirrored upper & lower bars from center
+			ctx.fillRect(x, midY - barH, colW, barH * 2);
+		}
+	}, [peaks, clipDuration, pixelsPerSecond]);
+
+	return <canvas ref={canvasRef} className="timeline-waveform-canvas" aria-hidden="true" />;
+}
+
+function FilmstripView({
+	derived,
+	poster,
+	clip,
+	pixelsPerSecond
+}: {
+	derived: DerivedData | null;
+	poster: string;
+	clip: Clip;
+	pixelsPerSecond: number;
+}) {
+	const clipWidth = Math.max(12, timeToPixels(clip.duration, pixelsPerSecond));
+	const frameWidth = 56; // ~1-1.5 cm frame width
+	const count = Math.max(1, Math.ceil(clipWidth / frameWidth));
+
+	// Pre-create URLs for available thumbs
+	const thumbUrls = useMemo(() => {
+		if (!derived?.thumbs || derived.thumbs.length === 0) return [];
+		return derived.thumbs.map((item) => ({
+			time: item.time,
+			url: URL.createObjectURL(item.blob)
+		}));
+	}, [derived?.thumbs]);
+
+	useEffect(() => {
+		return () => {
+			for (const item of thumbUrls) {
+				URL.revokeObjectURL(item.url);
+			}
+		};
+	}, [thumbUrls]);
+
+	if (thumbUrls.length === 0 && poster) {
+		return <img className="timeline-thumbnail" src={poster} alt="" />;
+	}
+
+	if (thumbUrls.length === 0) {
+		return null;
+	}
+
+	return (
+		<div className="timeline-filmstrip" aria-hidden="true">
+			{Array.from({ length: count }, (_, i) => {
+				const frameTimelineTime = clip.start + (clip.duration * (i + 0.5)) / count;
+				const sourceTime = timelineToSource(clip, frameTimelineTime);
+
+				// Find closest thumb
+				let closest = thumbUrls[0]!;
+				let minDiff = Math.abs(closest.time - sourceTime);
+				for (let t = 1; t < thumbUrls.length; t++) {
+					const diff = Math.abs(thumbUrls[t]!.time - sourceTime);
+					if (diff < minDiff) {
+						minDiff = diff;
+						closest = thumbUrls[t]!;
+					}
+				}
+
+				return (
+					<img
+						key={i}
+						className="timeline-filmstrip-frame"
+						src={closest.url}
+						alt=""
+						style={{ width: `${frameWidth}px` }}
+						loading="lazy"
+					/>
+				);
+			})}
+		</div>
+	);
+}
+
+function ClipArtwork({
+	project,
+	asset,
+	track,
+	clip,
+	pixelsPerSecond
+}: {
+	project: Project;
+	asset: Asset;
+	track: Track;
+	clip: Clip;
+	pixelsPerSecond: number;
+}) {
 	const [derived, setDerived] = useState<DerivedData | null>(null);
 	const [poster, setPoster] = useState('');
+
 	useEffect(() => {
 		let active = true;
 		let objectUrl = '';
@@ -78,21 +240,29 @@ function ClipArtwork({ project, asset, track }: { project: Project; asset: Asset
 	if (track.kind === 'audio') {
 		const peak = derived?.peaks;
 		if (peak) {
-			const count = Math.min(160, Math.max(1, Math.floor(peak.max.length / 5)));
 			return (
 				<div className="timeline-waveform" aria-hidden="true">
-					{Array.from({ length: count }, (_, index) => {
-						const sample = Math.floor((index / count) * peak.max.length);
-						const top = peak.max[sample] ?? 0;
-						const bottom = peak.min[sample] ?? 0;
-						return <i key={index} style={{ height: `${Math.max(2, top - bottom)}%` }} />;
-					})}
+					<WaveformCanvas peaks={peak} clipDuration={clip.duration} pixelsPerSecond={pixelsPerSecond} />
 				</div>
 			);
 		}
 	}
-	if (poster)
+
+	if (asset.kind === 'video') {
+		return (
+			<FilmstripView
+				derived={derived}
+				poster={poster}
+				clip={clip}
+				pixelsPerSecond={pixelsPerSecond}
+			/>
+		);
+	}
+
+	if (poster) {
 		return <img className="timeline-thumbnail" src={poster} alt="" width="120" height="68" />;
+	}
+
 	return (
 		<span className="timeline-clip-placeholder" aria-hidden="true">
 			{asset.kind === 'audio' ? '♫' : '▧'}
@@ -402,7 +572,15 @@ export default function ClipView({
 					/>
 				</>
 			)}
-			{visible && asset && <ClipArtwork project={project} asset={asset} track={track} />}
+			{visible && asset && (
+				<ClipArtwork
+					project={project}
+					asset={asset}
+					track={track}
+					clip={clip}
+					pixelsPerSecond={pixelsPerSecond}
+				/>
+			)}
 			<span className="timeline-clip-name">
 				{asset?.offline && <b>Offline · </b>}
 				{clipName}
