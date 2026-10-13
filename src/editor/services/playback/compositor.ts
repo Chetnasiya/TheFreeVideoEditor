@@ -89,10 +89,39 @@ export function renderFrame(
 			const renderSubLayer = (sub: ActiveLayer, alphaMultiplier: number) => {
 				if (sub.kind === 'solid') {
 					const c = sub.solidColor ?? { r: 0, g: 0, b: 0, a: 1 };
+					const transform = sub.transform;
+					const blendMode = sub.blendMode ?? 'normal';
+					const [cropLeft, cropTop, cropRight, cropBottom] = sub.crop ?? [0, 0, 0, 0];
+					const drawRect = {
+						x: cropLeft * size.width,
+						y: cropTop * size.height,
+						width: size.width * (1 - cropLeft - cropRight),
+						height: size.height * (1 - cropTop - cropBottom)
+					};
+					const drawSolid = (offsetX: number, offsetY: number): void => {
+						context.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`;
+						context.fillRect(drawRect.x - offsetX, drawRect.y - offsetY, drawRect.width, drawRect.height);
+					};
+					if (!transform && blendMode === 'normal') {
+						context.save();
+						context.globalAlpha = alphaMultiplier;
+						drawSolid(0, 0);
+						context.restore();
+						return;
+					}
 					context.save();
-					context.globalAlpha = (sub.transform?.opacity ?? 1) * alphaMultiplier;
-					context.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`;
-					context.fillRect(0, 0, size.width, size.height);
+					context.globalAlpha = (transform?.opacity ?? 1) * alphaMultiplier;
+					context.globalCompositeOperation = CANVAS_BLEND[blendMode];
+					const anchor = sub.anchor ?? { x: 0, y: 0 };
+					context.translate(
+						size.width / 2 + (transform?.x ?? 0) + anchor.x,
+						size.height / 2 + (transform?.y ?? 0) + anchor.y
+					);
+					if (transform?.rotation) {
+						context.rotate((transform.rotation * Math.PI) / 180);
+					}
+					context.scale(transform?.scaleX ?? 1, transform?.scaleY ?? 1);
+					drawSolid(size.width / 2 + anchor.x, size.height / 2 + anchor.y);
 					context.restore();
 					return;
 				}
@@ -163,10 +192,38 @@ export function renderFrame(
 
 		if (layer.kind === 'solid') {
 			const c = layer.solidColor ?? { r: 0, g: 0, b: 0, a: 1 };
+			const transform = layer.transform;
+			const blendMode = layer.blendMode ?? 'normal';
+			const [cropLeft, cropTop, cropRight, cropBottom] = layer.crop ?? [0, 0, 0, 0];
+			const drawRect = {
+				x: cropLeft * size.width,
+				y: cropTop * size.height,
+				width: size.width * (1 - cropLeft - cropRight),
+				height: size.height * (1 - cropTop - cropBottom)
+			};
+			const drawSolid = (offsetX: number, offsetY: number): void => {
+				context.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`;
+				context.fillRect(drawRect.x - offsetX, drawRect.y - offsetY, drawRect.width, drawRect.height);
+			};
+
+			if (!transform && blendMode === 'normal') {
+				drawSolid(0, 0);
+				continue;
+			}
+
 			context.save();
-			context.globalAlpha = layer.transform?.opacity ?? 1;
-			context.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`;
-			context.fillRect(0, 0, size.width, size.height);
+			context.globalAlpha = transform?.opacity ?? 1;
+			context.globalCompositeOperation = CANVAS_BLEND[blendMode];
+			const anchor = layer.anchor ?? { x: 0, y: 0 };
+			context.translate(
+				size.width / 2 + (transform?.x ?? 0) + anchor.x,
+				size.height / 2 + (transform?.y ?? 0) + anchor.y
+			);
+			if (transform?.rotation) {
+				context.rotate((transform.rotation * Math.PI) / 180);
+			}
+			context.scale(transform?.scaleX ?? 1, transform?.scaleY ?? 1);
+			drawSolid(size.width / 2 + anchor.x, size.height / 2 + anchor.y);
 			context.restore();
 			continue;
 		}

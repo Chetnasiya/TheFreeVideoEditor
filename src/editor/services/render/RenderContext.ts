@@ -30,17 +30,27 @@ export interface RenderContextOptions {
 	onRestored?: () => void;
 }
 
+let cachedProbeResult: boolean | null = null;
+
 export function probeWebGL2(): boolean {
+	if (cachedProbeResult !== null) return cachedProbeResult;
 	try {
 		if (typeof OffscreenCanvas !== 'undefined') {
-			return new OffscreenCanvas(1, 1).getContext('webgl2') !== null;
+			const ctx = new OffscreenCanvas(1, 1).getContext('webgl2');
+			cachedProbeResult = ctx !== null;
+			return cachedProbeResult;
 		}
 		if (typeof document !== 'undefined') {
-			return document.createElement('canvas').getContext('webgl2') !== null;
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('webgl2');
+			cachedProbeResult = ctx !== null;
+			return cachedProbeResult;
 		}
 	} catch {
+		cachedProbeResult = false;
 		return false;
 	}
+	cachedProbeResult = false;
 	return false;
 }
 

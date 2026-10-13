@@ -113,4 +113,34 @@ describe('frame compositor', () => {
 			expect(operations.slice(2)).toEqual(resolvedLayers.map((item) => item.clipId));
 		}
 	});
+
+	it('applies transform translation and scaling to solid color layers', () => {
+		const { context, operations } = fakeContext();
+		const solidLayer: ActiveLayer = {
+			clipId: 'solid-1' as ClipId,
+			trackId: 'track-1' as TrackId,
+			trackOrder: 0,
+			sourceTime: 0,
+			kind: 'solid',
+			opacity: 1,
+			solidColor: { r: 1, g: 1, b: 1, a: 1 },
+			transform: {
+				x: 100,
+				y: -50,
+				scaleX: 0.5,
+				scaleY: 0.5,
+				rotation: 0,
+				opacity: 0.8
+			}
+		};
+
+		renderFrame(context, { width: 1920, height: 1080 }, [solidLayer], () => null);
+
+		expect(operations).toContain('save');
+		expect(operations).toContain('translate');
+		expect(operations).toContain('scale');
+		expect(operations).toContain('black');
+		expect(operations).toContain('restore');
+	});
 });
+

@@ -368,31 +368,32 @@ void main() {
     if (abs(u_contrast) > 0.0001) {
         c = (c - 0.5) * (1.0 + u_contrast) + 0.5;
     }
+    c = clamp(c, 0.0, 1.0);
 
     // 4. Tone curves (highlights, shadows, whites, blacks)
-    float luma = rec709Luma(c);
+    float luma = clamp(rec709Luma(c), 0.0, 1.0);
     float offset = 0.0;
     if (abs(u_shadows) > 0.0001) {
-        float sBase = max(0.0, 1.0 - luma * 2.0);
+        float sBase = clamp(1.0 - luma * 2.0, 0.0, 1.0);
         float shadowWeight = sBase > 0.0001 ? pow(sBase, 1.5) : 0.0;
         offset += u_shadows * shadowWeight * 0.25;
     }
     if (abs(u_highlights) > 0.0001) {
-        float hBase = max(0.0, (luma - 0.5) * 2.0);
+        float hBase = clamp((luma - 0.5) * 2.0, 0.0, 1.0);
         float highlightWeight = hBase > 0.0001 ? pow(hBase, 1.5) : 0.0;
         offset += u_highlights * highlightWeight * 0.25;
     }
     if (abs(u_blacks) > 0.0001) {
-        float bBase = max(0.0, 1.0 - luma * 4.0);
+        float bBase = clamp(1.0 - luma * 4.0, 0.0, 1.0);
         float blackWeight = bBase * bBase;
         offset += u_blacks * blackWeight * 0.2;
     }
     if (abs(u_whites) > 0.0001) {
-        float wBase = max(0.0, (luma - 0.75) * 4.0);
+        float wBase = clamp((luma - 0.75) * 4.0, 0.0, 1.0);
         float whiteWeight = wBase * wBase;
         offset += u_whites * whiteWeight * 0.2;
     }
-    c += offset;
+    c = clamp(c + offset, 0.0, 1.0);
 
     // 5. Vibrance
     if (abs(u_vibrance) > 0.0001) {
@@ -407,19 +408,20 @@ void main() {
     // 6. Saturation
     if (abs(u_saturation) > 0.0001) {
         float lum = rec709Luma(c);
-        c = mix(vec3(lum), c, 1.0 + u_saturation);
+        c = mix(vec3(lum), c, max(0.0, 1.0 + u_saturation));
     }
+    c = clamp(c, 0.0, 1.0);
 
     // 7. Lift / Gamma / Gain
     if (dot(abs(u_lift), vec3(1.0)) > 0.0001) {
         c += u_lift * (1.0 - c);
     }
     if (dot(abs(u_gain), vec3(1.0)) > 0.0001) {
-        c *= (vec3(1.0) + u_gain);
+        c *= max(vec3(0.0), vec3(1.0) + u_gain);
     }
     if (dot(abs(u_gamma), vec3(1.0)) > 0.0001) {
         vec3 gammaExp = max(vec3(0.05), vec3(1.0) - u_gamma * 0.5);
-        c = pow(max(vec3(1e-5), c), gammaExp);
+        c = pow(max(vec3(1e-5), clamp(c, 0.0, 1.0)), gammaExp);
     }
 
     c = clamp(c, 0.0, 1.0);

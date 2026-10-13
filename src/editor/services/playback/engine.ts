@@ -215,8 +215,8 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		});
 		this.storeUnsubscribe = store.subscribe((state, previous) => {
 			if (this.disposed || this.writingPlayhead) return;
-			if (state.project && state.project !== this.project) {
-				this.project = state.project;
+			if (state.project && state.project !== this.project && state.project.id === this.project.id) {
+				this.setProject(state.project);
 			}
 			if (state.isExporting && !previous.isExporting) {
 				this.resumeAfterStall = false;
