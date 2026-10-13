@@ -279,33 +279,55 @@ export default function SourceMonitor({ engine = null }: SourceMonitorProps) {
 						role="group"
 						aria-label="Source playback controls"
 					>
-						<button
-							type="button"
-							onClick={() => stepFrame(-1)}
-							disabled={disabled}
-							aria-label="Step back one frame"
-						>
-							|◀
-						</button>
-						<button
-							type="button"
-							className="source-play-button"
-							onClick={togglePlayback}
-							disabled={disabled}
-							aria-label={playing ? 'Pause source' : 'Play source'}
-						>
-							{playing ? 'Ⅱ' : '▶'}
-						</button>
-						<button
-							type="button"
-							onClick={() => stepFrame(1)}
-							disabled={disabled}
-							aria-label="Step forward one frame"
-						>
-							▶|
-						</button>
+						<div className="source-monitor-btn-group">
+							<button
+								type="button"
+								onClick={() => stepFrame(-1)}
+								disabled={disabled}
+								aria-label="Step back one frame"
+								title="Step back one frame (←)"
+							>
+								<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+									<rect x="2" y="3" width="2" height="10" rx="0.5" />
+									<polygon points="14,3 6,8 14,13" />
+								</svg>
+							</button>
+							<button
+								type="button"
+								className="source-play-button"
+								onClick={togglePlayback}
+								disabled={disabled}
+								aria-label={playing ? 'Pause source' : 'Play source'}
+								title={playing ? 'Pause (Space)' : 'Play (Space)'}
+							>
+								{playing ? (
+									<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+										<rect x="3" y="3" width="3.5" height="10" rx="0.8" />
+										<rect x="9.5" y="3" width="3.5" height="10" rx="0.8" />
+									</svg>
+								) : (
+									<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+										<polygon points="4,2.5 13.5,8 4,13.5" />
+									</svg>
+								)}
+							</button>
+							<button
+								type="button"
+								onClick={() => stepFrame(1)}
+								disabled={disabled}
+								aria-label="Step forward one frame"
+								title="Step forward one frame (→)"
+							>
+								<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+									<polygon points="2,3 10,8 2,13" />
+									<rect x="12" y="3" width="2" height="10" rx="0.5" />
+								</svg>
+							</button>
+						</div>
+
 						<input
 							type="range"
+							className="source-scrub-slider"
 							min={0}
 							max={duration || 0}
 							step={0.001}
@@ -314,7 +336,7 @@ export default function SourceMonitor({ engine = null }: SourceMonitorProps) {
 							disabled={disabled || duration <= 0}
 							aria-label="Source position"
 						/>
-						<output aria-label="Source timecode">
+						<output className="source-timecode" aria-label="Source timecode">
 							{timecode(position)} / {timecode(duration)}
 						</output>
 					</div>

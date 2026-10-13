@@ -7,13 +7,19 @@ export type TransitionAlignment = 'center' | 'start' | 'end';
 export type TransitionEasing = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
 export type AudioCrossfadeCurve = 'equalPower' | 'linear';
 
-/** Check whether transitions are enabled via labs flag (e.g. ?labs=transitions). */
+/** Check whether transitions are enabled (enabled by default; can be disabled with ?labs=-transitions or ?labs=no-transitions). */
 export function isTransitionsEnabled(search?: string): boolean {
 	const query = search ?? (typeof window !== 'undefined' ? window.location?.search : '');
-	if (!query) return false;
+	if (!query) return true;
 	const params = new URLSearchParams(query);
 	const labs = params.get('labs');
-	return labs ? labs.split(',').includes('transitions') : false;
+	if (labs) {
+		const items = labs.split(',');
+		if (items.includes('no-transitions') || items.includes('-transitions') || items.includes('off')) {
+			return false;
+		}
+	}
+	return true;
 }
 
 export interface TransitionWindow {

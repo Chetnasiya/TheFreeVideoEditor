@@ -69,7 +69,10 @@ export default function TransportBar({
 						disabled={disabled}
 						onClick={() => engine?.jumpTo('start')}
 					>
-						|◀
+						<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+							<rect x="2" y="3" width="2" height="10" rx="0.5" />
+							<polygon points="14,3 6,8 14,13" />
+						</svg>
 					</button>
 					<button
 						type="button"
@@ -78,7 +81,10 @@ export default function TransportBar({
 						disabled={disabled}
 						onClick={() => engine?.jumpTo('prevEdge')}
 					>
-						◀|
+						<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+							<polygon points="11,3 3,8 11,13" />
+							<rect x="12" y="3" width="2" height="10" rx="0.5" />
+						</svg>
 					</button>
 					<button
 						type="button"
@@ -87,7 +93,9 @@ export default function TransportBar({
 						disabled={disabled}
 						onClick={() => engine?.stepFrames(-1)}
 					>
-						◀
+						<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+							<polygon points="12,3 4,8 12,13" />
+						</svg>
 					</button>
 					<button
 						className="preview-play-button"
@@ -97,7 +105,16 @@ export default function TransportBar({
 						disabled={disabled}
 						onClick={() => engine?.toggle()}
 					>
-						{snapshot?.playing ? '❚❚' : '▶'}
+						{snapshot?.playing ? (
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+								<rect x="3" y="3" width="3.5" height="10" rx="0.8" />
+								<rect x="9.5" y="3" width="3.5" height="10" rx="0.8" />
+							</svg>
+						) : (
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+								<polygon points="4,2.5 13.5,8 4,13.5" />
+							</svg>
+						)}
 					</button>
 					<button
 						type="button"
@@ -106,7 +123,9 @@ export default function TransportBar({
 						disabled={disabled}
 						onClick={() => engine?.stepFrames(1)}
 					>
-						▶
+						<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+							<polygon points="4,3 12,8 4,13" />
+						</svg>
 					</button>
 					<button
 						type="button"
@@ -115,7 +134,10 @@ export default function TransportBar({
 						disabled={disabled}
 						onClick={() => engine?.jumpTo('nextEdge')}
 					>
-						|▶
+						<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+							<rect x="2" y="3" width="2" height="10" rx="0.5" />
+							<polygon points="5,3 13,8 5,13" />
+						</svg>
 					</button>
 					<button
 						type="button"
@@ -124,18 +146,27 @@ export default function TransportBar({
 						disabled={disabled}
 						onClick={() => engine?.jumpTo('end')}
 					>
-						▶|
+						<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+							<polygon points="2,3 10,8 2,13" />
+							<rect x="12" y="3" width="2" height="10" rx="0.5" />
+						</svg>
 					</button>
 					<button
 						type="button"
 						aria-label="Toggle playback loop"
 						aria-pressed={snapshot?.looping ?? false}
 						title="Loop playback (⌘/Ctrl+L)"
-						className={snapshot?.looping ? 'is-active' : ''}
+						className={`preview-loop-button ${snapshot?.looping ? 'is-active' : ''}`}
 						disabled={disabled}
 						onClick={() => engine?.setLoop(!snapshot?.looping)}
 					>
-						Loop
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+							<polyline points="17 1 21 5 17 9" />
+							<path d="M3 11V9a4 4 0 0 1 4-4h14" />
+							<polyline points="7 23 3 19 7 15" />
+							<path d="M21 13v2a4 4 0 0 1-4 4H3" />
+						</svg>
+						<span className="preview-loop-label">Loop</span>
 					</button>
 				</div>
 				<div className="preview-timecode-group">

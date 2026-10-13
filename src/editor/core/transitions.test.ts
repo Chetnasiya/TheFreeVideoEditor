@@ -5,7 +5,8 @@ import {
 	clampTransitionDuration,
 	transitionProgress,
 	transitionGain,
-	normalizeTransitions
+	normalizeTransitions,
+	isTransitionsEnabled
 } from './transitions';
 import type { AssetId, Clip, ClipId, Project, Track, TrackId } from './types';
 
@@ -194,4 +195,13 @@ describe('core/transitions', () => {
 		expect(norm.transitions).toHaveLength(1);
 		expect(norm.transitions![0].id).toBe('tr1');
 	});
+
+	it('enables transitions by default and allows disabling via labs flag', () => {
+		expect(isTransitionsEnabled()).toBe(true);
+		expect(isTransitionsEnabled('')).toBe(true);
+		expect(isTransitionsEnabled('?labs=no-transitions')).toBe(false);
+		expect(isTransitionsEnabled('?labs=-transitions')).toBe(false);
+		expect(isTransitionsEnabled('?labs=transitions')).toBe(true);
+	});
 });
+
