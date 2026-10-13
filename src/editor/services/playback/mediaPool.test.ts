@@ -183,4 +183,21 @@ describe('media pool', () => {
 			pool.dispose();
 		}
 	});
+
+	it('uses clock skew rate adjustment for moderate drift without hard seeking', () => {
+		const project = makeProject(1);
+		const video = fakeVideo();
+		video.readyState = 2; // HAVE_CURRENT_DATA
+		video.currentTime = 0.5;
+		const pool = new MediaPool(project, {
+			createVideo: () => video,
+			getUrl: async (_p, item) => ({ url: `blob:${item.id}`, release: () => {} })
+		});
+		const layer = { ...layers(project, [0])[0]!, sourceTime: 700_000 }; // 0.7s expected, drift is 0.2s
+		pool.getFrameSource(layer, true, 1);
+		// Drift is 0.2s (< 0.8s), so rate is boosted (1.05) to catch up, and no seek is dispatched
+		expect(video.playbackRate).toBeGreaterThan(1.0);
+		expect(video.currentTime).toBe(0.5);
+		pool.dispose();
+	});
 });

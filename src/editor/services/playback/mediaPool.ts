@@ -9,6 +9,7 @@ export const MEDIA_IDLE_RELEASE_MS = 5_000;
 export const MEDIA_POOL_LIMIT = 6;
 export const VIDEO_DRIFT_THRESHOLD_SECONDS = 0.08;
 export const VIDEO_PLAYING_DRIFT_THRESHOLD_SECONDS = 0.25;
+export const VIDEO_HARD_SEEK_DRIFT_THRESHOLD_SECONDS = 0.8;
 const MEDIA_HAVE_METADATA = 1;
 const MEDIA_HAVE_CURRENT_DATA = 2;
 
@@ -46,6 +47,7 @@ interface PoolEntryBase {
 	seeking: boolean;
 	pendingSeek: number | null;
 	seekResolvers: Array<() => void>;
+	prewarmed?: boolean;
 }
 
 type PoolEntry = PoolEntryBase &
@@ -200,13 +202,17 @@ export class MediaPool {
 			wanted.add(key);
 			const entry = this.ensureEntry(item.clip, item.asset, item.kind, item.entryKey);
 			if (entry) {
-				if (!item.prewarm) entry.lastUsed = this.now();
+				if (!item.prewarm) {
+					entry.lastUsed = this.now();
+					entry.prewarmed = false;
+				}
 				if (entry.idleTimer !== null) {
 					clearTimeout(entry.idleTimer);
 					entry.idleTimer = null;
 				}
 				pending.push(entry.ready);
-				if (item.prewarm) {
+				if (item.prewarm && !entry.prewarmed) {
+					entry.prewarmed = true;
 					pending.push(
 						entry.ready.then(() => {
 							this.requestSeek(entry, item.clip.sourceIn / 1_000_000);
@@ -252,12 +258,30 @@ export class MediaPool {
 
 		const isConstantInRange = !clip.timeRemap && clip.speed >= 0.25 && clip.speed <= 4;
 		if (playing && rate > 0 && isConstantInRange) {
-			const effectiveRate = rate * clip.speed;
-			video.playbackRate = effectiveRate;
-			video.preservesPitch = clip.maintainPitch ?? true;
-			if (needsDriftCorrection(video.currentTime, expected, VIDEO_PLAYING_DRIFT_THRESHOLD_SECONDS)) {
-				this.requestSeek(entry, expected);
+			let effectiveRate = rate * clip.speed;
+			const drift = expected - video.currentTime;
+			const absDrift = Math.abs(drift);
+
+			if (absDrift > VIDEO_DRIFT_THRESHOLD_SECONDS) {
+				if (absDrift > VIDEO_HARD_SEEK_DRIFT_THRESHOLD_SECONDS) {
+					this.requestSeek(entry, expected);
+				} else {
+					// Dynamic clock rate adjustment to catch up seamlessly without flushing decoder buffers
+					const skewMultiplier = drift > 0
+						? (drift > 0.35 ? 1.10 : 1.05)
+						: (drift < -0.35 ? 0.90 : 0.95);
+					effectiveRate *= skewMultiplier;
+				}
 			}
+
+			if (Math.abs(video.playbackRate - effectiveRate) > 0.005) {
+				video.playbackRate = effectiveRate;
+			}
+			const targetPitch = clip.maintainPitch ?? true;
+			if (video.preservesPitch !== targetPitch) {
+				video.preservesPitch = targetPitch;
+			}
+
 			if (video.paused)
 				void video.play().catch((error: unknown) => {
 					if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -290,11 +314,17 @@ export class MediaPool {
 		if (audio.readyState >= MEDIA_HAVE_METADATA) {
 			const isConstantInRange = !clip.timeRemap && clip.speed >= 0.25 && clip.speed <= 4;
 			if (isConstantInRange) {
-				audio.playbackRate = clip.speed;
-				audio.preservesPitch = clip.maintainPitch ?? true;
+				const targetRate = clip.speed;
+				if (Math.abs(audio.playbackRate - targetRate) > 0.005) {
+					audio.playbackRate = targetRate;
+				}
+				const targetPitch = clip.maintainPitch ?? true;
+				if (audio.preservesPitch !== targetPitch) {
+					audio.preservesPitch = targetPitch;
+				}
 			}
 			const expected = source.sourceTime / 1_000_000;
-			if (needsDriftCorrection(audio.currentTime, expected)) this.requestSeek(entry, expected);
+			if (needsDriftCorrection(audio.currentTime, expected, 0.15)) this.requestSeek(entry, expected);
 		}
 		return audio;
 	}
@@ -354,7 +384,8 @@ export class MediaPool {
 			idleTimer: null,
 			seeking: false,
 			pendingSeek: null,
-			seekResolvers: []
+			seekResolvers: [],
+			prewarmed: false
 		} satisfies Omit<PoolEntryBase, 'releaseUrl'>;
 		const entry: PoolEntry =
 			kind === 'video'
@@ -437,7 +468,8 @@ export class MediaPool {
 			entry.pendingSeek = seconds;
 			return;
 		}
-		if (!needsDriftCorrection(element.currentTime, seconds, 0.015)) return;
+		const tolerance = !element.paused ? 0.05 : 0.015;
+		if (!needsDriftCorrection(element.currentTime, seconds, tolerance)) return;
 		entry.seeking = true;
 		entry.pendingSeek = null;
 		try {
@@ -450,7 +482,9 @@ export class MediaPool {
 
 	private onSeeked(entry: PoolEntry): void {
 		const pending = entry.pendingSeek;
-		if (pending !== null && needsDriftCorrection(entry.element.currentTime, pending, 0.015)) {
+		const isPlaying = !entry.element.paused;
+		const threshold = isPlaying ? 0.08 : 0.02;
+		if (pending !== null && needsDriftCorrection(entry.element.currentTime, pending, threshold)) {
 			entry.pendingSeek = null;
 			try {
 				entry.element.currentTime = pending;

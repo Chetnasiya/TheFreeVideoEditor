@@ -232,7 +232,7 @@ function PreviewNotice({
 		);
 	return (
 		<>
-			{state.loading && (
+			{state.loading && !engine?.snapshot.playing && (
 				<div className="preview-loading-indicator" role="status" aria-live="polite">
 					Decoding frame…
 				</div>

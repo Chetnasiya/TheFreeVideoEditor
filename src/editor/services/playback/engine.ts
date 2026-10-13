@@ -107,64 +107,30 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	private readonly lastGoodFrames: LastGoodFrames = new Map();
 	private readonly textCache = new TextRasterCache();
 	private readonly runtimeMissing = new Set<AssetId>();
-	private readonly stalledClips = new Set<ClipId>();
 	private readonly clockUnsubscribe: () => void;
 	private readonly storeUnsubscribe: () => void;
 	private readonly visibilityListener: () => void;
 	private resumeAfterVisible = false;
-	private resumeAfterStall = false;
-	private stallDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	private stallResumeTimer: ReturnType<typeof setTimeout> | null = null;
+	private allProjectClipIds = new Set<string>();
+	private cachedResolvedFrame: {
+		time: Time;
+		project: Project;
+		resolved: ReturnType<typeof resolveFrame>;
+	} | null = null;
 	private writingPlayhead = false;
 	private disposed = false;
 	private snapshotValue: PlaybackSnapshot;
 	onPoolFrame = (): void => this.requestRender();
 	onPoolMissing = (assetId: AssetId): void => this.markMissing(assetId);
 	onPoolError = (error: Error): void => this.reportError(error);
-	onMediaStall = (clipId: ClipId): void => {
-		this.stalledClips.add(clipId);
-		if (this.stallResumeTimer !== null) {
-			clearTimeout(this.stallResumeTimer);
-			this.stallResumeTimer = null;
-		}
-		if (!this.clock.playing) return;
-		if (this.stallDebounceTimer !== null) return;
-		// Debounce micro-stalls so a temporary drop or brief buffer hiccup does not immediately halt playback
-		this.stallDebounceTimer = setTimeout(() => {
-			this.stallDebounceTimer = null;
-			if (this.disposed || !this.clock.playing || this.stalledClips.size === 0) return;
-			this.resumeAfterStall = true;
-			this.clock.pause();
-			this.store.getState().setTimelineFollowing(false);
-			void this.audio
-				.sync([], this.project, false, this.clock.rate)
-				.catch((error: unknown) => this.reportError(error));
-		}, 160);
+	onMediaStall = (_clipId: ClipId): void => {
+		// Do not halt playback transport on transient decoder buffer dips or micro-stalls.
+		// The compositor gracefully holds the last good frame (frame dropping)
+		// while the timeline clock and audio stay in sync.
 	};
-	onMediaReady = (clipId: ClipId): void => {
-		this.stalledClips.delete(clipId);
-		if (this.stalledClips.size === 0 && this.stallDebounceTimer !== null) {
-			clearTimeout(this.stallDebounceTimer);
-			this.stallDebounceTimer = null;
-		}
-		if (
-			this.stalledClips.size === 0 &&
-			this.resumeAfterStall &&
-			(typeof document === 'undefined' || document.visibilityState !== 'hidden')
-		) {
-			if (this.stallResumeTimer !== null) clearTimeout(this.stallResumeTimer);
-			// Hysteresis: wait for decoder buffer headroom before resuming playback
-			this.stallResumeTimer = setTimeout(() => {
-				this.stallResumeTimer = null;
-				if (
-					this.stalledClips.size === 0 &&
-					this.resumeAfterStall &&
-					(typeof document === 'undefined' || document.visibilityState !== 'hidden')
-				) {
-					this.resumeAfterStall = false;
-					this.play();
-				}
-			}, 180);
+	onMediaReady = (_clipId: ClipId): void => {
+		if (!this.disposed) {
+			this.requestRender();
 		}
 	};
 
@@ -172,6 +138,34 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		const storeProj = this.store.getState().project ?? this.project;
 		const activeSeqId = this.store.getState().activeSequenceId;
 		return viewProject(storeProj, activeSeqId);
+	}
+
+	private updateAllProjectClipIds(): void {
+		const clips: string[] = [];
+		for (const track of this.project.tracks) {
+			for (const clip of track.clips) clips.push(clip.id);
+		}
+		if (this.project.sequences) {
+			for (const seq of Object.values(this.project.sequences)) {
+				for (const track of seq.tracks) {
+					for (const clip of track.clips) clips.push(clip.id);
+				}
+			}
+		}
+		this.allProjectClipIds = new Set(clips);
+	}
+
+	private getResolvedFrame(proj: Project, time: Time): ReturnType<typeof resolveFrame> {
+		if (
+			this.cachedResolvedFrame &&
+			this.cachedResolvedFrame.time === time &&
+			this.cachedResolvedFrame.project === proj
+		) {
+			return this.cachedResolvedFrame.resolved;
+		}
+		const resolved = resolveFrame(proj, time);
+		this.cachedResolvedFrame = { time, project: proj, resolved };
+		return resolved;
 	}
 
 	constructor(
@@ -182,6 +176,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		private readonly audio: AudioEngine
 	) {
 		this.project = project;
+		this.updateAllProjectClipIds();
 		this.snapshotValue = {
 			time: clock.time,
 			duration: timelineDuration(project),
@@ -209,7 +204,8 @@ class PlaybackEngineImpl implements PlaybackEngine {
 				playing,
 				rate,
 				looping: clock.looping,
-				meter: audio.getLevel()
+				meter: audio.getLevel(),
+				...(playing && this.snapshotValue.loading ? { loading: false } : {})
 			});
 			this.syncAndRender();
 		});
@@ -219,7 +215,6 @@ class PlaybackEngineImpl implements PlaybackEngine {
 				this.setProject(state.project);
 			}
 			if (state.isExporting && !previous.isExporting) {
-				this.resumeAfterStall = false;
 				clock.pause();
 				void audio
 					.sync([], this.project, false, clock.rate)
@@ -231,6 +226,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 				const duration = timelineDuration(activeProject);
 				clock.setDuration(duration);
 				clock.seek(state.timeline.playhead);
+				this.cachedResolvedFrame = null;
 				this.updateSnapshot({ duration });
 				this.resizeCanvas();
 				this.syncAndRender();
@@ -252,8 +248,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		});
 		this.visibilityListener = () => {
 			if (document.visibilityState === 'hidden') {
-				this.resumeAfterVisible = clock.playing || this.resumeAfterStall;
-				this.resumeAfterStall = false;
+				this.resumeAfterVisible = clock.playing;
 				clock.pause();
 				void audio
 					.sync([], this.project, false, clock.rate)
@@ -312,8 +307,8 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		}
 		const previousProject = this.project;
 		this.project = project;
-		this.stalledClips.clear();
-		this.resumeAfterStall = false;
+		this.updateAllProjectClipIds();
+		this.cachedResolvedFrame = null;
 		this.pool.setProject(project);
 		for (const assetId of this.runtimeMissing) {
 			if (project.assets[assetId]?.opfsPath !== previousProject.assets[assetId]?.opfsPath) {
@@ -329,35 +324,13 @@ class PlaybackEngineImpl implements PlaybackEngine {
 
 	play(): void {
 		if (this.disposed) return;
-		if (this.stalledClips.size > 0) {
-			this.resumeAfterStall = true;
-			return;
-		}
-		void this.audio
-			.unlock()
-			.finally(() => {
-				if (this.disposed) return;
-				if (this.stalledClips.size > 0) {
-					this.resumeAfterStall = true;
-					return;
-				}
-				this.clock.play();
-				this.store.getState().setTimelineFollowing(this.clock.playing);
-				this.syncAndRender();
-			})
-			.catch((error: unknown) => this.reportError(error));
+		void this.audio.unlock().catch((error: unknown) => this.reportError(error));
+		this.clock.play();
+		this.store.getState().setTimelineFollowing(this.clock.playing);
+		this.syncAndRender();
 	}
 
 	pause(): void {
-		if (this.stallDebounceTimer !== null) {
-			clearTimeout(this.stallDebounceTimer);
-			this.stallDebounceTimer = null;
-		}
-		if (this.stallResumeTimer !== null) {
-			clearTimeout(this.stallResumeTimer);
-			this.stallResumeTimer = null;
-		}
-		this.resumeAfterStall = false;
 		this.resumeAfterVisible = false;
 		this.clock.pause();
 		this.store.getState().setTimelineFollowing(false);
@@ -373,16 +346,6 @@ class PlaybackEngineImpl implements PlaybackEngine {
 
 	seek(time: Time): void {
 		if (this.disposed) return;
-		if (this.stallDebounceTimer !== null) {
-			clearTimeout(this.stallDebounceTimer);
-			this.stallDebounceTimer = null;
-		}
-		if (this.stallResumeTimer !== null) {
-			clearTimeout(this.stallResumeTimer);
-			this.stallResumeTimer = null;
-		}
-		this.stalledClips.clear();
-		this.resumeAfterStall = false;
 		void this.audio.unlock().catch((error: unknown) => this.reportError(error));
 		this.clock.seek(time);
 		this.syncAndRender();
@@ -501,12 +464,9 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			document.removeEventListener('visibilitychange', this.visibilityListener);
 		}
 		this.clock.dispose();
-		if (this.stallDebounceTimer !== null) clearTimeout(this.stallDebounceTimer);
-		this.stallDebounceTimer = null;
-		if (this.stallResumeTimer !== null) clearTimeout(this.stallResumeTimer);
-		this.stallResumeTimer = null;
 		if (this.loadingTimer !== null) clearTimeout(this.loadingTimer);
 		this.loadingTimer = null;
+		this.cachedResolvedFrame = null;
 		const audioDispose = this.audio.dispose();
 		this.pool.dispose();
 		void audioDispose.catch((error: unknown) => this.reportError(error));
@@ -522,7 +482,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	private syncAndRender(): void {
 		if (this.disposed) return;
 		const proj = this.activeProject;
-		const resolved = resolveFrame(proj, this.clock.time);
+		const resolved = this.getResolvedFrame(proj, this.clock.time);
 		const missing = new Set([...resolved.missing, ...this.runtimeMissing]);
 		this.updateSnapshot({
 			missing: [...missing]
@@ -549,14 +509,8 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		const canvas = this.canvas;
 		if (!renderer || !canvas || this.disposed) return;
 		const proj = this.activeProject;
-		const resolved = resolveFrame(proj, this.clock.time);
-		const allClips = [
-			...this.project.tracks.flatMap((track) => track.clips),
-			...Object.values(this.project.sequences ?? {}).flatMap((seq) =>
-				seq.tracks.flatMap((track) => track.clips)
-			)
-		];
-		const liveKeys = new Set<string>(allClips.map((clip) => clip.id));
+		const resolved = this.getResolvedFrame(proj, this.clock.time);
+		const liveKeys = new Set<string>(this.allProjectClipIds);
 		for (const layer of resolved.videoLayers) {
 			const k = layer.instanceKey ?? layer.clipId;
 			liveKeys.add(k);
@@ -616,10 +570,9 @@ class PlaybackEngineImpl implements PlaybackEngine {
 				}
 				const source = this.pool.getFrameSource(layer, this.clock.playing, this.clock.rate);
 				if (!source) {
-					// If we are actively playing and already have a valid lastGoodFrame for this layer,
-					// the compositor will smoothly render the held frame without blanking.
-					// Only treat as starving/loading if there is no frame available at all.
-					if (!this.clock.playing || !this.lastGoodFrames.has(layer.clipId)) {
+					// Only indicate loading when playback is paused/scrubbing and no frame is available yet.
+					// During active playback, compositor holds lastGoodFrames smoothly without showing loading overlays.
+					if (!this.clock.playing && !this.lastGoodFrames.has(layer.clipId)) {
 						loading = true;
 					}
 				} else if (this.pool.isUsingProxy(layer)) {
@@ -635,18 +588,21 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			'aria-label',
 			`Preview, ${ticksToTimecode(this.clock.time, proj.settings.fps)}`
 		);
-		if (loading) {
+		if (loading && !this.clock.playing) {
 			if (this.loadingTimer === null) {
-				const delayMs = this.clock.playing ? 250 : 120;
 				this.loadingTimer = setTimeout(() => {
 					this.loadingTimer = null;
-					this.updateSnapshot({ loading: true });
-				}, delayMs);
+					if (!this.clock.playing) {
+						this.updateSnapshot({ loading: true });
+					}
+				}, 150);
 			}
 		} else {
 			if (this.loadingTimer !== null) clearTimeout(this.loadingTimer);
 			this.loadingTimer = null;
-			this.updateSnapshot({ loading: false });
+			if (this.snapshotValue.loading) {
+				this.updateSnapshot({ loading: false });
+			}
 		}
 	}
 
