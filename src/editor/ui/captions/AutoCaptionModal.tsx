@@ -210,7 +210,7 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 				<div
 					style={{
 						padding: '10px 14px',
-						background: 'var(--color-canvas-subtle)',
+						background: 'var(--color-canvas)',
 						border: '1px solid var(--color-hairline)',
 						borderRadius: '6px',
 						fontSize: '0.8rem',
@@ -293,7 +293,7 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 									flexDirection: 'column',
 									gap: '12px',
 									padding: '14px',
-									border: '1px solid var(--color-accent)',
+									border: '1px solid var(--color-link)',
 									borderRadius: '8px',
 									background: 'var(--color-canvas-elevated)'
 								}}

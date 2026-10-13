@@ -456,7 +456,7 @@ function CurveEditor({ points, channel, onChange }: CurveEditorProps) {
 	const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
 
 	const channelColor = {
-		master: '#fff',
+		master: 'var(--color-ink)',
 		red: '#ef4444',
 		green: '#22c55e',
 		blue: '#3b82f6'
@@ -533,18 +533,18 @@ function CurveEditor({ points, channel, onChange }: CurveEditorProps) {
 			onPointerUp={handlePointerUp}
 		>
 			{/* Grid lines */}
-			<line x1="25" y1="0" x2="25" y2="100" stroke="#222" strokeWidth="0.5" />
-			<line x1="50" y1="0" x2="50" y2="100" stroke="#222" strokeWidth="0.5" />
-			<line x1="75" y1="0" x2="75" y2="100" stroke="#222" strokeWidth="0.5" />
-			<line x1="0" y1="25" x2="100" y2="25" stroke="#222" strokeWidth="0.5" />
-			<line x1="0" y1="50" x2="100" y2="50" stroke="#222" strokeWidth="0.5" />
-			<line x1="0" y1="75" x2="100" y2="75" stroke="#222" strokeWidth="0.5" />
+			<line x1="25" y1="0" x2="25" y2="100" className="curves-grid-line" />
+			<line x1="50" y1="0" x2="50" y2="100" className="curves-grid-line" />
+			<line x1="75" y1="0" x2="75" y2="100" className="curves-grid-line" />
+			<line x1="0" y1="25" x2="100" y2="25" className="curves-grid-line" />
+			<line x1="0" y1="50" x2="100" y2="50" className="curves-grid-line" />
+			<line x1="0" y1="75" x2="100" y2="75" className="curves-grid-line" />
 
 			{/* Diagonal identity line */}
-			<line x1="0" y1="100" x2="100" y2="0" stroke="#444" strokeWidth="0.8" strokeDasharray="2 2" />
+			<line x1="0" y1="100" x2="100" y2="0" className="curves-diagonal-line" />
 
 			{/* Spline curve path */}
-			<path d={pathData} fill="none" stroke={channelColor} strokeWidth="1.8" />
+			<path d={pathData} fill="none" className="curves-spline-path" stroke={channelColor} />
 
 			{/* Control points */}
 			{points.map((p, i) => (
@@ -553,9 +553,8 @@ function CurveEditor({ points, channel, onChange }: CurveEditorProps) {
 					cx={p.x * 100}
 					cy={(1 - p.y) * 100}
 					r="3.5"
+					className="curves-control-point"
 					fill={channelColor}
-					stroke="#000"
-					strokeWidth="1"
 					onDoubleClick={(e) => {
 						e.stopPropagation();
 						handleDoubleClick(i);
