@@ -1900,21 +1900,40 @@
 
 .dialog-footer,
 .dialog-actions {
+	display: flex;
+	align-items: center;
 	justify-content: flex-end;
 	border-top: 1px solid #242432;
 	padding-top: 14px;
 	margin-top: 6px;
+	gap: 10px;
+}
+
+.dialog-actions > button,
+.dialog-footer > button,
+.dialog-actions .secondary-button,
+.dialog-footer .secondary-button,
+.dialog-actions .cancel-button,
+.dialog-footer .cancel-button,
+.dialog-actions .primary-button,
+.dialog-footer .primary-button,
+.dialog-actions .danger-button,
+.dialog-footer .danger-button {
+	display: inline-flex;
+	min-height: 32px;
+	height: 32px;
+	align-items: center;
+	justify-content: center;
+	vertical-align: middle;
+	box-sizing: border-box;
+	line-height: 1;
+	margin: 0;
 }
 
 .dialog-actions .secondary-button,
 .dialog-footer .secondary-button,
 .dialog-actions .cancel-button,
 .dialog-footer .cancel-button {
-	display: inline-flex;
-	min-height: 28px;
-	height: 28px;
-	align-items: center;
-	justify-content: center;
 	border: 1px solid #242432;
 	border-radius: 6px;
 	background: #161620;
@@ -1943,10 +1962,14 @@
 
 .primary-button {
 	display: inline-flex;
-	min-height: 28px;
-	height: 28px;
+	min-height: 32px;
+	height: 32px;
 	align-items: center;
 	justify-content: center;
+	vertical-align: middle;
+	box-sizing: border-box;
+	line-height: 1;
+	margin: 0;
 	border: 1px solid rgba(56, 189, 248, 0.4);
 	border-radius: 6px;
 	background: rgba(56, 189, 248, 0.2);
@@ -1975,10 +1998,14 @@
 
 .danger-button {
 	display: inline-flex;
-	min-height: 28px;
-	height: 28px;
+	min-height: 32px;
+	height: 32px;
 	align-items: center;
 	justify-content: center;
+	vertical-align: middle;
+	box-sizing: border-box;
+	line-height: 1;
+	margin: 0;
 	border: 1px solid rgba(239, 68, 68, 0.4);
 	border-radius: 6px;
 	background: rgba(239, 68, 68, 0.2);

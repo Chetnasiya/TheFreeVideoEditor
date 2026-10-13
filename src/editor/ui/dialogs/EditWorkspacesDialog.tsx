@@ -274,10 +274,7 @@ export default function EditWorkspacesDialog({ isOpen, onClose }: EditWorkspaces
 					</ul>
 				</div>
 
-				<footer
-					className="dialog-footer"
-					style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}
-				>
+				<footer className="dialog-footer">
 					<button
 						type="button"
 						className="primary-button"

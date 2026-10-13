@@ -409,6 +409,7 @@ export default function MarkerDialog() {
 				</div>
 
 				<div
+					className="dialog-actions"
 					style={{
 						display: 'flex',
 						justifyContent: 'space-between',
@@ -416,7 +417,7 @@ export default function MarkerDialog() {
 						marginTop: 'var(--spacing-md)'
 					}}
 				>
-					<div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
+					<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
 						<button
 							type="button"
 							className="secondary-button"
@@ -430,7 +431,7 @@ export default function MarkerDialog() {
 						</button>
 					</div>
 
-					<div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+					<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
 						<button type="button" className="secondary-button" onClick={close}>
 							Cancel
 						</button>

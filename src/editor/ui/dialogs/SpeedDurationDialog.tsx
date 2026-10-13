@@ -228,14 +228,7 @@ export default function SpeedDurationDialog() {
 					</label>
 				</div>
 
-				<div
-					style={{
-						display: 'flex',
-						justifyContent: 'flex-end',
-						gap: 'var(--spacing-sm)',
-						marginTop: 'var(--spacing-sm)'
-					}}
-				>
+				<div className="dialog-actions">
 					<button type="button" className="secondary-button" onClick={close}>
 						Cancel
 					</button>
