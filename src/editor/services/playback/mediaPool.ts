@@ -8,6 +8,7 @@ export const MEDIA_LOOKAHEAD_SECONDS = 1.5;
 export const MEDIA_IDLE_RELEASE_MS = 5_000;
 export const MEDIA_POOL_LIMIT = 6;
 export const VIDEO_DRIFT_THRESHOLD_SECONDS = 0.08;
+export const VIDEO_PLAYING_DRIFT_THRESHOLD_SECONDS = 0.25;
 const MEDIA_HAVE_METADATA = 1;
 const MEDIA_HAVE_CURRENT_DATA = 2;
 
@@ -254,7 +255,9 @@ export class MediaPool {
 			const effectiveRate = rate * clip.speed;
 			video.playbackRate = effectiveRate;
 			video.preservesPitch = clip.maintainPitch ?? true;
-			if (needsDriftCorrection(video.currentTime, expected)) this.requestSeek(entry, expected);
+			if (needsDriftCorrection(video.currentTime, expected, VIDEO_PLAYING_DRIFT_THRESHOLD_SECONDS)) {
+				this.requestSeek(entry, expected);
+			}
 			if (video.paused)
 				void video.play().catch((error: unknown) => {
 					if (error instanceof DOMException && error.name === 'AbortError') return;
