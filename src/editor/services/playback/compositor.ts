@@ -73,15 +73,18 @@ export function renderFrame(
 	size: CompositionSize,
 	layers: readonly ActiveLayer[],
 	frameProvider: FrameProvider,
-	lastGoodFrames: LastGoodFrames = new Map()
+	lastGoodFrames: LastGoodFrames = new Map(),
+	options: { transparent?: boolean } = {}
 ): void {
 	if (![size.width, size.height].every((value) => Number.isSafeInteger(value) && value > 0)) {
 		throw new RangeError('Composition size must use positive integer dimensions.');
 	}
 
 	context.clearRect(0, 0, size.width, size.height);
-	context.fillStyle = '#000';
-	context.fillRect(0, 0, size.width, size.height);
+	if (!options.transparent) {
+		context.fillStyle = '#000';
+		context.fillRect(0, 0, size.width, size.height);
+	}
 
 	for (const layer of layers) {
 		if (layer.transition) {
@@ -100,7 +103,12 @@ export function renderFrame(
 					};
 					const drawSolid = (offsetX: number, offsetY: number): void => {
 						context.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`;
-						context.fillRect(drawRect.x - offsetX, drawRect.y - offsetY, drawRect.width, drawRect.height);
+						context.fillRect(
+							drawRect.x - offsetX,
+							drawRect.y - offsetY,
+							drawRect.width,
+							drawRect.height
+						);
 					};
 					if (!transform && blendMode === 'normal') {
 						context.save();
@@ -203,7 +211,12 @@ export function renderFrame(
 			};
 			const drawSolid = (offsetX: number, offsetY: number): void => {
 				context.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`;
-				context.fillRect(drawRect.x - offsetX, drawRect.y - offsetY, drawRect.width, drawRect.height);
+				context.fillRect(
+					drawRect.x - offsetX,
+					drawRect.y - offsetY,
+					drawRect.width,
+					drawRect.height
+				);
 			};
 
 			if (!transform && blendMode === 'normal') {

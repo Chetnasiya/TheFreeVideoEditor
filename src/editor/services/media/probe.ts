@@ -1,5 +1,11 @@
 import { assetDefaults, classifyMime, secondsToTicks } from '../../core';
-import type { AssetKind, ProjectSettings, Time } from '../../core';
+import type {
+	AssetKind,
+	ProjectSettings,
+	Time,
+	AssetVideoMetadata,
+	AssetAudioMetadata
+} from '../../core';
 import { ALL_FORMATS, BlobSource, Input } from 'mediabunny';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -17,6 +23,14 @@ export interface ProbedMedia {
 	audioCodec?: string;
 	videoDecodable?: boolean;
 	videoCodec?: string;
+	bitDepth?: number;
+	colorSpace?: VideoColorSpaceInit;
+	isHdr?: boolean;
+	isInterlaced?: boolean;
+	isVfr?: boolean;
+	transfer?: string;
+	video?: AssetVideoMetadata;
+	audio?: AssetAudioMetadata;
 }
 
 function waitForEvent(
@@ -141,15 +155,86 @@ async function probeContainer(
 
 		const videoCodec = videoTrack ? await videoTrack.getCodecParameterString() : null;
 		const audioCodec = audioTrack ? await audioTrack.getCodecParameterString() : null;
-		const [videoDecodable, audioDecodable, displayWidth, displayHeight, frameRate] =
-			await Promise.all([
-				videoTrack?.canDecode(),
-				audioTrack?.canDecode(),
-				videoTrack?.getDisplayWidth(),
-				videoTrack?.getDisplayHeight(),
-				videoTrack?.computeFrameRateMetrics({ targetPacketCount: 64 })
-			]);
+		const [
+			videoDecodable,
+			audioDecodable,
+			displayWidth,
+			displayHeight,
+			frameRate,
+			colorSpace,
+			hasHdr,
+			audioChannels,
+			audioSampleRate
+		] = await Promise.all([
+			videoTrack?.canDecode().catch(() => false),
+			audioTrack?.canDecode().catch(() => false),
+			videoTrack?.getDisplayWidth().catch(() => undefined),
+			videoTrack?.getDisplayHeight().catch(() => undefined),
+			videoTrack?.computeFrameRateMetrics({ targetPacketCount: 64 }).catch(() => null),
+			videoTrack?.getColorSpace().catch(() => undefined),
+			videoTrack?.hasHighDynamicRange().catch(() => false),
+			audioTrack?.getNumberOfChannels().catch(() => undefined),
+			audioTrack?.getSampleRate().catch(() => undefined)
+		]);
 		const fps = frameRate?.bestGuessFrameRate ?? fallbackFps;
+
+		let bitDepth = 8;
+		const transfer = colorSpace?.transfer as string | undefined;
+		const isHdr = Boolean(
+			hasHdr ||
+			transfer === 'smpte2084' ||
+			transfer === 'pq' ||
+			transfer === 'arib-std-b67' ||
+			transfer === 'hlg'
+		);
+		if (isHdr) {
+			bitDepth = 10;
+		} else if (videoCodec) {
+			const c = videoCodec.toLowerCase();
+			if (
+				c.startsWith('vp09.02') ||
+				c.startsWith('av01.0.10') ||
+				c.startsWith('hvc1.2') ||
+				c.startsWith('hev1.2') ||
+				c.includes('prores') ||
+				c.includes('apch') ||
+				c.includes('ap4h')
+			) {
+				bitDepth = 10;
+			}
+		}
+		const isVfr = videoTrack ? (frameRate ? !frameRate.frameRateIsConstant : false) : false;
+
+		const videoMetadata: AssetVideoMetadata | undefined = videoTrack
+			? {
+					width: displayWidth,
+					height: displayHeight,
+					fps,
+					fpsEstimated: !frameRate?.frameRateIsConstant,
+					codec: videoCodec ?? undefined,
+					decodable: videoDecodable ?? false,
+					bitDepth,
+					colorSpace: colorSpace ?? undefined,
+					isHdr,
+					isInterlaced: false,
+					isVfr,
+					transfer: colorSpace?.transfer ?? undefined,
+					primaries: colorSpace?.primaries ?? undefined,
+					matrix: colorSpace?.matrix ?? undefined,
+					fullRange: colorSpace?.fullRange ?? undefined
+				}
+			: undefined;
+
+		const audioMetadata: AssetAudioMetadata | undefined = audioTrack
+			? {
+					sampleRate: audioSampleRate ?? undefined,
+					channels: audioChannels ?? undefined,
+					codec: audioCodec ?? undefined,
+					decodable: audioDecodable ?? false,
+					bitDepth: 16
+				}
+			: undefined;
+
 		return {
 			kind,
 			duration: secondsToTicks(duration),
@@ -161,7 +246,15 @@ async function probeContainer(
 			...(audioTrack ? { audioDecodable: audioDecodable ?? false } : {}),
 			...(audioCodec ? { audioCodec } : {}),
 			...(videoTrack ? { videoDecodable: videoDecodable ?? false } : {}),
-			...(videoCodec ? { videoCodec } : {})
+			...(videoCodec ? { videoCodec } : {}),
+			bitDepth,
+			colorSpace: colorSpace ?? undefined,
+			isHdr,
+			isInterlaced: false,
+			isVfr,
+			transfer: colorSpace?.transfer ?? undefined,
+			video: videoMetadata,
+			audio: audioMetadata
 		};
 	} finally {
 		input.dispose();

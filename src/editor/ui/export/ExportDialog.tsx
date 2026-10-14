@@ -24,6 +24,10 @@ import {
 } from '../../services/storage/fileAccess';
 import type { SaveFileType } from '../../services/storage/fileAccess';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import { VIDEO_CODEC_REGISTRY } from '../../core/codecs/registry';
+import { isCodecSupportedSync, probeCodecCapabilities } from '../../services/codecs/probe';
+import CodecSupportDialog from '../dialogs/CodecSupportDialog';
+import CodecPackDialog from '../dialogs/CodecPackDialog';
 import './export-dialog.css';
 
 type ExportTab = 'video' | 'project';
@@ -51,6 +55,16 @@ const INTERCHANGE_TYPES: Record<InterchangeFormat, SaveFileType[]> = {
 };
 const LARGE_IN_MEMORY_EXPORT_BYTES = 512 * 1024 * 1024;
 
+function formatBytes(bytes: number): string {
+	if (!bytes || bytes <= 0) return '0 B';
+	const k = 1024;
+	const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	const idx = Math.max(0, Math.min(i, sizes.length - 1));
+	const val = bytes / Math.pow(k, idx);
+	return `${val < 10 && idx > 0 ? val.toFixed(1) : Math.round(val)} ${sizes[idx]}`;
+}
+
 function makeVideoSettings(
 	project: Project,
 	options: {
@@ -59,6 +73,12 @@ function makeVideoSettings(
 		quality: ExportQuality;
 		audio: boolean;
 		filename: string;
+		codecId?: string;
+		audioCodecId?: string;
+		colorSpaceTag?: string;
+		bitDepth?: number;
+		alpha?: boolean;
+		customBitrateBps?: number;
 	}
 ): ExportSettings {
 	return settingsForPreset(project, options);
@@ -103,6 +123,13 @@ export default function ExportDialog() {
 	const [tab, setTab] = useState<ExportTab>('video');
 	const [selectedSequenceId, setSelectedSequenceId] = useState<SequenceId>(ROOT_SEQUENCE_ID);
 	const [videoFormat, setVideoFormat] = useState<ExportSettings['format']>('mp4');
+	const [selectedCodecId, setSelectedCodecId] = useState<string>('h264-mp4');
+	const [selectedAudioCodec, setSelectedAudioCodec] = useState<string>('aac');
+	const [selectedColorSpace, setSelectedColorSpace] = useState<string>('rec709');
+	const [exportAlpha, setExportAlpha] = useState(false);
+	const [customBitrateMbps, setCustomBitrateMbps] = useState(16);
+	const [isCodecSupportOpen, setIsCodecSupportOpen] = useState(false);
+	const [isCodecPackOpen, setIsCodecPackOpen] = useState(false);
 	const [preset, setPreset] = useState<ResolutionPreset>('project');
 	const [quality, setQuality] = useState<ExportQuality>('high');
 	const [includeAudio, setIncludeAudio] = useState(true);
@@ -161,10 +188,28 @@ export default function ExportDialog() {
 						preset,
 						quality,
 						audio: includeAudio,
-						filename: filename || exportProject.name
+						filename: filename || exportProject.name,
+						codecId: selectedCodecId,
+						audioCodecId: selectedAudioCodec,
+						colorSpaceTag: selectedColorSpace,
+						bitDepth: VIDEO_CODEC_REGISTRY.find((c) => c.id === selectedCodecId)?.bitDepth ?? 8,
+						alpha: exportAlpha,
+						customBitrateBps: customBitrateMbps * 1_000_000
 					})
 				: null,
-		[filename, includeAudio, preset, exportProject, quality, videoFormat]
+		[
+			filename,
+			includeAudio,
+			preset,
+			exportProject,
+			quality,
+			videoFormat,
+			selectedCodecId,
+			selectedAudioCodec,
+			selectedColorSpace,
+			exportAlpha,
+			customBitrateMbps
+		]
 	);
 	const capabilityProjectId = exportProject?.id;
 	const capabilityFormat = settings?.format;
@@ -172,15 +217,65 @@ export default function ExportDialog() {
 	const capabilityHeight = settings?.height;
 	const capabilityFps = settings?.fps;
 	const capabilityAudio = settings?.audio;
+	const capabilityCodecId = settings?.codecId;
+	const capabilityAudioCodecId = settings?.audioCodecId;
 	const durationSeconds = exportProject ? ticksToSeconds(timelineDuration(exportProject)) : 0;
-	const estimatedSize = settings
-		? Math.ceil(
-				((settings.videoBitrate + (settings.audio ? settings.audioBitrate : 0)) * durationSeconds) /
-					8
-			)
-		: 0;
+	const estimatedSize = useMemo(() => {
+		if (!settings || durationSeconds <= 0) return 0;
+		if (videoFormat === 'wav') {
+			const sampleRate = exportProject?.settings.sampleRate || 48000;
+			const channels = 2;
+			const bytesPerSample =
+				selectedAudioCodec === 'pcm24' ? 3 : selectedAudioCodec === 'pcm32f' ? 4 : 2;
+			return Math.ceil(durationSeconds * sampleRate * channels * bytesPerSample);
+		}
+		const audioBps = settings.audio ? settings.audioBitrate : 0;
+		return Math.ceil(((settings.videoBitrate + audioBps) * durationSeconds) / 8);
+	}, [
+		settings,
+		durationSeconds,
+		videoFormat,
+		exportProject?.settings.sampleRate,
+		selectedAudioCodec
+	]);
 	const warnAboutMemoryFallback =
 		!supportsStreamingSave() && estimatedSize >= LARGE_IN_MEMORY_EXPORT_BYTES;
+
+	const timelineMediaWarnings = useMemo(() => {
+		if (!exportProject) return [];
+		const warnings: string[] = [];
+		const scheduledAssetIds = new Set(
+			exportProject.tracks.flatMap((t) => t.clips.flatMap((c) => (c.assetId ? [c.assetId] : [])))
+		);
+		const scheduledAssets = Object.values(exportProject.assets).filter((a) =>
+			scheduledAssetIds.has(a.id)
+		);
+
+		const hasHdr = scheduledAssets.some((a) => a.isHdr);
+		const hasVfr = scheduledAssets.some((a) => a.isVfr);
+		const hasInterlaced = scheduledAssets.some((a) => a.isInterlaced);
+		const hasUnsupported = scheduledAssets.some((a) => a.videoDecodable === false);
+
+		if (hasHdr && (settings?.bitDepth ?? 8) <= 8) {
+			warnings.push(
+				'Timeline contains HDR media. WebCodecs will convert to SDR unless 10-bit HDR export is selected (HEVC Main10 / VP9 Profile 2).'
+			);
+		}
+		if (hasVfr) {
+			warnings.push(
+				'Timeline contains Variable Frame Rate (VFR) media. Frame timings will be resampled to constant project FPS.'
+			);
+		}
+		if (hasInterlaced) {
+			warnings.push(
+				'Timeline contains interlaced media. Progressive scan is recommended for web exports.'
+			);
+		}
+		if (hasUnsupported) {
+			warnings.push('Timeline contains video tracks with unsupported codecs or pixel formats.');
+		}
+		return warnings;
+	}, [exportProject, settings?.bitDepth]);
 
 	const interchangeOmissionWarning = useMemo(() => {
 		if (!exportProject) return null;
@@ -249,9 +344,11 @@ export default function ExportDialog() {
 		durationSeconds > 0 &&
 		(offlineAssets.length === 0 || offlineConfirmed) &&
 		(!isRunning || tab !== 'video') &&
-		(mode === 'webcodecs'
-			? capabilities?.video && (!includeAudio || capabilities.audio)
-			: videoFormat === 'webm' && capabilities?.compatibility)
+		(videoFormat === 'wav'
+			? true
+			: mode === 'webcodecs'
+				? capabilities?.video && (!includeAudio || capabilities.audio)
+				: videoFormat === 'webm' && capabilities?.compatibility)
 	);
 
 	useEffect(() => {
@@ -260,6 +357,12 @@ export default function ExportDialog() {
 		if (open && !dialog.open) dialog.showModal();
 		if (!open && dialog.open && !isRunning) dialog.close();
 	}, [isRunning, open]);
+
+	useEffect(() => {
+		if (open) {
+			void probeCodecCapabilities();
+		}
+	}, [open]);
 
 	useEffect(() => {
 		if (!open || runtime) return;
@@ -313,7 +416,9 @@ export default function ExportDialog() {
 			width: capabilityWidth,
 			height: capabilityHeight,
 			fps: capabilityFps,
-			audio: capabilityAudio
+			audio: capabilityAudio,
+			codecId: capabilityCodecId,
+			audioCodecId: capabilityAudioCodecId
 		})
 			.then((result) => {
 				if (!active) return;
@@ -333,7 +438,9 @@ export default function ExportDialog() {
 		capabilityFormat,
 		capabilityFps,
 		capabilityHeight,
-		capabilityWidth
+		capabilityWidth,
+		capabilityCodecId,
+		capabilityAudioCodecId
 	]);
 
 	useEffect(() => {
@@ -363,6 +470,29 @@ export default function ExportDialog() {
 	function updateFormat(format: ExportSettings['format']): void {
 		setVideoFormat(format);
 		setErrorMessage('');
+		if (format === 'mp4') {
+			setSelectedCodecId('h264-mp4');
+			setSelectedAudioCodec('aac');
+			setExportAlpha(false);
+		} else if (format === 'mov') {
+			setSelectedCodecId('h264-mov');
+			setSelectedAudioCodec('aac');
+		} else if (format === 'webm') {
+			setSelectedCodecId('vp9-webm');
+			setSelectedAudioCodec('opus');
+		} else if (format === 'wav') {
+			setSelectedCodecId('wav-pcm16');
+			setSelectedAudioCodec('pcm16');
+			setExportAlpha(false);
+		}
+	}
+
+	function updateCodec(codecId: string): void {
+		setSelectedCodecId(codecId);
+		const desc = VIDEO_CODEC_REGISTRY.find((c) => c.id === codecId);
+		if (desc?.bitDepth === 10) {
+			setSelectedColorSpace('rec2020');
+		}
 	}
 
 	async function runVideoExport(): Promise<void> {
@@ -446,6 +576,8 @@ export default function ExportDialog() {
 				);
 				return;
 			}
+
+			const descriptor = VIDEO_CODEC_REGISTRY.find((c) => c.id === selectedCodecId);
 			const result = await exportRuntime.exportTimeline(snapshot, settings, {
 				signal: controller.signal,
 				onProgress: setProgress,
@@ -454,15 +586,35 @@ export default function ExportDialog() {
 					fallbackNotice = reason;
 					setNotice(reason);
 				},
-				...(capabilities?.codec ? { videoCodec: capabilities.codec } : {}),
+				...(descriptor?.videoCodecString
+					? { videoCodec: descriptor.videoCodecString }
+					: capabilities?.codec
+						? { videoCodec: capabilities.codec }
+						: {}),
 				...(includeAudio && capabilities?.audioCodec ? { audioCodec: capabilities.audioCodec } : {})
 			});
 			if (result.blob) {
+				const mimeType =
+					videoFormat === 'mp4'
+						? 'video/mp4'
+						: videoFormat === 'mov'
+							? 'video/quicktime'
+							: videoFormat === 'wav'
+								? 'audio/wav'
+								: 'video/webm';
+				const description =
+					videoFormat === 'mp4'
+						? 'MP4 video'
+						: videoFormat === 'mov'
+							? 'QuickTime MOV'
+							: videoFormat === 'wav'
+								? 'WAV audio'
+								: 'WebM video';
 				const types: SaveFileType[] = [
 					{
-						description: videoFormat === 'mp4' ? 'MP4 video' : 'WebM video',
+						description,
 						accept: {
-							[videoFormat === 'mp4' ? 'video/mp4' : 'video/webm']: [`.${videoFormat}`]
+							[mimeType]: [`.${videoFormat}`]
 						}
 					}
 				];
@@ -727,37 +879,153 @@ export default function ExportDialog() {
 										updateFormat(event.currentTarget.value as ExportSettings['format'])
 									}
 								>
-									<option value="mp4">MP4 · H.264 + AAC</option>
-									<option value="webm">WebM · VP9 + Opus</option>
+									<option value="mp4">MP4 (H.264 / HEVC / AV1)</option>
+									<option value="mov">QuickTime MOV (H.264 / HEVC / ProRes / PCM)</option>
+									<option value="webm">WebM (VP9 / AV1 / Opus)</option>
+									<option value="wav">WAV Audio (Uncompressed PCM)</option>
 								</select>
 							</label>
-							<label className="dialog-field">
-								<span>Resolution</span>
-								<select
-									value={preset}
-									disabled={isRunning}
-									onChange={(event) => setPreset(event.currentTarget.value as ResolutionPreset)}
-								>
-									<option value="project">
-										Project · {project?.settings.width} × {project?.settings.height}
-									</option>
-									<option value="1080p">1080p</option>
-									<option value="720p">720p</option>
-									<option value="480p">480p</option>
-								</select>
-							</label>
-							<label className="dialog-field">
-								<span>Quality</span>
-								<select
-									value={quality}
-									disabled={isRunning}
-									onChange={(event) => setQuality(event.currentTarget.value as ExportQuality)}
-								>
-									<option value="high">High</option>
-									<option value="medium">Standard</option>
-									<option value="low">Smaller file</option>
-								</select>
-							</label>
+
+							{videoFormat !== 'wav' && (
+								<label className="dialog-field">
+									<span>Video Codec</span>
+									<select
+										value={selectedCodecId}
+										disabled={isRunning}
+										onChange={(event) => updateCodec(event.currentTarget.value)}
+									>
+										{VIDEO_CODEC_REGISTRY.filter((c) => c.container === videoFormat).map((c) => {
+											const supported = isCodecSupportedSync(c.id);
+											return (
+												<option key={c.id} value={c.id} disabled={c.tier === 2}>
+													{c.label}{' '}
+													{c.tier === 2
+														? '· Pack Required (Deferred)'
+														: supported === false
+															? '· Unsupported'
+															: '· Hardware/WebCodecs'}
+												</option>
+											);
+										})}
+									</select>
+								</label>
+							)}
+
+							{videoFormat !== 'wav' && (
+								<label className="dialog-field">
+									<span>Resolution</span>
+									<select
+										value={preset}
+										disabled={isRunning}
+										onChange={(event) => setPreset(event.currentTarget.value as ResolutionPreset)}
+									>
+										<option value="project">
+											Project · {project?.settings.width} × {project?.settings.height}
+										</option>
+										<option value="4k">4K Ultra HD (3840 × 2160)</option>
+										<option value="1440p">1440p Quad HD (2560 × 1440)</option>
+										<option value="1080p">1080p Full HD (1920 × 1080)</option>
+										<option value="720p">720p HD (1280 × 720)</option>
+										<option value="480p">480p SD (854 × 480)</option>
+									</select>
+								</label>
+							)}
+
+							{videoFormat !== 'wav' && (
+								<label className="dialog-field">
+									<span>Quality</span>
+									<select
+										value={quality}
+										disabled={isRunning}
+										onChange={(event) => setQuality(event.currentTarget.value as ExportQuality)}
+									>
+										<option value="high">High (Recommended)</option>
+										<option value="medium">Standard</option>
+										<option value="low">Smaller file</option>
+										<option value="pro">Pro Bitrate</option>
+										<option value="custom">Custom Bitrate…</option>
+									</select>
+								</label>
+							)}
+
+							{videoFormat !== 'wav' && quality === 'custom' && (
+								<label className="dialog-field">
+									<span>Bitrate (Mbps)</span>
+									<input
+										type="number"
+										min="1"
+										max="100"
+										step="1"
+										value={customBitrateMbps}
+										disabled={isRunning}
+										onChange={(event) =>
+											setCustomBitrateMbps(Math.max(1, Number(event.currentTarget.value)))
+										}
+									/>
+								</label>
+							)}
+
+							{videoFormat !== 'wav' && (
+								<label className="dialog-field">
+									<span>Color Space Tag</span>
+									<select
+										value={selectedColorSpace}
+										disabled={isRunning}
+										onChange={(event) => setSelectedColorSpace(event.currentTarget.value)}
+									>
+										<option value="rec709">Rec. 709 · Standard Dynamic Range (SDR)</option>
+										<option value="rec2020">Rec. 2020 · Wide Gamut / 10-bit HDR</option>
+										<option value="srgb">sRGB · Computer & Web Graphics</option>
+										<option value="display-p3">Display P3 · Apple Wide Color</option>
+									</select>
+								</label>
+							)}
+
+							{(videoFormat === 'webm' || videoFormat === 'mov') && (
+								<label className="export-checkbox">
+									<input
+										type="checkbox"
+										checked={exportAlpha}
+										disabled={isRunning}
+										onChange={(event) => setExportAlpha(event.currentTarget.checked)}
+									/>
+									<span>Export with alpha transparency (transparent canvas)</span>
+								</label>
+							)}
+
+							{videoFormat !== 'wav' && (
+								<label className="export-checkbox">
+									<input
+										type="checkbox"
+										checked={includeAudio}
+										disabled={isRunning}
+										onChange={(event) => setIncludeAudio(event.currentTarget.checked)}
+									/>
+									<span>Include audio</span>
+								</label>
+							)}
+
+							{(includeAudio || videoFormat === 'wav') &&
+								(videoFormat === 'mov' || videoFormat === 'wav') && (
+									<label className="dialog-field">
+										<span>
+											{videoFormat === 'wav' ? 'Audio Bit Depth / Quality' : 'Audio Codec'}
+										</span>
+										<select
+											value={selectedAudioCodec}
+											disabled={isRunning}
+											onChange={(event) => setSelectedAudioCodec(event.currentTarget.value)}
+										>
+											{videoFormat === 'mov' && (
+												<option value="aac">AAC-LC · Compressed (192 kbps)</option>
+											)}
+											<option value="pcm16">PCM 16-bit · Linear Uncompressed</option>
+											<option value="pcm24">PCM 24-bit · High-Resolution Master</option>
+											<option value="pcm32f">PCM 32-bit Float · 32-bit Floating Point</option>
+										</select>
+									</label>
+								)}
+
 							<label className="dialog-field">
 								<span>File name</span>
 								<input
@@ -769,12 +1037,16 @@ export default function ExportDialog() {
 									onChange={(event) => setFilename(event.currentTarget.value)}
 								/>
 							</label>
-							{capabilities && mode === 'webcodecs' && includeAudio && !capabilities.audio && (
-								<p className="export-warning" role="status">
-									Audio encoding is unavailable for this format here. Turn off “Include audio” or
-									choose another format.
-								</p>
-							)}
+							{capabilities &&
+								mode === 'webcodecs' &&
+								includeAudio &&
+								!capabilities.audio &&
+								videoFormat !== 'wav' && (
+									<p className="export-warning" role="status">
+										Audio encoding is unavailable for this format here. Turn off “Include audio” or
+										choose another format.
+									</p>
+								)}
 							{includeAudio &&
 								undecodableAudioAssets.map((asset) => (
 									<p className="export-warning" role="status" key={asset.id}>
@@ -782,16 +1054,7 @@ export default function ExportDialog() {
 										codec.
 									</p>
 								))}
-							<label className="export-checkbox">
-								<input
-									type="checkbox"
-									checked={includeAudio}
-									disabled={isRunning}
-									onChange={(event) => setIncludeAudio(event.currentTarget.checked)}
-								/>
-								<span>Include audio</span>
-							</label>
-							{captionTracks.length > 0 && (
+							{captionTracks.length > 0 && videoFormat !== 'wav' && (
 								<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
 									<label className="export-checkbox">
 										<input
@@ -818,7 +1081,9 @@ export default function ExportDialog() {
 								</div>
 							)}
 							<div className="export-capability" role="status" aria-live="polite">
-								{capabilities === null ? (
+								{videoFormat === 'wav' ? (
+									'Uncompressed PCM audio muxing via container engine.'
+								) : capabilities === null ? (
 									'Checking browser export support…'
 								) : capabilities.video ? (
 									<>
@@ -835,7 +1100,7 @@ export default function ExportDialog() {
 									</>
 								)}
 							</div>
-							{capabilities && (
+							{capabilities && videoFormat !== 'wav' && (
 								<label className="dialog-field">
 									<span>Export method</span>
 									<select
@@ -857,9 +1122,30 @@ export default function ExportDialog() {
 							)}
 							<p className="export-estimate">
 								{durationSeconds > 0
-									? `${Math.floor(durationSeconds / 60)}:${String(Math.floor(durationSeconds % 60)).padStart(2, '0')} · approximately ${Math.max(1, Math.round(estimatedSize / 1_000_000))} MB`
+									? `${Math.floor(durationSeconds / 60)}:${String(Math.floor(durationSeconds % 60)).padStart(2, '0')} · approximately ${formatBytes(estimatedSize)}`
 									: 'Add clips to the timeline before exporting.'}
 							</p>
+							<div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '2px' }}>
+								<button
+									type="button"
+									className="media-action-link"
+									onClick={() => setIsCodecSupportOpen(true)}
+								>
+									Hardware & Codec Support Diagnostics…
+								</button>
+								<button
+									type="button"
+									className="media-action-link"
+									onClick={() => setIsCodecPackOpen(true)}
+								>
+									Advanced Codec Pack (ProRes / DNxHR)…
+								</button>
+							</div>
+							{timelineMediaWarnings.map((warn, i) => (
+								<p key={i} className="export-warning" role="status">
+									{warn}
+								</p>
+							))}
 							{warnAboutMemoryFallback && (
 								<p className="export-warning" role="status">
 									This browser cannot stream the estimated {Math.ceil(estimatedSize / 1_000_000)} MB
@@ -1068,6 +1354,11 @@ export default function ExportDialog() {
 					</div>
 				</div>
 			</dialog>
+			<CodecSupportDialog
+				isOpen={isCodecSupportOpen}
+				onClose={() => setIsCodecSupportOpen(false)}
+			/>
+			<CodecPackDialog isOpen={isCodecPackOpen} onClose={() => setIsCodecPackOpen(false)} />
 		</>
 	);
 }

@@ -267,9 +267,8 @@ export class MediaPool {
 					this.requestSeek(entry, expected);
 				} else {
 					// Dynamic clock rate adjustment to catch up seamlessly without flushing decoder buffers
-					const skewMultiplier = drift > 0
-						? (drift > 0.35 ? 1.10 : 1.05)
-						: (drift < -0.35 ? 0.90 : 0.95);
+					const skewMultiplier =
+						drift > 0 ? (drift > 0.35 ? 1.1 : 1.05) : drift < -0.35 ? 0.9 : 0.95;
 					effectiveRate *= skewMultiplier;
 				}
 			}
@@ -324,7 +323,8 @@ export class MediaPool {
 				}
 			}
 			const expected = source.sourceTime / 1_000_000;
-			if (needsDriftCorrection(audio.currentTime, expected, 0.15)) this.requestSeek(entry, expected);
+			if (needsDriftCorrection(audio.currentTime, expected, 0.15))
+				this.requestSeek(entry, expected);
 		}
 		return audio;
 	}

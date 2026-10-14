@@ -187,7 +187,7 @@ describe('media pool', () => {
 	it('uses clock skew rate adjustment for moderate drift without hard seeking', () => {
 		const project = makeProject(1);
 		const video = fakeVideo();
-		video.readyState = 2; // HAVE_CURRENT_DATA
+		Object.defineProperty(video, 'readyState', { value: 2, configurable: true }); // HAVE_CURRENT_DATA
 		video.currentTime = 0.5;
 		const pool = new MediaPool(project, {
 			createVideo: () => video,

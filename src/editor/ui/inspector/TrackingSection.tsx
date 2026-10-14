@@ -169,6 +169,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 						type="button"
 						onClick={() => handleAddTracker('point')}
 						className="tracking-action-btn-primary"
+						aria-label="+ Add Point Tracker"
 					>
 						<svg
 							width="12"
@@ -182,7 +183,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 							<line x1="12" y1="5" x2="12" y2="19" />
 							<line x1="5" y1="12" x2="19" y2="12" />
 						</svg>
-						<span>Add Point Tracker</span>
+						<span>+ Add Point Tracker</span>
 					</button>
 				</div>
 			) : (
@@ -288,7 +289,8 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 										<div className="flex items-center gap-2">
 											<span className="tracking-live-pulse-dot" />
 											<span className="font-mono text-[#94a3b8]">
-												Frame {trackingProgress.processedFrames} / {trackingProgress.totalFrames}
+												Tracking frame {trackingProgress.processedFrames} /{' '}
+												{trackingProgress.totalFrames}
 											</span>
 										</div>
 										<div className="flex items-center gap-2">
@@ -387,7 +389,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 									<div className="tracking-bound-card">
 										<div className="flex items-center justify-between text-[11px]">
 											<span className="text-[#94a3b8]">Attached Layer:</span>
-											<span className="font-medium text-[#f1f5f9] truncate max-w-[180px]">
+											<span className="max-w-[180px] truncate font-medium text-[#f1f5f9]">
 												{boundClip
 													? getClipLabel(boundClip, project)
 													: selectedTracker.binding.targetClipId}
@@ -401,6 +403,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 												}
 												className="tracking-btn-bake"
 												title="Convert live tracked motion into permanent clip keyframes"
+												aria-label="Bake to Keyframes"
 											>
 												<svg
 													width="12"
@@ -413,7 +416,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 												>
 													<polygon points="12 2 22 12 12 22 2 12" />
 												</svg>
-												<span>Bake Keyframes</span>
+												<span>Bake to Keyframes</span>
 											</button>
 											<button
 												type="button"
@@ -453,7 +456,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 												</option>
 											))}
 										</select>
-										<span className="text-[10px] text-[#64748b] leading-tight">
+										<span className="text-[10px] leading-tight text-[#64748b]">
 											Binds this layer's position to the tracker in real-time.
 										</span>
 									</div>
@@ -471,7 +474,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 									)}
 								</div>
 								<div className="tracking-stabilize-card">
-									<span className="text-[10px] text-[#64748b] leading-relaxed">
+									<span className="text-[10px] leading-relaxed text-[#64748b]">
 										Applies counter-motion smoothing and auto-zoom to eliminate camera shake.
 									</span>
 									<button

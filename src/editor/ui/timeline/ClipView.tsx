@@ -72,7 +72,10 @@ function WaveformCanvas({
 
 		const dpr = window.devicePixelRatio || 1;
 		const rect = canvas.getBoundingClientRect();
-		const width = Math.max(1, Math.floor(rect.width || timeToPixels(clipDuration, pixelsPerSecond)));
+		const width = Math.max(
+			1,
+			Math.floor(rect.width || timeToPixels(clipDuration, pixelsPerSecond))
+		);
 		const height = Math.max(1, Math.floor(rect.height || 48));
 
 		canvas.width = Math.floor(width * dpr);
@@ -242,7 +245,11 @@ function ClipArtwork({
 		if (peak) {
 			return (
 				<div className="timeline-waveform" aria-hidden="true">
-					<WaveformCanvas peaks={peak} clipDuration={clip.duration} pixelsPerSecond={pixelsPerSecond} />
+					<WaveformCanvas
+						peaks={peak}
+						clipDuration={clip.duration}
+						pixelsPerSecond={pixelsPerSecond}
+					/>
 				</div>
 			);
 		}

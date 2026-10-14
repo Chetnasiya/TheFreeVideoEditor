@@ -2,14 +2,26 @@ import {
 	AudioSample,
 	AudioSampleSource,
 	CanvasSource,
+	MovOutputFormat,
 	Mp4OutputFormat,
 	Output,
-	WebMOutputFormat
+	VideoSample,
+	VideoSampleSource,
+	WavOutputFormat,
+	WebMOutputFormat,
+	type AudioCodec,
+	type VideoCodec
 } from 'mediabunny';
+import { VIDEO_CODEC_REGISTRY } from '../../core/codecs/registry';
 import type { AssetId, Project } from '../../core';
-import { resolveFrame } from '../../core';
+import { resolveFrame, type ActiveLayer } from '../../core';
 import type { LastGoodFrames } from '../playback/compositor';
-import { createFrameRenderer, type FrameRenderer, type RendererKind } from '../render';
+import {
+	createFrameRenderer,
+	GlCompositor,
+	type FrameRenderer,
+	type RendererKind
+} from '../render';
 import { projectNeedsGpu } from '../../core/gpuFeatures';
 import { getMediaFile } from '../storage/opfs';
 import { ensureLutLoaded } from '../media/lutCache';
@@ -156,13 +168,17 @@ async function exportTimelineMain(
 		if (typeof OffscreenCanvas === 'undefined') {
 			throw new ExportError('UNSUPPORTED_CODEC', 'OffscreenCanvas is unavailable in this browser.');
 		}
+		const is10Bit = (settings.bitDepth ?? 8) > 8;
 		const canvas = new OffscreenCanvas(plan.width, plan.height);
 		renderer = createFrameRenderer(canvas, {
 			forceCanvas2d:
 				(options.renderer ??
 					forcedExportRenderer() ??
-					(projectNeedsGpu(snapshot) ? 'webgl2' : 'canvas2d')) === 'canvas2d',
-			preserveDrawingBuffer: true
+					(is10Bit || projectNeedsGpu(snapshot) ? 'webgl2' : 'canvas2d')) === 'canvas2d',
+			preserveDrawingBuffer: true,
+			alpha: Boolean(settings.alpha),
+			highBitDepth: is10Bit,
+			colorSpace: settings.colorSpaceTag === 'rec2020' ? 'display-p3' : 'srgb'
 		});
 		if (!renderer) throw new ExportError('UNSUPPORTED_CODEC', 'Canvas rendering is unavailable.');
 		for (const asset of Object.values(snapshot.assets)) {
@@ -170,29 +186,98 @@ async function exportTimelineMain(
 				await ensureLutLoaded(snapshot.id, asset, options.getFile);
 			}
 		}
-		const format = settings.format === 'mp4' ? new Mp4OutputFormat() : new WebMOutputFormat();
-		output = new Output({ format, target: sink.target });
-		const videoCodec =
+		const format =
 			settings.format === 'mp4'
-				? 'avc'
-				: options.videoCodec?.startsWith('av01')
-					? 'av1'
-					: options.videoCodec?.startsWith('vp8')
-						? 'vp8'
-						: 'vp9';
-		const videoSource = new CanvasSource(canvas, {
-			codec: videoCodec,
-			...(options.videoCodec ? { fullCodecString: options.videoCodec } : {}),
-			bitrate: settings.videoBitrate,
-			keyFrameInterval: 2,
-			latencyMode: 'quality'
-		});
-		output.addVideoTrack(videoSource);
+				? new Mp4OutputFormat()
+				: settings.format === 'mov'
+					? new MovOutputFormat()
+					: settings.format === 'wav'
+						? new WavOutputFormat()
+						: new WebMOutputFormat();
+		output = new Output({ format, target: sink.target });
+
+		const canUsePlanar10Bit =
+			is10Bit && renderer instanceof GlCompositor && renderer.isHighBitDepthSupported();
+
+		if (is10Bit && !canUsePlanar10Bit) {
+			options.onWarning?.(
+				'10-bit export was requested, but the WebGL2 half-float rendering pipeline is unavailable. Falling back to 8-bit canvas source.'
+			);
+		}
+
+		let videoSource: CanvasSource | VideoSampleSource | null = null;
+		if (settings.format !== 'wav') {
+			let videoCodec: VideoCodec = 'avc';
+			if (settings.format === 'mp4') {
+				if (
+					options.videoCodec?.startsWith('hvc1') ||
+					options.videoCodec?.startsWith('hev1') ||
+					settings.codecId?.includes('hevc')
+				) {
+					videoCodec = 'hevc';
+				} else if (options.videoCodec?.startsWith('av01') || settings.codecId?.includes('av1')) {
+					videoCodec = 'av1';
+				} else {
+					videoCodec = 'avc';
+				}
+			} else if (settings.format === 'mov') {
+				if (
+					options.videoCodec?.startsWith('hvc1') ||
+					options.videoCodec?.startsWith('hev1') ||
+					settings.codecId?.includes('hevc')
+				) {
+					videoCodec = 'hevc';
+				} else if (
+					options.videoCodec?.startsWith('prores') ||
+					options.videoCodec?.startsWith('ap') ||
+					settings.codecId?.includes('prores')
+				) {
+					videoCodec = 'prores';
+				} else {
+					videoCodec = 'avc';
+				}
+			} else {
+				if (options.videoCodec?.startsWith('av01') || settings.codecId?.includes('av1')) {
+					videoCodec = 'av1';
+				} else if (options.videoCodec?.startsWith('vp8')) {
+					videoCodec = 'vp8';
+				} else {
+					videoCodec = 'vp9';
+				}
+			}
+
+			const fullCodecString =
+				options.videoCodec ??
+				(settings.codecId
+					? VIDEO_CODEC_REGISTRY.find((c) => c.id === settings.codecId)?.videoCodecString
+					: undefined);
+
+			if (canUsePlanar10Bit) {
+				videoSource = new VideoSampleSource({
+					codec: videoCodec,
+					...(fullCodecString ? { fullCodecString } : {}),
+					bitrate: settings.videoBitrate,
+					keyFrameInterval: 2,
+					latencyMode: 'quality',
+					...(settings.alpha ? { alpha: 'keep' } : {})
+				});
+			} else {
+				videoSource = new CanvasSource(canvas, {
+					codec: videoCodec,
+					...(fullCodecString ? { fullCodecString } : {}),
+					bitrate: settings.videoBitrate,
+					keyFrameInterval: 2,
+					latencyMode: 'quality',
+					...(settings.alpha ? { alpha: 'keep' } : {})
+				});
+			}
+			output.addVideoTrack(videoSource);
+		}
 
 		const hasAudioAssets = Object.values(snapshot.assets).some(
 			(asset) => asset.hasAudio && !asset.offline
 		);
-		if (settings.audio && hasAudioAssets) {
+		if ((settings.audio && hasAudioAssets) || settings.format === 'wav') {
 			if (typeof AudioContext === 'undefined') {
 				workerAudioMixer = new WorkerAudioMixer(
 					snapshot,
@@ -211,15 +296,112 @@ async function exportTimelineMain(
 			if (
 				[...snapshot.tracks].some(
 					(track) => track.kind === 'audio' && !track.muted && track.clips.length
-				)
+				) ||
+				settings.format === 'wav'
 			) {
+				let audioCodec: AudioCodec = 'aac';
+				if (settings.format === 'wav') {
+					audioCodec =
+						settings.audioCodecId === 'pcm24'
+							? 'pcm-s24'
+							: settings.audioCodecId === 'pcm32f'
+								? 'pcm-f32'
+								: 'pcm-s16';
+				} else if (settings.format === 'mov') {
+					if (settings.audioCodecId === 'pcm16') audioCodec = 'pcm-s16';
+					else if (settings.audioCodecId === 'pcm24') audioCodec = 'pcm-s24';
+					else if (settings.audioCodecId === 'pcm32f') audioCodec = 'pcm-f32';
+					else audioCodec = 'aac';
+				} else if (settings.format === 'webm') {
+					audioCodec = 'opus';
+				} else {
+					audioCodec = 'aac';
+				}
+
+				const isPcm = audioCodec.startsWith('pcm');
 				audioSource = new AudioSampleSource({
-					codec: settings.format === 'mp4' ? 'aac' : 'opus',
-					...(options.audioCodec ? { fullCodecString: options.audioCodec } : {}),
-					bitrate: settings.audioBitrate
+					codec: audioCodec,
+					...(options.audioCodec && !isPcm ? { fullCodecString: options.audioCodec } : {}),
+					...(isPcm ? {} : { bitrate: settings.audioBitrate })
 				});
 				output.addAudioTrack(audioSource);
 			}
+		}
+
+		if (settings.format === 'wav') {
+			emitProgress(options.onProgress, {
+				framesDone: 0,
+				totalFrames: plan.totalFrames,
+				fps: 0,
+				etaMs: 0,
+				phase: 'preparing'
+			});
+			await output.start();
+			outputStarted = true;
+			const chunkTicks = 10_000_000;
+			const totalChunks = Math.max(1, Math.ceil(plan.durationUs / chunkTicks));
+			let chunkCount = 0;
+			for (let chunkStart = 0; chunkStart < plan.durationUs; chunkStart += chunkTicks) {
+				cancelled(options.signal);
+				const chunkDuration = Math.min(chunkTicks, plan.durationUs - chunkStart);
+				if (workerAudioMixer) {
+					const sample = await workerAudioMixer.mixChunk(
+						chunkStart,
+						chunkDuration,
+						snapshot.settings.sampleRate,
+						options.signal
+					);
+					if (sample) {
+						try {
+							await audioSource?.add(sample);
+						} finally {
+							sample.close();
+						}
+					}
+				} else if (audioBuffers) {
+					const mixed = await mixAudioChunk(
+						snapshot,
+						chunkStart,
+						chunkDuration,
+						audioBuffers,
+						snapshot.settings.sampleRate
+					);
+					for (const sample of AudioSample.fromAudioBuffer(mixed, chunkStart / 1_000_000)) {
+						try {
+							await audioSource?.add(sample);
+						} finally {
+							sample.close();
+						}
+					}
+				}
+				chunkCount += 1;
+				emitProgress(options.onProgress, {
+					framesDone: chunkCount,
+					totalFrames: totalChunks,
+					fps: 0,
+					etaMs: 0,
+					phase: 'rendering'
+				});
+				await yieldToEventLoop();
+			}
+			emitProgress(options.onProgress, {
+				framesDone: totalChunks,
+				totalFrames: totalChunks,
+				fps: 0,
+				etaMs: 0,
+				phase: 'finalizing'
+			});
+			await output.finalize();
+			output = null;
+			const blob = await sink.finish();
+			emitProgress(options.onProgress, {
+				framesDone: totalChunks,
+				totalFrames: totalChunks,
+				fps: 0,
+				etaMs: 0,
+				phase: 'complete'
+			});
+			return { blob, plan, path: 'main-webcodecs' };
 		}
 
 		emitProgress(options.onProgress, {
@@ -236,15 +418,58 @@ async function exportTimelineMain(
 			const timestamp = plan.timestamp(frame);
 			const resolved = resolveFrame(snapshot, timestamp);
 			await frameProvider.prepare(resolved.videoLayers, options.signal);
-			renderer.render(
-				{ width: plan.width, height: plan.height },
-				resolved.videoLayers,
-				(layer) => frameProvider.getFrame(layer),
-				lastGoodFrames
-			);
-			await videoSource.add(timestamp / 1_000_000, plan.frameDuration / 1_000_000, {
-				keyFrame: frame % (plan.fps * 2) === 0
-			});
+			if (
+				canUsePlanar10Bit &&
+				renderer instanceof GlCompositor &&
+				videoSource instanceof VideoSampleSource
+			) {
+				const videoFrame = renderer.renderVideoFrame(
+					{ width: plan.width, height: plan.height },
+					resolved.videoLayers,
+					(layer: ActiveLayer) => frameProvider.getFrame(layer),
+					lastGoodFrames,
+					{
+						transparent: Boolean(settings.alpha),
+						dither: true,
+						bitDepth: 10,
+						matrix: settings.colorSpaceTag === 'rec2020' ? 'bt2020' : 'bt709',
+						range: settings.colorSpaceTag === 'rec2020' ? 'limited' : 'full',
+						frameIndex: frame,
+						timestampUs: Number(timestamp)
+					}
+				);
+				if (!videoFrame) {
+					throw new ExportError('ENCODE_FAILED', 'Failed to render 10-bit VideoFrame.');
+				}
+				const sample = new VideoSample(videoFrame, {
+					duration: plan.frameDuration / 1_000_000
+				});
+				try {
+					await videoSource.add(sample, {
+						keyFrame: frame % (plan.fps * 2) === 0
+					});
+				} finally {
+					sample.close();
+				}
+			} else {
+				renderer.render(
+					{ width: plan.width, height: plan.height },
+					resolved.videoLayers,
+					(layer) => frameProvider.getFrame(layer),
+					lastGoodFrames,
+					{
+						transparent: Boolean(settings.alpha),
+						dither: (settings.bitDepth ?? 8) > 8,
+						bitDepth: (settings.bitDepth ?? 8) > 8 ? 10 : 8,
+						frameIndex: frame
+					}
+				);
+				if (videoSource instanceof CanvasSource) {
+					await videoSource.add(timestamp / 1_000_000, plan.frameDuration / 1_000_000, {
+						keyFrame: frame % (plan.fps * 2) === 0
+					});
+				}
+			}
 
 			if (audioSource && frame === 0) {
 				const chunkTicks = 10_000_000;
@@ -497,7 +722,16 @@ async function tryWorkerExport(
 									copy.set(chunk);
 									return copy.buffer;
 								}),
-								{ type: settings.format === 'mp4' ? 'video/mp4' : 'video/webm' }
+								{
+									type:
+										settings.format === 'mp4'
+											? 'video/mp4'
+											: settings.format === 'mov'
+												? 'video/quicktime'
+												: settings.format === 'wav'
+													? 'audio/wav'
+													: 'video/webm'
+								}
 							);
 					emitProgress(options.onProgress, {
 						phase: 'complete',
@@ -638,11 +872,27 @@ export async function exportTimeline(
 	const snapshot = structuredClone(project);
 	let streaming: StreamingSaveTarget | null = null;
 	try {
+		const mimeType =
+			settings.format === 'mp4'
+				? 'video/mp4'
+				: settings.format === 'mov'
+					? 'video/quicktime'
+					: settings.format === 'wav'
+						? 'audio/wav'
+						: 'video/webm';
+		const description =
+			settings.format === 'mp4'
+				? 'MP4 video'
+				: settings.format === 'mov'
+					? 'QuickTime MOV'
+					: settings.format === 'wav'
+						? 'WAV audio'
+						: 'WebM video';
 		streaming = await createStreamingSaveTarget(settings.filename, [
 			{
-				description: settings.format === 'mp4' ? 'MP4 video' : 'WebM video',
+				description,
 				accept: {
-					[settings.format === 'mp4' ? 'video/mp4' : 'video/webm']: [`.${settings.format}`]
+					[mimeType]: [`.${settings.format}`]
 				}
 			}
 		]);

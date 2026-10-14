@@ -18,6 +18,8 @@ import { getParsedLut } from '../media/lutCache';
 import { BLIT_MASK_MIX_FRAG } from './passes/maskShaders';
 import type { EvaluatedMask } from '../../core/masks';
 
+import { ColorConversionPass } from './passes/ColorConversionPass';
+
 interface CachedTexture {
 	texture: WebGLTexture;
 	source: FrameSource | null;
@@ -35,8 +37,30 @@ export interface FrameRenderer {
 		layers: readonly ActiveLayer[],
 		frameProvider: FrameProvider,
 		lastGoodFrames?: LastGoodFrames,
-		options?: { playing?: boolean }
+		options?: {
+			playing?: boolean;
+			transparent?: boolean;
+			dither?: boolean;
+			bitDepth?: 8 | 10;
+			frameIndex?: number;
+		}
 	): boolean;
+	renderVideoFrame?(
+		size: CompositionSize,
+		layers: readonly ActiveLayer[],
+		frameProvider: FrameProvider,
+		lastGoodFrames: LastGoodFrames | undefined,
+		options: {
+			transparent?: boolean;
+			dither?: boolean;
+			bitDepth: 8 | 10;
+			matrix?: 'bt709' | 'bt2020';
+			range?: 'limited' | 'full';
+			frameIndex?: number;
+			timestampUs: number;
+		}
+	): VideoFrame | null;
+	isHighBitDepthSupported?(): boolean;
 	releaseUnused(liveKeys: ReadonlySet<string>): void;
 	dispose(): void;
 	enableScopes?(enabled: boolean): void;
@@ -90,13 +114,20 @@ export class GlCompositor implements FrameRenderer {
 	private scopesEnabled = false;
 	private lastScopeFrame: ScopeFrameData | null = null;
 	private lastScopeTime = 0;
+	private readonly highBitDepth: boolean;
+	private colorConversionPass: ColorConversionPass | null = null;
 
 	constructor(canvas: GlCanvas, options: RenderContextOptions = {}) {
+		this.highBitDepth = options.highBitDepth ?? false;
 		this.context = new RenderContext(canvas, {
 			...options,
 			onLost: () => {
 				this.fboPool.dispose();
 				this.passManager.dispose();
+				if (this.colorConversionPass) {
+					this.colorConversionPass.dispose();
+					this.colorConversionPass = null;
+				}
 				if (this.solidTexture) {
 					this.context.gl.deleteTexture(this.solidTexture);
 					this.solidTexture = null;
@@ -138,18 +169,28 @@ export class GlCompositor implements FrameRenderer {
 		return this.lastScopeFrame;
 	}
 
-	render(
+	private renderInternal(
 		size: CompositionSize,
 		layers: readonly ActiveLayer[],
 		frameProvider: FrameProvider,
 		lastGoodFrames: LastGoodFrames = new Map(),
-		options: { playing?: boolean } = {}
-	): boolean {
+		options: {
+			playing?: boolean;
+			transparent?: boolean;
+			dither?: boolean;
+			bitDepth?: 8 | 10;
+			frameIndex?: number;
+			matrix?: 'bt709' | 'bt2020';
+			range?: 'limited' | 'full';
+			timestampUs?: number;
+		} = {},
+		asVideoFrame = false
+	): boolean | VideoFrame | null {
 		if (![size.width, size.height].every((value) => Number.isSafeInteger(value) && value > 0)) {
 			throw new RangeError('Composition size must use positive integer dimensions.');
 		}
 		const { gl, program, stats } = this.context;
-		if (this.context.lost || !program || !this.vao) return false;
+		if (this.context.lost || !program || !this.vao) return asVideoFrame ? null : false;
 		const started = performance.now();
 		this.frameIndex += 1;
 		const canvas = this.context.canvas;
@@ -157,6 +198,8 @@ export class GlCompositor implements FrameRenderer {
 		if (canvas.height !== size.height) canvas.height = size.height;
 
 		const hasComplexPipeline =
+			this.highBitDepth ||
+			options.bitDepth === 10 ||
 			this.scopesEnabled ||
 			layers.some(
 				(layer) =>
@@ -168,11 +211,11 @@ export class GlCompositor implements FrameRenderer {
 					(layer.masks && layer.masks.some((m) => m.enabled))
 			);
 
-		if (!hasComplexPipeline) {
+		if (!hasComplexPipeline && !asVideoFrame) {
 			// Fast path: bit-identical direct rendering onto canvas
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 			gl.viewport(0, 0, size.width, size.height);
-			gl.clearColor(0, 0, 0, 1);
+			gl.clearColor(0, 0, 0, options.transparent ? 0 : 1);
 			gl.clear(gl.COLOR_BUFFER_BIT);
 			gl.useProgram(program.program);
 			if (program.targetIsCanvas) gl.uniform1i(program.targetIsCanvas, 1);
@@ -221,7 +264,7 @@ export class GlCompositor implements FrameRenderer {
 		}
 
 		// Accumulation path for effects and adjustment layers
-		let accumFbo = this.fboPool.acquire(size.width, size.height);
+		let accumFbo = this.fboPool.acquire(size.width, size.height, this.highBitDepth);
 		const frameNestedCache = new Map<string, PooledFbo>();
 		const frameFbosToRelease: PooledFbo[] = [];
 		gl.bindFramebuffer(gl.FRAMEBUFFER, accumFbo.framebuffer);
@@ -706,12 +749,54 @@ export class GlCompositor implements FrameRenderer {
 			}
 		}
 
+		if (asVideoFrame) {
+			if (!this.colorConversionPass) {
+				this.colorConversionPass = new ColorConversionPass(gl);
+			}
+			let videoFrame: VideoFrame | null = null;
+			try {
+				const planar = this.colorConversionPass.convertRgbToYuv420(
+					accumFbo.texture,
+					size.width,
+					size.height,
+					{
+						matrix: options.matrix ?? 'bt709',
+						range: options.range ?? 'limited',
+						bitDepth: options.bitDepth === 10 ? 10 : 8,
+						dither: Boolean(options.dither),
+						frameIndex: options.frameIndex ?? this.frameIndex
+					}
+				);
+				videoFrame = this.colorConversionPass.createPlanarVideoFrame(
+					planar,
+					options.timestampUs ?? 0
+				);
+			} finally {
+				this.fboPool.release(accumFbo);
+				for (const f of frameFbosToRelease) this.fboPool.release(f);
+				gl.bindVertexArray(null);
+				this.evict();
+			}
+
+			const elapsed = performance.now() - started;
+			stats.frames += 1;
+			stats.lastFrameMs = elapsed;
+			stats.maxFrameMs = Math.max(stats.maxFrameMs, elapsed);
+			stats.totalFrameMs += elapsed;
+			return videoFrame;
+		}
+
 		// Blit accumulated composite to canvas
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(0, 0, size.width, size.height);
-		gl.clearColor(0, 0, 0, 1);
+		gl.clearColor(0, 0, 0, options.transparent ? 0 : 1);
 		gl.clear(gl.COLOR_BUFFER_BIT);
-		this.passManager.blit(accumFbo.texture, null, size.width, size.height, 1.0);
+		this.passManager.blit(accumFbo.texture, null, size.width, size.height, 1.0, {
+			keepAlpha: Boolean(options.transparent),
+			dither: Boolean(options.dither || (this.highBitDepth && options.bitDepth === 10)),
+			bitDepth: options.bitDepth === 10 ? 10 : 8,
+			frameIndex: options.frameIndex ?? this.frameIndex
+		});
 		this.fboPool.release(accumFbo);
 		for (const f of frameFbosToRelease) this.fboPool.release(f);
 
@@ -723,6 +808,43 @@ export class GlCompositor implements FrameRenderer {
 		stats.maxFrameMs = Math.max(stats.maxFrameMs, elapsed);
 		stats.totalFrameMs += elapsed;
 		return true;
+	}
+
+	render(
+		size: CompositionSize,
+		layers: readonly ActiveLayer[],
+		frameProvider: FrameProvider,
+		lastGoodFrames: LastGoodFrames = new Map(),
+		options: {
+			playing?: boolean;
+			transparent?: boolean;
+			dither?: boolean;
+			bitDepth?: 8 | 10;
+			frameIndex?: number;
+		} = {}
+	): boolean {
+		return Boolean(
+			this.renderInternal(size, layers, frameProvider, lastGoodFrames, options, false)
+		);
+	}
+
+	renderVideoFrame(
+		size: CompositionSize,
+		layers: readonly ActiveLayer[],
+		frameProvider: FrameProvider,
+		lastGoodFrames: LastGoodFrames = new Map(),
+		options: {
+			transparent?: boolean;
+			dither?: boolean;
+			bitDepth: 8 | 10;
+			matrix?: 'bt709' | 'bt2020';
+			range?: 'limited' | 'full';
+			frameIndex?: number;
+			timestampUs: number;
+		}
+	): VideoFrame | null {
+		const res = this.renderInternal(size, layers, frameProvider, lastGoodFrames, options, true);
+		return res instanceof VideoFrame ? res : null;
 	}
 
 	private getSolidTexture(color: { r: number; g: number; b: number; a: number }): WebGLTexture {
@@ -1010,11 +1132,22 @@ export class GlCompositor implements FrameRenderer {
 		for (const f of fbosToRelease) this.fboPool.release(f);
 	}
 
+	isHighBitDepthSupported(): boolean {
+		const gl = this.context.gl;
+		return Boolean(
+			gl.getExtension('EXT_color_buffer_float') || gl.getExtension('WEBGL_color_buffer_float')
+		);
+	}
+
 	dispose(): void {
 		for (const [clipId, entry] of this.textures) this.deleteEntry(clipId, entry);
 		if (this.solidTexture && !this.context.lost) {
 			this.context.gl.deleteTexture(this.solidTexture);
 			this.solidTexture = null;
+		}
+		if (this.colorConversionPass) {
+			this.colorConversionPass.dispose();
+			this.colorConversionPass = null;
 		}
 		this.fboPool.dispose();
 		this.passManager.dispose();
@@ -1051,10 +1184,12 @@ export class Canvas2DRenderer implements FrameRenderer {
 		layers: readonly ActiveLayer[],
 		frameProvider: FrameProvider,
 		lastGoodFrames: LastGoodFrames = new Map(),
-		options: { playing?: boolean } = {}
+		options: { playing?: boolean; transparent?: boolean; dither?: boolean } = {}
 	): boolean {
 		const started = performance.now();
-		renderFrame(this.context, size, layers, frameProvider, lastGoodFrames);
+		renderFrame(this.context, size, layers, frameProvider, lastGoodFrames, {
+			transparent: options.transparent
+		});
 		const elapsed = performance.now() - started;
 		this.stats.frames += 1;
 		this.stats.lastFrameMs = elapsed;

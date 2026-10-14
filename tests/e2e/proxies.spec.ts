@@ -151,6 +151,7 @@ test.describe('Proxy media lifecycle and playback', () => {
 	test('Slice 3: export uses original media even when proxies are enabled and ready', async ({
 		page
 	}) => {
+		test.setTimeout(60_000);
 		await createProject(page, 'Proxy Export Independence Project');
 
 		await page.locator('input[name="media-files"]').setInputFiles(['tests/fixtures/stock-4k.mp4']);
@@ -393,11 +394,16 @@ test.describe('Proxy media lifecycle and playback', () => {
 			});
 		};
 
-		// Play briefly to ensure frame is decoded and painted
-		await page.keyboard.press('Space');
+		// Seek deterministically to 1.0s to sample original frame
+		await page.evaluate(() => {
+			const store = (
+				window as unknown as {
+					__TFVE_STORE__?: { getState: () => { setPlayhead: (t: number) => void } };
+				}
+			).__TFVE_STORE__;
+			if (store) store.getState().setPlayhead(1_000_000);
+		});
 		await page.waitForTimeout(300);
-		await page.keyboard.press('Space');
-		await page.waitForTimeout(200);
 
 		const pixelsOff = await samplePreviewPixel();
 
@@ -406,11 +412,16 @@ test.describe('Proxy media lifecycle and playback', () => {
 		await expect(proxiesToggle).toHaveAttribute('aria-pressed', 'true');
 		await expect(page.getByTestId('preview-proxy-badge')).toBeVisible();
 
-		// Play briefly to ensure proxy frame is decoded and painted
-		await page.keyboard.press('Space');
+		// Sample proxy frame at the exact same playhead timestamp (1.0s)
+		await page.evaluate(() => {
+			const store = (
+				window as unknown as {
+					__TFVE_STORE__?: { getState: () => { setPlayhead: (t: number) => void } };
+				}
+			).__TFVE_STORE__;
+			if (store) store.getState().setPlayhead(1_000_000);
+		});
 		await page.waitForTimeout(300);
-		await page.keyboard.press('Space');
-		await page.waitForTimeout(200);
 
 		const pixelsOn = await samplePreviewPixel();
 

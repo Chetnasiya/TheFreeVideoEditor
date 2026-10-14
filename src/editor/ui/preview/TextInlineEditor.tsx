@@ -75,7 +75,8 @@ export default function TextInlineEditor({
 	let transformTranslate = 'translate(-50%, -50%)';
 	if (isAutoSize) {
 		const translateX = alignment === 'left' ? '0%' : alignment === 'right' ? '-100%' : '-50%';
-		const translateY = verticalAnchor === 'top' ? '0%' : verticalAnchor === 'bottom' ? '-100%' : '-50%';
+		const translateY =
+			verticalAnchor === 'top' ? '0%' : verticalAnchor === 'bottom' ? '-100%' : '-50%';
 		transformTranslate = `translate(${translateX}, ${translateY})`;
 	}
 

@@ -106,12 +106,24 @@ export default function TransportBar({
 						onClick={() => engine?.toggle()}
 					>
 						{snapshot?.playing ? (
-							<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 16 16"
+								fill="currentColor"
+								aria-hidden="true"
+							>
 								<rect x="3" y="3" width="3.5" height="10" rx="0.8" />
 								<rect x="9.5" y="3" width="3.5" height="10" rx="0.8" />
 							</svg>
 						) : (
-							<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 16 16"
+								fill="currentColor"
+								aria-hidden="true"
+							>
 								<polygon points="4,2.5 13.5,8 4,13.5" />
 							</svg>
 						)}
@@ -160,7 +172,17 @@ export default function TransportBar({
 						disabled={disabled}
 						onClick={() => engine?.setLoop(!snapshot?.looping)}
 					>
-						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2.2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							aria-hidden="true"
+						>
 							<polyline points="17 1 21 5 17 9" />
 							<path d="M3 11V9a4 4 0 0 1 4-4h14" />
 							<polyline points="7 23 3 19 7 15" />

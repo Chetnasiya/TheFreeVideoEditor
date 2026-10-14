@@ -204,4 +204,3 @@ describe('core/transitions', () => {
 		expect(isTransitionsEnabled('?labs=transitions')).toBe(true);
 	});
 });
-

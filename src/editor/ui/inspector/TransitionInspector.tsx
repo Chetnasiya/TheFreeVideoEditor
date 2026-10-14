@@ -185,12 +185,8 @@ export function TransitionInspector({ transition, track, project }: TransitionIn
 				</div>
 
 				<div className="inspector-clip-badges">
-					<span className="timeline-counter-badge">
-						Track: {track.name}
-					</span>
-					<span className="timeline-counter-badge">
-						{durationSecStr}s
-					</span>
+					<span className="timeline-counter-badge">Track: {track.name}</span>
+					<span className="timeline-counter-badge">{durationSecStr}s</span>
 					<span className="timeline-counter-badge" style={{ textTransform: 'capitalize' }}>
 						{transition.alignment}
 					</span>
@@ -333,9 +329,7 @@ export function TransitionInspector({ transition, track, project }: TransitionIn
 								}}
 							>
 								<span style={{ fontSize: '12px', flexShrink: 0 }}>⚠️</span>
-								<span>
-									Insufficient media handles! Frames beyond the cut may freeze or hold.
-								</span>
+								<span>Insufficient media handles! Frames beyond the cut may freeze or hold.</span>
 							</div>
 						)}
 
@@ -407,9 +401,7 @@ export function TransitionInspector({ transition, track, project }: TransitionIn
 													max={schema.max}
 													step={schema.step}
 													value={Number(val)}
-													onChange={(e) =>
-														handleParamChange(paramName, parseFloat(e.target.value))
-													}
+													onChange={(e) => handleParamChange(paramName, parseFloat(e.target.value))}
 												/>
 											</div>
 										</div>

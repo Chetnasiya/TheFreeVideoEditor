@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyAffine, layerAffine } from './layerGeometry';
+import type { ActiveLayer } from './playback';
 
 describe('layerAffine', () => {
 	it('is the identity fit when the source matches the composition', () => {
@@ -78,7 +79,7 @@ describe('layerAffine', () => {
 					text: 'Hi',
 					style: { fontFamily: 'sans-serif', alignment: 'left' },
 					box: { autoSize: true }
-				} as any
+				} as unknown as NonNullable<ActiveLayer['textData']>
 			},
 			200,
 			100,
@@ -97,7 +98,7 @@ describe('layerAffine', () => {
 					text: 'Hi',
 					style: { fontFamily: 'sans-serif', alignment: 'right' },
 					box: { autoSize: true }
-				} as any
+				} as unknown as NonNullable<ActiveLayer['textData']>
 			},
 			200,
 			100,
@@ -118,7 +119,7 @@ describe('layerAffine', () => {
 					text: 'Hi',
 					style: { fontFamily: 'sans-serif', alignment: 'center' },
 					box: { autoSize: true, verticalAnchor: 'top' }
-				} as any
+				} as unknown as NonNullable<ActiveLayer['textData']>
 			},
 			200,
 			100,
@@ -137,7 +138,7 @@ describe('layerAffine', () => {
 					text: 'Hi',
 					style: { fontFamily: 'sans-serif', alignment: 'center' },
 					box: { autoSize: true, verticalAnchor: 'bottom' }
-				} as any
+				} as unknown as NonNullable<ActiveLayer['textData']>
 			},
 			200,
 			100,

@@ -2518,12 +2518,15 @@ export function createEditorStore() {
 					if (!drag || !project) return;
 					const activeSeqId = get().activeSequenceId;
 					const activeView = viewProject(project, activeSeqId);
-					let targetTrackId = 'targetTrackId' in options ? options.targetTrackId : drag.targetTrackId;
+					let targetTrackId =
+						'targetTrackId' in options ? options.targetTrackId : drag.targetTrackId;
 					const createTrackKind =
-						'createTrackKind' in options
-							? options.createTrackKind
-							: drag.createTrackKind;
-					if (!createTrackKind && targetTrackId && !activeView.tracks.some((t) => t.id === targetTrackId)) {
+						'createTrackKind' in options ? options.createTrackKind : drag.createTrackKind;
+					if (
+						!createTrackKind &&
+						targetTrackId &&
+						!activeView.tracks.some((t) => t.id === targetTrackId)
+					) {
 						targetTrackId = undefined;
 					}
 					const unlink = options.unlink ?? drag.unlink;
@@ -2658,7 +2661,9 @@ export function createEditorStore() {
 						drag.kind === 'move' &&
 						delta === 0 &&
 						!drag.createTrackKind &&
-						(!drag.targetTrackId || !originalAnchor || drag.targetTrackId === originalAnchor.trackId);
+						(!drag.targetTrackId ||
+							!originalAnchor ||
+							drag.targetTrackId === originalAnchor.trackId);
 					const unchangedTrimOrSlip =
 						(drag.kind === 'trim-start' || drag.kind === 'trim-end' || drag.kind === 'slip') &&
 						delta === 0;
@@ -2686,7 +2691,11 @@ export function createEditorStore() {
 								applyToSequence(project, activeSeqId, (view) => {
 									let currentView = view;
 									let actualTargetTrackId = drag.targetTrackId;
-									if (!drag.createTrackKind && actualTargetTrackId && !view.tracks.some((t) => t.id === actualTargetTrackId)) {
+									if (
+										!drag.createTrackKind &&
+										actualTargetTrackId &&
+										!view.tracks.some((t) => t.id === actualTargetTrackId)
+									) {
 										actualTargetTrackId = undefined;
 									}
 									if (drag.createTrackKind) {
@@ -6595,7 +6604,9 @@ export function createEditorStore() {
 											if (c.id !== clipId || !c.trackers) return c;
 											return {
 												...c,
-												trackers: c.trackers.map((t) => (t.id === trackerId ? { ...t, ...patch } : t))
+												trackers: c.trackers.map((t) =>
+													t.id === trackerId ? { ...t, ...patch } : t
+												)
 											};
 										})
 									}))

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createPlaybackEngine } from './engine';
 import { createEmptyProject } from '../../core/factory';
 import type { EditorStore } from '../../state/store';

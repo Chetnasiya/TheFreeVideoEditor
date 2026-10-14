@@ -986,6 +986,38 @@ export default function MediaLibrary() {
 												{timecode(asset, project.settings.fps)}
 												{asset.width && asset.height && ` · ${asset.width} × ${asset.height}`}
 												{asset.fps && ` · ${asset.fps}${asset.fpsEstimated ? ' fps*' : ' fps'}`}
+												{asset.bitDepth && asset.bitDepth > 8 ? (
+													<span
+														className="media-chip is-badge is-10bit"
+														title={`${asset.bitDepth}-bit color depth`}
+													>
+														{asset.bitDepth}b
+													</span>
+												) : null}
+												{asset.isHdr ? (
+													<span
+														className="media-chip is-badge is-hdr"
+														title="High Dynamic Range (HDR) content"
+													>
+														HDR
+													</span>
+												) : null}
+												{asset.isVfr ? (
+													<span
+														className="media-chip is-badge is-warning"
+														title="Variable Frame Rate (VFR) detected: timing may drift; proxy recommended"
+													>
+														VFR
+													</span>
+												) : null}
+												{asset.isInterlaced ? (
+													<span
+														className="media-chip is-badge is-warning"
+														title="Interlaced video detected: field deinterlacing recommended"
+													>
+														INT
+													</span>
+												) : null}
 											</span>
 											<div className="media-status-line">
 												{asset.offline ? (
@@ -1012,6 +1044,13 @@ export default function MediaLibrary() {
 															Retry
 														</button>
 													</>
+												) : asset.kind === 'video' && asset.videoDecodable === false ? (
+													<span
+														className="media-chip is-failed"
+														title={`Unsupported video codec: ${asset.videoCodec ?? 'unknown'}. Platform WebCodecs cannot decode this format directly.`}
+													>
+														Unsupported Codec ({asset.videoCodec ?? 'unknown'})
+													</span>
 												) : asset.kind === 'video' && asset.audioChecked === false ? (
 													<span
 														className="media-chip is-failed"

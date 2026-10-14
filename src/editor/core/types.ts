@@ -21,6 +21,32 @@ export interface ProjectSettings {
 
 export type AssetKind = 'video' | 'audio' | 'image' | 'lut' | 'font';
 
+export interface AssetVideoMetadata {
+	width?: number;
+	height?: number;
+	fps?: number;
+	fpsEstimated?: boolean;
+	codec?: string;
+	decodable?: boolean;
+	bitDepth?: number;
+	colorSpace?: VideoColorSpaceInit;
+	isHdr?: boolean;
+	isInterlaced?: boolean;
+	isVfr?: boolean;
+	transfer?: string;
+	primaries?: string;
+	matrix?: string;
+	fullRange?: boolean;
+}
+
+export interface AssetAudioMetadata {
+	sampleRate?: number;
+	channels?: number;
+	codec?: string;
+	decodable?: boolean;
+	bitDepth?: number;
+}
+
 export interface Asset {
 	id: AssetId;
 	kind: AssetKind;
@@ -41,6 +67,15 @@ export interface Asset {
 	opfsPath: string;
 	offline?: boolean;
 	proxy?: ProxyInfo;
+	// Professional Codecs Expanded Metadata (Slice 1)
+	bitDepth?: number;
+	colorSpace?: VideoColorSpaceInit;
+	isHdr?: boolean;
+	isInterlaced?: boolean;
+	isVfr?: boolean;
+	transfer?: string;
+	video?: AssetVideoMetadata;
+	audio?: AssetAudioMetadata;
 }
 
 export type Interpolation = 'linear' | 'hold' | 'bezier';

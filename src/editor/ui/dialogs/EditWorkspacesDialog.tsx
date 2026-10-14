@@ -134,18 +134,19 @@ export default function EditWorkspacesDialog({ isOpen, onClose }: EditWorkspaces
 										alignItems: 'center',
 										justifyContent: 'space-between',
 										padding: '8px 12px',
-										background: isActive
-											? 'rgba(56, 189, 248, 0.12)'
-											: '#161620',
-										border: isActive
-											? '1px solid rgba(56, 189, 248, 0.35)'
-											: '1px solid #242432',
+										background: isActive ? 'rgba(56, 189, 248, 0.12)' : '#161620',
+										border: isActive ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid #242432',
 										borderRadius: '6px'
 									}}
 								>
 									<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
 										<span
-											style={{ fontSize: '11px', color: '#64748b', width: '16px', fontFamily: 'var(--font-mono)' }}
+											style={{
+												fontSize: '11px',
+												color: '#64748b',
+												width: '16px',
+												fontFamily: 'var(--font-mono)'
+											}}
 										>
 											{index + 1}
 										</span>

@@ -26,6 +26,9 @@ export interface LayerProgram {
 
 export interface RenderContextOptions {
 	preserveDrawingBuffer?: boolean;
+	alpha?: boolean;
+	colorSpace?: PredefinedColorSpace;
+	highBitDepth?: boolean;
 	onLost?: () => void;
 	onRestored?: () => void;
 }
@@ -86,7 +89,7 @@ export class RenderContext {
 		private readonly options: RenderContextOptions = {}
 	) {
 		const gl = canvas.getContext('webgl2', {
-			alpha: false,
+			alpha: options.alpha ?? false,
 			antialias: false,
 			depth: false,
 			stencil: false,
@@ -97,6 +100,14 @@ export class RenderContext {
 		if (!gl) throw new Error('WebGL2 is unavailable.');
 		this.gl = gl as WebGL2RenderingContext;
 		this.gl.getExtension('OES_texture_float_linear');
+		this.gl.getExtension('EXT_color_buffer_float');
+		if (options.colorSpace && 'drawingBufferColorSpace' in this.gl) {
+			try {
+				(
+					this.gl as unknown as { drawingBufferColorSpace: PredefinedColorSpace }
+				).drawingBufferColorSpace = options.colorSpace;
+			} catch {}
+		}
 		const debugInfo = this.gl.getExtension('WEBGL_debug_renderer_info');
 		this.stats.gpuRenderer = debugInfo
 			? String(this.gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))

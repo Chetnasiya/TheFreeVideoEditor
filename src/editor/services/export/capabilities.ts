@@ -48,19 +48,52 @@ export function clearExportCapabilityCache(): void {
 }
 
 export async function getExportCapabilities(
-	settings: Pick<ExportSettings, 'format' | 'width' | 'height' | 'fps' | 'audio'>,
+	settings: Pick<ExportSettings, 'format' | 'width' | 'height' | 'fps' | 'audio'> & {
+		codecId?: string;
+		audioCodecId?: string;
+	},
 	probe: EncoderProbe = DEFAULT_PROBE
 ): Promise<EncoderSupport> {
-	const key = `${settings.format}:${settings.width}x${settings.height}@${settings.fps}:${settings.audio}`;
+	const key = `${settings.format}:${settings.codecId ?? ''}:${settings.width}x${settings.height}@${settings.fps}:${settings.audio}:${settings.audioCodecId ?? ''}`;
 	if (probe === DEFAULT_PROBE) {
 		const cached = cache.get(key);
 		if (cached) return cached;
 	}
 	const request = (async () => {
-		const candidates =
-			settings.format === 'mp4'
-				? ['avc1.42001f', 'avc1.4d001f', 'avc1.640028']
-				: ['vp09.00.10.08', 'av01.0.04M.08', 'vp8'];
+		if (settings.format === 'wav') {
+			return {
+				video: true,
+				audio: true,
+				reason: '',
+				compatibility: true
+			};
+		}
+
+		let candidates: string[] = [];
+		if (settings.format === 'mp4') {
+			if (settings.codecId?.includes('hevc')) {
+				candidates = ['hvc1.1.6.L120.B0', 'hev1.1.6.L120.B0'];
+			} else if (settings.codecId?.includes('av1')) {
+				candidates = ['av01.0.08M.10', 'av01.0.04M.08'];
+			} else {
+				candidates = ['avc1.640033', 'avc1.640028', 'avc1.4d001f', 'avc1.42001f'];
+			}
+		} else if (settings.format === 'mov') {
+			if (settings.codecId?.includes('hevc')) {
+				candidates = ['hvc1.1.6.L120.B0', 'hev1.1.6.L120.B0'];
+			} else {
+				candidates = ['avc1.640033', 'avc1.640028', 'avc1.4d001f'];
+			}
+		} else {
+			if (settings.codecId?.includes('av1')) {
+				candidates = ['av01.0.08M.10', 'av01.0.04M.08'];
+			} else if (settings.codecId?.includes('profile2') || settings.codecId?.includes('10bit')) {
+				candidates = ['vp09.02.10.10', 'vp09.02.41.10'];
+			} else {
+				candidates = ['vp09.00.10.08', 'vp09.00.41.08', 'vp8'];
+			}
+		}
+
 		let codec: string | undefined;
 		for (const candidate of candidates) {
 			if (
@@ -76,25 +109,38 @@ export async function getExportCapabilities(
 				break;
 			}
 		}
-		const audioCodec = settings.format === 'mp4' ? 'mp4a.40.2' : 'opus';
+
+		const isPcmAudio = settings.audioCodecId?.startsWith('pcm');
+		const audioCodec =
+			settings.format === 'mp4'
+				? 'mp4a.40.2'
+				: settings.format === 'mov'
+					? isPcmAudio
+						? 'pcm'
+						: 'mp4a.40.2'
+					: 'opus';
+
 		const audio =
 			!settings.audio ||
+			isPcmAudio ||
 			(await probe.isAudioConfigSupported({
 				codec: audioCodec,
 				sampleRate: 48_000,
 				numberOfChannels: 2,
 				bitrate: 192_000
 			}));
+
 		const compatibility = [
 			'video/webm;codecs=vp8,opus',
 			'video/webm;codecs=vp9,opus',
 			'video/webm'
 		].some((mimeType) => probe.mediaRecorderSupports(mimeType));
+
 		let reason = '';
 		if (!codec) reason = 'This browser cannot encode the selected video format with WebCodecs.';
-		else if (!audio && settings.format === 'mp4') {
+		else if (!audio && (settings.format === 'mp4' || settings.format === 'mov')) {
 			reason =
-				'AAC encoding is unavailable in this browser; choose WebM with Opus to include audio.';
+				'AAC encoding is unavailable in this browser; choose WebM with Opus or PCM audio to include audio.';
 		} else if (!audio)
 			reason = 'Opus encoding is unavailable; disable audio or use another browser.';
 		return {

@@ -159,7 +159,13 @@ export class ShaderPassManager {
 		targetFbo: WebGLFramebuffer | null,
 		width: number,
 		height: number,
-		opacity = 1.0
+		opacity = 1.0,
+		options: {
+			keepAlpha?: boolean;
+			dither?: boolean;
+			bitDepth?: 8 | 10;
+			frameIndex?: number;
+		} = {}
 	): void {
 		const gl = this.gl;
 		const program = this.getProgram('blit', BLIT_FRAG);
@@ -168,6 +174,14 @@ export class ShaderPassManager {
 		gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
 		gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
 		gl.uniform1f(gl.getUniformLocation(program, 'u_opacity'), opacity);
+		const keepAlphaLoc = gl.getUniformLocation(program, 'u_keepAlpha');
+		if (keepAlphaLoc !== null) gl.uniform1i(keepAlphaLoc, options.keepAlpha ? 1 : 0);
+		const ditherLoc = gl.getUniformLocation(program, 'u_dither');
+		if (ditherLoc !== null) gl.uniform1i(ditherLoc, options.dither ? 1 : 0);
+		const bitDepthLoc = gl.getUniformLocation(program, 'u_bitDepth');
+		if (bitDepthLoc !== null) gl.uniform1i(bitDepthLoc, options.bitDepth === 10 ? 10 : 8);
+		const frameIndexLoc = gl.getUniformLocation(program, 'u_frameIndex');
+		if (frameIndexLoc !== null) gl.uniform1ui(frameIndexLoc, (options.frameIndex ?? 0) >>> 0);
 		this.renderQuad(program, targetFbo, width, height, sourceTexture);
 	}
 

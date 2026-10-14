@@ -143,4 +143,3 @@ describe('frame compositor', () => {
 		expect(operations).toContain('restore');
 	});
 });
-

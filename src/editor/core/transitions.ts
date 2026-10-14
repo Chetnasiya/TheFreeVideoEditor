@@ -15,7 +15,11 @@ export function isTransitionsEnabled(search?: string): boolean {
 	const labs = params.get('labs');
 	if (labs) {
 		const items = labs.split(',');
-		if (items.includes('no-transitions') || items.includes('-transitions') || items.includes('off')) {
+		if (
+			items.includes('no-transitions') ||
+			items.includes('-transitions') ||
+			items.includes('off')
+		) {
 			return false;
 		}
 	}

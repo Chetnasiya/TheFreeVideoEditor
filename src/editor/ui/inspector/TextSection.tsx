@@ -166,7 +166,7 @@ export function TextSection({
 				<div className="property-header">
 					<span className="property-label">Animation</span>
 				</div>
-				<div className="flex w-full gap-1.5 items-center">
+				<div className="flex w-full items-center gap-1.5">
 					<select
 						className="text-select flex-1"
 						onChange={(e) => {
@@ -237,7 +237,10 @@ export function TextSection({
 							strokeWidth="2.5"
 							strokeLinecap="round"
 							strokeLinejoin="round"
-							style={{ transform: fontPickerOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
+							style={{
+								transform: fontPickerOpen ? 'rotate(180deg)' : 'none',
+								transition: 'transform 0.15s ease'
+							}}
 							aria-hidden="true"
 						>
 							<polyline points="6 9 12 15 18 9" />
@@ -277,7 +280,7 @@ export function TextSection({
 										onClick={() => handleFontSelect(font.family)}
 									>
 										<span style={{ fontFamily: font.family }}>{font.displayName}</span>
-										<span className="text-[9px] font-mono text-[#64748b] bg-[#1a1a24] px-1.5 py-0.5 rounded border border-[#242430]">
+										<span className="rounded border border-[#242430] bg-[#1a1a24] px-1.5 py-0.5 font-mono text-[9px] text-[#64748b]">
 											{font.category}
 										</span>
 									</button>
@@ -290,7 +293,7 @@ export function TextSection({
 
 			{/* Font Weight & Style */}
 			<div className="flex gap-2">
-				<div className="flex-1 property-row">
+				<div className="property-row flex-1">
 					<div className="property-header">
 						<span className="property-label">Weight</span>
 					</div>
@@ -308,7 +311,7 @@ export function TextSection({
 						<option value="900">Black (900)</option>
 					</select>
 				</div>
-				<div className="flex-1 property-row">
+				<div className="property-row flex-1">
 					<div className="property-header">
 						<span className="property-label">Style</span>
 					</div>
@@ -341,7 +344,15 @@ export function TextSection({
 								aria-pressed={isActive}
 							>
 								{align === 'left' && (
-									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+									<svg
+										width="13"
+										height="13"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.2"
+										strokeLinecap="round"
+									>
 										<line x1="17" y1="10" x2="3" y2="10" />
 										<line x1="21" y1="6" x2="3" y2="6" />
 										<line x1="21" y1="14" x2="3" y2="14" />
@@ -349,7 +360,15 @@ export function TextSection({
 									</svg>
 								)}
 								{align === 'center' && (
-									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+									<svg
+										width="13"
+										height="13"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.2"
+										strokeLinecap="round"
+									>
 										<line x1="18" y1="10" x2="6" y2="10" />
 										<line x1="21" y1="6" x2="3" y2="6" />
 										<line x1="21" y1="14" x2="3" y2="14" />
@@ -357,7 +376,15 @@ export function TextSection({
 									</svg>
 								)}
 								{align === 'right' && (
-									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+									<svg
+										width="13"
+										height="13"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.2"
+										strokeLinecap="round"
+									>
 										<line x1="21" y1="10" x2="7" y2="10" />
 										<line x1="21" y1="6" x2="3" y2="6" />
 										<line x1="21" y1="14" x2="3" y2="14" />
@@ -383,7 +410,15 @@ export function TextSection({
 						onClick={() => handleBoxModeChange('auto')}
 						aria-pressed={textBox?.autoSize !== false}
 					>
-						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+						>
 							<polyline points="4 14 10 14 10 20" />
 							<polyline points="20 10 14 10 14 4" />
 							<line x1="14" y1="10" x2="21" y2="3" />
@@ -397,7 +432,15 @@ export function TextSection({
 						onClick={() => handleBoxModeChange('fixed')}
 						aria-pressed={textBox?.autoSize === false}
 					>
-						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+						>
 							<rect x="3" y="3" width="18" height="18" rx="2" />
 							<line x1="9" y1="12" x2="15" y2="12" />
 						</svg>
@@ -408,7 +451,7 @@ export function TextSection({
 
 			{textBox?.autoSize === false && (
 				<div className="flex gap-2">
-					<div className="flex-1 property-row">
+					<div className="property-row flex-1">
 						<div className="property-header">
 							<span className="property-label">Width (px)</span>
 						</div>
@@ -421,7 +464,7 @@ export function TextSection({
 							onChange={handleBoxWidthChange}
 						/>
 					</div>
-					<div className="flex-1 property-row">
+					<div className="property-row flex-1">
 						<div className="property-header">
 							<span className="property-label">Height (px)</span>
 						</div>
@@ -455,19 +498,43 @@ export function TextSection({
 								aria-pressed={isActive}
 							>
 								{anchor === 'top' && (
-									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+									<svg
+										width="13"
+										height="13"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+									>
 										<line x1="4" y1="4" x2="20" y2="4" />
 										<rect x="7" y="8" width="10" height="12" rx="1" />
 									</svg>
 								)}
 								{anchor === 'center' && (
-									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+									<svg
+										width="13"
+										height="13"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+									>
 										<line x1="4" y1="12" x2="20" y2="12" />
 										<rect x="7" y="6" width="10" height="12" rx="1" />
 									</svg>
 								)}
 								{anchor === 'bottom' && (
-									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+									<svg
+										width="13"
+										height="13"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+									>
 										<line x1="4" y1="20" x2="20" y2="20" />
 										<rect x="7" y="4" width="10" height="12" rx="1" />
 									</svg>
@@ -484,15 +551,28 @@ export function TextSection({
 				<div className="property-header">
 					<span className="property-label">Align to Video</span>
 				</div>
-				<div className="flex flex-col gap-1.5 w-full">
-					<div className="segmented-pill-group" role="group" aria-label="Horizontal Frame Alignment">
+				<div className="flex w-full flex-col gap-1.5">
+					<div
+						className="segmented-pill-group"
+						role="group"
+						aria-label="Horizontal Frame Alignment"
+					>
 						<button
 							type="button"
 							className="segmented-pill-btn"
 							onClick={() => handleAlignToFrame('left', null)}
 							title="Align Left of Video Frame"
+							aria-label="Snap to Frame Start"
 						>
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+							>
 								<line x1="4" y1="4" x2="4" y2="20" />
 								<rect x="8" y="7" width="12" height="10" rx="1" />
 							</svg>
@@ -503,8 +583,17 @@ export function TextSection({
 							className="segmented-pill-btn"
 							onClick={() => handleAlignToFrame('center', null)}
 							title="Center Horizontally in Video Frame"
+							aria-label="Center in Frame"
 						>
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+							>
 								<line x1="12" y1="4" x2="12" y2="20" />
 								<rect x="6" y="7" width="12" height="10" rx="1" />
 							</svg>
@@ -515,8 +604,17 @@ export function TextSection({
 							className="segmented-pill-btn"
 							onClick={() => handleAlignToFrame('right', null)}
 							title="Align Right of Video Frame"
+							aria-label="Snap to Frame End"
 						>
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+							>
 								<line x1="20" y1="4" x2="20" y2="20" />
 								<rect x="4" y="7" width="12" height="10" rx="1" />
 							</svg>
@@ -530,7 +628,15 @@ export function TextSection({
 							onClick={() => handleAlignToFrame(null, 'top')}
 							title="Align Top of Video Frame"
 						>
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+							>
 								<line x1="4" y1="4" x2="20" y2="4" />
 								<rect x="7" y="8" width="10" height="12" rx="1" />
 							</svg>
@@ -542,7 +648,15 @@ export function TextSection({
 							onClick={() => handleAlignToFrame(null, 'center')}
 							title="Center Vertically in Video Frame"
 						>
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+							>
 								<line x1="4" y1="12" x2="20" y2="12" />
 								<rect x="7" y="6" width="10" height="12" rx="1" />
 							</svg>
@@ -554,7 +668,15 @@ export function TextSection({
 							onClick={() => handleAlignToFrame(null, 'bottom')}
 							title="Align Bottom of Video Frame"
 						>
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+							>
 								<line x1="4" y1="20" x2="20" y2="20" />
 								<rect x="7" y="4" width="10" height="12" rx="1" />
 							</svg>
@@ -568,8 +690,7 @@ export function TextSection({
 			<div className="text-divider">
 				<span className="text-divider-title">Styling & Layout</span>
 				<div className="timeline-counter-badge" style={{ margin: 0 }}>
-					<span className="timeline-badge-dot" aria-hidden="true" />
-					7 channels
+					<span className="timeline-badge-dot" aria-hidden="true" />7 channels
 				</div>
 			</div>
 

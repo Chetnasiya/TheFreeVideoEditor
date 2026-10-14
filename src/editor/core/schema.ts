@@ -404,6 +404,15 @@ export const projectMasterSchema = z.object({
 	automationMode: automationModeSchema.optional()
 });
 
+export const videoColorSpaceSchema = z
+	.object({
+		primaries: z.string().nullable().optional(),
+		transfer: z.string().nullable().optional(),
+		matrix: z.string().nullable().optional(),
+		fullRange: z.boolean().nullable().optional()
+	})
+	.catchall(z.unknown()) as unknown as z.ZodType<VideoColorSpaceInit>;
+
 export const assetSchema = z.object({
 	id: assetIdSchema,
 	kind: z.enum(['video', 'audio', 'image', 'lut', 'font']),
@@ -423,7 +432,41 @@ export const assetSchema = z.object({
 	videoCodec: z.string().min(1).optional(),
 	opfsPath: z.string(),
 	offline: z.boolean().optional(),
-	proxy: proxyInfoSchema.optional()
+	proxy: proxyInfoSchema.optional(),
+	bitDepth: z.number().int().positive().optional(),
+	colorSpace: videoColorSpaceSchema.optional(),
+	isHdr: z.boolean().optional(),
+	isInterlaced: z.boolean().optional(),
+	isVfr: z.boolean().optional(),
+	transfer: z.string().optional(),
+	video: z
+		.object({
+			width: z.number().int().positive().optional(),
+			height: z.number().int().positive().optional(),
+			fps: z.number().positive().optional(),
+			fpsEstimated: z.boolean().optional(),
+			codec: z.string().optional(),
+			decodable: z.boolean().optional(),
+			bitDepth: z.number().int().positive().optional(),
+			colorSpace: videoColorSpaceSchema.optional(),
+			isHdr: z.boolean().optional(),
+			isInterlaced: z.boolean().optional(),
+			isVfr: z.boolean().optional(),
+			transfer: z.string().optional(),
+			primaries: z.string().optional(),
+			matrix: z.string().optional(),
+			fullRange: z.boolean().optional()
+		})
+		.optional(),
+	audio: z
+		.object({
+			sampleRate: z.number().int().positive().optional(),
+			channels: z.number().int().positive().optional(),
+			codec: z.string().optional(),
+			decodable: z.boolean().optional(),
+			bitDepth: z.number().int().positive().optional()
+		})
+		.optional()
 });
 
 export const captionWordSchema = z.object({

@@ -58,6 +58,24 @@ export default defineConfig({
 				)
 			}
 		},
+		optimizeDeps: {
+			include: [
+				'react',
+				'react/jsx-runtime',
+				'react/jsx-dev-runtime',
+				'react-dom',
+				'react-dom/client',
+				'mediabunny',
+				'zustand',
+				'zustand/middleware/immer',
+				'zustand/vanilla',
+				'immer',
+				'idb',
+				'zod',
+				'fflate',
+				'@huggingface/transformers'
+			]
+		},
 		build: {
 			chunkSizeWarningLimit: 2500
 		}

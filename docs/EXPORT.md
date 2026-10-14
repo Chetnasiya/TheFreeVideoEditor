@@ -102,3 +102,28 @@ Worker thread so the main application bundle chunk size remains lean and unaffec
 
 1. **Burn-in Video Subtitles**: When a caption track is not hidden (`hidden !== true`), caption segments are resolved into active text layers and baked directly into exported MP4 and WebM video frames using the Canvas2D/WebGL2 render pipeline.
 2. **Sidecar Subtitle Files**: The Export dialog offers `.srt` (SubRip) and `.vtt` (WebVTT) export buttons that format caption cues with proper timecodes (`HH:MM:SS,mmm` and `HH:MM:SS.mmm`), cue indices, and speaker prefixes without requiring video rendering.
+
+## Professional Codecs Pipeline (Tiers 1, 2, and 3)
+
+The Free Video Editor supports professional broadcast and editing formats:
+
+### Tier 1 — Platform WebCodecs & Uncompressed Audio
+- **H.264 / AVC High Profile**: `avc1.640033` up to Level 5.1 in MP4 and QuickTime MOV.
+- **HEVC / H.265 Main & Main 10**: `hvc1.1.6.L120.B0` (8-bit) and `hvc1.2.4.L120.B0` (10-bit) in MP4 and QuickTime MOV where supported by hardware.
+- **VP9 Profile 0 & Profile 2**: `vp09.00.41.08` (8-bit) and `vp09.02.41.10` (10-bit master) in WebM with alpha channel preservation.
+- **AV1 Main**: `av01.0.08M.08` in MP4 and WebM for state-of-the-art compression.
+- **Linear PCM Audio**: Lossless 16-bit (`pcm-s16`), 24-bit studio master (`pcm-s24`), and 32-bit floating point (`pcm-f32`) in WAV and QuickTime MOV.
+- **Audio-Only WAV Export**: Zero-video overhead WAV audio pipeline directly streaming uncompressed PCM audio chunks to disk.
+
+### Tier 2 — Optional Advanced Codec Pack (WASM)
+- **Codecs**: Apple ProRes (Proxy, LT, 422, 422 HQ, 4444 with alpha) and Avid DNxHD/DNxHR (SMPTE VC-3); MPEG-2 4:2:2 and FFV1 archival ingest; MXF and MPEG-TS demuxing.
+- **UX Pattern**: Follows the Captions consent + download + manager model (lazy download, client-side execution, offline-ready).
+- **Compliance & Licensing**: Built strictly from LGPL-2.1-or-later libraries (`libavcodec`, `libavformat`, `libswscale`, `libswresample`). Software H.264/HEVC encoders are completely omitted to prevent patent exposure. Apple ProRes is an independent open-source implementation (`prores_ks`) with explicit non-endorsement notices.
+- **Feasibility Status**: Step 0 feasibility audit recorded a NO-GO for on-host compilation due to missing `emcc`/`docker` toolchain. Complete plumbing (`pack.worker.ts`, `packService.ts`, `CodecPackDialog.tsx`) and reproducible build script (`tools/codec-pack/build.sh`) are delivered and Tier 2 binary is marked deferred.
+
+### Tier 3 — High-Bit-Depth Render Pipeline & Alpha
+- **Half-Float Render Targets**: `FboPool` acquires `gl.RGBA16F` framebuffers (backed by `EXT_color_buffer_float`) when 10-bit or HDR export is active, preventing intermediate 8-bit precision clipping.
+- **Bit-Deterministic PCG Integer Dithering**: TPDF dithering via unsigned integer PCG hash eliminates quantization banding without non-deterministic trigonometric float approximations. Dither is scaled by target bit depth ($\pm 1$ code value: $1/255$ for 8-bit, $1/1023$ for 10-bit) and is strictly OFF (`u_dither = 0`) on 8-bit default export paths to ensure bit-identical baseline blit output.
+- **ColorConversionPass & 10-bit Export**: Full-canvas GPU conversion pass implementing broadcast-standard ITU-R BT.709 and BT.2020 matrices, 4:2:0 box planar subsampling, true 10-bit RGBA packing (`hi8 = v10 >> 2u`, `low2 = (v10 & 3u) << 6u`), and asynchronous PBO readback for `I420P10` `VideoFrame` creation.
+- **Alpha Export**: Transparent canvas background clearing (`gl.clearColor(0,0,0,0)`) and `alpha: 'keep'` preserve transparency for motion graphics overlays in WebM VP9.
+- **Source Inspection & Warnings**: Automatic detection and UI badge chips (`10b`, `HDR`, `VFR`, `INT`) and Export dialog alerts for HDR, Variable Frame Rate, interlaced, and unsupported formats.

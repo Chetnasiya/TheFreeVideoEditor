@@ -197,18 +197,10 @@ export default function SequenceSettingsDialog() {
 				</fieldset>
 
 				<div className="dialog-actions">
-					<button
-						type="button"
-						className="secondary-button"
-						onClick={close}
-					>
+					<button type="button" className="secondary-button" onClick={close}>
 						Cancel
 					</button>
-					<button
-						type="submit"
-						className="primary-button"
-						data-testid="seq-settings-save-button"
-					>
+					<button type="submit" className="primary-button" data-testid="seq-settings-save-button">
 						Apply Settings
 					</button>
 				</div>

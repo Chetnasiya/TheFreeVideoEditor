@@ -1,14 +1,21 @@
 import { timelineDuration } from '../../core';
 import type { Project, Time } from '../../core';
 
+export type ExportContainerFormat = 'mp4' | 'webm' | 'mov' | 'wav';
+
 export interface ExportSettings {
-	format: 'mp4' | 'webm';
+	format: ExportContainerFormat;
+	codecId?: string;
 	width: number;
 	height: number;
 	fps: number;
 	videoBitrate: number;
 	audio: boolean;
 	audioBitrate: number;
+	audioCodecId?: string;
+	colorSpaceTag?: string;
+	bitDepth?: number;
+	alpha?: boolean;
 	filename: string;
 	range: 'timeline';
 }
@@ -38,19 +45,43 @@ export function buildExportPlan(project: Project, settings: ExportSettings): Exp
 	if (!Number.isSafeInteger(settings.fps) || settings.fps <= 0) {
 		throw new RangeError('Export frame rate must be a positive integer.');
 	}
+	const isAudioOnly = settings.format === 'wav';
 	if (
+		!isAudioOnly &&
 		![settings.width, settings.height].every((value) => Number.isSafeInteger(value) && value >= 2)
 	) {
 		throw new RangeError('Export dimensions must be positive integers of at least 2 pixels.');
 	}
-	const width = settings.format === 'mp4' ? settings.width - (settings.width % 2) : settings.width;
+	const width =
+		settings.format === 'mp4' || settings.format === 'mov'
+			? settings.width - (settings.width % 2)
+			: isAudioOnly
+				? 2
+				: settings.width;
 	const height =
-		settings.format === 'mp4' ? settings.height - (settings.height % 2) : settings.height;
+		settings.format === 'mp4' || settings.format === 'mov'
+			? settings.height - (settings.height % 2)
+			: isAudioOnly
+				? 2
+				: settings.height;
 	const fps = settings.fps;
 	const totalFrames = Number(ceilDivide(BigInt(durationUs) * BigInt(fps), 1_000_000n));
 	if (!Number.isSafeInteger(totalFrames) || totalFrames < 1) {
 		throw new RangeError('Timeline is too long to export safely.');
 	}
+	let codecCandidates: readonly string[] = ['avc'];
+	if (settings.format === 'wav') {
+		codecCandidates = ['pcm'];
+	} else if (settings.format === 'mp4') {
+		codecCandidates = settings.codecId?.includes('hevc') ? ['hevc', 'avc'] : ['avc'];
+	} else if (settings.format === 'mov') {
+		codecCandidates = settings.codecId?.includes('hevc') ? ['hevc', 'avc'] : ['avc'];
+	} else {
+		codecCandidates = settings.codecId?.includes('av1')
+			? ['av1', 'vp9', 'vp8']
+			: ['vp9', 'av1', 'vp8'];
+	}
+
 	return {
 		totalFrames,
 		frameDuration: 1_000_000 / fps,
@@ -58,7 +89,7 @@ export function buildExportPlan(project: Project, settings: ExportSettings): Exp
 		width,
 		height,
 		fps,
-		codecCandidates: settings.format === 'mp4' ? ['avc'] : ['vp9', 'av1', 'vp8'],
+		codecCandidates,
 		timestamp(frame) {
 			if (!Number.isSafeInteger(frame) || frame < 0 || frame >= totalFrames) {
 				throw new RangeError('Export frame index is outside the plan.');

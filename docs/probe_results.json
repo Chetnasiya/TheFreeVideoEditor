@@ -1,0 +1,1092 @@
+[
+  {
+    "label": "Google Chrome (Real GPU)",
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "hasVideoEncoder": true,
+    "hasVideoDecoder": true,
+    "hasAudioEncoder": true,
+    "hasAudioDecoder": true,
+    "videoEncoder": [
+      {
+        "name": "H.264 Baseline L3.1",
+        "codec": "avc1.42E01F",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 Main L3.1",
+        "codec": "avc1.4D401F",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High L4.0",
+        "codec": "avc1.640028",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High L5.1",
+        "codec": "avc1.640033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 10 L5.1 (10-bit)",
+        "codec": "avc1.6E0033",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 4:2:2 L5.1",
+        "codec": "avc1.7A0033",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 4:4:4 L5.1",
+        "codec": "avc1.F40033",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main (hvc1)",
+        "codec": "hvc1.1.6.L93.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main (hev1)",
+        "codec": "hev1.1.6.L93.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main L120 4K",
+        "codec": "hvc1.1.6.L120.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 (hvc1 10-bit)",
+        "codec": "hvc1.2.4.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 (hev1 10-bit)",
+        "codec": "hev1.2.4.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 L150 4K60",
+        "codec": "hvc1.2.4.L150.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC RExt 4:2:2 10-bit",
+        "codec": "hvc1.4.10.L120.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 0 (8-bit 4:2:0)",
+        "codec": "vp09.00.10.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 0 Level 4.1",
+        "codec": "vp09.00.41.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 2 (10-bit 4:2:0)",
+        "codec": "vp09.02.10.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 2 Level 4.1 (10-bit)",
+        "codec": "vp09.02.41.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 1 (8-bit 4:2:2/4:4:4)",
+        "codec": "vp09.01.10.08",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 3 (10-bit 4:2:2/4:4:4)",
+        "codec": "vp09.03.10.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Alpha keep",
+        "codec": "vp09.00.10.08",
+        "supported": false,
+        "hardwareAcceleration": "no-preference",
+        "alpha": "keep"
+      },
+      {
+        "name": "AV1 Main 8-bit L2.0",
+        "codec": "av01.0.04M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 8-bit L4.0",
+        "codec": "av01.0.08M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L2.0",
+        "codec": "av01.0.04M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L4.0",
+        "codec": "av01.0.08M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L5.0 4K60",
+        "codec": "av01.0.12M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 High (4:4:4 10-bit)",
+        "codec": "av01.1.08M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Pro (4:2:2 10-bit)",
+        "codec": "av01.2.08M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Alpha keep",
+        "codec": "av01.0.04M.08",
+        "supported": false,
+        "hardwareAcceleration": "no-preference",
+        "alpha": "keep"
+      },
+      {
+        "name": "ProRes 422 HQ (apch)",
+        "codec": "apch",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "ProRes 4444 (ap4h)",
+        "codec": "ap4h",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      }
+    ],
+    "videoDecoder": [
+      {
+        "name": "H.264 Baseline L3.1",
+        "codec": "avc1.42E01F",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 Main L3.1",
+        "codec": "avc1.4D401F",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High L4.0",
+        "codec": "avc1.640028",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High L5.1",
+        "codec": "avc1.640033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 10 L5.1 (10-bit)",
+        "codec": "avc1.6E0033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 4:2:2 L5.1",
+        "codec": "avc1.7A0033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 4:4:4 L5.1",
+        "codec": "avc1.F40033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main (hvc1)",
+        "codec": "hvc1.1.6.L93.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main (hev1)",
+        "codec": "hev1.1.6.L93.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main L120 4K",
+        "codec": "hvc1.1.6.L120.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 (hvc1 10-bit)",
+        "codec": "hvc1.2.4.L93.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 (hev1 10-bit)",
+        "codec": "hev1.2.4.L93.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 L150 4K60",
+        "codec": "hvc1.2.4.L150.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC RExt 4:2:2 10-bit",
+        "codec": "hvc1.4.10.L120.B0",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 0 (8-bit 4:2:0)",
+        "codec": "vp09.00.10.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 0 Level 4.1",
+        "codec": "vp09.00.41.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 2 (10-bit 4:2:0)",
+        "codec": "vp09.02.10.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 2 Level 4.1 (10-bit)",
+        "codec": "vp09.02.41.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 1 (8-bit 4:2:2/4:4:4)",
+        "codec": "vp09.01.10.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 3 (10-bit 4:2:2/4:4:4)",
+        "codec": "vp09.03.10.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Alpha keep",
+        "codec": "vp09.00.10.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 8-bit L2.0",
+        "codec": "av01.0.04M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 8-bit L4.0",
+        "codec": "av01.0.08M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L2.0",
+        "codec": "av01.0.04M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L4.0",
+        "codec": "av01.0.08M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L5.0 4K60",
+        "codec": "av01.0.12M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 High (4:4:4 10-bit)",
+        "codec": "av01.1.08M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Pro (4:2:2 10-bit)",
+        "codec": "av01.2.08M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Alpha keep",
+        "codec": "av01.0.04M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "ProRes 422 HQ (apch)",
+        "codec": "apch",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "ProRes 4444 (ap4h)",
+        "codec": "ap4h",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      }
+    ],
+    "audioEncoder": [
+      {
+        "name": "AAC-LC 48kHz Stereo 192k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "AAC-LC 44.1kHz Stereo 128k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "AAC-LC 48kHz 5.1 384k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz Stereo 128k",
+        "codec": "opus",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz Stereo 256k",
+        "codec": "opus",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz 5.1 384k",
+        "codec": "opus",
+        "supported": false
+      },
+      {
+        "name": "FLAC 48kHz Stereo",
+        "codec": "flac",
+        "supported": false
+      },
+      {
+        "name": "FLAC 96kHz 24-bit Stereo",
+        "codec": "flac",
+        "supported": false
+      },
+      {
+        "name": "PCM 16-bit (pcm-s16)",
+        "codec": "pcm-s16",
+        "supported": false
+      },
+      {
+        "name": "PCM 24-bit (pcm-s24)",
+        "codec": "pcm-s24",
+        "supported": false
+      },
+      {
+        "name": "PCM 32-bit float (pcm-f32)",
+        "codec": "pcm-f32",
+        "supported": false
+      }
+    ],
+    "audioDecoder": [
+      {
+        "name": "AAC-LC 48kHz Stereo 192k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "AAC-LC 44.1kHz Stereo 128k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "AAC-LC 48kHz 5.1 384k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz Stereo 128k",
+        "codec": "opus",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz Stereo 256k",
+        "codec": "opus",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz 5.1 384k",
+        "codec": "opus",
+        "supported": false,
+        "error": "Failed to execute 'isConfigSupported' on 'AudioDecoder': Invalid config; description is required for multi-channel Opus."
+      },
+      {
+        "name": "FLAC 48kHz Stereo",
+        "codec": "flac",
+        "supported": false,
+        "error": "Failed to execute 'isConfigSupported' on 'AudioDecoder': Invalid config; description is required."
+      },
+      {
+        "name": "FLAC 96kHz 24-bit Stereo",
+        "codec": "flac",
+        "supported": false,
+        "error": "Failed to execute 'isConfigSupported' on 'AudioDecoder': Invalid config; description is required."
+      },
+      {
+        "name": "PCM 16-bit (pcm-s16)",
+        "codec": "pcm-s16",
+        "supported": true
+      },
+      {
+        "name": "PCM 24-bit (pcm-s24)",
+        "codec": "pcm-s24",
+        "supported": true
+      },
+      {
+        "name": "PCM 32-bit float (pcm-f32)",
+        "codec": "pcm-f32",
+        "supported": true
+      }
+    ],
+    "pixelFormats": [
+      {
+        "format": "RGBA",
+        "supported": true
+      },
+      {
+        "format": "BGRA",
+        "supported": true
+      },
+      {
+        "format": "I420",
+        "supported": true
+      },
+      {
+        "format": "I420A",
+        "supported": true
+      },
+      {
+        "format": "I422",
+        "supported": true
+      },
+      {
+        "format": "I444",
+        "supported": true
+      },
+      {
+        "format": "NV12",
+        "supported": true
+      },
+      {
+        "format": "I420P10",
+        "supported": true
+      },
+      {
+        "format": "I422P10",
+        "supported": true
+      },
+      {
+        "format": "I444P10",
+        "supported": true
+      }
+    ]
+  },
+  {
+    "label": "Playwright Chromium",
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+    "hasVideoEncoder": true,
+    "hasVideoDecoder": true,
+    "hasAudioEncoder": true,
+    "hasAudioDecoder": true,
+    "videoEncoder": [
+      {
+        "name": "H.264 Baseline L3.1",
+        "codec": "avc1.42E01F",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 Main L3.1",
+        "codec": "avc1.4D401F",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High L4.0",
+        "codec": "avc1.640028",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High L5.1",
+        "codec": "avc1.640033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 10 L5.1 (10-bit)",
+        "codec": "avc1.6E0033",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 4:2:2 L5.1",
+        "codec": "avc1.7A0033",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 4:4:4 L5.1",
+        "codec": "avc1.F40033",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main (hvc1)",
+        "codec": "hvc1.1.6.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main (hev1)",
+        "codec": "hev1.1.6.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main L120 4K",
+        "codec": "hvc1.1.6.L120.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 (hvc1 10-bit)",
+        "codec": "hvc1.2.4.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 (hev1 10-bit)",
+        "codec": "hev1.2.4.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 L150 4K60",
+        "codec": "hvc1.2.4.L150.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC RExt 4:2:2 10-bit",
+        "codec": "hvc1.4.10.L120.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 0 (8-bit 4:2:0)",
+        "codec": "vp09.00.10.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 0 Level 4.1",
+        "codec": "vp09.00.41.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 2 (10-bit 4:2:0)",
+        "codec": "vp09.02.10.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 2 Level 4.1 (10-bit)",
+        "codec": "vp09.02.41.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 1 (8-bit 4:2:2/4:4:4)",
+        "codec": "vp09.01.10.08",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 3 (10-bit 4:2:2/4:4:4)",
+        "codec": "vp09.03.10.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Alpha keep",
+        "codec": "vp09.00.10.08",
+        "supported": false,
+        "hardwareAcceleration": "no-preference",
+        "alpha": "keep"
+      },
+      {
+        "name": "AV1 Main 8-bit L2.0",
+        "codec": "av01.0.04M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 8-bit L4.0",
+        "codec": "av01.0.08M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L2.0",
+        "codec": "av01.0.04M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L4.0",
+        "codec": "av01.0.08M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L5.0 4K60",
+        "codec": "av01.0.12M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 High (4:4:4 10-bit)",
+        "codec": "av01.1.08M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Pro (4:2:2 10-bit)",
+        "codec": "av01.2.08M.10",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Alpha keep",
+        "codec": "av01.0.04M.08",
+        "supported": false,
+        "hardwareAcceleration": "no-preference",
+        "alpha": "keep"
+      },
+      {
+        "name": "ProRes 422 HQ (apch)",
+        "codec": "apch",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "ProRes 4444 (ap4h)",
+        "codec": "ap4h",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      }
+    ],
+    "videoDecoder": [
+      {
+        "name": "H.264 Baseline L3.1",
+        "codec": "avc1.42E01F",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 Main L3.1",
+        "codec": "avc1.4D401F",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High L4.0",
+        "codec": "avc1.640028",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High L5.1",
+        "codec": "avc1.640033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 10 L5.1 (10-bit)",
+        "codec": "avc1.6E0033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 4:2:2 L5.1",
+        "codec": "avc1.7A0033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "H.264 High 4:4:4 L5.1",
+        "codec": "avc1.F40033",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main (hvc1)",
+        "codec": "hvc1.1.6.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main (hev1)",
+        "codec": "hev1.1.6.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main L120 4K",
+        "codec": "hvc1.1.6.L120.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 (hvc1 10-bit)",
+        "codec": "hvc1.2.4.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 (hev1 10-bit)",
+        "codec": "hev1.2.4.L93.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC Main 10 L150 4K60",
+        "codec": "hvc1.2.4.L150.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "HEVC RExt 4:2:2 10-bit",
+        "codec": "hvc1.4.10.L120.B0",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 0 (8-bit 4:2:0)",
+        "codec": "vp09.00.10.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 0 Level 4.1",
+        "codec": "vp09.00.41.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 2 (10-bit 4:2:0)",
+        "codec": "vp09.02.10.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 2 Level 4.1 (10-bit)",
+        "codec": "vp09.02.41.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 1 (8-bit 4:2:2/4:4:4)",
+        "codec": "vp09.01.10.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Profile 3 (10-bit 4:2:2/4:4:4)",
+        "codec": "vp09.03.10.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "VP9 Alpha keep",
+        "codec": "vp09.00.10.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 8-bit L2.0",
+        "codec": "av01.0.04M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 8-bit L4.0",
+        "codec": "av01.0.08M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L2.0",
+        "codec": "av01.0.04M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L4.0",
+        "codec": "av01.0.08M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Main 10-bit L5.0 4K60",
+        "codec": "av01.0.12M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 High (4:4:4 10-bit)",
+        "codec": "av01.1.08M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Pro (4:2:2 10-bit)",
+        "codec": "av01.2.08M.10",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "AV1 Alpha keep",
+        "codec": "av01.0.04M.08",
+        "supported": true,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "ProRes 422 HQ (apch)",
+        "codec": "apch",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      },
+      {
+        "name": "ProRes 4444 (ap4h)",
+        "codec": "ap4h",
+        "supported": false,
+        "hardwareAcceleration": "no-preference"
+      }
+    ],
+    "audioEncoder": [
+      {
+        "name": "AAC-LC 48kHz Stereo 192k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "AAC-LC 44.1kHz Stereo 128k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "AAC-LC 48kHz 5.1 384k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz Stereo 128k",
+        "codec": "opus",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz Stereo 256k",
+        "codec": "opus",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz 5.1 384k",
+        "codec": "opus",
+        "supported": false
+      },
+      {
+        "name": "FLAC 48kHz Stereo",
+        "codec": "flac",
+        "supported": false
+      },
+      {
+        "name": "FLAC 96kHz 24-bit Stereo",
+        "codec": "flac",
+        "supported": false
+      },
+      {
+        "name": "PCM 16-bit (pcm-s16)",
+        "codec": "pcm-s16",
+        "supported": false
+      },
+      {
+        "name": "PCM 24-bit (pcm-s24)",
+        "codec": "pcm-s24",
+        "supported": false
+      },
+      {
+        "name": "PCM 32-bit float (pcm-f32)",
+        "codec": "pcm-f32",
+        "supported": false
+      }
+    ],
+    "audioDecoder": [
+      {
+        "name": "AAC-LC 48kHz Stereo 192k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "AAC-LC 44.1kHz Stereo 128k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "AAC-LC 48kHz 5.1 384k",
+        "codec": "mp4a.40.2",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz Stereo 128k",
+        "codec": "opus",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz Stereo 256k",
+        "codec": "opus",
+        "supported": true
+      },
+      {
+        "name": "Opus 48kHz 5.1 384k",
+        "codec": "opus",
+        "supported": false,
+        "error": "Failed to execute 'isConfigSupported' on 'AudioDecoder': Invalid config; description is required for multi-channel Opus."
+      },
+      {
+        "name": "FLAC 48kHz Stereo",
+        "codec": "flac",
+        "supported": false,
+        "error": "Failed to execute 'isConfigSupported' on 'AudioDecoder': Invalid config; description is required."
+      },
+      {
+        "name": "FLAC 96kHz 24-bit Stereo",
+        "codec": "flac",
+        "supported": false,
+        "error": "Failed to execute 'isConfigSupported' on 'AudioDecoder': Invalid config; description is required."
+      },
+      {
+        "name": "PCM 16-bit (pcm-s16)",
+        "codec": "pcm-s16",
+        "supported": true
+      },
+      {
+        "name": "PCM 24-bit (pcm-s24)",
+        "codec": "pcm-s24",
+        "supported": true
+      },
+      {
+        "name": "PCM 32-bit float (pcm-f32)",
+        "codec": "pcm-f32",
+        "supported": true
+      }
+    ],
+    "pixelFormats": [
+      {
+        "format": "RGBA",
+        "supported": true
+      },
+      {
+        "format": "BGRA",
+        "supported": true
+      },
+      {
+        "format": "I420",
+        "supported": true
+      },
+      {
+        "format": "I420A",
+        "supported": true
+      },
+      {
+        "format": "I422",
+        "supported": true
+      },
+      {
+        "format": "I444",
+        "supported": true
+      },
+      {
+        "format": "NV12",
+        "supported": true
+      },
+      {
+        "format": "I420P10",
+        "supported": true
+      },
+      {
+        "format": "I422P10",
+        "supported": true
+      },
+      {
+        "format": "I444P10",
+        "supported": true
+      }
+    ]
+  }
+]

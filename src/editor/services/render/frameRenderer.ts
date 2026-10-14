@@ -8,6 +8,9 @@ export interface FrameRendererOptions {
 	/** Use the Canvas2D reference renderer even when WebGL2 is available. */
 	forceCanvas2d?: boolean;
 	preserveDrawingBuffer?: boolean;
+	alpha?: boolean;
+	colorSpace?: PredefinedColorSpace;
+	highBitDepth?: boolean;
 	onContextLost?: () => void;
 	onContextRestored?: () => void;
 }
@@ -26,6 +29,9 @@ export function createFrameRenderer(
 				...(options.preserveDrawingBuffer !== undefined
 					? { preserveDrawingBuffer: options.preserveDrawingBuffer }
 					: {}),
+				...(options.alpha !== undefined ? { alpha: options.alpha } : {}),
+				...(options.colorSpace !== undefined ? { colorSpace: options.colorSpace } : {}),
+				...(options.highBitDepth !== undefined ? { highBitDepth: options.highBitDepth } : {}),
 				...(options.onContextLost ? { onLost: options.onContextLost } : {}),
 				...(options.onContextRestored ? { onRestored: options.onContextRestored } : {})
 			});

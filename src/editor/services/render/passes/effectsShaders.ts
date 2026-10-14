@@ -17,11 +17,38 @@ precision highp int;
 uniform sampler2D u_texture;
 uniform float u_opacity;
 uniform int u_targetIsCanvas;
+uniform int u_keepAlpha;
+uniform int u_dither;
+uniform int u_bitDepth;     // 8 or 10, default 8
+uniform uint u_frameIndex;  // deterministic frame sequence seed
+
 in vec2 v_uv;
 out vec4 outColor;
+
+// Bit-deterministic unsigned integer PCG-style hash
+uint pcgHash(uvec2 p, uint frame) {
+    uint state = p.x * 3266489917u + p.y * 668265263u + frame * 374761393u + 1013904223u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+// Triangular Probability Density Function (TPDF) dither
+float tpdfDither(uvec2 coord, uint frame, float qLevels) {
+    uint r1 = pcgHash(coord, frame);
+    uint r2 = pcgHash(coord + uvec2(17u, 23u), frame + 1u);
+    float f1 = float(r1) / 4294967295.0;
+    float f2 = float(r2) / 4294967295.0;
+    return (f1 + f2 - 1.0) / qLevels;
+}
+
 void main() {
     vec4 c = texture(u_texture, v_uv) * u_opacity;
-    if (u_targetIsCanvas == 1) {
+    if (u_dither == 1) {
+        float qLevels = u_bitDepth == 10 ? 1023.0 : 255.0;
+        float d = tpdfDither(uvec2(gl_FragCoord.xy), u_frameIndex, qLevels);
+        c.rgb = clamp(c.rgb + vec3(d), 0.0, 1.0);
+    }
+    if (u_targetIsCanvas == 1 && u_keepAlpha == 0) {
         outColor = vec4(c.rgb, 1.0);
     } else {
         outColor = c;

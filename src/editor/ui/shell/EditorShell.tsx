@@ -23,6 +23,8 @@ import SourceMonitor from '../preview/SourceMonitor';
 import Timeline from '../timeline/Timeline';
 import WorkspaceShell from '../layout/WorkspaceShell';
 import EditWorkspacesDialog from '../dialogs/EditWorkspacesDialog';
+import CodecSupportDialog from '../dialogs/CodecSupportDialog';
+import CodecPackDialog from '../dialogs/CodecPackDialog';
 import { collectPanels } from '../layout/operations';
 import { importTfve } from '../../services/interop/native';
 import {
@@ -106,6 +108,8 @@ function EditorShell() {
 	const [isWindowMenuOpen, setIsWindowMenuOpen] = useState(false);
 	const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
 	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+	const [isCodecSupportOpen, setIsCodecSupportOpen] = useState(false);
+	const [isCodecPackOpen, setIsCodecPackOpen] = useState(false);
 	const [isEditWorkspacesOpen, setIsEditWorkspacesOpen] = useState(false);
 	const [isWorkspaceOverflowOpen, setIsWorkspaceOverflowOpen] = useState(false);
 	const shortcutReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -1191,6 +1195,26 @@ function EditorShell() {
 									>
 										Keyboard Shortcuts… <span>?</span>
 									</button>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() => {
+											setIsHelpMenuOpen(false);
+											setIsCodecSupportOpen(true);
+										}}
+									>
+										Codecs & Hardware Support…
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() => {
+											setIsHelpMenuOpen(false);
+											setIsCodecPackOpen(true);
+										}}
+									>
+										Advanced Codec Pack (Deferred / Build Guide)…
+									</button>
 								</div>
 							)}
 						</div>
@@ -1615,6 +1639,11 @@ function EditorShell() {
 				isOpen={isEditWorkspacesOpen}
 				onClose={() => setIsEditWorkspacesOpen(false)}
 			/>
+			<CodecSupportDialog
+				isOpen={isCodecSupportOpen}
+				onClose={() => setIsCodecSupportOpen(false)}
+			/>
+			<CodecPackDialog isOpen={isCodecPackOpen} onClose={() => setIsCodecPackOpen(false)} />
 			{isShortcutsOpen && (
 				<KeyboardShortcutsDialog entries={shortcutEntries} onClose={closeShortcutsDialog} />
 			)}

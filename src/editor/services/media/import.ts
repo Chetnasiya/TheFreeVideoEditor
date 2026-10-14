@@ -125,6 +125,14 @@ export async function importFiles(
 				...(probed.audioCodec === undefined ? {} : { audioCodec: probed.audioCodec }),
 				...(probed.videoDecodable === undefined ? {} : { videoDecodable: probed.videoDecodable }),
 				...(probed.videoCodec === undefined ? {} : { videoCodec: probed.videoCodec }),
+				...(probed.bitDepth !== undefined ? { bitDepth: probed.bitDepth } : {}),
+				...(probed.colorSpace !== undefined ? { colorSpace: probed.colorSpace } : {}),
+				...(probed.isHdr !== undefined ? { isHdr: probed.isHdr } : {}),
+				...(probed.isInterlaced !== undefined ? { isInterlaced: probed.isInterlaced } : {}),
+				...(probed.isVfr !== undefined ? { isVfr: probed.isVfr } : {}),
+				...(probed.transfer !== undefined ? { transfer: probed.transfer } : {}),
+				...(probed.video !== undefined ? { video: probed.video } : {}),
+				...(probed.audio !== undefined ? { audio: probed.audio } : {}),
 				opfsPath,
 				offline: false
 			};

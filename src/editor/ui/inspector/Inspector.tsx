@@ -87,24 +87,24 @@ export default function Inspector() {
 		);
 	}
 
-function ChevronIcon() {
-	return (
-		<svg
-			className="section-chevron"
-			viewBox="0 0 16 16"
-			width="11"
-			height="11"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			aria-hidden="true"
-		>
-			<path d="M6 3.5l4.5 4.5L6 12.5" />
-		</svg>
-	);
-}
+	function ChevronIcon() {
+		return (
+			<svg
+				className="section-chevron"
+				viewBox="0 0 16 16"
+				width="11"
+				height="11"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				aria-hidden="true"
+			>
+				<path d="M6 3.5l4.5 4.5L6 12.5" />
+			</svg>
+		);
+	}
 
 	if (selectedClipIds.length === 0) {
 		const activeSeq = project.sequences?.[store.getState().activeSequenceId] ?? project;
@@ -113,19 +113,34 @@ function ChevronIcon() {
 				<div className="inspector-empty">
 					<div className="inspector-empty-card">
 						<div className="inspector-empty-icon" aria-hidden="true">
-							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+							<svg
+								width="24"
+								height="24"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+							>
 								<rect x="2" y="4" width="20" height="16" rx="2" />
 								<path d="M7 4v16M17 4v16M2 12h20M2 8h5M2 16h5M17 8h5M17 16h5" />
 							</svg>
 						</div>
 						<h3 className="inspector-empty-title">No Clip Selected</h3>
-						<p className="inspector-hint">Select a clip in the timeline to view and adjust its properties, transform, effects, and audio.</p>
+						<p className="inspector-hint">
+							Select a clip in the timeline to view and adjust its properties, transform, effects,
+							and audio.
+						</p>
 					</div>
 
 					<div className="inspector-sequence-card">
 						<div className="inspector-sequence-header">
-							<span className="inspector-sequence-title">{activeSeq.name ?? 'Sequence Settings'}</span>
-							<span className="timeline-counter-badge" style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}>
+							<span className="inspector-sequence-title">
+								{activeSeq.name ?? 'Sequence Settings'}
+							</span>
+							<span
+								className="timeline-counter-badge"
+								style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+							>
 								<span className="timeline-badge-dot" aria-hidden="true" />
 								Active
 							</span>
@@ -134,9 +149,7 @@ function ChevronIcon() {
 							<span className="timeline-counter-badge">
 								{project.settings.width} × {project.settings.height}
 							</span>
-							<span className="timeline-counter-badge">
-								{project.settings.fps} fps
-							</span>
+							<span className="timeline-counter-badge">{project.settings.fps} fps</span>
 							<span className="timeline-counter-badge">
 								{project.settings.sampleRate.toLocaleString()} Hz
 							</span>
@@ -209,14 +222,8 @@ function ChevronIcon() {
 					</span>
 				</div>
 				<div className="inspector-clip-badges">
-					{clipTrack && (
-						<span className="timeline-counter-badge">
-							Track: {clipTrack.name}
-						</span>
-					)}
-					<span className="timeline-counter-badge">
-						{clipDurationSec}s
-					</span>
+					{clipTrack && <span className="timeline-counter-badge">Track: {clipTrack.name}</span>}
+					<span className="timeline-counter-badge">{clipDurationSec}s</span>
 				</div>
 			</div>
 
@@ -713,7 +720,16 @@ export function PropertyRow({
 								title="Previous keyframe (J)"
 								aria-label="Previous keyframe"
 							>
-								<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+								<svg
+									width="10"
+									height="10"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2.5"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
 									<polyline points="15 18 9 12 15 6" />
 								</svg>
 							</button>
@@ -724,7 +740,16 @@ export function PropertyRow({
 								title={hasKeyframe ? 'Remove keyframe at playhead' : 'Add keyframe at playhead'}
 								aria-label={hasKeyframe ? 'Remove keyframe' : 'Add keyframe'}
 							>
-								<svg width="10" height="10" viewBox="0 0 24 24" fill={hasKeyframe ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+								<svg
+									width="10"
+									height="10"
+									viewBox="0 0 24 24"
+									fill={hasKeyframe ? 'currentColor' : 'none'}
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
 									<polygon points="12 2 22 12 12 22 2 12" />
 								</svg>
 							</button>
@@ -738,7 +763,16 @@ export function PropertyRow({
 								title="Next keyframe (K)"
 								aria-label="Next keyframe"
 							>
-								<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+								<svg
+									width="10"
+									height="10"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2.5"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
 									<polyline points="9 18 15 12 9 6" />
 								</svg>
 							</button>
@@ -752,7 +786,16 @@ export function PropertyRow({
 							title="Reset to default"
 							aria-label={`Reset ${desc.label} to default`}
 						>
-							<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+							<svg
+								width="11"
+								height="11"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2.2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
 								<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
 								<polyline points="3 3 3 8 8 8" />
 							</svg>
@@ -838,12 +881,31 @@ export function PropertyRow({
 						aria-label={linkScale ? 'Unlink scale axes' : 'Link scale axes'}
 					>
 						{linkScale ? (
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
 								<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
 								<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
 							</svg>
 						) : (
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.55 }}>
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								style={{ opacity: 0.55 }}
+							>
 								<path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
 								<path d="m5.16 11.75-1.72 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71" />
 								<line x1="2" y1="2" x2="22" y2="22" />

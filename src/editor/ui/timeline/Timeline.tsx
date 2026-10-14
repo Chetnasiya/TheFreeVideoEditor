@@ -82,6 +82,7 @@ function ConnectedToolbar({
 	const playhead = useEditorStore((state) => state.timeline.playhead);
 	const activeSeqId = useEditorStore((state) => state.activeSequenceId);
 	const maximizedPanelId = useEditorStore((state) => state.maximizedPanelId);
+	const snapToMarkers = useEditorStore((state) => state.timeline.snapToMarkers);
 	const store = useEditorStoreApi();
 	const duration = timelineDuration(project);
 	const seqMarkers =
@@ -94,6 +95,8 @@ function ConnectedToolbar({
 			sequenceTabs={sequenceTabs}
 			isMaximized={maximizedPanelId === 'timeline'}
 			onToggleMaximize={() => store.getState().toggleMaximizePanel('timeline')}
+			snapToMarkers={snapToMarkers}
+			onToggleSnapToMarkers={() => store.getState().setSnapToMarkers(!snapToMarkers)}
 			markerCount={seqMarkers.length}
 			pixelsPerSecond={pixelsPerSecond}
 			onSplit={onSplit}
@@ -104,6 +107,7 @@ function ConnectedToolbar({
 			onAddTrack={onAddTrack}
 			onAddAdjustment={() => store.getState().addAdjustmentLayer()}
 			onAddSolid={() => store.getState().addSolidLayer()}
+			onAddText={() => store.getState().addTextClip()}
 			onAddCaption={() => store.getState().addCaptionAtPlayhead()}
 		/>
 	);
@@ -243,12 +247,33 @@ function TrackHeader({
 					onClick={() => onFlag(track.id, { locked: !track.locked })}
 				>
 					{track.locked ? (
-						<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+						<svg
+							width="11"
+							height="11"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2.2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							aria-hidden="true"
+						>
 							<rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
 							<path d="M7 11V7a5 5 0 0 1 10 0v4" />
 						</svg>
 					) : (
-						<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.55 }} aria-hidden="true">
+						<svg
+							width="11"
+							height="11"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2.2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							style={{ opacity: 0.55 }}
+							aria-hidden="true"
+						>
 							<rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
 							<path d="M7 11V7a5 5 0 0 1 9.9-1" />
 						</svg>
@@ -264,12 +289,32 @@ function TrackHeader({
 						onClick={() => onFlag(track.id, { hidden: !track.hidden })}
 					>
 						{track.hidden ? (
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2.2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
 								<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
 								<line x1="1" y1="1" x2="23" y2="23" />
 							</svg>
 						) : (
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2.2"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
 								<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
 								<circle cx="12" cy="12" r="3" />
 							</svg>
@@ -284,7 +329,17 @@ function TrackHeader({
 					disabled={track.locked}
 					onClick={() => onRemove(track)}
 				>
-					<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+					<svg
+						width="10"
+						height="10"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2.2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-hidden="true"
+					>
 						<line x1="18" y1="6" x2="6" y2="18" />
 						<line x1="6" y1="6" x2="18" y2="18" />
 					</svg>
@@ -570,8 +625,10 @@ function ActiveTimeline({ project }: { project: Project }) {
 			let bestDelta: number | undefined;
 			let snappedToVal: Time | undefined;
 
-			const startDist = snapStart.snappedTo !== undefined ? Math.abs(snapStart.snappedTo - refStart) : Infinity;
-			const endDist = snapEnd.snappedTo !== undefined ? Math.abs(snapEnd.snappedTo - refEnd) : Infinity;
+			const startDist =
+				snapStart.snappedTo !== undefined ? Math.abs(snapStart.snappedTo - refStart) : Infinity;
+			const endDist =
+				snapEnd.snappedTo !== undefined ? Math.abs(snapEnd.snappedTo - refEnd) : Infinity;
 
 			if (startDist <= endDist && snapStart.snappedTo !== undefined) {
 				bestDelta = snapStart.snappedTo - referenceStart;
@@ -1165,10 +1222,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTimelineDragLeave(event: DragEvent<HTMLDivElement>): void {
-		if (
-			event.relatedTarget &&
-			scrollerRef.current?.contains(event.relatedTarget as Node)
-		) {
+		if (event.relatedTarget && scrollerRef.current?.contains(event.relatedTarget as Node)) {
 			return;
 		}
 		cancelTimelineDrag();
@@ -1716,7 +1770,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 								) : null;
 
 							return (
-								<div className="timeline-track-rows" role="grid" aria-label="Project timeline tracks">
+								<div
+									className="timeline-track-rows"
+									role="grid"
+									aria-label="Project timeline tracks"
+								>
 									{drag?.createTrackKind === 'video' && newTrackPreviewRow}
 									{activeProject.tracks.map((track, index) => {
 										const previewPositions = dragPositionsByTrack.get(track.id) ?? [];
@@ -1749,226 +1807,231 @@ function ActiveTimeline({ project }: { project: Project }) {
 													onDragOver={(event) => handleTrackDragOver(event, track)}
 													onDrop={(event) => handleTrackDrop(event, track)}
 												>
-											{track.kind === 'caption' ? (
-												<>
-													{(track.captions ?? []).length === 0 && (
-														<span className="timeline-empty-track">
-															No captions yet. Click + Caption or auto-generate.
-														</span>
+													{track.kind === 'caption' ? (
+														<>
+															{(track.captions ?? []).length === 0 && (
+																<span className="timeline-empty-track">
+																	No captions yet. Click + Caption or auto-generate.
+																</span>
+															)}
+															{(track.captions ?? []).map((caption) => {
+																const isSelected = selection.captionId === caption.id;
+																return (
+																	<CaptionSegmentView
+																		key={caption.id}
+																		segment={caption}
+																		track={track}
+																		pixelsPerSecond={pixelsPerSecond}
+																		selected={isSelected}
+																		onSelect={() => {
+																			store.getState().selectCaption(track.id, caption.id);
+																		}}
+																	/>
+																);
+															})}
+														</>
+													) : (
+														<>
+															{track.clips.length === 0 && (
+																<span className="timeline-empty-track">
+																	Drop compatible media or press Enter to add selection
+																</span>
+															)}
+															{track.clips.map((clip) => {
+																const asset = clip.assetId
+																	? activeProject.assets[clip.assetId]
+																	: undefined;
+																if (!asset && (!clip.source || clip.source.type === 'asset'))
+																	return null;
+																const position = drag?.preview.find(
+																	(item) => item.clipId === clip.id
+																);
+																if (position && position.trackId !== track.id) return null;
+																const clipStart = position?.start ?? clip.start;
+																const clipDuration = position?.duration ?? clip.duration;
+																if (
+																	!intersectsPixelRange(
+																		timeToPixels(clipStart, pixelsPerSecond),
+																		timeToPixels(clipDuration, pixelsPerSecond),
+																		visibleClipRange
+																	)
+																) {
+																	return null;
+																}
+																const isSelected = selection.clipIds.includes(clip.id);
+																const displayedClip = position
+																	? {
+																			...clip,
+																			start: position.start,
+																			duration: position.duration,
+																			sourceIn: position.sourceIn,
+																			sourceOut: position.sourceOut
+																		}
+																	: clip;
+																return (
+																	<ClipView
+																		key={clip.id}
+																		clip={displayedClip}
+																		asset={asset}
+																		track={track}
+																		project={activeProject}
+																		pixelsPerSecond={pixelsPerSecond}
+																		selected={isSelected}
+																		tabIndex={clip.id === firstTabStopClipId ? 0 : -1}
+																		onPointerDown={beginClipDrag}
+																		onKeyboardTrim={handleKeyboardTrim}
+																		onSelect={handleClipSelect}
+																		onContextMenu={openClipMenu}
+																	/>
+																);
+															})}
+														</>
 													)}
-													{(track.captions ?? []).map((caption) => {
-														const isSelected = selection.captionId === caption.id;
-														return (
-															<CaptionSegmentView
-																key={caption.id}
-																segment={caption}
+													{isTransitionsEnabled() &&
+														(track.transitions ?? []).map((tr) => (
+															<TransitionBlock
+																key={tr.id}
+																transition={tr}
 																track={track}
 																pixelsPerSecond={pixelsPerSecond}
-																selected={isSelected}
-																onSelect={() => {
-																	store.getState().selectCaption(track.id, caption.id);
-																}}
+																selected={selection.transitionId === tr.id}
+																onSelect={(id) => store.getState().selectTransition(id)}
 															/>
-														);
-													})}
-												</>
-											) : (
-												<>
-													{track.clips.length === 0 && (
-														<span className="timeline-empty-track">
-															Drop compatible media or press Enter to add selection
-														</span>
-													)}
-													{track.clips.map((clip) => {
-														const asset = clip.assetId
-															? activeProject.assets[clip.assetId]
-															: undefined;
-														if (!asset && (!clip.source || clip.source.type === 'asset'))
+														))}
+													{previewPositions.map((position) => {
+														let sourceClip: Clip | undefined;
+														let sourceTrack: Track | undefined;
+														for (const row of activeProject.tracks) {
+															const found = row.clips.find((c) => c.id === position.clipId);
+															if (found) {
+																sourceClip = found;
+																sourceTrack = row;
+																break;
+															}
+														}
+														if (sourceTrack?.id === position.trackId) {
 															return null;
-														const position = drag?.preview.find((item) => item.clipId === clip.id);
-														if (position && position.trackId !== track.id) return null;
-														const clipStart = position?.start ?? clip.start;
-														const clipDuration = position?.duration ?? clip.duration;
+														}
+														const assetId = drag?.assetId ?? sourceClip?.assetId;
+														const asset = assetId ? activeProject.assets[assetId] : undefined;
 														if (
-															!intersectsPixelRange(
-																timeToPixels(clipStart, pixelsPerSecond),
-																timeToPixels(clipDuration, pixelsPerSecond),
-																visibleClipRange
-															)
+															!asset &&
+															(!sourceClip?.source || sourceClip.source.type === 'asset')
 														) {
 															return null;
 														}
-														const isSelected = selection.clipIds.includes(clip.id);
-														const displayedClip = position
+														const ghostClip: Clip = sourceClip
 															? {
-																	...clip,
+																	...sourceClip,
 																	start: position.start,
 																	duration: position.duration,
 																	sourceIn: position.sourceIn,
 																	sourceOut: position.sourceOut
 																}
-															: clip;
+															: {
+																	id: position.clipId,
+																	assetId: asset?.id,
+																	start: position.start,
+																	duration: position.duration,
+																	sourceIn: position.sourceIn,
+																	sourceOut: position.sourceOut,
+																	speed: 1,
+																	volume: 1
+																};
 														return (
 															<ClipView
-																key={clip.id}
-																clip={displayedClip}
+																key={`ghost-${position.clipId}`}
+																clip={ghostClip}
 																asset={asset}
 																track={track}
 																project={activeProject}
 																pixelsPerSecond={pixelsPerSecond}
-																selected={isSelected}
-																tabIndex={clip.id === firstTabStopClipId ? 0 : -1}
-																onPointerDown={beginClipDrag}
-																onKeyboardTrim={handleKeyboardTrim}
-																onSelect={handleClipSelect}
-																onContextMenu={openClipMenu}
+																selected={false}
+																tabIndex={-1}
+																ghost
+																onPointerDown={() => undefined}
+																onKeyboardTrim={() => undefined}
+																onSelect={() => undefined}
+																onContextMenu={() => undefined}
 															/>
 														);
 													})}
-												</>
-											)}
-											{isTransitionsEnabled() &&
-												(track.transitions ?? []).map((tr) => (
-													<TransitionBlock
-														key={tr.id}
-														transition={tr}
-														track={track}
-														pixelsPerSecond={pixelsPerSecond}
-														selected={selection.transitionId === tr.id}
-														onSelect={(id) => store.getState().selectTransition(id)}
-													/>
-												))}
-											{previewPositions.map((position) => {
-												let sourceClip: Clip | undefined;
-												let sourceTrack: Track | undefined;
-												for (const row of activeProject.tracks) {
-													const found = row.clips.find((c) => c.id === position.clipId);
-													if (found) {
-														sourceClip = found;
-														sourceTrack = row;
-														break;
-													}
-												}
-												if (sourceTrack?.id === position.trackId) {
-													return null;
-												}
-												const assetId = drag?.assetId ?? sourceClip?.assetId;
-												const asset = assetId ? activeProject.assets[assetId] : undefined;
-												if (!asset && (!sourceClip?.source || sourceClip.source.type === 'asset')) {
-													return null;
-												}
-												const ghostClip: Clip = sourceClip
-													? {
-															...sourceClip,
-															start: position.start,
-															duration: position.duration,
-															sourceIn: position.sourceIn,
-															sourceOut: position.sourceOut
-														}
-													: {
-															id: position.clipId,
-															assetId: asset?.id,
-															start: position.start,
-															duration: position.duration,
-															sourceIn: position.sourceIn,
-															sourceOut: position.sourceOut,
-															speed: 1,
-															volume: 1
+												</div>
+												<button
+													className="timeline-track-resize-handle"
+													type="button"
+													role="separator"
+													aria-label={`Resize ${track.name} track height`}
+													aria-orientation="horizontal"
+													aria-valuemin={48}
+													aria-valuemax={240}
+													aria-valuenow={trackHeights[track.id] ?? 80}
+													onPointerDown={(event) => {
+														event.preventDefault();
+														event.currentTarget.setPointerCapture(event.pointerId);
+														trackResize.current = {
+															trackId: track.id,
+															pointerId: event.pointerId,
+															startY: event.clientY,
+															startHeight: trackHeights[track.id] ?? 80
 														};
-												return (
-													<ClipView
-														key={`ghost-${position.clipId}`}
-														clip={ghostClip}
-														asset={asset}
-														track={track}
-														project={activeProject}
-														pixelsPerSecond={pixelsPerSecond}
-														selected={false}
-														tabIndex={-1}
-														ghost
-														onPointerDown={() => undefined}
-														onKeyboardTrim={() => undefined}
-														onSelect={() => undefined}
-														onContextMenu={() => undefined}
-													/>
-												);
-											})}
-										</div>
-										<button
-											className="timeline-track-resize-handle"
-											type="button"
-											role="separator"
-											aria-label={`Resize ${track.name} track height`}
-											aria-orientation="horizontal"
-											aria-valuemin={48}
-											aria-valuemax={240}
-											aria-valuenow={trackHeights[track.id] ?? 80}
-											onPointerDown={(event) => {
-												event.preventDefault();
-												event.currentTarget.setPointerCapture(event.pointerId);
-												trackResize.current = {
-													trackId: track.id,
-													pointerId: event.pointerId,
-													startY: event.clientY,
-													startHeight: trackHeights[track.id] ?? 80
-												};
-											}}
-											onPointerMove={(event) => {
-												const active = trackResize.current;
-												if (
-													!active ||
-													active.trackId !== track.id ||
-													active.pointerId !== event.pointerId
-												) {
-													return;
-												}
-												setTrackHeight(
-													track.id,
-													active.startHeight + event.clientY - active.startY
-												);
-											}}
-											onPointerUp={() => {
-												trackResize.current = null;
-											}}
-											onPointerCancel={() => {
-												trackResize.current = null;
-											}}
-											onKeyDown={(event) => {
-												const step = event.shiftKey ? 24 : 8;
-												const current = trackHeights[track.id] ?? 80;
-												if (event.key === 'ArrowUp') {
-													event.preventDefault();
-													setTrackHeight(track.id, current + step);
-												} else if (event.key === 'ArrowDown') {
-													event.preventDefault();
-													setTrackHeight(track.id, current - step);
-												} else if (event.key === 'Home') {
-													event.preventDefault();
-													setTrackHeight(track.id, 48);
-												} else if (event.key === 'End') {
-													event.preventDefault();
-													setTrackHeight(track.id, 240);
-												}
-											}}
-										/>
+													}}
+													onPointerMove={(event) => {
+														const active = trackResize.current;
+														if (
+															!active ||
+															active.trackId !== track.id ||
+															active.pointerId !== event.pointerId
+														) {
+															return;
+														}
+														setTrackHeight(
+															track.id,
+															active.startHeight + event.clientY - active.startY
+														);
+													}}
+													onPointerUp={() => {
+														trackResize.current = null;
+													}}
+													onPointerCancel={() => {
+														trackResize.current = null;
+													}}
+													onKeyDown={(event) => {
+														const step = event.shiftKey ? 24 : 8;
+														const current = trackHeights[track.id] ?? 80;
+														if (event.key === 'ArrowUp') {
+															event.preventDefault();
+															setTrackHeight(track.id, current + step);
+														} else if (event.key === 'ArrowDown') {
+															event.preventDefault();
+															setTrackHeight(track.id, current - step);
+														} else if (event.key === 'Home') {
+															event.preventDefault();
+															setTrackHeight(track.id, 48);
+														} else if (event.key === 'End') {
+															event.preventDefault();
+															setTrackHeight(track.id, 240);
+														}
+													}}
+												/>
+											</div>
+										);
+									})}
+									{drag?.createTrackKind === 'audio' && newTrackPreviewRow}
+									<div
+										className={`timeline-new-track-drop ${drag?.createTrackKind ? 'is-active' : ''}`}
+										role="group"
+										aria-label="Drop outside tracks to create a new track"
+										onDragOver={beginEmptyTrackDrop}
+										onDrop={dropOnNewTrack}
+									>
+										{drag?.createTrackKind
+											? `Release to create a new ${drag.createTrackKind} track`
+											: 'Drop media or drag clips outside tracks to create a new track'}
 									</div>
-								);
-							})}
-							{drag?.createTrackKind === 'audio' && newTrackPreviewRow}
-							<div
-								className={`timeline-new-track-drop ${drag?.createTrackKind ? 'is-active' : ''}`}
-								role="group"
-								aria-label="Drop outside tracks to create a new track"
-								onDragOver={beginEmptyTrackDrop}
-								onDrop={dropOnNewTrack}
-							>
-								{drag?.createTrackKind
-									? `Release to create a new ${drag.createTrackKind} track`
-									: 'Drop media or drag clips outside tracks to create a new track'}
-							</div>
-						</div>
-					);
-				})()}
+								</div>
+							);
+						})()}
 						{marquee && (
 							<div
 								className="timeline-marquee"
@@ -1984,12 +2047,12 @@ function ActiveTimeline({ project }: { project: Project }) {
 						<ConnectedPlayhead pixelsPerSecond={pixelsPerSecond} offset={HEADER_WIDTH} />
 						{drag?.snappedTo !== undefined &&
 							timeToPixels(drag.snappedTo, pixelsPerSecond) >= scrollLeft && (
-							<div
-								className="timeline-snap-guide"
-								style={{ left: HEADER_WIDTH + timeToPixels(drag.snappedTo, pixelsPerSecond) }}
-								aria-hidden="true"
-							/>
-						)}
+								<div
+									className="timeline-snap-guide"
+									style={{ left: HEADER_WIDTH + timeToPixels(drag.snappedTo, pixelsPerSecond) }}
+									aria-hidden="true"
+								/>
+							)}
 					</div>
 				</div>
 			</div>

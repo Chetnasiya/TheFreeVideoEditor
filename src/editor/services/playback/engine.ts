@@ -124,11 +124,13 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	onPoolMissing = (assetId: AssetId): void => this.markMissing(assetId);
 	onPoolError = (error: Error): void => this.reportError(error);
 	onMediaStall = (_clipId: ClipId): void => {
+		void _clipId;
 		// Do not halt playback transport on transient decoder buffer dips or micro-stalls.
 		// The compositor gracefully holds the last good frame (frame dropping)
 		// while the timeline clock and audio stay in sync.
 	};
 	onMediaReady = (_clipId: ClipId): void => {
+		void _clipId;
 		if (!this.disposed) {
 			this.requestRender();
 		}

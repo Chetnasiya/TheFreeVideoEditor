@@ -84,10 +84,7 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 				<div className="flex items-center justify-between border-b border-[#242432] bg-[#14141c] px-5 py-3">
 					<div className="flex items-center gap-2.5">
 						<span className="h-2.5 w-2.5 rounded-full bg-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
-						<h3
-							id={titleId}
-							className="text-sm font-semibold tracking-tight text-[#f1f5f9]"
-						>
+						<h3 id={titleId} className="text-sm font-semibold tracking-tight text-[#f1f5f9]">
 							Track Dynamics Compressor — {trackName}
 						</h3>
 					</div>
@@ -95,6 +92,7 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 						<button
 							type="button"
 							onClick={toggleEnabled}
+							aria-label="Enabled"
 							className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
 								currentComp.enabled
 									? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
@@ -104,9 +102,7 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 						>
 							<span
 								className={`h-2 w-2 rounded-full ${
-									currentComp.enabled
-										? 'bg-emerald-400 shadow-[0_0_6px_#22c55e]'
-										: 'bg-[#64748b]'
+									currentComp.enabled ? 'bg-emerald-400 shadow-[0_0_6px_#22c55e]' : 'bg-[#64748b]'
 								}`}
 							/>
 							<span>{currentComp.enabled ? 'Active' : 'Bypassed'}</span>
@@ -229,9 +225,7 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 						<div className="flex flex-col gap-1.5 rounded-lg border border-[#242432] bg-[#161620] p-3 shadow-xs">
 							<div className="flex justify-between font-mono text-[11px] text-[#94a3b8]">
 								<span className="font-semibold text-[#f1f5f9]">Attack</span>
-								<span className="text-[#94a3b8]">
-									{Math.round(currentComp.attackMs)} ms
-								</span>
+								<span className="text-[#94a3b8]">{Math.round(currentComp.attackMs)} ms</span>
 							</div>
 							<input
 								type="range"
@@ -247,9 +241,7 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 						<div className="flex flex-col gap-1.5 rounded-lg border border-[#242432] bg-[#161620] p-3 shadow-xs">
 							<div className="flex justify-between font-mono text-[11px] text-[#94a3b8]">
 								<span className="font-semibold text-[#f1f5f9]">Release</span>
-								<span className="text-[#94a3b8]">
-									{Math.round(currentComp.releaseMs)} ms
-								</span>
+								<span className="text-[#94a3b8]">{Math.round(currentComp.releaseMs)} ms</span>
 							</div>
 							<input
 								type="range"
@@ -283,9 +275,7 @@ export const CompressorPopup: React.FC<CompressorPopupProps> = ({
 								<span className="font-semibold text-[#f1f5f9]">Makeup Gain</span>
 								<span
 									className={
-										currentComp.makeupDb > 0
-											? 'font-bold text-[#38bdf8]'
-											: 'text-[#94a3b8]'
+										currentComp.makeupDb > 0 ? 'font-bold text-[#38bdf8]' : 'text-[#94a3b8]'
 									}
 								>
 									+{currentComp.makeupDb} dB

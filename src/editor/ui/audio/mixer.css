@@ -222,7 +222,9 @@
 	cursor: pointer;
 	border-radius: 2px;
 	padding: 0;
-	transition: color 0.15s ease, background 0.15s ease;
+	transition:
+		color 0.15s ease,
+		background 0.15s ease;
 }
 
 .strip-delete-btn:hover {
@@ -428,7 +430,9 @@
 	background: linear-gradient(180deg, #2d2d38 0%, #1c1c24 50%, #15151c 100%);
 	border: 1px solid #3c3c4e;
 	border-radius: 3px;
-	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+	box-shadow:
+		0 2px 6px rgba(0, 0, 0, 0.7),
+		inset 0 1px 0 rgba(255, 255, 255, 0.15);
 	cursor: grab;
 	display: flex;
 	align-items: center;
@@ -478,13 +482,7 @@
 
 .strip-meter-fill {
 	width: 100%;
-	background: linear-gradient(
-		0deg,
-		#10b981 0%,
-		#10b981 65%,
-		#f59e0b 80%,
-		#ef4444 95%
-	);
+	background: linear-gradient(0deg, #10b981 0%, #10b981 65%, #f59e0b 80%, #ef4444 95%);
 	transition: height 0.08s ease;
 	border-radius: 1px;
 }
@@ -616,7 +614,9 @@
 	border: 1px solid #242432;
 	background: #111116;
 	color: #f1f5f9;
-	box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05);
+	box-shadow:
+		0 25px 60px -15px rgba(0, 0, 0, 0.85),
+		0 0 0 1px rgba(255, 255, 255, 0.05);
 	overflow: hidden;
 }
 
@@ -728,7 +728,9 @@
 	background: #ffffff;
 	border-color: #e2e8f0;
 	color: #0f172a;
-	box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
+	box-shadow:
+		0 25px 50px -12px rgba(0, 0, 0, 0.18),
+		0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 :root[data-theme='light'] .mixer-popup-dialog .border-b,
@@ -751,5 +753,3 @@
 	background-color: #ffffff !important;
 	border-color: #cbd5e1 !important;
 }
-
-

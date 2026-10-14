@@ -514,11 +514,7 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 
 				{/* Modal Footer Actions */}
 				<div className="dialog-actions">
-					<button
-						type="button"
-						className="secondary-button"
-						onClick={handleCancel}
-					>
+					<button type="button" className="secondary-button" onClick={handleCancel}>
 						{status.phase === 'completed' ? 'Done' : isRunning ? 'Cancel' : 'Close'}
 					</button>
 

@@ -121,3 +121,23 @@ Captions render through the same unified layer pipeline as Gate O text:
 - **Active Layer Resolution**: `resolveFrame(project, time)` evaluates active caption tracks (`hidden !== true`). The active caption segment within `[segment.start, segment.end)` is projected into an `ActiveLayer` of kind `'text'`.
 - **Word Highlights & Karaoke**: If `track.captionStyle.highlightMode` is active (`'word'` or `'progressive'`), word timestamps are matched to frame time $t$ to generate character-level color runs.
 - **Unified Pipeline Parity**: Preview and Worker Export use identical rasterization logic on both Canvas2D and WebGL2, ensuring bit-accurate subtitle alignment, shadows, outline strokes, and background bounding boxes.
+
+## High-Bit-Depth (16-bit Float) & Alpha Pipeline (Professional Codecs)
+
+1. **Half-Float Framebuffer Targets (`RGBA16F`)**:
+   - `FboPool` allocates textures with `gl.RGBA16F` and `gl.HALF_FLOAT` when `highBitDepth: true` is requested.
+   - Guarded by `gl.getExtension('EXT_color_buffer_float')` with automatic fallback to `RGBA8` if the host GPU lacks floating-point framebuffer support.
+   - Prevents precision loss and banding across multi-pass effect chains (color grading, curves, blur, adjustments).
+2. **Bit-Deterministic Integer Dithering (PCG Hash TPDF)**:
+   - `BLIT_FRAG` and `YUV_CONVERSION_FRAG` integrate a bit-deterministic unsigned integer PCG (Permuted Congruential Generator) hash keyed by `uvec2(gl_FragCoord.xy)` and `u_frameIndex`.
+   - Avoids trigonometric approximations (`fract(sin(...))`) to guarantee identical, reproducible noise across GPU architectures and context resets.
+   - Scaled by target bit depth ($\pm 1$ code value amplitude):
+     $$\text{amplitude} = \frac{1.0}{255.0} \quad \text{(8-bit)}, \quad \frac{1.0}{1023.0} \quad \text{(10-bit)}$$
+   - Default 8-bit preview and export pipelines leave dither strictly OFF (`u_dither = 0`), guaranteeing 100% byte-identical blit parity with the Phase 1 / Gate H reference. Dithering activates only when `highBitDepth: true` or 10-bit export is requested.
+3. **Transparent Alpha Rendering**:
+   - Both WebGL2 and Canvas2D pipelines support transparent canvas clearing (`options.transparent: true`).
+   - `BLIT_FRAG` preserves alpha channels (`u_keepAlpha: 1`) without forcing canvas opacity to 1.0.
+   - Paired with `CanvasSource({ alpha: 'keep' })` in mediabunny for ProRes 4444 and VP9 WebM alpha exports.
+4. **Color Tagging & ColorConversionPass**:
+   - WebGL2 contexts pass `options.colorSpace` (`srgb` or `display-p3`) directly to `gl.drawingBufferColorSpace` where supported.
+   - `ColorConversionPass.ts` provides full-canvas GPU conversion from RGB to ITU-R BT.709 and BT.2020 Y'CbCr 4:2:0 planar layouts, featuring VAO isolation, separate texture units (`TEXTURE0` source, `TEXTURE1` intermediate), 10-bit RGBA bit-packing (`hi8 = v10 >> 2u`, `low2 = (v10 & 3u) << 6u`), and PBO readback for `I420P10` `VideoFrame` creation. (Note: Readback currently executes `gl.readPixels` into a PBO followed immediately by `gl.getBufferSubData`, which is synchronous and stalls the CPU-GPU pipeline ~11.5 ms/frame at 1080p; asynchronous PBO double-buffering is not implemented and documented as a known limitation).

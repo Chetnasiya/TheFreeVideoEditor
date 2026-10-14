@@ -30,12 +30,14 @@ interface TimelineToolbarProps {
 }
 
 export default function TimelineToolbar({
-	playheadLabel: _playheadLabel,
-	durationLabel: _durationLabel,
+	playheadLabel,
+	durationLabel,
 	clipCount,
 	sequenceTabs,
 	isMaximized = false,
 	onToggleMaximize,
+	snapToMarkers = true,
+	onToggleSnapToMarkers,
 	markerCount,
 	pixelsPerSecond,
 	onSplit,
@@ -46,6 +48,7 @@ export default function TimelineToolbar({
 	onAddTrack,
 	onAddAdjustment,
 	onAddSolid,
+	onAddText,
 	onAddCaption
 }: TimelineToolbarProps) {
 	return (
@@ -126,6 +129,28 @@ export default function TimelineToolbar({
 						</svg>
 						<span>Ripple</span>
 					</button>
+					{onToggleSnapToMarkers && (
+						<button
+							className={`tool-button ${snapToMarkers ? 'is-active' : ''}`}
+							type="button"
+							aria-pressed={snapToMarkers}
+							onClick={onToggleSnapToMarkers}
+							title="Snap to markers (start and duration ends)"
+							aria-label="Snap to markers"
+						>
+							<svg
+								className="tool-btn-icon"
+								viewBox="0 0 16 16"
+								width="12"
+								height="12"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path d="M4 2v12h1.5V9.5h6l-1.5-3.5 1.5-4H5.5V2H4z" />
+							</svg>
+							<span>Snap to Markers</span>
+						</button>
+					)}
 				</div>
 				<div className="timeline-toolbar-separator" aria-hidden="true" />
 				<div className="timeline-tool-group" role="group" aria-label="Add tracks and layers">
@@ -138,7 +163,14 @@ export default function TimelineToolbar({
 								title="Add video track"
 								aria-label="+ Video Track"
 							>
-								<svg className="tool-btn-icon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
+								<svg
+									className="tool-btn-icon"
+									viewBox="0 0 16 16"
+									width="12"
+									height="12"
+									fill="currentColor"
+									aria-hidden="true"
+								>
 									<path d="M0 3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2.5l3.5-2.5v9L12 10.5V13a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3z" />
 								</svg>
 								<span>+ Video</span>
@@ -150,7 +182,14 @@ export default function TimelineToolbar({
 								title="Add audio track"
 								aria-label="+ Audio Track"
 							>
-								<svg className="tool-btn-icon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
+								<svg
+									className="tool-btn-icon"
+									viewBox="0 0 16 16"
+									width="12"
+									height="12"
+									fill="currentColor"
+									aria-hidden="true"
+								>
 									<path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z" />
 									<path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.482 5.482 0 0 1 11.025 8a5.482 5.482 0 0 1-1.61 3.89l.706.706z" />
 									<path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A1.5 1.5 0 0 1 0 9V7a1.5 1.5 0 0 1 1.5-1.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z" />
@@ -165,11 +204,19 @@ export default function TimelineToolbar({
 							className="tool-button"
 							onClick={onAddAdjustment}
 							title="Add adjustment layer across sequence"
+							aria-label="+ Adjustment Layer"
 						>
-							<svg className="tool-btn-icon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
+							<svg
+								className="tool-btn-icon"
+								viewBox="0 0 16 16"
+								width="12"
+								height="12"
+								fill="currentColor"
+								aria-hidden="true"
+							>
 								<path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5v11A5.5 5.5 0 0 1 8 2.5z" />
 							</svg>
-							<span>Adjustment Layer</span>
+							<span>+ Adjust</span>
 						</button>
 					)}
 					{onAddSolid && (
@@ -178,11 +225,40 @@ export default function TimelineToolbar({
 							className="tool-button"
 							onClick={onAddSolid}
 							title="Add solid color layer"
+							aria-label="+ Solid Layer"
 						>
-							<svg className="tool-btn-icon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
+							<svg
+								className="tool-btn-icon"
+								viewBox="0 0 16 16"
+								width="12"
+								height="12"
+								fill="currentColor"
+								aria-hidden="true"
+							>
 								<rect x="2" y="2" width="12" height="12" rx="2" />
 							</svg>
-							<span>Solid Layer</span>
+							<span>+ Solid</span>
+						</button>
+					)}
+					{onAddText && (
+						<button
+							type="button"
+							className="tool-button"
+							onClick={onAddText}
+							title="Add text clip at playhead"
+							aria-label="+ Text"
+						>
+							<svg
+								className="tool-btn-icon"
+								viewBox="0 0 16 16"
+								width="12"
+								height="12"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path d="M2.5 3v2h4.25v8h2.5V5H13.5V3h-11z" />
+							</svg>
+							<span>+ Text</span>
 						</button>
 					)}
 					{onAddCaption && (
@@ -191,11 +267,19 @@ export default function TimelineToolbar({
 							className="tool-button"
 							onClick={onAddCaption}
 							title="Add caption track or subtitle cue"
+							aria-label="+ Caption Layer"
 						>
-							<svg className="tool-btn-icon" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
+							<svg
+								className="tool-btn-icon"
+								viewBox="0 0 16 16"
+								width="12"
+								height="12"
+								fill="currentColor"
+								aria-hidden="true"
+							>
 								<path d="M2 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1.5v2.5L7 13h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H2zm3.5 3h1.5a.5.5 0 0 1 .5.5v.5h-1v-.5H5.5v3H6v-.5h1v.5a.5.5 0 0 1-.5.5h-1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5zm5 0H12a.5.5 0 0 1 .5.5v.5h-1v-.5H10.5v3H11v-.5h1v.5a.5.5 0 0 1-.5.5h-1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5z" />
 							</svg>
-							<span>Caption Layer</span>
+							<span>+ Caption</span>
 						</button>
 					)}
 				</div>
@@ -204,7 +288,14 @@ export default function TimelineToolbar({
 				<div className="timeline-tool-group timeline-zoom-tools">
 					<label title="Timeline zoom">
 						<span className="sr-only">Timeline zoom</span>
-						<svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" className="timeline-zoom-icon" aria-hidden="true">
+						<svg
+							viewBox="0 0 16 16"
+							width="11"
+							height="11"
+							fill="currentColor"
+							className="timeline-zoom-icon"
+							aria-hidden="true"
+						>
 							<path d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zm4.4-1.8l3.4 3.4a.75.75 0 0 1-1.06 1.06l-3.4-3.4a5.5 5.5 0 0 1-3.34.74zM4 6h5v1H4V6z" />
 						</svg>
 						<input
@@ -217,7 +308,14 @@ export default function TimelineToolbar({
 							value={pixelsPerSecond}
 							onChange={(event) => onZoom(Number(event.currentTarget.value))}
 						/>
-						<svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" className="timeline-zoom-icon" aria-hidden="true">
+						<svg
+							viewBox="0 0 16 16"
+							width="11"
+							height="11"
+							fill="currentColor"
+							className="timeline-zoom-icon"
+							aria-hidden="true"
+						>
 							<path d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zm4.4-1.8l3.4 3.4a.75.75 0 0 1-1.06 1.06l-3.4-3.4a5.5 5.5 0 0 1-3.34.74zM6 4h1v2h2v1H7v2H6V7H4V6h2V4z" />
 						</svg>
 					</label>
@@ -229,7 +327,19 @@ export default function TimelineToolbar({
 					>
 						Fit
 					</button>
-					<span className="timeline-counter-badge timeline-clip-count" aria-label={`${clipCount} clips`}>
+					{playheadLabel && durationLabel && (
+						<output
+							className="timeline-time-readout"
+							role="status"
+							aria-label="Playhead time and sequence duration"
+						>
+							{playheadLabel} / {durationLabel}
+						</output>
+					)}
+					<span
+						className="timeline-counter-badge timeline-clip-count"
+						aria-label={`${clipCount} clips`}
+					>
 						{clipCount} clips
 					</span>
 					{markerCount !== undefined && markerCount > 0 && (

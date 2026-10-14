@@ -369,16 +369,10 @@ export default function TimelineRuler({
 						className={`timeline-corner-btn ${showLanes !== 'off' ? 'is-active' : ''}`}
 						onClick={toggleKeyframeLanes}
 						title={`Keyframes: ${showLanes} (Cmd+K)`}
-						aria-label={`Keyframe display: ${showLanes}`}
+						aria-label={`Keyframes display: ${showLanes}`}
 						aria-pressed={showLanes !== 'off'}
 					>
-						<svg
-							viewBox="0 0 16 16"
-							width="12"
-							height="12"
-							fill="currentColor"
-							aria-hidden="true"
-						>
+						<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
 							<path d="M8 1.5L14 8L8 14.5L2 8L8 1.5Z" />
 						</svg>
 					</button>
@@ -387,7 +381,7 @@ export default function TimelineRuler({
 						className={`timeline-corner-btn ${graphOpen ? 'is-active' : ''}`}
 						onClick={toggleGraphEditor}
 						title="Toggle Graph Editor (Shift+G)"
-						aria-label="Toggle Graph Editor"
+						aria-label="Graph"
 						aria-pressed={graphOpen}
 					>
 						<svg

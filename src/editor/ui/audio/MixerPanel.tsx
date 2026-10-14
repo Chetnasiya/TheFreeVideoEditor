@@ -1,8 +1,8 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import { EqPopup } from './EqPopup';
 import { CompressorPopup } from './CompressorPopup';
-import type { Track, AudioBus, AutomationMode } from '../../core/types';
+import type { AudioBus, AutomationMode } from '../../core/types';
 import './mixer.css';
 
 /**
@@ -56,7 +56,9 @@ const MixerFader: React.FC<FaderProps> = ({ gainDb, onChange, isMuted = false })
 	const meterLevelPct =
 		isMuted || gainDb <= -96 ? 0 : Math.min(100, Math.max(pct > 0 ? 3 : 0, pct >= 98 ? 100 : pct));
 	const meterLevelRightPct =
-		isMuted || gainDb <= -96 ? 0 : Math.min(100, Math.max(pct > 0 ? 3 : 0, pct >= 98 ? 100 : Math.round(pct * 0.96)));
+		isMuted || gainDb <= -96
+			? 0
+			: Math.min(100, Math.max(pct > 0 ? 3 : 0, pct >= 98 ? 100 : Math.round(pct * 0.96)));
 
 	const updateFromPointer = useCallback(
 		(clientY: number, shiftKey = false) => {
@@ -113,7 +115,7 @@ const MixerFader: React.FC<FaderProps> = ({ gainDb, onChange, isMuted = false })
 	};
 
 	return (
-		<div className="flex flex-col items-center w-full">
+		<div className="flex w-full flex-col items-center">
 			<div className="strip-fader-meter-area" onWheel={handleWheel}>
 				{/* dB Scale Labels */}
 				<div className="strip-db-scale" aria-hidden="true">
@@ -212,13 +214,21 @@ export const MixerPanel: React.FC = () => {
 						{audioTracks.length} tracks
 					</div>
 					{audioBuses.length > 0 && (
-						<div className="mixer-badge" style={{ borderColor: 'rgba(168, 85, 247, 0.3)', color: '#c084fc' }}>
+						<div
+							className="mixer-badge"
+							style={{ borderColor: 'rgba(168, 85, 247, 0.3)', color: '#c084fc' }}
+						>
 							{audioBuses.length} submix{audioBuses.length > 1 ? 'es' : ''}
 						</div>
 					)}
 				</div>
-				<button type="button" onClick={handleAddBus} className="mixer-btn" title="Add a submix audio bus">
-					<span className="text-[#38bdf8] font-bold">+</span>
+				<button
+					type="button"
+					onClick={handleAddBus}
+					className="mixer-btn"
+					title="Add a submix audio bus"
+				>
+					<span className="font-bold text-[#38bdf8]">+</span>
 					<span>Add Submix</span>
 				</button>
 			</div>
@@ -233,7 +243,7 @@ export const MixerPanel: React.FC = () => {
 					const autoMode = tAudio.automationMode ?? 'read';
 
 					return (
-						<div key={track.id} className="mixer-strip" data-track-id={track.id}>
+						<div key={track.id} className="mixer-strip channel-strip" data-track-id={track.id}>
 							{/* Track Header & Automation */}
 							<div className="strip-header">
 								<div className="strip-title-row">
@@ -276,7 +286,11 @@ export const MixerPanel: React.FC = () => {
 									type="button"
 									onClick={() => setActiveCompTrackId(track.id)}
 									className={`strip-fx-btn ${tAudio.compressor?.enabled ? 'is-active' : ''}`}
-									title={tAudio.compressor?.enabled ? 'Compressor / Dynamics (Enabled)' : 'Compressor / Dynamics'}
+									title={
+										tAudio.compressor?.enabled
+											? 'Compressor / Dynamics (Enabled)'
+											: 'Compressor / Dynamics'
+									}
 								>
 									DYN
 								</button>
@@ -341,7 +355,10 @@ export const MixerPanel: React.FC = () => {
 							</div>
 
 							{/* Routing indicator */}
-							<div className="strip-routing-label" title={`Routed to ${tAudio.output && tAudio.output !== 'master' ? 'Submix' : 'Master'}`}>
+							<div
+								className="strip-routing-label"
+								title={`Routed to ${tAudio.output && tAudio.output !== 'master' ? 'Submix' : 'Master'}`}
+							>
 								{tAudio.output && tAudio.output !== 'master' ? '→ Submix' : '→ Master'}
 							</div>
 						</div>
@@ -350,7 +367,7 @@ export const MixerPanel: React.FC = () => {
 
 				{/* Audio Buses (Submixes) */}
 				{audioBuses.map((bus) => (
-					<div key={bus.id} className="mixer-strip is-bus" data-bus-id={bus.id}>
+					<div key={bus.id} className="mixer-strip is-bus bus-strip" data-bus-id={bus.id}>
 						<div className="strip-header">
 							<div className="strip-title-row">
 								<span className="strip-kind-tag is-bus">BUS</span>
@@ -364,7 +381,16 @@ export const MixerPanel: React.FC = () => {
 									title={`Delete ${bus.name}`}
 									aria-label={`Delete ${bus.name}`}
 								>
-									<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+									<svg
+										width="9"
+										height="9"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.5"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
 										<line x1="18" y1="6" x2="6" y2="18" />
 										<line x1="6" y1="6" x2="18" y2="18" />
 									</svg>
@@ -392,7 +418,7 @@ export const MixerPanel: React.FC = () => {
 
 						{/* Submix label placeholder for FX alignment */}
 						<div className="strip-fx-row">
-							<div className="flex-1 text-center font-mono text-[9px] text-[#a855f7] py-0.5">
+							<div className="flex-1 py-0.5 text-center font-mono text-[9px] text-[#a855f7]">
 								SUBMIX
 							</div>
 						</div>
@@ -453,9 +479,7 @@ export const MixerPanel: React.FC = () => {
 							</button>
 						</div>
 
-						<div className="strip-routing-label">
-							→ {bus.output}
-						</div>
+						<div className="strip-routing-label">→ {bus.output}</div>
 					</div>
 				))}
 
@@ -464,9 +488,7 @@ export const MixerPanel: React.FC = () => {
 					<div className="strip-header">
 						<div className="strip-title-row">
 							<span className="strip-kind-tag is-master">OUT</span>
-							<span className="strip-name text-[#fbbf24] font-bold">
-								MASTER
-							</span>
+							<span className="strip-name font-bold text-[#fbbf24]">MASTER</span>
 						</div>
 					</div>
 
@@ -478,19 +500,25 @@ export const MixerPanel: React.FC = () => {
 							className={`strip-fx-btn w-full ${masterAudio.limiter ? 'is-active' : ''}`}
 							title="Toggle Master Limiter"
 						>
-							<span className={masterAudio.limiter ? 'text-[#38bdf8] font-bold mr-1' : 'text-[#64748b] mr-1'}>●</span>
+							<span
+								className={
+									masterAudio.limiter ? 'mr-1 font-bold text-[#38bdf8]' : 'mr-1 text-[#64748b]'
+								}
+							>
+								●
+							</span>
 							LIMITER
 						</button>
 					</div>
 
 					{/* Master Balance / Pan */}
-					<div className="strip-pan-section opacity-50 pointer-events-none">
+					<div className="strip-pan-section pointer-events-none opacity-50">
 						<div className="strip-pan-header">
 							<span>L</span>
 							<span className="strip-pan-value">C</span>
 							<span>R</span>
 						</div>
-						<div className="h-[3px] bg-[#242432] rounded-full my-1" />
+						<div className="my-1 h-[3px] rounded-full bg-[#242432]" />
 					</div>
 
 					{/* Master Fader & Meter */}

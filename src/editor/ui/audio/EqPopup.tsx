@@ -92,10 +92,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 				<div className="flex items-center justify-between border-b border-[#242432] bg-[#14141c] px-5 py-3">
 					<div className="flex items-center gap-2.5">
 						<span className="h-2.5 w-2.5 rounded-full bg-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
-						<h3
-							id={titleId}
-							className="text-sm font-semibold tracking-tight text-[#f1f5f9]"
-						>
+						<h3 id={titleId} className="text-sm font-semibold tracking-tight text-[#f1f5f9]">
 							Track EQ — {trackName}
 						</h3>
 					</div>
@@ -103,6 +100,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 						<button
 							type="button"
 							onClick={toggleEnabled}
+							aria-label="Enabled"
 							className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
 								currentEq.enabled
 									? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
@@ -112,9 +110,7 @@ export const EqPopup: React.FC<EqPopupProps> = ({ eq, trackName, onClose, onChan
 						>
 							<span
 								className={`h-2 w-2 rounded-full ${
-									currentEq.enabled
-										? 'bg-emerald-400 shadow-[0_0_6px_#22c55e]'
-										: 'bg-[#64748b]'
+									currentEq.enabled ? 'bg-emerald-400 shadow-[0_0_6px_#22c55e]' : 'bg-[#64748b]'
 								}`}
 							/>
 							<span>{currentEq.enabled ? 'Active' : 'Bypassed'}</span>

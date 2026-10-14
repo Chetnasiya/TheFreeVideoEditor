@@ -2,14 +2,42 @@ import { BufferTarget, StreamTarget, type Target } from 'mediabunny';
 import type { SaveFileType, StreamingSaveTarget } from '../storage/fileAccess';
 import { createStreamingSaveTarget } from '../storage/fileAccess';
 
+import type { ExportContainerFormat } from './plan';
+
 export interface ExportSink {
 	target: Target;
 	finish(): Promise<Blob | null>;
 	abort(error: unknown): Promise<void>;
 }
 
+function getMimeType(format: ExportContainerFormat): string {
+	switch (format) {
+		case 'mp4':
+			return 'video/mp4';
+		case 'mov':
+			return 'video/quicktime';
+		case 'wav':
+			return 'audio/wav';
+		case 'webm':
+			return 'video/webm';
+	}
+}
+
+function getDescription(format: ExportContainerFormat): string {
+	switch (format) {
+		case 'mp4':
+			return 'MP4 video';
+		case 'mov':
+			return 'QuickTime MOV';
+		case 'wav':
+			return 'WAV audio';
+		case 'webm':
+			return 'WebM video';
+	}
+}
+
 export function createExportSinkForTarget(
-	format: 'mp4' | 'webm',
+	format: ExportContainerFormat,
 	streaming: StreamingSaveTarget | null
 ): ExportSink {
 	if (streaming) {
@@ -41,8 +69,8 @@ export function createExportSinkForTarget(
 	return {
 		target,
 		async finish() {
-			if (!target.buffer) throw new Error('Video encoder did not produce an output file.');
-			return new Blob([target.buffer], { type: format === 'mp4' ? 'video/mp4' : 'video/webm' });
+			if (!target.buffer) throw new Error('Encoder did not produce an output file.');
+			return new Blob([target.buffer], { type: getMimeType(format) });
 		},
 		async abort() {}
 	};
@@ -50,12 +78,12 @@ export function createExportSinkForTarget(
 
 export async function createExportSink(
 	filename: string,
-	format: 'mp4' | 'webm'
+	format: ExportContainerFormat
 ): Promise<ExportSink | null> {
 	const types: SaveFileType[] = [
 		{
-			description: format === 'mp4' ? 'MP4 video' : 'WebM video',
-			accept: { [format === 'mp4' ? 'video/mp4' : 'video/webm']: [`.${format}`] }
+			description: getDescription(format),
+			accept: { [getMimeType(format)]: [`.${format}`] }
 		}
 	];
 	let streaming: StreamingSaveTarget | null;

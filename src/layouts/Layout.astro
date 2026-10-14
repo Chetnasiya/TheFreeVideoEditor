@@ -28,16 +28,21 @@ const currentCanonical = canonicalUrl || siteUrl;
 <!doctype html>
 <html lang="en">
 	<head>
-		<!-- Google tag (gtag.js) -->
-		<script async src="https://www.googletagmanager.com/gtag/js?id=G-S0B2C9G9X7"></script>
-		<script is:inline>
-			window.dataLayer = window.dataLayer || [];
-			function gtag(){dataLayer.push(arguments);}
-			gtag('js', new Date());
+		{import.meta.env.PROD && (
+			<>
+				{/* Google tag (gtag.js) */}
+				<script async src="https://www.googletagmanager.com/gtag/js?id=G-S0B2C9G9X7" />
+				<script is:inline>
+					window.dataLayer = window.dataLayer || [];
+					function gtag() {
+						dataLayer.push(arguments);
+					}
+					gtag('js', new Date());
 
-			gtag('config', 'G-S0B2C9G9X7');
-		</script>
-
+					gtag('config', 'G-S0B2C9G9X7');
+				</script>
+			</>
+		)}
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
@@ -50,10 +55,7 @@ const currentCanonical = canonicalUrl || siteUrl;
 		<title>{title}</title>
 		<meta name="description" content={description} />
 		<meta name="keywords" content={keywords} />
-		<meta
-			name="robots"
-			content={robots}
-		/>
+		<meta name="robots" content={robots} />
 		<meta name="theme-color" content="#090909" />
 		<link rel="canonical" href={currentCanonical} />
 		<link rel="sitemap" type="application/xml" href="/sitemap.xml" />
