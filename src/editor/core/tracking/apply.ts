@@ -225,10 +225,7 @@ export function captureBindingOffsets(
 	return {
 		offsetPosition: [offX, offY],
 		offsetRotation: targetTransform.rotation - deltaRotDeg,
-		offsetScale: [
-			targetTransform.scaleX / Math.max(1e-4, evalState.scale),
-			targetTransform.scaleY / Math.max(1e-4, evalState.scale)
-		]
+		offsetScale: [1 / Math.max(1e-4, evalState.scale), 1 / Math.max(1e-4, evalState.scale)]
 	};
 }
 
@@ -348,9 +345,11 @@ export function bakeTrackingToKeyframes(
 		}
 
 		if (binding.applyScale) {
+			const baseSx = targetClip.transform?.scaleX ?? 1;
+			const baseSy = targetClip.transform?.scaleY ?? 1;
 			scaleKeyframes.push({
 				time: targetLocalTime,
-				value: [motion.scale[0], motion.scale[1]],
+				value: [baseSx * motion.scale[0], baseSy * motion.scale[1]],
 				interpolation: 'linear'
 			});
 		}

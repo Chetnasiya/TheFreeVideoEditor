@@ -71,9 +71,16 @@ export function refineLkSingleScale(
 	const N = patchW * patchH;
 
 	// Number of parameters:
-	// p = [dx, dy] (translation: 2)
-	// or [dx, dy, dtheta, ds] (similarity: 4)
-	const numParams = trackRotation || trackScale ? 4 : 2;
+	// Decouple rotation and scale so Hessian is well-conditioned
+	let numParams = 2;
+	let rotIdx = -1;
+	let scaleIdx = -1;
+	if (trackRotation) {
+		rotIdx = numParams++;
+	}
+	if (trackScale) {
+		scaleIdx = numParams++;
+	}
 
 	// Precompute template values, gradients, and steepest descent images on template
 	const T = new Float32Array(N);
@@ -111,22 +118,39 @@ export function refineLkSingleScale(
 
 		SD[i * numParams + 0] = gx;
 		SD[i * numParams + 1] = gy;
-		if (numParams === 4) {
-			// Rotation derivative: W(x; p) = R * S * x
-			// d/dtheta: [-y, x]^T
-			SD[i * numParams + 2] = gx * -y + gy * x;
+		if (rotIdx >= 0) {
+			// Rotation derivative: W(x; p) = R * S * x => d/dtheta: [-y, x]^T
+			SD[i * numParams + rotIdx] = gx * -y + gy * x;
+		}
+		if (scaleIdx >= 0) {
 			// Scale derivative: d/ds: [x, y]^T
-			SD[i * numParams + 3] = gx * x + gy * y;
+			SD[i * numParams + scaleIdx] = gx * x + gy * y;
 		}
 	}
 
-	// Precompute Hessian matrix H = sum(SD_i * SD_i^T)
+	// Precompute spatial window (2D Hann window): 1.0 at center, smoothly decays to 0 at border
+	// This suppresses background clutter, aperture edge artifacts, and non-rigid background noise
+	const spatialWeights = new Float32Array(N);
+	let sumSpatialWeight = 0;
+	idx = 0;
+	for (let dy = -halfH; dy <= halfH; dy++) {
+		const wy = 0.5 * (1 + Math.cos((Math.PI * dy) / (halfH + 1)));
+		for (let dx = -halfW; dx <= halfW; dx++) {
+			const wx = 0.5 * (1 + Math.cos((Math.PI * dx) / (halfW + 1)));
+			const w = wx * wy;
+			spatialWeights[idx++] = w;
+			sumSpatialWeight += w;
+		}
+	}
+
+	// Precompute Hessian matrix H = sum(w_i * SD_i * SD_i^T)
 	const H = new Float64Array(numParams * numParams);
 	for (let i = 0; i < N; i++) {
+		const w = spatialWeights[i]!;
 		const base = i * numParams;
 		for (let r = 0; r < numParams; r++) {
 			for (let c = 0; c < numParams; c++) {
-				H[r * numParams + c] += SD[base + r]! * SD[base + c]!;
+				H[r * numParams + c] += w * SD[base + r]! * SD[base + c]!;
 			}
 		}
 	}
@@ -171,17 +195,18 @@ export function refineLkSingleScale(
 
 			// Huber weighting for robustness against outliers / occlusions
 			const absErr = Math.abs(error);
-			const weight = absErr <= huberThreshold ? 1.0 : huberThreshold / absErr;
+			const huberW = absErr <= huberThreshold ? 1.0 : huberThreshold / absErr;
+			const totalW = huberW * spatialWeights[i]!;
 
-			sumSqErr += error * error;
+			sumSqErr += spatialWeights[i]! * error * error;
 
 			const base = i * numParams;
 			for (let p = 0; p < numParams; p++) {
-				b[p] += weight * SD[base + p]! * error;
+				b[p] += totalW * SD[base + p]! * error;
 			}
 		}
 
-		lastRms = Math.sqrt(sumSqErr / N);
+		lastRms = Math.sqrt(sumSqErr / Math.max(1e-6, sumSpatialWeight));
 
 		// Compute dp = Hinv * b
 		const dp = new Float64Array(numParams);
@@ -194,21 +219,28 @@ export function refineLkSingleScale(
 		}
 
 		// Update warp: W(x; p) <- W(x; p) \circ W(x; dp)^-1
-		const dX = dp[0]!;
-		const dY = dp[1]!;
+		const dX = cosR * dp[0]! - sinR * dp[1]!;
+		const dY = sinR * dp[0]! + cosR * dp[1]!;
 		curX -= dX;
 		curY -= dY;
 
-		if (numParams === 4) {
-			const dRot = dp[2]!;
-			const dScale = dp[3]!;
-			if (trackRotation) curRot -= dRot;
-			if (trackScale) curScale /= 1.0 + dScale;
+		let dRot = 0;
+		if (rotIdx >= 0) {
+			dRot = dp[rotIdx]!;
+			curRot -= dRot;
+		}
+		let dScale = 0;
+		if (scaleIdx >= 0) {
+			dScale = dp[scaleIdx]!;
+			// Damped update to prevent overshoot and maintain scale stability
+			const clampedDScale = Math.max(-0.4, Math.min(0.4, dScale));
+			curScale /= 1.0 + clampedDScale;
+			curScale = Math.max(0.02, Math.min(50.0, curScale));
 		}
 
 		// Check convergence
-		const stepMag = Math.sqrt(dX * dX + dY * dY);
-		if (stepMag < tolerance) {
+		const stepMag = Math.hypot(dX, dY);
+		if (stepMag < tolerance && Math.abs(dScale) < tolerance && Math.abs(dRot) < tolerance) {
 			break;
 		}
 	}
@@ -245,6 +277,13 @@ export function trackLkPyramid(
 		const tImg = templatePyramid.levels[lvl]!;
 		const tgtImg = targetPyramid.levels[lvl]!;
 
+		const patchWidthAtLvl = templateNormRegion.width * tImg.width;
+		// Skip overly coarse levels where the feature is smaller than 8 pixels
+		// to avoid locking onto background ripples instead of the object
+		if (patchWidthAtLvl < 8) {
+			continue;
+		}
+
 		const scaleFactor = tImg.width / templatePyramid.levels[0]!.width;
 
 		const tCx = templateNormRegion.x * tImg.width;
@@ -259,7 +298,23 @@ export function trackLkPyramid(
 			scale: state.scale
 		};
 
-		const res = refineLkSingleScale(tImg, tgtImg, tCx, tCy, halfW, halfH, lvlInitialState, options);
+		// Only refine scale and rotation on levels where the patch is large enough to contain gradient texture
+		const lvlOptions: LkOptions = {
+			...options,
+			trackScale: Boolean(options.trackScale && halfW >= 8 && halfH >= 8),
+			trackRotation: Boolean(options.trackRotation && halfW >= 8 && halfH >= 8)
+		};
+
+		const res = refineLkSingleScale(
+			tImg,
+			tgtImg,
+			tCx,
+			tCy,
+			halfW,
+			halfH,
+			lvlInitialState,
+			lvlOptions
+		);
 
 		state = {
 			x: res.state.x / scaleFactor,

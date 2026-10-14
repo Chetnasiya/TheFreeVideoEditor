@@ -57,11 +57,13 @@ export function TrackingOverlay({ project, renderedWidth, renderedHeight }: Trac
 	const screenCenterX = state.x * renderedWidth;
 	const screenCenterY = state.y * renderedHeight;
 
-	const templateW = tracker.initialRegion.width * renderedWidth;
-	const templateH = tracker.initialRegion.height * renderedHeight;
+	const currentScale = Math.max(0.05, state.scale ?? 1.0);
+	const templateW = tracker.initialRegion.width * renderedWidth * currentScale;
+	const templateH = tracker.initialRegion.height * renderedHeight * currentScale;
 	const searchMultiplier = tracker.initialRegion.searchMultiplier ?? 2.5;
 	const searchW = templateW * searchMultiplier;
 	const searchH = templateH * searchMultiplier;
+	const rotDeg = ((state.rotation ?? 0) * 180) / Math.PI;
 
 	// Mouse drag handlers to place/reposition tracker box with mouse
 	const handlePointerDown = (e: React.PointerEvent, kind: 'feature' | 'search') => {
@@ -143,7 +145,8 @@ export function TrackingOverlay({ project, renderedWidth, renderedHeight }: Trac
 					left: screenCenterX - searchW / 2,
 					top: screenCenterY - searchH / 2,
 					width: searchW,
-					height: searchH
+					height: searchH,
+					transform: `rotate(${rotDeg.toFixed(2)}deg)`
 				}}
 				onPointerDown={(e) => handlePointerDown(e, 'search')}
 				onPointerMove={handlePointerMove}
@@ -158,7 +161,8 @@ export function TrackingOverlay({ project, renderedWidth, renderedHeight }: Trac
 					left: screenCenterX - templateW / 2,
 					top: screenCenterY - templateH / 2,
 					width: templateW,
-					height: templateH
+					height: templateH,
+					transform: `rotate(${rotDeg.toFixed(2)}deg)`
 				}}
 				onPointerDown={(e) => handlePointerDown(e, 'feature')}
 				onPointerMove={handlePointerMove}

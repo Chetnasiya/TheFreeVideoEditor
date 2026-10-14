@@ -238,6 +238,69 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 
 					{selectedTracker && (
 						<div className="flex flex-col gap-2.5">
+							{/* Tracked Properties / Size display */}
+							<div className="flex items-center justify-between px-1 text-[11px] text-[#94a3b8]">
+								<div className="flex items-center gap-2.5">
+									<label className="flex cursor-pointer items-center gap-1">
+										<input
+											type="checkbox"
+											checked={selectedTracker.params.trackTranslation ?? true}
+											onChange={(e) => {
+												store.getState().updateTracker(clip.id, selectedTracker.id, {
+													params: {
+														...selectedTracker.params,
+														trackTranslation: e.target.checked
+													}
+												});
+											}}
+											className="rounded border-[#475569] bg-[#1e293b] text-[#38bdf8] focus:ring-0"
+										/>
+										<span>Position</span>
+									</label>
+									<label className="flex cursor-pointer items-center gap-1">
+										<input
+											type="checkbox"
+											checked={selectedTracker.params.trackScale ?? true}
+											onChange={(e) => {
+												store.getState().updateTracker(clip.id, selectedTracker.id, {
+													params: {
+														...selectedTracker.params,
+														trackScale: e.target.checked
+													}
+												});
+											}}
+											className="rounded border-[#475569] bg-[#1e293b] text-[#38bdf8] focus:ring-0"
+										/>
+										<span>Scale (Size)</span>
+									</label>
+									<label className="flex cursor-pointer items-center gap-1">
+										<input
+											type="checkbox"
+											checked={selectedTracker.params.trackRotation ?? false}
+											onChange={(e) => {
+												store.getState().updateTracker(clip.id, selectedTracker.id, {
+													params: {
+														...selectedTracker.params,
+														trackRotation: e.target.checked
+													}
+												});
+											}}
+											className="rounded border-[#475569] bg-[#1e293b] text-[#38bdf8] focus:ring-0"
+										/>
+										<span>Rotation</span>
+									</label>
+								</div>
+								{selectedTracker.samples.length > 0 && (
+									<span className="font-mono text-[10px] font-semibold text-[#38bdf8]">
+										{Math.round(
+											(selectedTracker.samples[selectedTracker.samples.length - 1]?.scale ?? 1.0) *
+												100
+										)}
+										% size
+									</span>
+								)}
+							</div>
+
 							{/* Direction Controls (Segmented Pill Group) */}
 							<div className="segmented-pill-group">
 								<button
@@ -395,6 +458,57 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 													: selectedTracker.binding.targetClipId}
 											</span>
 										</div>
+										{/* Follow options */}
+										<div className="flex items-center gap-3 pt-1 text-[11px] text-[#cbd5e1]">
+											<label className="flex cursor-pointer items-center gap-1">
+												<input
+													type="checkbox"
+													checked={selectedTracker.binding.applyPosition ?? true}
+													onChange={(e) => {
+														store.getState().updateTracker(clip.id, selectedTracker.id, {
+															binding: {
+																...selectedTracker.binding!,
+																applyPosition: e.target.checked
+															}
+														});
+													}}
+													className="rounded border-[#475569] bg-[#1e293b] text-[#38bdf8] focus:ring-0"
+												/>
+												<span>Position</span>
+											</label>
+											<label className="flex cursor-pointer items-center gap-1">
+												<input
+													type="checkbox"
+													checked={selectedTracker.binding.applyScale ?? true}
+													onChange={(e) => {
+														store.getState().updateTracker(clip.id, selectedTracker.id, {
+															binding: {
+																...selectedTracker.binding!,
+																applyScale: e.target.checked
+															}
+														});
+													}}
+													className="rounded border-[#475569] bg-[#1e293b] text-[#38bdf8] focus:ring-0"
+												/>
+												<span>Scale (Size)</span>
+											</label>
+											<label className="flex cursor-pointer items-center gap-1">
+												<input
+													type="checkbox"
+													checked={selectedTracker.binding.applyRotation ?? false}
+													onChange={(e) => {
+														store.getState().updateTracker(clip.id, selectedTracker.id, {
+															binding: {
+																...selectedTracker.binding!,
+																applyRotation: e.target.checked
+															}
+														});
+													}}
+													className="rounded border-[#475569] bg-[#1e293b] text-[#38bdf8] focus:ring-0"
+												/>
+												<span>Rotation</span>
+											</label>
+										</div>
 										<div className="flex items-center gap-2 pt-1">
 											<button
 												type="button"
@@ -442,7 +556,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 														targetClipId: targetId,
 														applyPosition: true,
 														applyRotation: false,
-														applyScale: false
+														applyScale: true
 													});
 												}
 											}}
@@ -457,7 +571,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 											))}
 										</select>
 										<span className="text-[10px] leading-tight text-[#64748b]">
-											Binds this layer's position to the tracker in real-time.
+											Binds this layer's position and size to the tracked object in real-time.
 										</span>
 									</div>
 								)}

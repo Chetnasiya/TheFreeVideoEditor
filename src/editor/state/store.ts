@@ -6518,14 +6518,14 @@ export function createEditorStore() {
 						params: {
 							trackTranslation: true,
 							trackRotation: type !== 'point',
-							trackScale: type !== 'point',
-							pyramidLevels: 3,
-							searchRadiusPx: 32,
-							maxIterations: 20,
-							tolerance: 0.01,
-							nccThreshold: 0.65,
+							trackScale: true,
+							pyramidLevels: 4,
+							searchRadiusPx: 64,
+							maxIterations: 25,
+							tolerance: 0.005,
+							nccThreshold: 0.5,
 							huberThreshold: 0.1,
-							confidenceThreshold: 0.5
+							confidenceThreshold: 0.4
 						},
 						samples: []
 					};

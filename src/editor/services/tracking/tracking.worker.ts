@@ -138,9 +138,15 @@ scope.addEventListener('message', async (e: MessageEvent<TrackingWorkerInMessage
 			let currentRot = 0;
 			let currentScale = 1.0;
 
+			// Velocity history for motion extrapolation (fast motion handling)
+			let prevNormX = normRegion.x;
+			let prevNormY = normRegion.y;
+			let prevPrevNormX = normRegion.x;
+			let prevPrevNormY = normRegion.y;
+
 			const halfW = Math.max(4, Math.round((normRegion.width * seedGray.width) / 2));
 			const halfH = Math.max(4, Math.round((normRegion.height * seedGray.height) / 2));
-			const seedPatch = extractNormalizedPatch(
+			const activePatch = extractNormalizedPatch(
 				seedGray,
 				normRegion.x * seedGray.width,
 				normRegion.y * seedGray.height,
@@ -148,7 +154,7 @@ scope.addEventListener('message', async (e: MessageEvent<TrackingWorkerInMessage
 				halfH
 			);
 
-			if (!seedPatch) {
+			if (!activePatch) {
 				throw new Error('Initial tracker region is out of bounds or invalid.');
 			}
 
@@ -174,29 +180,116 @@ scope.addEventListener('message', async (e: MessageEvent<TrackingWorkerInMessage
 
 				const targetPyramid = buildPyramid(targetGray, job.params.pyramidLevels);
 
-				// Fast NCC coarse search around current position
-				const curPxX = currentNormX * targetGray.width;
-				const curPxY = currentNormY * targetGray.height;
-				const nccResult = matchTemplateNcc(
-					targetGray,
-					seedPatch.patch,
-					seedPatch.norm,
-					halfW,
-					halfH,
-					curPxX,
-					curPxY,
-					job.params.searchRadiusPx
+				// 1. Motion prediction / velocity extrapolation:
+				// If object was moving fast in previous frames, extrapolate velocity to predict candidate location
+				let vx = 0;
+				let vy = 0;
+				if (i >= 2) {
+					vx = prevNormX - prevPrevNormX;
+					vy = prevNormY - prevPrevNormY;
+				}
+				const predNormX = Math.max(0, Math.min(1, currentNormX + vx));
+				const predNormY = Math.max(0, Math.min(1, currentNormY + vy));
+
+				const predPxX = predNormX * targetGray.width;
+				const predPxY = predNormY * targetGray.height;
+
+				// 2. Adaptive search radius for recovery:
+				const baseRadius = job.params.searchRadiusPx || 32;
+				const userSearchRadius =
+					(normRegion.width * targetGray.width * (job.initialRegion.searchMultiplier ?? 2.5)) / 2;
+				const velocitySpeedPx = Math.hypot(vx * targetGray.width, vy * targetGray.height);
+				const effectiveSearchRadius = Math.round(
+					Math.max(baseRadius, userSearchRadius, velocitySpeedPx * 1.5, 48)
 				);
 
-				// Check NCC threshold for occlusion / loss
-				if (nccResult.score < job.params.nccThreshold) {
+				// 3. Fast Path: Direct Pyramidal Lucas-Kanade optical flow from velocity-predicted location (2-4ms)
+				let lkResult = trackLkPyramid(
+					seedPyramid,
+					targetPyramid,
+					normRegion,
+					{
+						x: predPxX,
+						y: predPxY,
+						rotation: currentRot,
+						scale: currentScale
+					},
+					{
+						trackRotation: job.params.trackRotation,
+						trackScale: job.params.trackScale ?? true,
+						maxIterations: Math.max(25, job.params.maxIterations),
+						tolerance: job.params.tolerance,
+						huberThreshold: job.params.huberThreshold
+					}
+				);
+
+				// 4. Recovery Path: If LK confidence dropped below threshold (e.g. sudden fast jerk or occlusion),
+				// run NCC template search to relocate or confirm occlusion
+				let isOccluded = false;
+				if (lkResult.confidence < job.params.confidenceThreshold) {
+					let bestMatch = matchTemplateNcc(
+						targetGray,
+						activePatch.patch,
+						activePatch.norm,
+						halfW,
+						halfH,
+						predPxX,
+						predPxY,
+						effectiveSearchRadius
+					);
+
+					if (bestMatch.score < job.params.nccThreshold && (vx !== 0 || vy !== 0)) {
+						const fallbackMatch = matchTemplateNcc(
+							targetGray,
+							activePatch.patch,
+							activePatch.norm,
+							halfW,
+							halfH,
+							currentNormX * targetGray.width,
+							currentNormY * targetGray.height,
+							effectiveSearchRadius
+						);
+						if (fallbackMatch.score > bestMatch.score) {
+							bestMatch = fallbackMatch;
+						}
+					}
+
+					if (bestMatch.score >= job.params.nccThreshold) {
+						// Re-refine with LK starting from the relocated NCC position
+						const recoveredLk = trackLkPyramid(
+							seedPyramid,
+							targetPyramid,
+							normRegion,
+							{
+								x: bestMatch.x,
+								y: bestMatch.y,
+								rotation: currentRot,
+								scale: currentScale
+							},
+							{
+								trackRotation: job.params.trackRotation,
+								trackScale: job.params.trackScale ?? true,
+								maxIterations: Math.max(25, job.params.maxIterations),
+								tolerance: job.params.tolerance,
+								huberThreshold: job.params.huberThreshold
+							}
+						);
+						if (recoveredLk.confidence > lkResult.confidence) {
+							lkResult = recoveredLk;
+						}
+					} else {
+						isOccluded = true;
+					}
+				}
+
+				if (isOccluded || lkResult.confidence < job.params.confidenceThreshold) {
 					const lostSample: TrackerSample = {
 						sourceTime: tUs,
 						x: currentNormX,
 						y: currentNormY,
 						rotation: currentRot,
 						scale: currentScale,
-						confidence: Math.max(0, nccResult.score),
+						confidence: lkResult.confidence,
 						lost: true,
 						reason: 'occlusion'
 					};
@@ -212,26 +305,6 @@ scope.addEventListener('message', async (e: MessageEvent<TrackingWorkerInMessage
 					continue;
 				}
 
-				// Refine with pyramidal LK optical flow
-				const lkResult = trackLkPyramid(
-					seedPyramid,
-					targetPyramid,
-					normRegion,
-					{
-						x: nccResult.x,
-						y: nccResult.y,
-						rotation: currentRot,
-						scale: currentScale
-					},
-					{
-						trackRotation: job.params.trackRotation,
-						trackScale: job.params.trackScale,
-						maxIterations: job.params.maxIterations,
-						tolerance: job.params.tolerance,
-						huberThreshold: job.params.huberThreshold
-					}
-				);
-
 				const normX = lkResult.state.x / targetGray.width;
 				const normY = lkResult.state.y / targetGray.height;
 				const isOutOfBounds = normX < 0 || normX > 1 || normY < 0 || normY > 1;
@@ -241,7 +314,7 @@ scope.addEventListener('message', async (e: MessageEvent<TrackingWorkerInMessage
 					x: normX,
 					y: normY,
 					rotation: lkResult.state.rotation,
-					scale: lkResult.state.scale,
+					scale: Math.max(0.05, Math.min(20.0, lkResult.state.scale)),
 					confidence: lkResult.confidence,
 					lost: isOutOfBounds || lkResult.confidence < job.params.confidenceThreshold,
 					reason: isOutOfBounds
@@ -254,10 +327,39 @@ scope.addEventListener('message', async (e: MessageEvent<TrackingWorkerInMessage
 				samples.push(sample);
 
 				if (!sample.lost) {
+					prevPrevNormX = prevNormX;
+					prevPrevNormY = prevNormY;
+					prevNormX = currentNormX;
+					prevNormY = currentNormY;
+
 					currentNormX = normX;
 					currentNormY = normY;
 					currentRot = sample.rotation;
 					currentScale = sample.scale;
+
+					// Adaptive template update: if confidence is high, update active patch slowly
+					// to track subtle perspective/illumination/scale changes without drifting
+					if (sample.confidence >= 0.85) {
+						const newPatch = extractNormalizedPatch(
+							targetGray,
+							normX * targetGray.width,
+							normY * targetGray.height,
+							halfW,
+							halfH
+						);
+						if (newPatch) {
+							const alpha = 0.05;
+							for (let p = 0; p < activePatch.patch.length; p++) {
+								activePatch.patch[p] =
+									(1 - alpha) * activePatch.patch[p]! + alpha * newPatch.patch[p]!;
+							}
+							let sumSq = 0;
+							for (let p = 0; p < activePatch.patch.length; p++) {
+								sumSq += activePatch.patch[p]! * activePatch.patch[p]!;
+							}
+							activePatch.norm = Math.sqrt(sumSq);
+						}
+					}
 				}
 
 				post({
