@@ -43,6 +43,7 @@ export function createPlaybackClock(options: PlaybackClockOptions): PlaybackCloc
 	const listeners = new Set<ClockListener>();
 	let duration = options.duration;
 	let time = snapTime(options.initialTime ?? 0, duration, options.fps);
+	let unquantizedTime = time;
 	let playing = false;
 	let rate: PlaybackRate = 1;
 	let looping = false;
@@ -76,22 +77,28 @@ export function createPlaybackClock(options: PlaybackClockOptions): PlaybackCloc
 		const current = Number.isFinite(timestamp) ? timestamp : now();
 		const delta = Math.max(0, current - previousTime);
 		previousTime = current;
-		const requested = time + Math.round(delta * 1_000 * rate);
+		const requested = unquantizedTime + delta * 1_000 * rate;
 		if (rate > 0 && requested >= duration) {
-			if (looping && duration > 0) time = snapTime(requested % duration, duration, options.fps);
-			else {
+			if (looping && duration > 0) {
+				unquantizedTime = requested % duration;
+				time = Math.round(unquantizedTime);
+			} else {
+				unquantizedTime = duration;
 				time = duration;
 				stopAtBoundary();
 			}
 		} else if (rate < 0 && requested <= 0) {
-			if (looping && duration > 0)
-				time = snapTime(duration + (requested % duration), duration, options.fps);
-			else {
+			if (looping && duration > 0) {
+				unquantizedTime = duration + (requested % duration);
+				time = Math.round(unquantizedTime);
+			} else {
+				unquantizedTime = 0;
 				time = 0;
 				stopAtBoundary();
 			}
 		} else {
-			time = snapTime(requested, duration, options.fps);
+			unquantizedTime = requested;
+			time = Math.round(unquantizedTime);
 		}
 		emit();
 		schedule();
@@ -99,8 +106,15 @@ export function createPlaybackClock(options: PlaybackClockOptions): PlaybackCloc
 
 	function play(): void {
 		if (disposed || playing || duration <= 0) return;
-		if (rate > 0 && time >= duration && !looping) time = 0;
-		if (rate < 0 && time <= 0 && !looping) time = duration;
+		if (rate > 0 && time >= duration && !looping) {
+			time = 0;
+			unquantizedTime = 0;
+		}
+		if (rate < 0 && time <= 0 && !looping) {
+			time = duration;
+			unquantizedTime = duration;
+		}
+		unquantizedTime = time;
 		playing = true;
 		previousTime = now();
 		emit();
@@ -111,12 +125,15 @@ export function createPlaybackClock(options: PlaybackClockOptions): PlaybackCloc
 		if (!playing) return;
 		playing = false;
 		cancelScheduledFrame();
+		time = snapTime(time, duration, options.fps);
+		unquantizedTime = time;
 		emit();
 	}
 
 	function seek(nextTime: Time): void {
 		if (!Number.isFinite(nextTime)) throw new RangeError('Seek time must be finite.');
 		time = snapTime(Math.round(nextTime), duration, options.fps);
+		unquantizedTime = time;
 		previousTime = now();
 		emit();
 	}
@@ -138,6 +155,7 @@ export function createPlaybackClock(options: PlaybackClockOptions): PlaybackCloc
 		}
 		duration = nextDuration;
 		if (time > duration) time = duration;
+		if (unquantizedTime > duration) unquantizedTime = duration;
 		if (duration === 0) pause();
 		emit();
 	}
