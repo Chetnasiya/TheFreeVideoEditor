@@ -987,13 +987,16 @@ function ActiveTimeline({ project }: { project: Project }) {
 			setTimelineMessage('Cannot add transition: track has no clips.');
 			return;
 		}
+		const fps = activeProject?.settings.fps ?? 30;
+		const tolerance = Math.round(1_000_000 / fps);
 		const sortedClips = [...track.clips].sort((a, b) => a.start - b.start);
-		// Check for adjacent cut nearest to time
+
+		// Check for adjacent cut nearest to time (within tolerance)
 		let bestCut: { from: Clip; to: Clip; distance: number } | null = null;
 		for (let i = 0; i < sortedClips.length - 1; i++) {
 			const c1 = sortedClips[i]!;
 			const c2 = sortedClips[i + 1]!;
-			if (c1.start + c1.duration === c2.start) {
+			if (Math.abs(c1.start + c1.duration - c2.start) <= tolerance) {
 				const cutTime = c2.start;
 				const dist = Math.abs(time - cutTime);
 				if (!bestCut || dist < bestCut.distance) {
@@ -1017,7 +1020,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 			});
 		}
 
-		if (bestCut && bestCut.distance <= 1_500_000) {
+		if (bestCut && bestCut.distance <= Math.max(2_000_000, tolerance * 15)) {
 			store.getState().addTransition(track.id, type, {
 				kind: 'cut',
 				fromClipId: bestCut.from.id,
@@ -1030,7 +1033,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 		const distToEnd = Math.abs(time - (containingClip.start + containingClip.duration));
 
 		if (distToStart < distToEnd) {
-			const prevClip = sortedClips.find((c) => c.start + c.duration === containingClip!.start);
+			const prevClip = sortedClips.find(
+				(c) => Math.abs(c.start + c.duration - containingClip!.start) <= tolerance
+			);
 			if (prevClip) {
 				store.getState().addTransition(track.id, type, {
 					kind: 'cut',
@@ -1045,7 +1050,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 			}
 		} else {
 			const nextClip = sortedClips.find(
-				(c) => c.start === containingClip!.start + containingClip!.duration
+				(c) => Math.abs(containingClip!.start + containingClip!.duration - c.start) <= tolerance
 			);
 			if (nextClip) {
 				store.getState().addTransition(track.id, type, {
@@ -1127,7 +1132,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTimelineDragOver(event: DragEvent<HTMLDivElement>): void {
-		if (event.dataTransfer.types.includes('application/x-tfve-transition')) return;
+		if (event.dataTransfer.types.includes('application/x-tfve-transition')) {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'copy';
+			return;
+		}
 		if (event.dataTransfer.types.includes('application/x-tfve-sequence')) return;
 		const assetId = assetFromData(event.dataTransfer);
 		if (!assetId) return;
@@ -1204,6 +1213,21 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTimelineDrop(event: DragEvent<HTMLDivElement>): void {
+		const transitionType = event.dataTransfer.getData('application/x-tfve-transition') as
+			TransitionType | '';
+		if (transitionType) {
+			event.preventDefault();
+			const target = document.elementFromPoint(event.clientX, event.clientY);
+			const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
+			const targetTrack =
+				(trackLaneEl && activeProject.tracks.find((t) => t.id === trackLaneEl.dataset.trackLane)) ||
+				activeProject.tracks.find((t) => t.kind === 'video');
+			if (targetTrack) {
+				const time = pointerTime(event.clientX);
+				applyTransitionDrop(targetTrack, time, transitionType);
+			}
+			return;
+		}
 		const assetId = assetFromData(event.dataTransfer);
 		if (!assetId) return;
 		const session = store.getState().timeline.drag;

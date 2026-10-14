@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('Gate K: Transitions Verification', () => {
-	test('1. Core transitions rendering across all 9 shaders', async ({ page }) => {
+	test('1. Core transitions rendering across all shaders', async ({ page }) => {
 		await page.goto('/editor');
 
 		const result = await page.evaluate(async () => {
@@ -18,7 +18,7 @@ test.describe('Gate K: Transitions Verification', () => {
 			const gl = canvas.getContext('webgl2');
 			if (!gl) return { transitionTypes: [], testResults: {} };
 
-			// Test shader pass execution on all 9 transitions
+			// Test shader pass execution on all transitions
 			const transitionTypes = Object.keys(TRANSITION_DEFINITIONS);
 			const shaderPass = new ShaderPassManager(gl);
 			const fboPool = new FboPool(gl);
@@ -83,12 +83,24 @@ test.describe('Gate K: Transitions Verification', () => {
 
 	test('2. Timeline and Inspector UI interaction with Transitions', async ({ page }) => {
 		await page.goto('/editor');
+		const manager = page.locator('.project-manager-dialog');
+		try {
+			await manager.waitFor({ state: 'visible', timeout: 5000 });
+			await manager.getByRole('button', { name: 'New project' }).click();
+			const createDialog = page.getByRole('dialog', { name: 'Create a Project' });
+			await createDialog.getByRole('textbox', { name: 'Project name' }).fill('E2E Transitions');
+			await createDialog.getByRole('button', { name: 'Create project' }).click();
+			await expect(manager).not.toBeVisible();
+		} catch {}
 
 		// Verify Effects Library has Transitions category
-		const effectsTab = page.locator('.effects-library-tab', { hasText: 'Transitions' });
+		const effectsTab = page.locator('#effects-panel-title');
 		if (await effectsTab.isVisible()) {
 			await effectsTab.click();
-			const crossDissolveItem = page.locator('.effect-library-item', { hasText: 'Cross Dissolve' });
+			const transBtn = page.locator('.effects-cat-btn', { hasText: 'Transitions' });
+			await expect(transBtn).toBeVisible();
+			await transBtn.click();
+			const crossDissolveItem = page.locator('.effect-card', { hasText: 'Cross Dissolve' });
 			await expect(crossDissolveItem).toBeVisible();
 		}
 
@@ -100,13 +112,15 @@ test.describe('Gate K: Transitions Verification', () => {
 			return {
 				hasAddTransition: typeof store?.getState?.().addTransition === 'function',
 				hasUpdateTransition: typeof store?.getState?.().updateTransition === 'function',
-				hasRemoveTransition: typeof store?.getState?.().removeTransition === 'function'
+				hasRemoveTransition: typeof store?.getState?.().removeTransition === 'function',
+				hasApplyDefaultTransition: typeof store?.getState?.().applyDefaultTransition === 'function'
 			};
 		});
 
 		expect(storeValid.hasAddTransition).toBe(true);
 		expect(storeValid.hasUpdateTransition).toBe(true);
 		expect(storeValid.hasRemoveTransition).toBe(true);
+		expect(storeValid.hasApplyDefaultTransition).toBe(true);
 	});
 
 	test('3. GlCompositor full-canvas transition rendering (verifying full canvas coverage)', async ({
@@ -383,5 +397,88 @@ test.describe('Gate K: Transitions Verification', () => {
 		expect(exportResult.totalFrames).toBe(60);
 		expect(exportResult.framesCompleted).toBe(60);
 		expect(exportResult.blobSize).toBeGreaterThan(0);
+	});
+
+	test('6. User workflow: playhead transition apply, drop replacement, and Inspector parameter editing', async ({
+		page
+	}) => {
+		await page.goto('/editor');
+		const manager = page.locator('.project-manager-dialog');
+		try {
+			await manager.waitFor({ state: 'visible', timeout: 5000 });
+			await manager.getByRole('button', { name: 'New project' }).click();
+			const createDialog = page.getByRole('dialog', { name: 'Create a Project' });
+			await createDialog.getByRole('textbox', { name: 'Project name' }).fill('Workflow Transitions');
+			await createDialog.getByRole('button', { name: 'Create project' }).click();
+			await expect(manager).not.toBeVisible();
+		} catch {}
+
+		await page.waitForSelector('.timeline-track-lane');
+
+		// Insert two solid clips back-to-back at 0s and 5s
+		await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			store.getState().setPlayhead(0);
+			store.getState().addSolidLayer();
+			store.getState().setPlayhead(5_000_000);
+			store.getState().addSolidLayer();
+			store.getState().selectClips([]);
+			store.getState().setPlayhead(5_000_000); // Playhead at cut
+		});
+
+		// Open Effects panel and double-click Digital Glitch
+		const effectsTab = page.locator('#effects-panel-title');
+		await expect(effectsTab).toBeVisible();
+		await effectsTab.click();
+
+		const transTab = page.locator('.effects-cat-btn', { hasText: 'Transitions' });
+		await expect(transTab).toBeVisible();
+		await transTab.click();
+
+		const glitchCard = page.locator('.effect-card', { hasText: 'Digital Glitch' });
+		await expect(glitchCard).toBeVisible();
+		await glitchCard.dblclick();
+
+		// Transition block appears on timeline
+		const transBlock = page.locator('.timeline-transition-block');
+		await expect(transBlock).toHaveCount(1);
+		await expect(transBlock).toContainText('Digital Glitch');
+
+		// Select transition block to open Transition Inspector
+		await transBlock.first().click();
+		const inspectorTitle = page.locator('.inspector-section-title', {
+			hasText: 'Transition Settings'
+		});
+		await expect(inspectorTitle).toBeVisible();
+
+		// Change type to Venetian Blinds in Inspector dropdown
+		const typeSelect = page.locator('.property-select').first();
+		await typeSelect.selectOption('blinds');
+
+		await expect(transBlock).toContainText('Venetian Blinds');
+
+		// Drop replacing with Linear Wipe
+		const clip1Box = await page.locator('.timeline-clip').first().boundingBox();
+		expect(clip1Box).not.toBeNull();
+		const targetX = clip1Box!.x + clip1Box!.width;
+
+		await page.evaluate((clientX) => {
+			const trackLaneEl = document.querySelector('[data-track-lane]') as HTMLDivElement;
+			const dt = new DataTransfer();
+			dt.setData('application/x-tfve-transition', 'wipe');
+
+			const dropEvent = new DragEvent('drop', {
+				bubbles: true,
+				cancelable: true,
+				clientX,
+				clientY: 100,
+				dataTransfer: dt
+			});
+			trackLaneEl.dispatchEvent(dropEvent);
+		}, targetX);
+
+		// Exactly one transition on track (clean replacement, no duplicates)
+		await expect(transBlock).toHaveCount(1);
+		await expect(transBlock).toContainText('Wipe');
 	});
 });

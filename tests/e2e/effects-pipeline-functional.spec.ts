@@ -759,4 +759,97 @@ test.describe('Gate J — Functional Pipeline Verification', () => {
 		expect(results.rotRight[0]).toBeGreaterThan(200);
 		expect(results.rotRight[2]).toBeLessThan(20);
 	});
+
+	test('renders 3D LUT (.cube) effect with real pixel color grading on GPU', async ({ page }) => {
+		await page.goto('/editor');
+
+		const results = await page.evaluate(async () => {
+			const renderPath = '/src/editor/services/render/index.ts';
+			const render = (await import(
+				/* @vite-ignore */ renderPath
+			)) as unknown as typeof import('../../src/editor/services/render/index');
+			const lutPath = '/src/editor/core/lut.ts';
+			const lut = (await import(
+				/* @vite-ignore */ lutPath
+			)) as unknown as typeof import('../../src/editor/core/lut');
+
+			const W = 64;
+			const H = 64;
+
+			const canvas = document.createElement('canvas');
+			canvas.width = W;
+			canvas.height = H;
+
+			const renderer = render.createFrameRenderer(canvas, {
+				preserveDrawingBuffer: true
+			}) as import('../../src/editor/services/render').FrameRenderer;
+
+			// Invert LUT: maps (1, 0, 0) -> (0, 1, 1)
+			const cubeText = `
+TITLE "InvertLUT"
+LUT_3D_SIZE 2
+1.0 1.0 1.0
+0.0 1.0 1.0
+1.0 0.0 1.0
+0.0 0.0 1.0
+1.0 1.0 0.0
+0.0 1.0 0.0
+1.0 0.0 0.0
+0.0 0.0 0.0
+`;
+			const parsed = lut.parseCubeLut(cubeText);
+			(renderer as any).lutProvider = (id: string) => (id === 'test-lut' ? parsed : null);
+
+			// Source solid red
+			const redCanvas = new OffscreenCanvas(W, H);
+			const ctx = redCanvas.getContext('2d')!;
+			ctx.fillStyle = 'rgb(255, 0, 0)';
+			ctx.fillRect(0, 0, W, H);
+
+			renderer.render(
+				{ width: W, height: H },
+				[
+					{
+						clipId: 'c1' as any,
+						assetId: 'red' as any,
+						trackId: 't1' as any,
+						trackOrder: 0,
+						sourceTime: 0,
+						kind: 'image',
+						opacity: 1,
+						transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+						effects: [
+							{
+								id: 'lut-eff',
+								type: 'lut3d',
+								enabled: true,
+								params: {
+									lutAssetId: 'test-lut',
+									intensity: 1,
+									mix: 1
+								},
+								isNeutral: false
+							}
+						]
+					}
+				],
+				() => redCanvas
+			);
+
+			const copy = document.createElement('canvas');
+			copy.width = W;
+			copy.height = H;
+			const copyCtx = copy.getContext('2d', { willReadFrequently: true })!;
+			copyCtx.drawImage(canvas, 0, 0);
+			const pixel = Array.from(copyCtx.getImageData(32, 32, 1, 1).data);
+
+			return { pixel };
+		});
+
+		// Red through invert LUT must be Cyan: R < 50, G > 200, B > 200, A = 255 (not black!)
+		expect(results.pixel[0]).toBeLessThan(50);
+		expect(results.pixel[1]).toBeGreaterThan(200);
+		expect(results.pixel[2]).toBeGreaterThan(200);
+		expect(results.pixel[3]).toBe(255);
+	});
 });

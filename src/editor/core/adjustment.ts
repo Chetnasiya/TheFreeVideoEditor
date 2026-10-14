@@ -74,7 +74,9 @@ export function createTextClip(
 			},
 			box: {
 				autoSize: true,
-				verticalAnchor: 'center'
+				verticalAnchor: 'center',
+				paddingX: 20,
+				paddingY: 16
 			}
 		},
 		properties: {

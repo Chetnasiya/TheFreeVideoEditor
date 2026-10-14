@@ -4607,6 +4607,26 @@ export function createEditorStore() {
 					const effectiveDur = duration ?? def?.defaultDurationUs ?? 1_000_000;
 					const id = `tr_${crypto.randomUUID().slice(0, 8)}`;
 
+					// Check if a transition already exists on this edge/cut on this track
+					// If so, replace it so duplicate transitions are not stacked at the same cut
+					const isSameEdge = (existing: Transition): boolean => {
+						if (existing.edge.kind === 'cut' && edge.kind === 'cut') {
+							return (
+								(existing.edge.fromClipId === edge.fromClipId &&
+									existing.edge.toClipId === edge.toClipId) ||
+								(existing.edge.fromClipId === edge.toClipId &&
+									existing.edge.toClipId === edge.fromClipId)
+							);
+						}
+						if (existing.edge.kind === edge.kind) {
+							return (
+								(existing.edge as { clipId: string }).clipId ===
+								(edge as { clipId: string }).clipId
+							);
+						}
+						return false;
+					};
+
 					const newTransition: Transition = {
 						id,
 						type,
@@ -4624,7 +4644,10 @@ export function createEditorStore() {
 								t.id === trackId
 									? {
 											...t,
-											transitions: [...(t.transitions ?? []), newTransition]
+											transitions: [
+												...(t.transitions ?? []).filter((tr) => !isSameEdge(tr)),
+												newTransition
+											]
 										}
 									: t
 							)
@@ -4654,13 +4677,18 @@ export function createEditorStore() {
 								transitions: (t.transitions ?? []).map((tr) => {
 									if (tr.id === transitionId) {
 										found = true;
+										// If type changed, reset params so incompatible params from previous type don't linger
+										const isTypeChange = updates.type && updates.type !== tr.type;
+										const mergedParams = isTypeChange
+											? (updates.params ?? {})
+											: {
+													...tr.params,
+													...(updates.params ?? {})
+												};
 										return {
 											...tr,
 											...updates,
-											params: {
-												...tr.params,
-												...(updates.params ?? {})
-											}
+											params: mergedParams
 										};
 									}
 									return tr;
@@ -4760,7 +4788,7 @@ export function createEditorStore() {
 								);
 								const playhead = state.timeline.playhead;
 
-								if (prevClip && Math.abs(c.start - playhead) <= tolerance * 2) {
+								if (prevClip && Math.abs(c.start - playhead) <= tolerance * 3) {
 									state.addTransition(track.id, type, {
 										kind: 'cut',
 										fromClipId: prevClip.id,
@@ -4768,7 +4796,31 @@ export function createEditorStore() {
 									});
 									return true;
 								}
-								if (nextClip && Math.abs(c.start + c.duration - playhead) <= tolerance * 2) {
+								if (nextClip && Math.abs(c.start + c.duration - playhead) <= tolerance * 3) {
+									state.addTransition(track.id, type, {
+										kind: 'cut',
+										fromClipId: c.id,
+										toClipId: nextClip.id
+									});
+									return true;
+								}
+
+								// If playhead is near start or end of this clip, cut with adjacent if exists
+								if (
+									prevClip &&
+									Math.abs(playhead - c.start) < Math.abs(playhead - (c.start + c.duration))
+								) {
+									state.addTransition(track.id, type, {
+										kind: 'cut',
+										fromClipId: prevClip.id,
+										toClipId: c.id
+									});
+									return true;
+								}
+								if (
+									nextClip &&
+									Math.abs(playhead - (c.start + c.duration)) <= Math.abs(playhead - c.start)
+								) {
 									state.addTransition(track.id, type, {
 										kind: 'cut',
 										fromClipId: c.id,
@@ -4790,6 +4842,45 @@ export function createEditorStore() {
 									});
 								}
 								return true;
+							}
+						}
+					} else if (selectedIds.length === 0) {
+						// Check if playhead is near any cut point across tracks
+						const playhead = state.timeline.playhead;
+						for (const track of project.tracks) {
+							if (track.kind !== 'video' || track.hidden) continue;
+							const sorted = [...track.clips].sort((a, b) => a.start - b.start);
+							for (let i = 0; i < sorted.length - 1; i++) {
+								const c1 = sorted[i]!;
+								const c2 = sorted[i + 1]!;
+								if (Math.abs(c1.start + c1.duration - c2.start) <= tolerance) {
+									const cutTime = c2.start;
+									if (Math.abs(playhead - cutTime) <= tolerance * 5) {
+										state.addTransition(track.id, type, {
+											kind: 'cut',
+											fromClipId: c1.id,
+											toClipId: c2.id
+										});
+										return true;
+									}
+								}
+							}
+							// Or if playhead is near any clip boundary
+							for (const c of sorted) {
+								if (Math.abs(playhead - c.start) <= tolerance * 3) {
+									state.addTransition(track.id, type, {
+										kind: 'head',
+										clipId: c.id
+									});
+									return true;
+								}
+								if (Math.abs(playhead - (c.start + c.duration)) <= tolerance * 3) {
+									state.addTransition(track.id, type, {
+										kind: 'tail',
+										clipId: c.id
+									});
+									return true;
+								}
 							}
 						}
 					}

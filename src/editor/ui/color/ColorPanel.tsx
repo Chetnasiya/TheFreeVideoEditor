@@ -1,9 +1,19 @@
 import { useState, useRef, useMemo } from 'react';
-import type { Clip, EffectInstance } from '../../core';
+import type { AssetId, Clip, EffectInstance } from '../../core';
 import type { CurvePoint } from '../../core/curves';
 import { evaluateSpline } from '../../core/curves';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import { ensureLutLoaded } from '../../services/media/lutCache';
 import './color.css';
+
+function getNumericParam(val: unknown, fallback = 1): number {
+	if (typeof val === 'number' && !Number.isNaN(val)) return val;
+	if (val && typeof val === 'object' && 'value' in val) {
+		const inner = (val as { value: unknown }).value;
+		if (typeof inner === 'number' && !Number.isNaN(inner)) return inner;
+	}
+	return fallback;
+}
 
 export default function ColorPanel() {
 	const store = useEditorStoreApi();
@@ -91,6 +101,8 @@ export default function ColorPanel() {
 				if (eff) {
 					store.getState().setEffectParam(selectedClip.id, eff.id, 'lutAssetId', assetId);
 				}
+			} else {
+				setLutError(store.getState().projectMessage || 'Could not parse LUT file.');
 			}
 		} catch (err: unknown) {
 			setLutError(err instanceof Error ? err.message : 'Could not parse LUT file.');
@@ -315,6 +327,12 @@ export default function ColorPanel() {
 									const eff = lutEffect ?? store.getState().addEffect(selectedClip.id, 'lut3d');
 									if (eff) {
 										store.getState().setEffectParam(selectedClip.id, eff.id, 'lutAssetId', assetId);
+										if (assetId) {
+											const asset = project.assets[assetId as AssetId];
+											if (asset) {
+												void ensureLutLoaded(project.id, asset);
+											}
+										}
 									}
 								}}
 							>
@@ -330,13 +348,16 @@ export default function ColorPanel() {
 						{lutEffect && (
 							<ColorSlider
 								label="LUT Intensity"
-								value={Number(lutEffect.params.mix ?? 1)}
+								value={getNumericParam(lutEffect.params.intensity ?? lutEffect.params.mix, 1)}
 								min={0}
 								max={1}
 								step={0.01}
-								onChange={(v) =>
-									store.getState().setEffectParam(selectedClip.id, lutEffect.id, 'mix', v)
-								}
+								defaultValue={1}
+								onChange={(v) => {
+									if (Number.isNaN(v)) return;
+									store.getState().setEffectParam(selectedClip.id, lutEffect.id, 'intensity', v);
+									store.getState().setEffectParam(selectedClip.id, lutEffect.id, 'mix', v);
+								}}
 							/>
 						)}
 
@@ -401,6 +422,7 @@ function ColorSlider({
 	unit = '',
 	onChange
 }: ColorSliderProps) {
+	const safeValue = Number.isNaN(value) ? defaultValue : value;
 	const isTemp = label === 'Temperature';
 	const isTint = label === 'Tint';
 	const rangeClass = isTemp
@@ -425,8 +447,8 @@ function ColorSlider({
 					title="Double-click to reset"
 					style={{ cursor: 'pointer' }}
 				>
-					{value > 0 && !unit && '+'}
-					{value.toFixed(2)}
+					{safeValue > 0 && !unit && '+'}
+					{safeValue.toFixed(2)}
 					{unit}
 				</span>
 			</div>
@@ -436,10 +458,13 @@ function ColorSlider({
 				min={min}
 				max={max}
 				step={step}
-				value={value}
-				onChange={(e) => onChange(parseFloat(e.target.value))}
+				value={safeValue}
+				onChange={(e) => {
+					const parsed = parseFloat(e.target.value);
+					if (!Number.isNaN(parsed)) onChange(parsed);
+				}}
 				onDoubleClick={() => onChange(defaultValue)}
-				title={`${label}: ${value.toFixed(2)}${unit} (Double-click to reset)`}
+				title={`${label}: ${safeValue.toFixed(2)}${unit} (Double-click to reset)`}
 			/>
 		</div>
 	);

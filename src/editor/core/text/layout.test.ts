@@ -132,4 +132,48 @@ describe('text layout engine', () => {
 		expect(line.words![1]!.endIndex).toBe(11);
 		expect(line.words![1]!.x).toBeGreaterThan(line.words![0]!.x);
 	});
+
+	it('applies line height to single-line text and centers with half-leading', () => {
+		const singleStandard = layout(
+			'Title Text',
+			{ fontFamily: 'monospace', lineHeight: 1.0 },
+			undefined,
+			monoMeasure,
+			40
+		);
+		const singleExpanded = layout(
+			'Title Text',
+			{ fontFamily: 'monospace', lineHeight: 2.0 },
+			undefined,
+			monoMeasure,
+			40
+		);
+
+		// Single line with lineHeight 2.0 should have contentHeight of 80px (vs 40px)
+		expect(singleExpanded.boxHeight).toBeGreaterThan(singleStandard.boxHeight);
+		// Half leading should elevate the starting baseline/y for visual balance
+		expect(singleExpanded.lines[0]!.y).toBeGreaterThan(singleStandard.lines[0]!.y);
+	});
+
+	it('honors explicit paddingX and paddingY and auto-size defaults', () => {
+		const unpadded = layout(
+			'Padded Text',
+			{ fontFamily: 'monospace' },
+			{ autoSize: true, paddingX: 0, paddingY: 0 },
+			monoMeasure,
+			20
+		);
+		const padded = layout(
+			'Padded Text',
+			{ fontFamily: 'monospace' },
+			{ autoSize: true, paddingX: 30, paddingY: 25 },
+			monoMeasure,
+			20
+		);
+
+		expect(padded.boxWidth).toBe(unpadded.boxWidth + 2 * 30);
+		expect(padded.boxHeight).toBe(unpadded.boxHeight + 2 * 25);
+		expect(padded.lines[0]!.x).toBeGreaterThanOrEqual(30);
+		expect(padded.lines[0]!.y).toBeGreaterThanOrEqual(25);
+	});
 });

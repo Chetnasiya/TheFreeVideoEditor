@@ -363,7 +363,15 @@ export async function probeMedia(
 		throw new Error('Unsupported media type. Choose a supported video, audio, or image file.');
 	const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 	if (options.signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
-	if (kind === 'image') {
+	if (kind === 'lut') {
+		return {
+			kind,
+			duration: 0,
+			hasAudio: false,
+			audioChecked: true
+		};
+	}
+	if (kind === 'font' || kind === 'image') {
 		return probeWithBrowser(file, kind, settings, { ...options, timeoutMs });
 	}
 	try {

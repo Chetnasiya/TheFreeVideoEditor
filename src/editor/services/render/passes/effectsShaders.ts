@@ -483,13 +483,22 @@ uniform sampler2D u_texture;
 uniform highp sampler3D u_lut3d;
 uniform float u_intensity;
 uniform float u_mix;
+uniform float u_lutSize;
 in vec2 v_uv;
 out vec4 outColor;
 
 void main() {
     vec4 orig = texture(u_texture, v_uv);
-    vec3 lutColor = texture(u_lut3d, orig.rgb).rgb;
-    vec3 graded = mix(orig.rgb, lutColor, u_intensity);
-    outColor = mix(orig, vec4(graded, orig.a), u_mix);
+    if (orig.a <= 0.0001) {
+        outColor = orig;
+        return;
+    }
+    vec3 unmult = clamp(orig.rgb / orig.a, 0.0, 1.0);
+    float size = max(2.0, u_lutSize);
+    vec3 coord = clamp((unmult * (size - 1.0) + 0.5) / size, 0.0, 1.0);
+    vec3 lutColor = texture(u_lut3d, coord).rgb;
+    vec3 graded = mix(unmult, lutColor, clamp(u_intensity, 0.0, 1.0));
+    vec4 processed = vec4(graded * orig.a, orig.a);
+    outColor = mix(orig, processed, clamp(u_mix, 0.0, 1.0));
 }
 `;

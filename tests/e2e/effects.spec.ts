@@ -153,4 +153,49 @@ test.describe('Effects, Color & Scopes (Gate J)', () => {
 			).toBeVisible();
 		}
 	});
+
+	test('Imports and applies 3D LUT .cube file to selected clip', async ({ page }) => {
+		// Add a Solid Layer to sequence
+		await page.getByRole('button', { name: 'Solid Layer' }).click();
+
+		// Switch inspector tab to Color
+		const colorTab = page.locator('#color-panel-title');
+		await expect(colorTab).toBeVisible();
+		await colorTab.click();
+
+		// Switch to LUT subtab
+		await page.locator('.color-tab-btn', { hasText: 'LUT' }).click();
+		await expect(page.getByText('Select 3D LUT')).toBeVisible();
+
+		// Create a synthetic 3D LUT .cube content that maps red to green
+		const cubeContent = `
+TITLE "RedToGreen"
+LUT_3D_SIZE 2
+0.0 0.0 0.0
+0.0 1.0 0.0
+0.0 1.0 0.0
+0.0 1.0 0.0
+0.0 0.0 1.0
+0.0 1.0 1.0
+0.0 1.0 1.0
+1.0 1.0 1.0
+`;
+		// Set file input
+		const fileInput = page.locator('.lut-container input[type="file"]');
+		await fileInput.setInputFiles({
+			name: 'RedToGreen.cube',
+			mimeType: 'text/plain',
+			buffer: Buffer.from(cubeContent)
+		});
+
+		// Verify that the LUT dropdown now has RedToGreen.cube selected
+		const select = page.locator('.lut-select');
+		await expect(select).not.toHaveValue('');
+
+		// Verify LUT Intensity slider is displayed and has valid value (not NaN)
+		const sliderVal = page.locator('.color-slider-row', { hasText: 'LUT Intensity' }).locator('.color-slider-val');
+		await expect(sliderVal).toBeVisible();
+		await expect(sliderVal).not.toHaveText(/NaN/);
+		await expect(sliderVal).toHaveText('+1.00');
+	});
 });

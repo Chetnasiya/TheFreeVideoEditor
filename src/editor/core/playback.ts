@@ -613,11 +613,45 @@ export function resolveFrame(
 			const progress = transitionProgress(time, win, tr.easing ?? 'linear');
 
 			if (track.kind === 'video') {
-				const layerA = clipA ? makeClipLayer(clipA, time) : null;
-				const layerB = clipB ? makeClipLayer(clipB, time) : null;
+				let layerA = clipA ? makeClipLayer(clipA, time) : null;
+				let layerB = clipB ? makeClipLayer(clipB, time) : null;
+
+				// If head transition (only clipB), create companion blank layer for layerA
+				// so transition shaders (glitch, wipe, dissolve, etc.) execute with full visual fidelity
+				if (!layerA && layerB && clipB) {
+					layerA = {
+						clipId: `blank_head_${clipB.id}` as ClipId,
+						trackId: track.id,
+						trackOrder,
+						sourceTime: 0,
+						kind: 'solid',
+						solidColor:
+							tr.type === 'dipToWhite'
+								? { r: 1, g: 1, b: 1, a: 1 }
+								: tr.type === 'dipToBlack'
+									? { r: 0, g: 0, b: 0, a: 1 }
+									: { r: 0, g: 0, b: 0, a: 0 },
+						opacity: 1
+					};
+				} else if (layerA && !layerB && clipA) {
+					layerB = {
+						clipId: `blank_tail_${clipA.id}` as ClipId,
+						trackId: track.id,
+						trackOrder,
+						sourceTime: 0,
+						kind: 'solid',
+						solidColor:
+							tr.type === 'dipToWhite'
+								? { r: 1, g: 1, b: 1, a: 1 }
+								: tr.type === 'dipToBlack'
+									? { r: 0, g: 0, b: 0, a: 1 }
+									: { r: 0, g: 0, b: 0, a: 0 },
+						opacity: 1
+					};
+				}
 
 				if (layerA && layerB) {
-					// Both clips present (cut transition): emit composite transition layer
+					// Both clips present (cut transition or single-clip with companion blank): emit composite transition layer
 					videoLayers.push({
 						clipId: layerA.clipId,
 						trackId: track.id,
@@ -632,18 +666,6 @@ export function resolveFrame(
 							toLayer: layerB,
 							params: tr.params
 						}
-					});
-				} else if (layerA && !layerB) {
-					// Tail fade (fade to black or transparency)
-					videoLayers.push({
-						...layerA,
-						opacity: layerA.opacity * (1 - progress)
-					});
-				} else if (!layerA && layerB) {
-					// Head fade (fade in from black or transparency)
-					videoLayers.push({
-						...layerB,
-						opacity: layerB.opacity * progress
 					});
 				}
 

@@ -94,4 +94,34 @@ test.describe('Gate O: Text System (Slice 1)', () => {
 		await expect(textClip).toBeVisible();
 		await expect(textClip).toContainText('T Title Text');
 	});
+
+	test('provides custom font upload option and padding controls', async ({ page }) => {
+		const addTextBtn = page.getByRole('button', { name: 'Text Layer' });
+		await expect(addTextBtn).toBeVisible();
+		await addTextBtn.click();
+
+		// Open Font picker dropdown
+		const fontPickerBtn = page.locator('.font-picker-btn');
+		await expect(fontPickerBtn).toBeVisible();
+		await fontPickerBtn.click();
+
+		// Verify custom font upload button is present
+		const uploadFontBtn = page.getByRole('button', { name: /Add Custom Font/i });
+		await expect(uploadFontBtn).toBeVisible();
+
+		// Close dropdown
+		await fontPickerBtn.click();
+
+		// Verify Padding X and Padding Y controls are visible and functional
+		const paddingXInput = page.getByRole('spinbutton', { name: 'Text Horizontal Padding Input' });
+		const paddingYInput = page.getByRole('spinbutton', { name: 'Text Vertical Padding Input' });
+		await expect(paddingXInput).toBeVisible();
+		await expect(paddingYInput).toBeVisible();
+
+		// Change padding
+		await paddingXInput.fill('45');
+		await paddingYInput.fill('35');
+		await expect(paddingXInput).toHaveValue('45');
+		await expect(paddingYInput).toHaveValue('35');
+	});
 });

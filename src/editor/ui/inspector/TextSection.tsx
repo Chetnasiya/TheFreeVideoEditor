@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Clip, Time } from '../../core';
 import { readProperty } from '../../core';
 import { TEXT_TEMPLATE_PRESETS, TEXT_ANIMATION_PRESETS } from '../../core/text/presets';
 import { useEditorStoreApi } from '../../state/EditorProvider';
 import { PropertyRow, type ConfirmDisableState } from './Inspector';
-import { BUNDLED_FONTS } from '../../services/render/text/fontLoader';
+import {
+	getCustomFonts,
+	loadSavedCustomFonts,
+	saveCustomFont,
+	deleteCustomFont,
+	type CustomFont
+} from '../../services/render/text/fontLoader';
 
 interface TextSectionProps {
 	clip: Clip;
@@ -16,47 +22,45 @@ interface TextSectionProps {
 }
 
 const ALL_FONTS = [
-    // Sans-Serif
-    { family: 'MyCustomFont', displayName: 'My Custom Font', category: 'custom' },
+	// Sans-Serif
+	{ family: 'Inter', displayName: 'Inter (Sans)', category: 'sans' },
+	{ family: 'Roboto', displayName: 'Roboto', category: 'sans' },
+	{ family: 'Open Sans', displayName: 'Open Sans', category: 'sans' },
+	{ family: 'Lato', displayName: 'Lato', category: 'sans' },
+	{ family: 'Poppins', displayName: 'Poppins', category: 'sans' },
+	{ family: 'Montserrat', displayName: 'Montserrat', category: 'display' },
+	{ family: 'Raleway', displayName: 'Raleway', category: 'sans' },
+	{ family: 'Nunito', displayName: 'Nunito', category: 'sans' },
+	{ family: 'Ubuntu', displayName: 'Ubuntu', category: 'sans' },
+	{ family: 'Work Sans', displayName: 'Work Sans', category: 'sans' },
+	{ family: 'Rubik', displayName: 'Rubik', category: 'sans' },
 
-    { family: 'Inter', displayName: 'Inter (Sans)', category: 'sans' },
-    { family: 'Roboto', displayName: 'Roboto', category: 'sans' },
-    { family: 'Open Sans', displayName: 'Open Sans', category: 'sans' },
-    { family: 'Lato', displayName: 'Lato', category: 'sans' },
-    { family: 'Poppins', displayName: 'Poppins', category: 'sans' },
-    { family: 'Montserrat', displayName: 'Montserrat', category: 'display' },
-    { family: 'Raleway', displayName: 'Raleway', category: 'sans' },
-    { family: 'Nunito', displayName: 'Nunito', category: 'sans' },
-    { family: 'Ubuntu', displayName: 'Ubuntu', category: 'sans' },
-    { family: 'Work Sans', displayName: 'Work Sans', category: 'sans' },
-    { family: 'Rubik', displayName: 'Rubik', category: 'sans' },
+	// Serif & Display
+	{ family: 'Playfair Display', displayName: 'Playfair Display', category: 'serif' },
+	{ family: 'Merriweather', displayName: 'Merriweather', category: 'serif' },
+	{ family: 'Lora', displayName: 'Lora', category: 'serif' },
+	{ family: 'Cinzel', displayName: 'Cinzel', category: 'display' },
+	{ family: 'Bodoni Moda', displayName: 'Bodoni Moda', category: 'display' },
+	{ family: 'Abril Fatface', displayName: 'Abril Fatface', category: 'display' },
+	{ family: 'Bebas Neue', displayName: 'Bebas Neue', category: 'condensed' },
+	{ family: 'Oswald', displayName: 'Oswald', category: 'condensed' },
+	{ family: 'Anton', displayName: 'Anton', category: 'display' },
+	{ family: 'Lobster', displayName: 'Lobster', category: 'display' },
 
-    // Serif & Display
-    { family: 'Playfair Display', displayName: 'Playfair Display', category: 'serif' },
-    { family: 'Merriweather', displayName: 'Merriweather', category: 'serif' },
-    { family: 'Lora', displayName: 'Lora', category: 'serif' },
-    { family: 'Cinzel', displayName: 'Cinzel', category: 'display' },
-    { family: 'Bodoni Moda', displayName: 'Bodoni Moda', category: 'display' },
-    { family: 'Abril Fatface', displayName: 'Abril Fatface', category: 'display' },
-    { family: 'Bebas Neue', displayName: 'Bebas Neue', category: 'condensed' },
-    { family: 'Oswald', displayName: 'Oswald', category: 'condensed' },
-    { family: 'Anton', displayName: 'Anton', category: 'display' },
-    { family: 'Lobster', displayName: 'Lobster', category: 'display' },
+	// Handwriting & Script
+	{ family: 'Caveat', displayName: 'Caveat', category: 'handwriting' },
+	{ family: 'Pacifico', displayName: 'Pacifico', category: 'handwriting' },
+	{ family: 'Dancing Script', displayName: 'Dancing Script', category: 'handwriting' },
+	{ family: 'Great Vibes', displayName: 'Great Vibes', category: 'handwriting' },
+	{ family: 'Sacramento', displayName: 'Sacramento', category: 'handwriting' },
+	{ family: 'Satisfy', displayName: 'Satisfy', category: 'handwriting' },
 
-    // Handwriting & Script
-    { family: 'Caveat', displayName: 'Caveat', category: 'handwriting' },
-    { family: 'Pacifico', displayName: 'Pacifico', category: 'handwriting' },
-    { family: 'Dancing Script', displayName: 'Dancing Script', category: 'handwriting' },
-    { family: 'Great Vibes', displayName: 'Great Vibes', category: 'handwriting' },
-    { family: 'Sacramento', displayName: 'Sacramento', category: 'handwriting' },
-    { family: 'Satisfy', displayName: 'Satisfy', category: 'handwriting' },
-
-    // Monospace
-    { family: 'Roboto Mono', displayName: 'Roboto Mono', category: 'mono' },
-    { family: 'Fira Code', displayName: 'Fira Code', category: 'mono' },
-    { family: 'JetBrains Mono', displayName: 'JetBrains Mono', category: 'mono' },
-    { family: 'Space Mono', displayName: 'Space Mono', category: 'mono' },
-    { family: 'Source Code Pro', displayName: 'Source Code Pro', category: 'mono' }
+	// Monospace
+	{ family: 'Roboto Mono', displayName: 'Roboto Mono', category: 'mono' },
+	{ family: 'Fira Code', displayName: 'Fira Code', category: 'mono' },
+	{ family: 'JetBrains Mono', displayName: 'JetBrains Mono', category: 'mono' },
+	{ family: 'Space Mono', displayName: 'Space Mono', category: 'mono' },
+	{ family: 'Source Code Pro', displayName: 'Source Code Pro', category: 'mono' }
 ];
 
 export function TextSection({
@@ -74,8 +78,56 @@ export function TextSection({
 
 	const [fontSearch, setFontSearch] = useState('');
 	const [fontPickerOpen, setFontPickerOpen] = useState(false);
+	const [customFontsList, setCustomFontsList] = useState<CustomFont[]>([]);
+	const [fontUploadError, setFontUploadError] = useState<string | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		loadSavedCustomFonts()
+			.then((fonts) => setCustomFontsList(fonts))
+			.catch(() => {});
+	}, []);
 
 	if (!textSource) return null;
+
+	const handleCustomFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		setFontUploadError(null);
+		try {
+			const buffer = await file.arrayBuffer();
+			const cleanName = file.name
+				.replace(/\.[^/.]+$/, '')
+				.replace(/[-_](regular|bold|italic|variable|font|light|medium|semibold)/gi, '')
+				.replace(/[-_]/g, ' ')
+				.trim();
+			const familyName = cleanName || file.name.replace(/\.[^/.]+$/, '');
+			const saved = await saveCustomFont({
+				family: familyName,
+				displayName: familyName,
+				fileName: file.name,
+				data: buffer
+			});
+			setCustomFontsList(getCustomFonts());
+			handleFontSelect(saved.family);
+		} catch (err) {
+			console.error('Failed to load custom font file:', err);
+			setFontUploadError(
+				'Failed to load font file. Please ensure it is a valid font file (.ttf, .otf, .woff, .woff2).'
+			);
+		} finally {
+			if (fileInputRef.current) fileInputRef.current.value = '';
+		}
+	};
+
+	const handleDeleteCustomFont = async (e: React.MouseEvent, family: string) => {
+		e.stopPropagation();
+		await deleteCustomFont(family);
+		setCustomFontsList(getCustomFonts());
+		if (textStyle.fontFamily === family) {
+			handleFontSelect('sans-serif');
+		}
+	};
 
 	const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		store.getState().setTextContent(clip.id, e.target.value);
@@ -137,6 +189,19 @@ export function TextSection({
 		store.getState().setTextBox(clip.id, { height, autoSize: false });
 	};
 
+	const currentPaddingX = textBox?.paddingX ?? (textBox?.autoSize !== false ? 20 : 0);
+	const currentPaddingY = textBox?.paddingY ?? (textBox?.autoSize !== false ? 16 : 0);
+
+	const handlePaddingXChange = (val: number) => {
+		const paddingX = Math.max(0, Math.min(200, Math.round(val)));
+		store.getState().setTextBox(clip.id, { paddingX });
+	};
+
+	const handlePaddingYChange = (val: number) => {
+		const paddingY = Math.max(0, Math.min(200, Math.round(val)));
+		store.getState().setTextBox(clip.id, { paddingY });
+	};
+
 	const handleVerticalAnchorChange = (anchor: 'top' | 'center' | 'bottom') => {
 		store.getState().setTextBox(clip.id, { verticalAnchor: anchor });
 	};
@@ -173,10 +238,21 @@ export function TextSection({
 		store.getState().setProperty(clip.id, 'position', [newX, newY], { autoKey: true });
 	};
 
-	const filteredFonts = ALL_FONTS.filter((font) =>
-    font.displayName.toLowerCase().includes(fontSearch.toLowerCase()) ||
-    font.category.toLowerCase().includes(fontSearch.toLowerCase())
-);
+	const allAvailableFonts = [
+		...customFontsList.map((f) => ({
+			family: f.family,
+			displayName: f.displayName,
+			category: 'custom' as const
+		})),
+		...ALL_FONTS
+	];
+
+	const filteredFonts = allAvailableFonts.filter(
+		(font) =>
+			font.displayName.toLowerCase().includes(fontSearch.toLowerCase()) ||
+			font.family.toLowerCase().includes(fontSearch.toLowerCase()) ||
+			font.category.toLowerCase().includes(fontSearch.toLowerCase())
+	);
 
 	return (
 		<div className="inspector-section-content text-section-container">
@@ -257,98 +333,167 @@ export function TextSection({
 			</div>
 
 			{/* Font Family Picker */}
-<div className="property-row">
-    <div className="property-header">
-        <span className="property-label">Font Family</span>
-    </div>
-    <div className="relative w-full">
-        <button
-            type="button"
-            className="font-picker-btn"
-            onClick={() => setFontPickerOpen(!fontPickerOpen)}
-            aria-label="Select font family"
-        >
-            <span style={{ fontFamily: textStyle.fontFamily || 'sans-serif' }}>
-                {textStyle.fontFamily || 'sans-serif'}
-            </span>
-            <svg
-                width="10"
-                height="10"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{
-                    transform: fontPickerOpen ? 'rotate(180deg)' : 'none',
-                    transition: 'transform 0.15s ease'
-                }}
-                aria-hidden="true"
-            >
-                <polyline points="6 9 12 15 18 9" />
-            </svg>
-        </button>
+			<div className="property-row">
+				<div className="property-header">
+					<span className="property-label">Font Family</span>
+				</div>
+				<div className="relative w-full">
+					<button
+						type="button"
+						className="font-picker-btn"
+						onClick={() => setFontPickerOpen(!fontPickerOpen)}
+						aria-label="Select font family"
+					>
+						<span style={{ fontFamily: textStyle.fontFamily || 'sans-serif' }}>
+							{textStyle.fontFamily || 'sans-serif'}
+						</span>
+						<svg
+							width="10"
+							height="10"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2.5"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							style={{
+								transform: fontPickerOpen ? 'rotate(180deg)' : 'none',
+								transition: 'transform 0.15s ease'
+							}}
+							aria-hidden="true"
+						>
+							<polyline points="6 9 12 15 18 9" />
+						</svg>
+					</button>
 
-        {fontPickerOpen && (
-            <div className="font-picker-dropdown">
-                <input
-                    type="text"
-                    className="font-search-input"
-                    placeholder="Search 30+ fonts..."
-                    value={fontSearch}
-                    onChange={(e) => setFontSearch(e.target.value)}
-                    autoFocus
-                />
-                <div className="flex max-h-60 flex-col gap-0.5 overflow-y-auto">
-                    <button
-                        type="button"
-                        className="font-option-btn"
-                        onClick={() => {
-                            handleFontSelect('sans-serif');
-                            setFontPickerOpen(false);
-                        }}
-                    >
-                        <span>System Sans-Serif</span>
-                    </button>
-                    <button
-                        type="button"
-                        className="font-option-btn"
-                        onClick={() => {
-                            handleFontSelect('monospace');
-                            setFontPickerOpen(false);
-                        }}
-                    >
-                        <span style={{ fontFamily: 'monospace' }}>System Monospace</span>
-                    </button>
+					{fontPickerOpen && (
+						<div className="font-picker-dropdown">
+							{/* Upload Custom Font Button */}
+							<div className="border-b border-[#242430] p-1 pb-1.5">
+								<button
+									type="button"
+									className="flex w-full items-center justify-center gap-1.5 rounded border border-dashed border-[#3b82f6]/50 bg-[#3b82f6]/10 px-2 py-1.5 text-xs font-medium text-[#60a5fa] transition-colors hover:border-[#3b82f6] hover:bg-[#3b82f6]/20"
+									onClick={() => fileInputRef.current?.click()}
+								>
+									<svg
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2.5"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<line x1="12" y1="5" x2="12" y2="19" />
+										<line x1="5" y1="12" x2="19" y2="12" />
+									</svg>
+									<span>Add Custom Font (.ttf, .otf, .woff, .woff2)</span>
+								</button>
+								<input
+									ref={fileInputRef}
+									type="file"
+									accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
+									className="hidden"
+									onChange={handleCustomFontUpload}
+								/>
+								{fontUploadError && (
+									<div className="mt-1.5 rounded border border-red-500/30 bg-red-500/10 p-1.5 text-[11px] text-red-400">
+										{fontUploadError}
+									</div>
+								)}
+							</div>
 
-                    {filteredFonts.map((font) => (
-                        <button
-                            key={font.family}
-                            type="button"
-                            className="font-option-btn flex items-center justify-between"
-                            onClick={() => {
-                                handleFontSelect(font.family);
-                                setFontPickerOpen(false);
-                            }}
-                        >
-                            <span style={{ fontFamily: font.family }}>{font.displayName}</span>
-                            <span className="rounded border border-[#242430] bg-[#1a1a24] px-1.5 py-0.5 font-mono text-[9px] text-[#64748b]">
-                                {font.category}
-                            </span>
-                        </button>
-                    ))}
+							<input
+								type="text"
+								className="font-search-input mt-1"
+								placeholder="Search fonts..."
+								value={fontSearch}
+								onChange={(e) => setFontSearch(e.target.value)}
+								autoFocus
+							/>
+							<div className="flex max-h-60 flex-col gap-0.5 overflow-y-auto">
+								<button
+									type="button"
+									className="font-option-btn"
+									onClick={() => {
+										handleFontSelect('sans-serif');
+										setFontPickerOpen(false);
+									}}
+								>
+									<span>System Sans-Serif</span>
+								</button>
+								<button
+									type="button"
+									className="font-option-btn"
+									onClick={() => {
+										handleFontSelect('monospace');
+										setFontPickerOpen(false);
+									}}
+								>
+									<span style={{ fontFamily: 'monospace' }}>System Monospace</span>
+								</button>
 
-                    {filteredFonts.length === 0 && (
-                        <div className="p-2 text-center text-xs text-gray-400">
-                            No fonts found for "{fontSearch}"
-                        </div>
-                    )}
-                </div>
-            </div>
-        )}
-    </div>
-</div>
+								{filteredFonts.map((font) => (
+									<div
+										key={font.family}
+										className="font-option-btn flex items-center justify-between p-0 hover:bg-[#252538]"
+									>
+										<button
+											type="button"
+											className="flex flex-1 items-center justify-between px-2.5 py-1.5 text-left"
+											onClick={() => {
+												handleFontSelect(font.family);
+												setFontPickerOpen(false);
+											}}
+										>
+											<span style={{ fontFamily: font.family }}>{font.displayName}</span>
+											<span
+												className={`rounded border px-1.5 py-0.5 font-mono text-[9px] ${
+													font.category === 'custom'
+														? 'border-[#3b82f6]/40 bg-[#3b82f6]/20 text-[#60a5fa]'
+														: 'border-[#242430] bg-[#1a1a24] text-[#64748b]'
+												}`}
+											>
+												{font.category}
+											</span>
+										</button>
+										{font.category === 'custom' && (
+											<button
+												type="button"
+												className="mr-1.5 rounded p-1 text-[#64748b] hover:bg-red-500/20 hover:text-red-400"
+												onClick={(e) => handleDeleteCustomFont(e, font.family)}
+												title={`Delete font ${font.displayName}`}
+												aria-label={`Delete custom font ${font.displayName}`}
+											>
+												<svg
+													width="11"
+													height="11"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<line x1="18" y1="6" x2="6" y2="18" />
+													<line x1="6" y1="6" x2="18" y2="18" />
+												</svg>
+											</button>
+										)}
+									</div>
+								))}
+
+								{filteredFonts.length === 0 && (
+									<div className="p-2 text-center text-xs text-gray-400">
+										No fonts found for "{fontSearch}"
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+				</div>
+			</div>
 
 			{/* Font Weight & Style */}
 			<div className="flex gap-2">
@@ -538,6 +683,62 @@ export function TextSection({
 					</div>
 				</div>
 			)}
+
+			{/* Padding Controls */}
+			<div className="flex gap-2">
+				<div className="property-row flex-1">
+					<div className="property-header">
+						<span className="property-label">Padding X</span>
+						<span className="property-subtext">{currentPaddingX}px</span>
+					</div>
+					<div className="flex items-center gap-2">
+						<input
+							type="range"
+							min="0"
+							max="150"
+							value={currentPaddingX}
+							onChange={(e) => handlePaddingXChange(Number(e.target.value))}
+							className="inspector-slider flex-1"
+							aria-label="Text Horizontal Padding"
+						/>
+						<input
+							type="number"
+							min="0"
+							max="200"
+							value={currentPaddingX}
+							onChange={(e) => handlePaddingXChange(Number(e.target.value))}
+							className="text-select w-16 font-mono text-xs"
+							aria-label="Text Horizontal Padding Input"
+						/>
+					</div>
+				</div>
+				<div className="property-row flex-1">
+					<div className="property-header">
+						<span className="property-label">Padding Y</span>
+						<span className="property-subtext">{currentPaddingY}px</span>
+					</div>
+					<div className="flex items-center gap-2">
+						<input
+							type="range"
+							min="0"
+							max="150"
+							value={currentPaddingY}
+							onChange={(e) => handlePaddingYChange(Number(e.target.value))}
+							className="inspector-slider flex-1"
+							aria-label="Text Vertical Padding"
+						/>
+						<input
+							type="number"
+							min="0"
+							max="200"
+							value={currentPaddingY}
+							onChange={(e) => handlePaddingYChange(Number(e.target.value))}
+							className="text-select w-16 font-mono text-xs"
+							aria-label="Text Vertical Padding Input"
+						/>
+					</div>
+				</div>
+			</div>
 
 			{/* Vertical Anchor */}
 			<div className="property-row">

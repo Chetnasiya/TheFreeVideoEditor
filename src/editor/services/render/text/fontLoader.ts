@@ -1,9 +1,20 @@
+import { openDB, type IDBPDatabase } from 'idb';
+
 export interface BundledFont {
 	family: string;
 	displayName: string;
 	category: 'sans' | 'display' | 'serif' | 'mono' | 'handwriting' | 'condensed';
 	url: string;
 	license: string;
+}
+
+export interface CustomFont {
+	family: string;
+	displayName: string;
+	fileName: string;
+	data?: ArrayBuffer;
+	url?: string;
+	dateAdded?: number;
 }
 
 export const BUNDLED_FONTS: readonly BundledFont[] = [
@@ -53,6 +64,201 @@ export const BUNDLED_FONTS: readonly BundledFont[] = [
 
 const loadedFonts = new Set<string>();
 const loadingPromises = new Map<string, Promise<boolean>>();
+const customFonts = new Map<string, CustomFont>();
+
+const CUSTOM_FONTS_DB_NAME = 'tfve-custom-fonts';
+const CUSTOM_FONTS_DB_VERSION = 1;
+const CUSTOM_FONTS_STORE = 'fonts';
+
+interface CustomFontRecord {
+	family: string;
+	displayName: string;
+	fileName: string;
+	data: ArrayBuffer;
+	dateAdded: number;
+}
+
+export interface CustomFontsDatabase {
+	fonts: {
+		key: string;
+		value: CustomFontRecord;
+	};
+}
+
+let customFontsDbPromise: Promise<IDBPDatabase<CustomFontsDatabase>> | null = null;
+function getCustomFontsDb(): Promise<IDBPDatabase<CustomFontsDatabase>> | null {
+	if (typeof indexedDB === 'undefined') return null;
+	if (!customFontsDbPromise) {
+		customFontsDbPromise = openDB<CustomFontsDatabase>(
+			CUSTOM_FONTS_DB_NAME,
+			CUSTOM_FONTS_DB_VERSION,
+			{
+				upgrade(db) {
+					if (!db.objectStoreNames.contains(CUSTOM_FONTS_STORE)) {
+						db.createObjectStore(CUSTOM_FONTS_STORE, { keyPath: 'family' });
+					}
+				}
+			}
+		);
+	}
+	return customFontsDbPromise;
+}
+
+function getFontMime(fileName: string): string {
+	const ext = fileName.split('.').pop()?.toLowerCase();
+	switch (ext) {
+		case 'woff2':
+			return 'font/woff2';
+		case 'woff':
+			return 'font/woff';
+		case 'otf':
+			return 'font/otf';
+		case 'ttf':
+		default:
+			return 'font/ttf';
+	}
+}
+
+/**
+ * Returns all currently registered in-memory custom fonts.
+ */
+export function getCustomFonts(): CustomFont[] {
+	return Array.from(customFonts.values());
+}
+
+/**
+ * Registers a custom font in-memory and in document.fonts / worker fonts.
+ */
+export async function registerCustomFont(font: CustomFont): Promise<boolean> {
+	try {
+		if (font.data && !font.url && typeof URL !== 'undefined') {
+			const blob = new Blob([font.data], { type: getFontMime(font.fileName) });
+			font.url = URL.createObjectURL(blob);
+		}
+
+		if (typeof FontFace !== 'undefined') {
+			interface WithFonts {
+				fonts?: FontFaceSet;
+			}
+			const globalFonts =
+				typeof document !== 'undefined' ? document.fonts : (self as unknown as WithFonts).fonts;
+
+			const source = font.data ? font.data : font.url ? `url(${font.url})` : null;
+			if (source) {
+				const fontFace =
+					typeof source === 'string'
+						? new FontFace(font.family, source)
+						: new FontFace(font.family, source);
+				const loadedFace = await fontFace.load();
+				if (globalFonts) {
+					globalFonts.add(loadedFace);
+				}
+			}
+		}
+
+		loadedFonts.add(font.family);
+		customFonts.set(font.family.toLowerCase(), font);
+		return true;
+	} catch (err) {
+		console.warn('Failed to register custom font:', font.family, err);
+		return false;
+	}
+}
+
+/**
+ * Unregisters a custom font from memory and revokes any created Object URL.
+ */
+export function unregisterCustomFont(family: string): void {
+	const lower = family.toLowerCase();
+	const existing = customFonts.get(lower);
+	if (existing?.url && typeof URL !== 'undefined') {
+		try {
+			URL.revokeObjectURL(existing.url);
+		} catch {
+			// ignore
+		}
+	}
+	customFonts.delete(lower);
+	loadedFonts.delete(family);
+}
+
+/**
+ * Saves a custom font to IndexedDB and registers it with the FontFace API.
+ */
+export async function saveCustomFont(font: {
+	family: string;
+	displayName?: string;
+	fileName: string;
+	data: ArrayBuffer;
+}): Promise<CustomFont> {
+	const custom: CustomFont = {
+		family: font.family,
+		displayName: font.displayName || font.family,
+		fileName: font.fileName,
+		data: font.data,
+		dateAdded: Date.now()
+	};
+	await registerCustomFont(custom);
+
+	try {
+		const db = await getCustomFontsDb();
+		if (db) {
+			await db.put(CUSTOM_FONTS_STORE, {
+				family: custom.family,
+				displayName: custom.displayName,
+				fileName: custom.fileName,
+				data: custom.data,
+				dateAdded: custom.dateAdded
+			});
+		}
+	} catch (err) {
+		console.warn('Failed to persist custom font to IndexedDB:', err);
+	}
+
+	return custom;
+}
+
+/**
+ * Loads all saved custom fonts from IndexedDB and registers them.
+ */
+export async function loadSavedCustomFonts(): Promise<CustomFont[]> {
+	try {
+		const db = await getCustomFontsDb();
+		if (!db) return Array.from(customFonts.values());
+		const records: CustomFontRecord[] = await db.getAll(CUSTOM_FONTS_STORE);
+		const results: CustomFont[] = [];
+		for (const rec of records) {
+			const font: CustomFont = {
+				family: rec.family,
+				displayName: rec.displayName,
+				fileName: rec.fileName,
+				data: rec.data,
+				dateAdded: rec.dateAdded
+			};
+			await registerCustomFont(font);
+			results.push(font);
+		}
+		return results;
+	} catch (err) {
+		console.warn('Failed to load custom fonts from IndexedDB:', err);
+		return Array.from(customFonts.values());
+	}
+}
+
+/**
+ * Deletes a custom font from IndexedDB and unregisters it.
+ */
+export async function deleteCustomFont(family: string): Promise<void> {
+	unregisterCustomFont(family);
+	try {
+		const db = await getCustomFontsDb();
+		if (db) {
+			await db.delete(CUSTOM_FONTS_STORE, family);
+		}
+	} catch (err) {
+		console.warn('Failed to delete custom font from IndexedDB:', err);
+	}
+}
 
 /**
  * Ensures a font family is loaded via FontFace.
@@ -70,13 +276,45 @@ export async function ensureFontLoaded(family: string, url?: string): Promise<bo
 			const fontInfo = BUNDLED_FONTS.find((f) => f.family.toLowerCase() === family.toLowerCase());
 			const fontUrl = url || fontInfo?.url;
 
-			if (!fontUrl) {
+			// Check custom fonts registry
+			const custom = customFonts.get(family.toLowerCase());
+			let fontSource: string | ArrayBuffer | undefined = fontUrl;
+			if (!fontSource && custom) {
+				fontSource = custom.data || (custom.url ? `url(${custom.url})` : undefined);
+			}
+
+			// If not in memory and DB is available, check DB
+			if (!fontSource && typeof indexedDB !== 'undefined') {
+				try {
+					const db = await getCustomFontsDb();
+					if (db) {
+						const rec: CustomFontRecord | undefined = await db.get(CUSTOM_FONTS_STORE, family);
+						if (rec) {
+							await registerCustomFont({
+								family: rec.family,
+								displayName: rec.displayName,
+								fileName: rec.fileName,
+								data: rec.data,
+								dateAdded: rec.dateAdded
+							});
+							return true;
+						}
+					}
+				} catch {
+					// ignore
+				}
+			}
+
+			if (!fontSource) {
 				// System fallback font (sans-serif, monospace, etc.)
 				loadedFonts.add(family);
 				return true;
 			}
 
-			const fontFace = new FontFace(family, `url(${fontUrl})`);
+			const fontFace =
+				typeof fontSource === 'string'
+					? new FontFace(family, fontSource.startsWith('url(') ? fontSource : `url(${fontSource})`)
+					: new FontFace(family, fontSource);
 			const loadedFace = await fontFace.load();
 
 			interface WithFonts {

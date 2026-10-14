@@ -11,8 +11,6 @@ interface Props {
 	robots?: string;
 }
 
-
-
 const {
 	title = 'The Free Video Editor — Free Online Video Editor & AI Video Editor in Your Browser',
 	description = 'The Free Video Editor is a fast, free online video editor and AI video editor in your browser. Edit 4K timeline video with zero cloud upload, private local processing, and no watermark.',
@@ -62,10 +60,12 @@ const currentCanonical = canonicalUrl || siteUrl;
 		<link rel="canonical" href={currentCanonical} />
 		<link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
-         <link rel="preconnect" href="https://fonts.googleapis.com">
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bebas+Neue&family=Bodoni+Moda&family=Caveat:wght@400;700&family=Cinzel:wght@400;700&family=Dancing+Script:wght@400;700&family=Fira+Code&family=Great+Vibes&family=Inter:wght@400;600;800&family=JetBrains+Mono&family=Lato:wght@400;700&family=Lobster&family=Lora&family=Merriweather&family=Montserrat:wght@400;700;900&family=Nunito&family=Open+Sans&family=Oswald:wght@500;700&family=Pacifico&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600;800&family=Raleway&family=Roboto+Mono&family=Roboto:wght@400;700&family=Rubik&family=Sacramento&family=Satisfy&family=Space+Mono&family=Ubuntu&family=Work+Sans&display=swap" rel="stylesheet">
-
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bebas+Neue&family=Bodoni+Moda&family=Caveat:wght@400;700&family=Cinzel:wght@400;700&family=Dancing+Script:wght@400;700&family=Fira+Code&family=Great+Vibes&family=Inter:wght@400;600;800&family=JetBrains+Mono&family=Lato:wght@400;700&family=Lobster&family=Lora&family=Merriweather&family=Montserrat:wght@400;700;900&family=Nunito&family=Open+Sans&family=Oswald:wght@500;700&family=Pacifico&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600;800&family=Raleway&family=Roboto+Mono&family=Roboto:wght@400;700&family=Rubik&family=Sacramento&family=Satisfy&family=Space+Mono&family=Ubuntu&family=Work+Sans&display=swap"
+			rel="stylesheet"
+		/>
 
 		<!-- Open Graph / Facebook -->
 		<meta property="og:type" content={ogType} />
@@ -90,8 +90,6 @@ const currentCanonical = canonicalUrl || siteUrl;
 			name="twitter:image:alt"
 			content="The Free Video Editor — Free Online AI Video Editor in Your Browser"
 		/>
-
-
 
 		<!-- Structured Data (JSON-LD) for SoftwareApplication & WebSite -->
 		<script

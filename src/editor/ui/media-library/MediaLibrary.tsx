@@ -123,7 +123,9 @@ function AssetPreview({ asset, projectId }: { asset: Asset; projectId: ProjectId
 					? '♫'
 					: asset.kind === 'font'
 						? 'T'
-						: '▧'}
+						: asset.kind === 'lut'
+							? '◫'
+							: '▧'}
 		</div>
 	);
 }
@@ -953,8 +955,12 @@ export default function MediaLibrary() {
 										aria-selected={selected}
 										aria-label={`${asset.name}, ${asset.kind}, ${timecode(asset, project.settings.fps)}`}
 										tabIndex={asset.id === rovingAssetId ? 0 : -1}
-										draggable
-										onDragStart={(event) => dragAsset(event, asset)}
+										draggable={asset.kind !== 'font' && asset.kind !== 'lut'}
+										onDragStart={(event) => {
+											if (asset.kind !== 'font' && asset.kind !== 'lut') {
+												dragAsset(event, asset);
+											}
+										}}
 										onDragEnd={() => cancelTimelineDrag()}
 										onClick={(event) => handleAssetClick(event, asset.id)}
 										onFocus={() => setActiveAssetId(asset.id)}

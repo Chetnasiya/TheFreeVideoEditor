@@ -27,7 +27,17 @@ import {
 	PUSH_FRAG,
 	SLIDE_FRAG,
 	WIPE_FRAG,
-	ZOOM_DISSOLVE_FRAG
+	ZOOM_DISSOLVE_FRAG,
+	GLITCH_FRAG,
+	LIGHT_LEAK_FRAG,
+	RADIAL_WIPE_FRAG,
+	BLINDS_FRAG,
+	DIAMOND_FRAG,
+	WHIP_PAN_FRAG,
+	PIXELIZE_FRAG,
+	SWIRL_FRAG,
+	RIPPLE_FRAG,
+	BLUR_DISSOLVE_FRAG
 } from './transitionShaders';
 import {
 	RECT_MASK_FRAG,
@@ -274,6 +284,46 @@ export class ShaderPassManager {
 				fsSource = IRIS_FRAG;
 				programName = 'trans_iris';
 				break;
+			case 'glitch':
+				fsSource = GLITCH_FRAG;
+				programName = 'trans_glitch';
+				break;
+			case 'lightLeak':
+				fsSource = LIGHT_LEAK_FRAG;
+				programName = 'trans_lightLeak';
+				break;
+			case 'radialWipe':
+				fsSource = RADIAL_WIPE_FRAG;
+				programName = 'trans_radialWipe';
+				break;
+			case 'blinds':
+				fsSource = BLINDS_FRAG;
+				programName = 'trans_blinds';
+				break;
+			case 'diamond':
+				fsSource = DIAMOND_FRAG;
+				programName = 'trans_diamond';
+				break;
+			case 'whipPan':
+				fsSource = WHIP_PAN_FRAG;
+				programName = 'trans_whipPan';
+				break;
+			case 'pixelize':
+				fsSource = PIXELIZE_FRAG;
+				programName = 'trans_pixelize';
+				break;
+			case 'swirl':
+				fsSource = SWIRL_FRAG;
+				programName = 'trans_swirl';
+				break;
+			case 'ripple':
+				fsSource = RIPPLE_FRAG;
+				programName = 'trans_ripple';
+				break;
+			case 'blurDissolve':
+				fsSource = BLUR_DISSOLVE_FRAG;
+				programName = 'trans_blurDissolve';
+				break;
 			case 'crossDissolve':
 			default:
 				fsSource = CROSS_DISSOLVE_FRAG;
@@ -301,10 +351,33 @@ export class ShaderPassManager {
 			gl.uniform1f(gl.getUniformLocation(program, 'u_angle'), angle);
 			gl.uniform1f(gl.getUniformLocation(program, 'u_softness'), softness);
 			gl.uniform1i(gl.getUniformLocation(program, 'u_reverse'), reverse);
-		} else if (type === 'slide' || type === 'push') {
+		} else if (type === 'radialWipe') {
+			const startAngle = typeof params.startAngle === 'number' ? params.startAngle : 0;
+			const softness = typeof params.softness === 'number' ? params.softness : 0.02;
+			const reverse = params.reverse ? 1 : 0;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_startAngle'), startAngle);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_softness'), softness);
+			gl.uniform1i(gl.getUniformLocation(program, 'u_reverse'), reverse);
+		} else if (type === 'blinds') {
+			const count = typeof params.count === 'number' ? params.count : 10;
+			const dir = params.direction === 'vertical' ? 1 : 0;
+			const softness = typeof params.softness === 'number' ? params.softness : 0.03;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_count'), count);
+			gl.uniform1i(gl.getUniformLocation(program, 'u_direction'), dir);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_softness'), softness);
+		} else if (type === 'diamond') {
+			const softness = typeof params.softness === 'number' ? params.softness : 0.05;
+			const reverse = params.reverse ? 1 : 0;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_softness'), softness);
+			gl.uniform1i(gl.getUniformLocation(program, 'u_reverse'), reverse);
+		} else if (type === 'slide' || type === 'push' || type === 'whipPan') {
 			const dir = params.direction ?? 'left';
 			const dirCode = dir === 'right' ? 1 : dir === 'up' ? 2 : dir === 'down' ? 3 : 0;
 			gl.uniform1i(gl.getUniformLocation(program, 'u_direction'), dirCode);
+			if (type === 'whipPan') {
+				const blur = typeof params.blur === 'number' ? params.blur : 0.6;
+				gl.uniform1f(gl.getUniformLocation(program, 'u_blur'), blur);
+			}
 		} else if (type === 'zoomDissolve') {
 			const scale = typeof params.scale === 'number' ? params.scale : 1.5;
 			gl.uniform1f(gl.getUniformLocation(program, 'u_scale'), scale);
@@ -313,9 +386,39 @@ export class ShaderPassManager {
 			const reverse = params.reverse ? 1 : 0;
 			gl.uniform1f(gl.getUniformLocation(program, 'u_softness'), softness);
 			gl.uniform1i(gl.getUniformLocation(program, 'u_reverse'), reverse);
+		} else if (type === 'glitch') {
+			const intensity = typeof params.intensity === 'number' ? params.intensity : 0.8;
+			const colorShift = params.colorShift !== false ? 1 : 0;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_intensity'), intensity);
+			gl.uniform1i(gl.getUniformLocation(program, 'u_colorShift'), colorShift);
+		} else if (type === 'lightLeak') {
+			const warmth = typeof params.warmth === 'number' ? params.warmth : 1.0;
+			const intensity = typeof params.intensity === 'number' ? params.intensity : 1.2;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_warmth'), warmth);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_intensity'), intensity);
+		} else if (type === 'pixelize') {
+			const maxBlockSize = typeof params.maxBlockSize === 'number' ? params.maxBlockSize : 32.0;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_maxBlockSize'), maxBlockSize);
+		} else if (type === 'swirl') {
+			const radius = typeof params.radius === 'number' ? params.radius : 0.8;
+			const turns = typeof params.turns === 'number' ? params.turns : 3.0;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_radius'), radius);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_turns'), turns);
+		} else if (type === 'ripple') {
+			const frequency = typeof params.frequency === 'number' ? params.frequency : 25.0;
+			const amplitude = typeof params.amplitude === 'number' ? params.amplitude : 0.06;
+			const speed = typeof params.speed === 'number' ? params.speed : 2.0;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_frequency'), frequency);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_amplitude'), amplitude);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_speed'), speed);
+		} else if (type === 'blurDissolve') {
+			const angle = typeof params.angle === 'number' ? params.angle : 0;
+			const strength = typeof params.strength === 'number' ? params.strength : 0.5;
+			gl.uniform1f(gl.getUniformLocation(program, 'u_angle'), angle);
+			gl.uniform1f(gl.getUniformLocation(program, 'u_strength'), strength);
 		}
 
-		this.renderQuad(program, targetFbo, width, height);
+		this.renderQuad(program, targetFbo, width, height, fromTexture);
 	}
 
 	private getPathRasterTexture(
@@ -974,7 +1077,19 @@ export class ShaderPassManager {
 
 			case 'lut3d': {
 				const lutAssetId = effect.params.lutAssetId as string;
-				const intensity = typeof effect.params.intensity === 'number' ? effect.params.intensity : 1;
+				let intensity = 1;
+				if (typeof effect.params.intensity === 'number' && !Number.isNaN(effect.params.intensity)) {
+					intensity = effect.params.intensity;
+				} else if (
+					effect.params.intensity &&
+					typeof effect.params.intensity === 'object' &&
+					'value' in effect.params.intensity &&
+					typeof (effect.params.intensity as { value: unknown }).value === 'number' &&
+					!Number.isNaN((effect.params.intensity as { value: number }).value)
+				) {
+					intensity = (effect.params.intensity as { value: number }).value;
+				}
+
 				const lut = lutGetter ? lutGetter(lutAssetId) : null;
 				if (!lut) {
 					const outFbo = fboPool.acquire(width, height);
@@ -991,18 +1106,54 @@ export class ShaderPassManager {
 					gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 					gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 					gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
-					gl.texImage3D(
-						gl.TEXTURE_3D,
-						0,
-						gl.RGBA32F,
-						lut.size,
-						lut.size,
-						lut.size,
-						0,
-						gl.RGBA,
-						gl.FLOAT,
-						lut.data
-					);
+
+					// WebGL forbids UNPACK_PREMULTIPLY_ALPHA_WEBGL for FLOAT and HALF_FLOAT textures.
+					// We must temporarily set it to false during texture upload.
+					const prevPremult = gl.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL);
+					gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+
+					let uploadSuccess = false;
+					try {
+						while (gl.getError() !== gl.NO_ERROR) {}
+						gl.texImage3D(
+							gl.TEXTURE_3D,
+							0,
+							gl.RGBA32F,
+							lut.size,
+							lut.size,
+							lut.size,
+							0,
+							gl.RGBA,
+							gl.FLOAT,
+							lut.data
+						);
+						uploadSuccess = gl.getError() === gl.NO_ERROR;
+					} catch {
+						uploadSuccess = false;
+					}
+
+					if (!uploadSuccess) {
+						// Fallback to RGBA8 for GPUs/drivers that do not support 32F 3D linear filtering
+						while (gl.getError() !== gl.NO_ERROR) {}
+						const u8 = new Uint8Array(lut.size * lut.size * lut.size * 4);
+						for (let i = 0; i < u8.length; i += 1) {
+							u8[i] = Math.round(Math.min(1, Math.max(0, lut.data[i] ?? 0)) * 255);
+						}
+						gl.texImage3D(
+							gl.TEXTURE_3D,
+							0,
+							gl.RGBA8,
+							lut.size,
+							lut.size,
+							lut.size,
+							0,
+							gl.RGBA,
+							gl.UNSIGNED_BYTE,
+							u8
+						);
+					}
+
+					gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, prevPremult);
 					this.lut3dTextures.set(lutAssetId, lut3dTex);
 				}
 
@@ -1018,6 +1169,7 @@ export class ShaderPassManager {
 
 				gl.uniform1f(gl.getUniformLocation(program, 'u_intensity'), intensity);
 				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_lutSize'), lut.size);
 
 				const outFbo = fboPool.acquire(width, height);
 				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);

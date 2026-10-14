@@ -23,7 +23,8 @@ const EXTENSION_KIND: Record<string, MediaKind> = {
 	ttf: 'font',
 	otf: 'font',
 	woff: 'font',
-	woff2: 'font'
+	woff2: 'font',
+	cube: 'lut'
 };
 
 export const ACCEPTED_TYPES = [
@@ -46,7 +47,8 @@ export const ACCEPTED_TYPES = [
 	'.ttf',
 	'.otf',
 	'.woff',
-	'.woff2'
+	'.woff2',
+	'.cube'
 ] as const;
 
 export function classifyMime(mime: string, filename: string): MediaKind | null {

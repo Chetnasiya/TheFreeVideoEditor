@@ -93,7 +93,16 @@ export function getTextDimensions(
 
 	const measure: MeasureFunction = (str: string) => {
 		mCtx.font = fontString;
-		return mCtx.measureText(str).width;
+		const metrics = mCtx.measureText(str);
+		const adv = metrics.width;
+		if (
+			typeof metrics.actualBoundingBoxLeft === 'number' &&
+			typeof metrics.actualBoundingBoxRight === 'number'
+		) {
+			const inkWidth = metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight;
+			return Math.max(adv, inkWidth);
+		}
+		return adv;
 	};
 
 	const res = layout(text, style, box, measure, fontSize);
@@ -142,7 +151,16 @@ export function rasterizeText(
 
 	const measure: MeasureFunction = (str: string) => {
 		mCtx.font = fontString;
-		return mCtx.measureText(str).width;
+		const metrics = mCtx.measureText(str);
+		const adv = metrics.width;
+		if (
+			typeof metrics.actualBoundingBoxLeft === 'number' &&
+			typeof metrics.actualBoundingBoxRight === 'number'
+		) {
+			const inkWidth = metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight;
+			return Math.max(adv, inkWidth);
+		}
+		return adv;
 	};
 
 	const effectiveLineHeight = config.lineHeight ?? style.lineHeight ?? 1.2;

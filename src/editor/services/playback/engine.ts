@@ -16,6 +16,7 @@ import { createPlaybackClock, type PlaybackRate } from './clock';
 import { MediaPool } from './mediaPool';
 import { TextRasterCache } from '../render/text/cache';
 import { ensureFontLoaded } from '../render/text/fontLoader';
+import { ensureLutLoaded, getParsedLut } from '../media/lutCache';
 
 export interface PlaybackSnapshot {
 	time: Time;
@@ -536,6 +537,31 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		let proxyActive = false;
 		const scopesOpen = this.store.getState().scopes?.open ?? false;
 		renderer.enableScopes?.(scopesOpen);
+
+		const checkLayerLuts = (layersToCheck: readonly ActiveLayer[]): void => {
+			for (const layer of layersToCheck) {
+				if (layer.effects) {
+					for (const eff of layer.effects) {
+						if (eff.type === 'lut3d' && eff.params?.lutAssetId) {
+							const assetId = eff.params.lutAssetId as string;
+							if (assetId && !getParsedLut(assetId)) {
+								const asset = proj.assets[assetId as AssetId];
+								if (asset) {
+									void ensureLutLoaded(proj.id, asset).then((parsed) => {
+										if (parsed && !this.disposed) this.requestRender();
+									});
+								}
+							}
+						}
+					}
+				}
+				if (layer.nested?.layers) {
+					checkLayerLuts(layer.nested.layers);
+				}
+			}
+		};
+		checkLayerLuts(layers);
+
 		renderer.render(
 			{ width: proj.settings.width, height: proj.settings.height },
 			layers,

@@ -123,8 +123,8 @@ export function layout(
 	const lineHeightMultiplier = style.lineHeight ?? 1.2;
 	const lineStep = fontSize * lineHeightMultiplier;
 	const letterSpacing = style.letterSpacing ?? 0;
-	const paddingX = box?.paddingX ?? 0;
-	const paddingY = box?.paddingY ?? 0;
+	const paddingX = box?.paddingX ?? (box && box.autoSize !== false ? 20 : 0);
+	const paddingY = box?.paddingY ?? (box && box.autoSize !== false ? 16 : 0);
 	const autoSize = box?.autoSize ?? true;
 	const verticalAnchor = box?.verticalAnchor ?? 'center';
 
@@ -205,10 +205,10 @@ export function layout(
 	const maxLineWidth =
 		measuredLines.length > 0 ? Math.max(...measuredLines.map((l) => l.width)) : 0;
 	const contentWidth = Math.max(1, maxLineWidth);
-	const contentHeight = Math.max(
-		1,
-		measuredLines.length > 0 ? (measuredLines.length - 1) * lineStep + fontSize : fontSize
-	);
+	const baseLinesHeight =
+		measuredLines.length > 0 ? (measuredLines.length - 1) * lineStep + fontSize : fontSize;
+	const linesHeightWithLeading = measuredLines.length * lineStep;
+	const contentHeight = Math.max(1, baseLinesHeight, linesHeightWithLeading);
 
 	const finalBoxWidth =
 		autoSize || fixedWidth === undefined ? contentWidth + 2 * paddingX : fixedWidth;
@@ -219,12 +219,13 @@ export function layout(
 	const usableWidth = Math.max(1, finalBoxWidth - 2 * paddingX);
 	const usableHeight = Math.max(1, finalBoxHeight - 2 * paddingY);
 
-	// Compute vertical offset based on verticalAnchor
-	let startY = paddingY;
+	// Compute vertical offset based on verticalAnchor with half-leading for balanced headroom
+	const halfLeading = Math.max(0, (lineStep - fontSize) / 2);
+	let startY = paddingY + halfLeading;
 	if (verticalAnchor === 'center') {
-		startY = paddingY + (usableHeight - contentHeight) / 2;
+		startY = paddingY + (usableHeight - contentHeight) / 2 + halfLeading;
 	} else if (verticalAnchor === 'bottom') {
-		startY = paddingY + (usableHeight - contentHeight);
+		startY = paddingY + (usableHeight - contentHeight) + halfLeading;
 	}
 
 	const lines: LayoutLine[] = [];
