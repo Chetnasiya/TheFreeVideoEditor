@@ -502,3 +502,226 @@ void main() {
     outColor = mix(orig, processed, clamp(u_mix, 0.0, 1.0));
 }
 `;
+
+export const RGB_SPLIT_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D u_texture;
+uniform vec2 u_resolution;
+uniform float u_amount;
+uniform float u_angle; // radians
+uniform float u_mix;
+in vec2 v_uv;
+out vec4 outColor;
+
+void main() {
+    vec4 orig = texture(u_texture, v_uv);
+    if (u_amount <= 0.0) {
+        outColor = orig;
+        return;
+    }
+    vec2 offset = vec2(cos(u_angle), sin(u_angle)) * (u_amount / max(vec2(1.0), u_resolution));
+    float r = texture(u_texture, clamp(v_uv + offset, 0.0, 1.0)).r;
+    float g = texture(u_texture, v_uv).g;
+    float b = texture(u_texture, clamp(v_uv - offset, 0.0, 1.0)).b;
+    float a = orig.a;
+    vec4 split = vec4(r, g, b, a);
+    outColor = mix(orig, split, u_mix);
+}
+`;
+
+export const DIRECTIONAL_BLUR_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D u_texture;
+uniform vec2 u_resolution;
+uniform float u_length;
+uniform float u_angle; // radians
+uniform float u_mix;
+in vec2 v_uv;
+out vec4 outColor;
+
+void main() {
+    vec4 orig = texture(u_texture, v_uv);
+    if (u_length <= 0.0) {
+        outColor = orig;
+        return;
+    }
+    vec2 dir = vec2(cos(u_angle), sin(u_angle)) * (u_length / max(vec2(1.0), u_resolution)) * 0.125;
+    vec4 acc = orig;
+    float total = 1.0;
+    for (int i = 1; i <= 8; i++) {
+        float f = float(i);
+        float w = 1.0 - (f / 9.0);
+        acc += texture(u_texture, clamp(v_uv + dir * f, 0.0, 1.0)) * w;
+        acc += texture(u_texture, clamp(v_uv - dir * f, 0.0, 1.0)) * w;
+        total += w * 2.0;
+    }
+    vec4 blurred = acc / total;
+    outColor = mix(orig, blurred, u_mix);
+}
+`;
+
+export const ZOOM_BLUR_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D u_texture;
+uniform vec2 u_center;
+uniform float u_strength;
+uniform float u_mix;
+in vec2 v_uv;
+out vec4 outColor;
+
+void main() {
+    vec4 orig = texture(u_texture, v_uv);
+    if (u_strength <= 0.0) {
+        outColor = orig;
+        return;
+    }
+    vec4 acc = orig;
+    float total = 1.0;
+    for (int i = 1; i <= 10; i++) {
+        float p = float(i) / 10.0;
+        float scale = 1.0 - u_strength * 0.5 * p;
+        vec2 sampleUv = clamp(u_center + (v_uv - u_center) * scale, 0.0, 1.0);
+        float w = 1.0 - p * 0.5;
+        acc += texture(u_texture, sampleUv) * w;
+        total += w;
+    }
+    vec4 blurred = acc / total;
+    outColor = mix(orig, blurred, u_mix);
+}
+`;
+
+export const SCANLINES_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D u_texture;
+uniform float u_count;
+uniform float u_intensity;
+uniform float u_time;
+uniform float u_mix;
+in vec2 v_uv;
+out vec4 outColor;
+
+void main() {
+    vec4 orig = texture(u_texture, v_uv);
+    if (u_intensity <= 0.0) {
+        outColor = orig;
+        return;
+    }
+    float scan = sin((v_uv.y + u_time * 0.05) * max(10.0, u_count) * 6.2831853);
+    float lineFactor = 1.0 - (scan * 0.5 + 0.5) * u_intensity;
+    vec3 result = clamp(orig.rgb * lineFactor, 0.0, 1.0);
+    outColor = mix(orig, vec4(result, orig.a), u_mix);
+}
+`;
+
+export const NEON_EDGES_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D u_texture;
+uniform vec2 u_resolution;
+uniform vec3 u_neonColor;
+uniform float u_threshold;
+uniform float u_brightness;
+uniform float u_mix;
+in vec2 v_uv;
+out vec4 outColor;
+
+float luma(vec3 c) {
+    return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+void main() {
+    vec4 orig = texture(u_texture, v_uv);
+    vec2 step = 1.0 / max(vec2(1.0), u_resolution);
+
+    float tl = luma(texture(u_texture, clamp(v_uv + vec2(-step.x, -step.y), 0.0, 1.0)).rgb);
+    float t  = luma(texture(u_texture, clamp(v_uv + vec2(0.0, -step.y), 0.0, 1.0)).rgb);
+    float tr = luma(texture(u_texture, clamp(v_uv + vec2(step.x, -step.y), 0.0, 1.0)).rgb);
+    float l  = luma(texture(u_texture, clamp(v_uv + vec2(-step.x, 0.0), 0.0, 1.0)).rgb);
+    float r  = luma(texture(u_texture, clamp(v_uv + vec2(step.x, 0.0), 0.0, 1.0)).rgb);
+    float bl = luma(texture(u_texture, clamp(v_uv + vec2(-step.x, step.y), 0.0, 1.0)).rgb);
+    float b  = luma(texture(u_texture, clamp(v_uv + vec2(0.0, step.y), 0.0, 1.0)).rgb);
+    float br = luma(texture(u_texture, clamp(v_uv + vec2(step.x, step.y), 0.0, 1.0)).rgb);
+
+    float gx = (tr + 2.0 * r + br) - (tl + 2.0 * l + bl);
+    float gy = (bl + 2.0 * b + br) - (tl + 2.0 * t + tr);
+    float edge = length(vec2(gx, gy));
+
+    float edgeFactor = smoothstep(u_threshold, u_threshold + 0.25, edge);
+    vec3 neon = u_neonColor * edgeFactor * u_brightness;
+    vec3 composite = clamp(orig.rgb * (1.0 - edgeFactor * 0.4) + neon, 0.0, 1.0);
+    outColor = mix(orig, vec4(composite, orig.a), u_mix);
+}
+`;
+
+export const DUOTONE_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D u_texture;
+uniform vec3 u_shadowColor;
+uniform vec3 u_highlightColor;
+uniform float u_contrast;
+uniform float u_mix;
+in vec2 v_uv;
+out vec4 outColor;
+
+void main() {
+    vec4 orig = texture(u_texture, v_uv);
+    float lum = dot(orig.rgb, vec3(0.2126, 0.7152, 0.0722));
+    if (abs(u_contrast) > 0.001) {
+        lum = clamp((lum - 0.5) * (1.0 + u_contrast) + 0.5, 0.0, 1.0);
+    }
+    vec3 tone = mix(u_shadowColor, u_highlightColor, clamp(lum, 0.0, 1.0));
+    outColor = mix(orig, vec4(tone, orig.a), u_mix);
+}
+`;
+
+export const WAVE_DISTORT_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D u_texture;
+uniform vec2 u_resolution;
+uniform float u_amplitude;
+uniform float u_frequency;
+uniform float u_speed;
+uniform float u_time;
+uniform float u_mix;
+in vec2 v_uv;
+out vec4 outColor;
+
+void main() {
+    vec4 orig = texture(u_texture, v_uv);
+    if (u_amplitude <= 0.0) {
+        outColor = orig;
+        return;
+    }
+    float phase = u_time * u_speed;
+    float waveX = sin(v_uv.y * u_frequency + phase);
+    float waveY = cos(v_uv.x * u_frequency + phase);
+    vec2 offset = vec2(waveX, waveY) * (u_amplitude / max(vec2(1.0), u_resolution));
+    vec4 warped = texture(u_texture, clamp(v_uv + offset, 0.0, 1.0));
+    outColor = mix(orig, warped, u_mix);
+}
+`;
+
+export const SEPIA_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D u_texture;
+uniform float u_amount;
+uniform float u_mix;
+in vec2 v_uv;
+out vec4 outColor;
+
+void main() {
+    vec4 orig = texture(u_texture, v_uv);
+    if (u_amount <= 0.0) {
+        outColor = orig;
+        return;
+    }
+    vec3 c = orig.rgb;
+    vec3 sepia = vec3(
+        dot(c, vec3(0.393, 0.769, 0.189)),
+        dot(c, vec3(0.349, 0.686, 0.168)),
+        dot(c, vec3(0.272, 0.534, 0.131))
+    );
+    vec3 toned = clamp(mix(c, sepia, u_amount), 0.0, 1.0);
+    outColor = mix(orig, vec4(toned, orig.a), u_mix);
+}
+`;
+

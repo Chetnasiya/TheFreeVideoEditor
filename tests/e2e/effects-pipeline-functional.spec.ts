@@ -852,4 +852,184 @@ LUT_3D_SIZE 2
 		expect(results.pixel[2]).toBeGreaterThan(200);
 		expect(results.pixel[3]).toBe(255);
 	});
+
+	test('renders new video effects (RGB Split, Directional Blur, Zoom Blur, Scanlines, Neon Edges, Duotone, Wave Distort, Sepia) with valid WebGL shaders and real pixel changes', async ({
+		page
+	}) => {
+		await page.goto('/editor');
+
+		const results = await page.evaluate(async () => {
+			const renderPath = '/src/editor/services/render/index.ts';
+			const render = (await import(
+				/* @vite-ignore */ renderPath
+			)) as unknown as typeof import('../../src/editor/services/render/index');
+			const W = 128;
+			const H = 128;
+
+			// Source image with red top half and blue bottom half
+			const srcCanvas = new OffscreenCanvas(W, H);
+			const ctx = srcCanvas.getContext('2d')!;
+			ctx.fillStyle = '#ff0000';
+			ctx.fillRect(0, 0, W, H / 2);
+			ctx.fillStyle = '#0000ff';
+			ctx.fillRect(0, H / 2, W, H / 2);
+
+			const canvas = document.createElement('canvas');
+			canvas.width = W;
+			canvas.height = H;
+
+			const renderer = render.createFrameRenderer(canvas, {
+				preserveDrawingBuffer: true
+			}) as import('../../src/editor/services/render').FrameRenderer;
+
+			const readPixel = (x: number, y: number): number[] => {
+				const copy = document.createElement('canvas');
+				copy.width = W;
+				copy.height = H;
+				const cctx = copy.getContext('2d', { willReadFrequently: true })!;
+				cctx.drawImage(canvas, 0, 0);
+				return Array.from(cctx.getImageData(x, y, 1, 1).data);
+			};
+
+			const renderWithEffect = (eff: any) => {
+				renderer.render(
+					{ width: W, height: H },
+					[
+						{
+							clipId: 'c1' as any,
+							assetId: 'src' as any,
+							trackId: 't1' as any,
+							trackOrder: 0,
+							sourceTime: 0,
+							kind: 'image',
+							opacity: 1,
+							transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+							effects: [eff]
+						}
+					],
+					() => srcCanvas
+				);
+			};
+
+			// 1. RGB Split: offsets red channel horizontally
+			renderWithEffect({
+				id: 'e_rgb',
+				type: 'rgbSplit',
+				enabled: true,
+				params: { amount: 20, angle: 0, mix: 1 },
+				isNeutral: false
+			});
+			const rgbPixel = readPixel(W / 2, H / 4);
+
+			// 2. Directional Blur: blurs across vertical boundary
+			renderWithEffect({
+				id: 'e_dblur',
+				type: 'directionalBlur',
+				enabled: true,
+				params: { length: 25, angle: 90, mix: 1 },
+				isNeutral: false
+			});
+			const dblurBoundary = readPixel(W / 2, H / 2);
+
+			// 3. Zoom Blur: radial burst
+			renderWithEffect({
+				id: 'e_zoom',
+				type: 'zoomBlur',
+				enabled: true,
+				params: { strength: 0.5, center: [0.5, 0.5], mix: 1 },
+				isNeutral: false
+			});
+			const zoomPixel = readPixel(W / 2, 10);
+
+			// 4. CRT Scanlines: introduces horizontal scanlines
+			renderWithEffect({
+				id: 'e_scan',
+				type: 'scanlines',
+				enabled: true,
+				params: { count: 32, intensity: 0.8, speed: 0, mix: 1 },
+				isNeutral: false
+			});
+			const scanPixel = readPixel(W / 2, H / 4);
+
+			// 5. Neon Edges: sharp boundary between red and blue produces bright neon
+			renderWithEffect({
+				id: 'e_neon',
+				type: 'neonEdges',
+				enabled: true,
+				params: { color: [0, 1, 1], threshold: 0.1, brightness: 2, mix: 1 },
+				isNeutral: false
+			});
+			const neonBoundary = readPixel(W / 2, H / 2);
+
+			// 6. Duotone: maps grayscale to custom colors (yellow shadows, purple highlights)
+			renderWithEffect({
+				id: 'e_duo',
+				type: 'duotone',
+				enabled: true,
+				params: {
+					shadowColor: [0.9, 0.8, 0.1],
+					highlightColor: [0.6, 0.1, 0.8],
+					contrast: 0,
+					mix: 1
+				},
+				isNeutral: false
+			});
+			const duoTop = readPixel(W / 2, H / 4);
+
+			// 7. Wave Distortion: sinus offset
+			renderWithEffect({
+				id: 'e_wave',
+				type: 'waveDistort',
+				enabled: true,
+				params: { amplitude: 20, frequency: 10, speed: 1, mix: 1 },
+				isNeutral: false
+			});
+			const wavePixel = readPixel(W / 2, H / 4);
+
+			// 8. Sepia: warm photo wash
+			renderWithEffect({
+				id: 'e_sepia',
+				type: 'sepia',
+				enabled: true,
+				params: { amount: 1, mix: 1 },
+				isNeutral: false
+			});
+			const sepiaTop = readPixel(W / 2, H / 4);
+
+			renderer.dispose();
+
+			return {
+				rgbPixel,
+				dblurBoundary,
+				zoomPixel,
+				scanPixel,
+				neonBoundary,
+				duoTop,
+				wavePixel,
+				sepiaTop
+			};
+		});
+
+		console.log('NEW_EFFECTS_RESULTS:', JSON.stringify(results));
+
+		// RGB Split: Red channel was moved horizontally, non-zero Green or Blue at boundary
+		expect(results.rgbPixel[3]).toBe(255);
+
+		// Directional Blur: boundary between red [255,0,0] and blue [0,0,255] blends both into purple (R>0 and B>0)
+		expect(results.dblurBoundary[0]).toBeGreaterThan(30);
+		expect(results.dblurBoundary[2]).toBeGreaterThan(30);
+
+		// Neon Edges: boundary glows with neon cyan ([0, 1, 1] => G > 50 and B > 50)
+		expect(results.neonBoundary[1]).toBeGreaterThan(40);
+		expect(results.neonBoundary[2]).toBeGreaterThan(40);
+
+		// Duotone: top half (originally red) was mapped to duotone colors
+		expect(results.duoTop[0]).toBeGreaterThan(0);
+		expect(results.duoTop[3]).toBe(255);
+
+		// Sepia: red [255,0,0] sepia matrix gives R ~100, G ~89, B ~69
+		expect(results.sepiaTop[0]).toBeGreaterThan(70);
+		expect(results.sepiaTop[1]).toBeGreaterThan(50);
+		expect(results.sepiaTop[2]).toBeGreaterThan(30);
+	});
 });

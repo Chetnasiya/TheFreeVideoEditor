@@ -614,6 +614,26 @@ describe('editor store', () => {
 				.find((c) => c.id === adjClipId)?.effects?.length
 		).toBe(2);
 
+		// 10b. Solo effect and master bypass
+		store.getState().soloEffect(adjClipId!, blur!.id);
+		const soloedClip = (store.getState().project?.tracks.flatMap((t) => t.clips) ?? []).find(
+			(c) => c.id === adjClipId
+		);
+		expect(soloedClip?.effects?.[0]?.enabled).toBe(true);
+		expect(soloedClip?.effects?.[1]?.enabled).toBe(false);
+
+		store.getState().toggleBypassClipEffects(adjClipId!, true);
+		const bypassedClip = (store.getState().project?.tracks.flatMap((t) => t.clips) ?? []).find(
+			(c) => c.id === adjClipId
+		);
+		expect(bypassedClip?.bypassEffects).toBe(true);
+
+		store.getState().toggleBypassClipEffects(adjClipId!, false);
+		const restoredClip = (store.getState().project?.tracks.flatMap((t) => t.clips) ?? []).find(
+			(c) => c.id === adjClipId
+		);
+		expect(restoredClip?.bypassEffects).toBe(false);
+
 		// 11. Scopes & Color UI state
 		store.getState().setScopesOpen(true);
 		expect(store.getState().scopes.open).toBe(true);

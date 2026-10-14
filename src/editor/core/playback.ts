@@ -358,7 +358,7 @@ export function resolveFrame(
 		const makeClipLayer = (clip: Clip, t: Time): ActiveLayer | null => {
 			const localTime = t - clip.start;
 			const evaluatedEffects =
-				clip.effects && clip.effects.length > 0
+				!clip.bypassEffects && clip.effects && clip.effects.length > 0
 					? clip.effects.map((eff) => evaluateEffect(eff, localTime))
 					: undefined;
 			const evaluatedMasks =
@@ -737,7 +737,7 @@ export function resolveFrame(
 			if (time < clip.start || time >= clipEnd(clip)) continue;
 			const localTime = time - clip.start;
 			const evaluatedEffects =
-				clip.effects && clip.effects.length > 0
+				!clip.bypassEffects && clip.effects && clip.effects.length > 0
 					? clip.effects.map((eff) => evaluateEffect(eff, localTime))
 					: undefined;
 			const evaluatedMasks =

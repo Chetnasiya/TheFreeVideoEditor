@@ -9,7 +9,9 @@ import {
 	duplicateEffectInClip,
 	copyClipEffects,
 	pasteClipEffects,
-	setEffectParamInClip
+	setEffectParamInClip,
+	soloEffectInClip,
+	toggleBypassClipEffects
 } from './instance';
 import { getEffectDefinition, listEffectDefinitions } from './registry';
 import { descriptorFor, propertyCurve, readProperty } from '../properties';
@@ -43,7 +45,15 @@ describe('Effect Registry', () => {
 			'chromaKey',
 			'colorCorrection',
 			'curves',
-			'lut3d'
+			'lut3d',
+			'rgbSplit',
+			'directionalBlur',
+			'zoomBlur',
+			'scanlines',
+			'neonEdges',
+			'duotone',
+			'waveDistort',
+			'sepia'
 		];
 		const defs = listEffectDefinitions();
 		for (const id of required) {
@@ -83,6 +93,27 @@ describe('Effect Registry', () => {
 		const vignette = getEffectDefinition('vignette')!;
 		expect(vignette.isNeutral({ amount: 0, mix: 1 })).toBe(true);
 		expect(vignette.isNeutral({ amount: 0.5, mix: 1 })).toBe(false);
+
+		const rgbSplit = getEffectDefinition('rgbSplit')!;
+		expect(rgbSplit.isNeutral({ amount: 0, mix: 1 })).toBe(true);
+		expect(rgbSplit.isNeutral({ amount: 10, mix: 0 })).toBe(true);
+		expect(rgbSplit.isNeutral({ amount: 10, mix: 1 })).toBe(false);
+
+		const dirBlur = getEffectDefinition('directionalBlur')!;
+		expect(dirBlur.isNeutral({ length: 0, mix: 1 })).toBe(true);
+		expect(dirBlur.isNeutral({ length: 15, mix: 1 })).toBe(false);
+
+		const zoomBlur = getEffectDefinition('zoomBlur')!;
+		expect(zoomBlur.isNeutral({ strength: 0, mix: 1 })).toBe(true);
+		expect(zoomBlur.isNeutral({ strength: 0.3, mix: 1 })).toBe(false);
+
+		const scanlines = getEffectDefinition('scanlines')!;
+		expect(scanlines.isNeutral({ intensity: 0, mix: 1 })).toBe(true);
+		expect(scanlines.isNeutral({ intensity: 0.4, mix: 1 })).toBe(false);
+
+		const sepia = getEffectDefinition('sepia')!;
+		expect(sepia.isNeutral({ amount: 0, mix: 1 })).toBe(true);
+		expect(sepia.isNeutral({ amount: 0.8, mix: 1 })).toBe(false);
 	});
 });
 
@@ -180,6 +211,36 @@ describe('Clip Effects Stack Operations', () => {
 		expect(targetClip.effects?.[0]?.type).toBe('mosaic');
 		expect(targetClip.effects?.[0]?.params.blockSize).toBe(10);
 		expect(targetClip.effects?.[0]?.id).not.toBe(e1.id);
+	});
+
+	it('solos an individual effect and toggles clip effect bypass', () => {
+		let clip = makeClip();
+		const e1 = createEffectInstance('rgbSplit', { amount: 15 });
+		const e2 = createEffectInstance('scanlines', { intensity: 0.5 });
+		const e3 = createEffectInstance('sepia', { amount: 0.8 });
+
+		clip = addEffectToClip(clip, e1);
+		clip = addEffectToClip(clip, e2);
+		clip = addEffectToClip(clip, e3);
+
+		// Solo e2: e1 and e3 become disabled, e2 remains enabled
+		clip = soloEffectInClip(clip, e2.id);
+		expect(clip.effects?.[0]?.enabled).toBe(false);
+		expect(clip.effects?.[1]?.enabled).toBe(true);
+		expect(clip.effects?.[2]?.enabled).toBe(false);
+
+		// Solo e2 again: restores all effects to enabled
+		clip = soloEffectInClip(clip, e2.id);
+		expect(clip.effects?.[0]?.enabled).toBe(true);
+		expect(clip.effects?.[1]?.enabled).toBe(true);
+		expect(clip.effects?.[2]?.enabled).toBe(true);
+
+		// Master bypass
+		expect(clip.bypassEffects).toBeUndefined();
+		clip = toggleBypassClipEffects(clip, true);
+		expect(clip.bypassEffects).toBe(true);
+		clip = toggleBypassClipEffects(clip);
+		expect(clip.bypassEffects).toBe(false);
 	});
 });
 

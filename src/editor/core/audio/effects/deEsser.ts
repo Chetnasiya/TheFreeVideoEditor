@@ -8,7 +8,7 @@ import { BiquadFilter } from '../dsp/biquad';
 import { EnvelopeFollower } from '../dsp/dynamics';
 import { dbToGain } from '../../audioMath';
 
-const deEsserDefinition: AudioEffectDefinition = {
+export const deEsserDefinition: AudioEffectDefinition = {
 	id: 'de-esser',
 	name: 'De-Esser',
 	category: 'restoration',

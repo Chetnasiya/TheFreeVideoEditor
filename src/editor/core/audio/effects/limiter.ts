@@ -9,7 +9,7 @@ import { CompressorCore } from '../dsp/dynamics';
 import { TruePeakMeter } from '../truePeak';
 import { dbToGain, gainToDb } from '../../audioMath';
 
-const limiterDefinition: AudioEffectDefinition = {
+export const limiterDefinition: AudioEffectDefinition = {
 	id: 'limiter',
 	name: 'Lookahead Limiter',
 	category: 'dynamics',

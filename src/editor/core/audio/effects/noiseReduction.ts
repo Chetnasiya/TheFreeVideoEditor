@@ -5,7 +5,7 @@ import {
 } from '../effects/registry';
 import { SpectralGateCore } from '../dsp/spectralGate';
 
-const noiseReductionDefinition: AudioEffectDefinition = {
+export const noiseReductionDefinition: AudioEffectDefinition = {
 	id: 'noise-reduction',
 	name: 'Noise Reduction',
 	category: 'restoration',

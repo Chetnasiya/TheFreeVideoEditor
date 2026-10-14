@@ -108,6 +108,100 @@ export const BUILT_IN_PRESETS: EffectPreset[] = [
 				mix: 1
 			}
 		}
+	},
+	{
+		id: 'preset:cyberpunk-glitch',
+		name: 'Cyberpunk RGB Glitch',
+		builtIn: true,
+		effect: {
+			type: 'rgbSplit',
+			params: {
+				amount: 18,
+				angle: 45,
+				mix: 1
+			}
+		}
+	},
+	{
+		id: 'preset:retro-vhs',
+		name: 'Retro VHS Scanlines',
+		builtIn: true,
+		effect: {
+			type: 'scanlines',
+			params: {
+				count: 360,
+				intensity: 0.45,
+				speed: 1.2,
+				mix: 1
+			}
+		}
+	},
+	{
+		id: 'preset:action-zoom',
+		name: 'Action Impact Zoom',
+		builtIn: true,
+		effect: {
+			type: 'zoomBlur',
+			params: {
+				strength: 0.35,
+				center: [0.5, 0.5],
+				mix: 1
+			}
+		}
+	},
+	{
+		id: 'preset:neon-cyan',
+		name: 'Neon Cyan Outline',
+		builtIn: true,
+		effect: {
+			type: 'neonEdges',
+			params: {
+				color: [0, 0.9, 1],
+				threshold: 0.12,
+				brightness: 2.5,
+				mix: 1
+			}
+		}
+	},
+	{
+		id: 'preset:sunset-duotone',
+		name: 'Sunset Duotone',
+		builtIn: true,
+		effect: {
+			type: 'duotone',
+			params: {
+				shadowColor: [0.15, 0.05, 0.25],
+				highlightColor: [1, 0.8, 0.4],
+				contrast: 0.2,
+				mix: 1
+			}
+		}
+	},
+	{
+		id: 'preset:water-ripples',
+		name: 'Underwater Waves',
+		builtIn: true,
+		effect: {
+			type: 'waveDistort',
+			params: {
+				amplitude: 20,
+				frequency: 25,
+				speed: 2,
+				mix: 1
+			}
+		}
+	},
+	{
+		id: 'preset:warm-sepia',
+		name: 'Warm Nostalgia Sepia',
+		builtIn: true,
+		effect: {
+			type: 'sepia',
+			params: {
+				amount: 0.85,
+				mix: 1
+			}
+		}
 	}
 ];
 

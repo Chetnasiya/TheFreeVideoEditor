@@ -6,7 +6,7 @@ import {
 } from '../effects/registry';
 import { ReverbCore } from '../dsp/reverbCore';
 
-const reverbDefinition: AudioEffectDefinition = {
+export const reverbDefinition: AudioEffectDefinition = {
 	id: 'reverb',
 	name: 'Studio Reverb',
 	category: 'spatial',

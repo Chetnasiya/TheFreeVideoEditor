@@ -8,7 +8,7 @@ import { LinkwitzRiley4Crossover } from '../dsp/crossover';
 import { CompressorCore } from '../dsp/dynamics';
 import { dbToGain, gainToDb } from '../../audioMath';
 
-const multibandCompressorDefinition: AudioEffectDefinition = {
+export const multibandCompressorDefinition: AudioEffectDefinition = {
 	id: 'multiband-compressor',
 	name: 'Multiband Compressor',
 	category: 'dynamics',

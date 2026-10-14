@@ -306,6 +306,7 @@ export interface Clip {
 	volume: number;
 	linkId?: string;
 	effects?: EffectInstance[];
+	bypassEffects?: boolean;
 	audioEffects?: AudioEffectInstance[];
 	audioTag?: 'dialogue' | 'music' | 'sfx' | 'ambience';
 	channelRouting?: 'stereo' | 'mono-left' | 'mono-right' | 'mono-sum' | 'swap' | 'invert-lr';

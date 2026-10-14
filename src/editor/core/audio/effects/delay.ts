@@ -7,7 +7,7 @@ import {
 import { DelayLine } from '../dsp/delayLine';
 import { BiquadFilter } from '../dsp/biquad';
 
-const delayDefinition: AudioEffectDefinition = {
+export const delayDefinition: AudioEffectDefinition = {
 	id: 'delay',
 	name: 'Stereo Echo / Delay',
 	category: 'spatial',

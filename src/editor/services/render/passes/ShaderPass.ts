@@ -6,6 +6,8 @@ import {
 	CHROMA_KEY_FRAG,
 	COLOR_CORRECTION_FRAG,
 	CURVES_FRAG,
+	DIRECTIONAL_BLUR_FRAG,
+	DUOTONE_FRAG,
 	FILM_GRAIN_FRAG,
 	GAUSSIAN_BLUR_FRAG,
 	GLOW_FRAG,
@@ -13,10 +15,16 @@ import {
 	LUT_3D_FRAG,
 	MIRROR_FRAG,
 	MOSAIC_FRAG,
+	NEON_EDGES_FRAG,
 	PASS_VERTEX_SHADER,
+	RGB_SPLIT_FRAG,
+	SCANLINES_FRAG,
+	SEPIA_FRAG,
 	SHARPEN_FRAG,
 	SOLID_FRAG,
-	VIGNETTE_FRAG
+	VIGNETTE_FRAG,
+	WAVE_DISTORT_FRAG,
+	ZOOM_BLUR_FRAG
 } from './effectsShaders';
 import {
 	CROSS_DISSOLVE_FRAG,
@@ -1176,12 +1184,210 @@ export class ShaderPassManager {
 				return outFbo;
 			}
 
+			case 'rgbSplit': {
+				const amount = typeof effect.params.amount === 'number' ? effect.params.amount : 0;
+				const angleDeg = typeof effect.params.angle === 'number' ? effect.params.angle : 0;
+				const angleRad = (angleDeg * Math.PI) / 180.0;
+
+				const program = this.getProgram('rgbSplit', RGB_SPLIT_FRAG);
+				gl.useProgram(program);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+				gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+				gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), width, height);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_amount'), amount);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_angle'), angleRad);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
+
+				const outFbo = fboPool.acquire(width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
+				return outFbo;
+			}
+
+			case 'directionalBlur': {
+				const length = typeof effect.params.length === 'number' ? effect.params.length : 0;
+				const angleDeg = typeof effect.params.angle === 'number' ? effect.params.angle : 0;
+				const angleRad = (angleDeg * Math.PI) / 180.0;
+
+				const program = this.getProgram('directionalBlur', DIRECTIONAL_BLUR_FRAG);
+				gl.useProgram(program);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+				gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+				gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), width, height);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_length'), length);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_angle'), angleRad);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
+
+				const outFbo = fboPool.acquire(width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
+				return outFbo;
+			}
+
+			case 'zoomBlur': {
+				const strength = typeof effect.params.strength === 'number' ? effect.params.strength : 0;
+				const center = Array.isArray(effect.params.center) ? effect.params.center : [0.5, 0.5];
+
+				const program = this.getProgram('zoomBlur', ZOOM_BLUR_FRAG);
+				gl.useProgram(program);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+				gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+				gl.uniform2f(
+					gl.getUniformLocation(program, 'u_center'),
+					Number(center[0]) || 0.5,
+					Number(center[1]) || 0.5
+				);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_strength'), strength);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
+
+				const outFbo = fboPool.acquire(width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
+				return outFbo;
+			}
+
+			case 'scanlines': {
+				const count = typeof effect.params.count === 'number' ? effect.params.count : 300;
+				const intensity =
+					typeof effect.params.intensity === 'number' ? effect.params.intensity : 0.35;
+				const speed = typeof effect.params.speed === 'number' ? effect.params.speed : 1;
+				const time = (timeInTicks / 1_000_000) * speed;
+
+				const program = this.getProgram('scanlines', SCANLINES_FRAG);
+				gl.useProgram(program);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+				gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_count'), count);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_intensity'), intensity);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_time'), time);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
+
+				const outFbo = fboPool.acquire(width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
+				return outFbo;
+			}
+
+			case 'neonEdges': {
+				const color = this.parseColorParam(effect.params.color, [0, 0.9, 1]);
+				const threshold =
+					typeof effect.params.threshold === 'number' ? effect.params.threshold : 0.15;
+				const brightness =
+					typeof effect.params.brightness === 'number' ? effect.params.brightness : 2.0;
+
+				const program = this.getProgram('neonEdges', NEON_EDGES_FRAG);
+				gl.useProgram(program);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+				gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+				gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), width, height);
+				gl.uniform3f(gl.getUniformLocation(program, 'u_neonColor'), color[0], color[1], color[2]);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_threshold'), threshold);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_brightness'), brightness);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
+
+				const outFbo = fboPool.acquire(width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
+				return outFbo;
+			}
+
+			case 'duotone': {
+				const shadowColor = this.parseColorParam(effect.params.shadowColor, [0.05, 0.05, 0.2]);
+				const highlightColor = this.parseColorParam(effect.params.highlightColor, [1, 0.85, 0.6]);
+				const contrast = typeof effect.params.contrast === 'number' ? effect.params.contrast : 0;
+
+				const program = this.getProgram('duotone', DUOTONE_FRAG);
+				gl.useProgram(program);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+				gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+				gl.uniform3f(
+					gl.getUniformLocation(program, 'u_shadowColor'),
+					shadowColor[0],
+					shadowColor[1],
+					shadowColor[2]
+				);
+				gl.uniform3f(
+					gl.getUniformLocation(program, 'u_highlightColor'),
+					highlightColor[0],
+					highlightColor[1],
+					highlightColor[2]
+				);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_contrast'), contrast);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
+
+				const outFbo = fboPool.acquire(width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
+				return outFbo;
+			}
+
+			case 'waveDistort': {
+				const amplitude =
+					typeof effect.params.amplitude === 'number' ? effect.params.amplitude : 15;
+				const frequency =
+					typeof effect.params.frequency === 'number' ? effect.params.frequency : 20;
+				const speed = typeof effect.params.speed === 'number' ? effect.params.speed : 1.5;
+				const time = timeInTicks / 1_000_000;
+
+				const program = this.getProgram('waveDistort', WAVE_DISTORT_FRAG);
+				gl.useProgram(program);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+				gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+				gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), width, height);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_amplitude'), amplitude);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_frequency'), frequency);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_speed'), speed);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_time'), time);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
+
+				const outFbo = fboPool.acquire(width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
+				return outFbo;
+			}
+
+			case 'sepia': {
+				const amount = typeof effect.params.amount === 'number' ? effect.params.amount : 0.8;
+
+				const program = this.getProgram('sepia', SEPIA_FRAG);
+				gl.useProgram(program);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+				gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_amount'), amount);
+				gl.uniform1f(gl.getUniformLocation(program, 'u_mix'), mix);
+
+				const outFbo = fboPool.acquire(width, height);
+				this.renderQuad(program, outFbo.framebuffer, width, height, inputTexture);
+				return outFbo;
+			}
+
 			default: {
 				const outFbo = fboPool.acquire(width, height);
 				this.blit(inputTexture, outFbo.framebuffer, width, height);
 				return outFbo;
 			}
 		}
+	}
+
+	private parseColorParam(
+		val: unknown,
+		fallback: [number, number, number]
+	): [number, number, number] {
+		if (Array.isArray(val) && val.length >= 3) {
+			return [Number(val[0]) || 0, Number(val[1]) || 0, Number(val[2]) || 0];
+		}
+		if (typeof val === 'string') {
+			const hex = val.replace('#', '');
+			if (hex.length === 6) {
+				return [
+					parseInt(hex.slice(0, 2), 16) / 255,
+					parseInt(hex.slice(2, 4), 16) / 255,
+					parseInt(hex.slice(4, 6), 16) / 255
+				];
+			}
+		}
+		return fallback;
 	}
 
 	dispose(): void {

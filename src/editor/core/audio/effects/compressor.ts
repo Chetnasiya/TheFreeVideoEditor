@@ -6,7 +6,7 @@ import {
 } from '../effects/registry';
 import { CompressorCore } from '../dsp/dynamics';
 
-const compressorDefinition: AudioEffectDefinition = {
+export const compressorDefinition: AudioEffectDefinition = {
 	id: 'compressor',
 	name: 'Compressor',
 	category: 'dynamics',

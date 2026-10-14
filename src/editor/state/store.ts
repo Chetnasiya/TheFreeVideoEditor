@@ -66,6 +66,8 @@ import {
 	removeEffectFromClip,
 	reorderEffectInClip,
 	toggleEffectInClip,
+	soloEffectInClip,
+	toggleBypassClipEffects,
 	duplicateEffectInClip,
 	copyClipEffects as copyClipEffectsCore,
 	pasteClipEffects as pasteClipEffectsCore,
@@ -690,6 +692,8 @@ export interface EditorState {
 	removeEffect: (clipId: ClipId, effectId: string) => boolean;
 	reorderEffect: (clipId: ClipId, effectId: string, toIndex: number) => boolean;
 	toggleEffect: (clipId: ClipId, effectId: string, enabled?: boolean) => boolean;
+	soloEffect: (clipId: ClipId, effectId: string) => boolean;
+	toggleBypassClipEffects: (clipId: ClipId, bypass?: boolean) => boolean;
 	duplicateEffect: (clipId: ClipId, effectId: string) => EffectInstance | null;
 	resetEffect: (clipId: ClipId, effectId: string) => boolean;
 	setEffectParam: (
@@ -4207,6 +4211,56 @@ export function createEditorStore() {
 									...track,
 									clips: track.clips.map((clip) =>
 										clip.id === clipId ? toggleEffectInClip(clip, effectId, enabled) : clip
+									)
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				soloEffect(clipId, effectId) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Solo effect',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId ? soloEffectInClip(clip, effectId) : clip
+									)
+								}))
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				toggleBypassClipEffects(clipId, bypass) {
+					const project = get().project;
+					if (!project) return false;
+					try {
+						mutateProject(
+							'Toggle bypass effects',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId ? toggleBypassClipEffects(clip, bypass) : clip
 									)
 								}))
 							}),

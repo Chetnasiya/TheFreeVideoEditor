@@ -6,7 +6,7 @@ import {
 } from '../effects/registry';
 import { PitchShifterCore } from '../dsp/pitchShifterCore';
 
-const pitchShifterDefinition: AudioEffectDefinition = {
+export const pitchShifterDefinition: AudioEffectDefinition = {
 	id: 'pitch-shifter',
 	name: 'Pitch Shifter',
 	category: 'spatial',

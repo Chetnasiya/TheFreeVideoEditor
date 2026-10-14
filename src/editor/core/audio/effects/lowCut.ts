@@ -6,7 +6,7 @@ import {
 } from '../effects/registry';
 import { BiquadFilter } from '../dsp/biquad';
 
-const lowCutDefinition: AudioEffectDefinition = {
+export const lowCutDefinition: AudioEffectDefinition = {
 	id: 'low-cut',
 	name: 'Low-Cut / Rumble Filter',
 	category: 'restoration',

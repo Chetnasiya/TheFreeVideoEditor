@@ -640,6 +640,285 @@ export const EFFECT_DEFINITIONS: Record<string, EffectDefinition> = {
 		},
 		isNeutral: (p) =>
 			!p.lutAssetId || ((p.intensity as number) ?? 1) <= 0 || ((p.mix as number) ?? 1) <= 0
+	},
+
+	rgbSplit: {
+		id: 'rgbSplit',
+		name: 'RGB Split',
+		category: 'stylize',
+		version: 1,
+		description: 'Separates RGB channels along an angle for chromatic aberration and glitch aesthetics',
+		params: {
+			amount: {
+				type: 'number',
+				name: 'amount',
+				label: 'Amount',
+				unit: 'px',
+				defaultValue: 10,
+				min: 0,
+				max: 100,
+				step: 0.5,
+				animatable: true
+			},
+			angle: {
+				type: 'angle',
+				name: 'angle',
+				label: 'Angle',
+				unit: '°',
+				defaultValue: 0,
+				min: 0,
+				max: 360,
+				step: 1,
+				animatable: true
+			},
+			mix: UNIVERSAL_MIX_PARAM
+		},
+		isNeutral: (p) => ((p.amount as number) ?? 0) <= 0 || ((p.mix as number) ?? 1) <= 0
+	},
+
+	directionalBlur: {
+		id: 'directionalBlur',
+		name: 'Directional Blur',
+		category: 'blur',
+		version: 1,
+		description: 'Linear directional motion blur along a specified angle',
+		params: {
+			length: {
+				type: 'number',
+				name: 'length',
+				label: 'Length',
+				unit: 'px',
+				defaultValue: 15,
+				min: 0,
+				max: 100,
+				step: 1,
+				animatable: true
+			},
+			angle: {
+				type: 'angle',
+				name: 'angle',
+				label: 'Angle',
+				unit: '°',
+				defaultValue: 0,
+				min: 0,
+				max: 360,
+				step: 1,
+				animatable: true
+			},
+			mix: UNIVERSAL_MIX_PARAM
+		},
+		isNeutral: (p) => ((p.length as number) ?? 0) <= 0 || ((p.mix as number) ?? 1) <= 0
+	},
+
+	zoomBlur: {
+		id: 'zoomBlur',
+		name: 'Zoom Blur',
+		category: 'blur',
+		version: 1,
+		description: 'Dynamic radial blur bursting outward from a focal center point',
+		params: {
+			strength: {
+				type: 'number',
+				name: 'strength',
+				label: 'Strength',
+				defaultValue: 0.2,
+				min: 0,
+				max: 1,
+				step: 0.01,
+				animatable: true
+			},
+			center: {
+				type: 'point',
+				name: 'center',
+				label: 'Center',
+				defaultValue: [0.5, 0.5],
+				animatable: true
+			},
+			mix: UNIVERSAL_MIX_PARAM
+		},
+		isNeutral: (p) => ((p.strength as number) ?? 0) <= 0 || ((p.mix as number) ?? 1) <= 0
+	},
+
+	scanlines: {
+		id: 'scanlines',
+		name: 'CRT Scanlines',
+		category: 'stylize',
+		version: 1,
+		description: 'Retro cathode-ray tube raster scanlines with roll and phosphorescent glow',
+		params: {
+			count: {
+				type: 'number',
+				name: 'count',
+				label: 'Line Density',
+				defaultValue: 300,
+				min: 50,
+				max: 1200,
+				step: 10,
+				animatable: true
+			},
+			intensity: {
+				type: 'number',
+				name: 'intensity',
+				label: 'Intensity',
+				defaultValue: 0.35,
+				min: 0,
+				max: 1,
+				step: 0.01,
+				animatable: true
+			},
+			speed: {
+				type: 'number',
+				name: 'speed',
+				label: 'Roll Speed',
+				defaultValue: 1,
+				min: 0,
+				max: 5,
+				step: 0.1,
+				animatable: true
+			},
+			mix: UNIVERSAL_MIX_PARAM
+		},
+		isNeutral: (p) => ((p.intensity as number) ?? 0) <= 0 || ((p.mix as number) ?? 1) <= 0
+	},
+
+	neonEdges: {
+		id: 'neonEdges',
+		name: 'Neon Edges',
+		category: 'stylize',
+		version: 1,
+		description: 'Sobel outline detector with vivid neon edge luminescence',
+		params: {
+			color: {
+				type: 'color',
+				name: 'color',
+				label: 'Glow Color',
+				defaultValue: [0, 0.9, 1],
+				animatable: true
+			},
+			threshold: {
+				type: 'number',
+				name: 'threshold',
+				label: 'Threshold',
+				defaultValue: 0.15,
+				min: 0.01,
+				max: 1,
+				step: 0.01,
+				animatable: true
+			},
+			brightness: {
+				type: 'number',
+				name: 'brightness',
+				label: 'Brightness',
+				defaultValue: 2.0,
+				min: 0.5,
+				max: 5,
+				step: 0.1,
+				animatable: true
+			},
+			mix: UNIVERSAL_MIX_PARAM
+		},
+		isNeutral: (p) => ((p.mix as number) ?? 1) <= 0
+	},
+
+	duotone: {
+		id: 'duotone',
+		name: 'Duotone Tint',
+		category: 'color',
+		version: 1,
+		description: 'Maps luminance tones across two customizable shadow and highlight colors',
+		params: {
+			shadowColor: {
+				type: 'color',
+				name: 'shadowColor',
+				label: 'Shadows Color',
+				defaultValue: [0.05, 0.05, 0.2],
+				animatable: true
+			},
+			highlightColor: {
+				type: 'color',
+				name: 'highlightColor',
+				label: 'Highlights Color',
+				defaultValue: [1, 0.85, 0.6],
+				animatable: true
+			},
+			contrast: {
+				type: 'number',
+				name: 'contrast',
+				label: 'Contrast',
+				defaultValue: 0,
+				min: -1,
+				max: 1,
+				step: 0.02,
+				animatable: true
+			},
+			mix: UNIVERSAL_MIX_PARAM
+		},
+		isNeutral: (p) => ((p.mix as number) ?? 1) <= 0
+	},
+
+	waveDistort: {
+		id: 'waveDistort',
+		name: 'Wave Distortion',
+		category: 'distort',
+		version: 1,
+		description: 'Simulates underwater fluid ripples, heat haze, or psychedelic sine wave warp',
+		params: {
+			amplitude: {
+				type: 'number',
+				name: 'amplitude',
+				label: 'Amplitude',
+				unit: 'px',
+				defaultValue: 15,
+				min: 0,
+				max: 100,
+				step: 1,
+				animatable: true
+			},
+			frequency: {
+				type: 'number',
+				name: 'frequency',
+				label: 'Frequency',
+				defaultValue: 20,
+				min: 1,
+				max: 100,
+				step: 1,
+				animatable: true
+			},
+			speed: {
+				type: 'number',
+				name: 'speed',
+				label: 'Speed',
+				defaultValue: 1.5,
+				min: 0,
+				max: 5,
+				step: 0.1,
+				animatable: true
+			},
+			mix: UNIVERSAL_MIX_PARAM
+		},
+		isNeutral: (p) => ((p.amplitude as number) ?? 0) <= 0 || ((p.mix as number) ?? 1) <= 0
+	},
+
+	sepia: {
+		id: 'sepia',
+		name: 'Vintage Sepia',
+		category: 'color',
+		version: 1,
+		description: 'Warm nostalgic sepia tone photographic wash',
+		params: {
+			amount: {
+				type: 'number',
+				name: 'amount',
+				label: 'Amount',
+				defaultValue: 0.8,
+				min: 0,
+				max: 1,
+				step: 0.01,
+				animatable: true
+			},
+			mix: UNIVERSAL_MIX_PARAM
+		},
+		isNeutral: (p) => ((p.amount as number) ?? 0) <= 0 || ((p.mix as number) ?? 1) <= 0
 	}
 };
 

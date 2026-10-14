@@ -6,7 +6,7 @@ import {
 } from '../effects/registry';
 import { BiquadFilter } from '../dsp/biquad';
 
-const deHummerDefinition: AudioEffectDefinition = {
+export const deHummerDefinition: AudioEffectDefinition = {
 	id: 'de-hummer',
 	name: 'DeHummer',
 	category: 'restoration',

@@ -6,7 +6,7 @@ import {
 } from '../effects/registry';
 import { BiquadFilter, type BiquadType } from '../dsp/biquad';
 
-const parametricEqDefinition: AudioEffectDefinition = {
+export const parametricEqDefinition: AudioEffectDefinition = {
 	id: 'parametric-eq',
 	name: 'Parametric EQ',
 	category: 'eq',

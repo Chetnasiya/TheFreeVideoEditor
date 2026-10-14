@@ -7,7 +7,7 @@ import {
 import { dbToGain } from '../../audioMath';
 
 // 1. Gain / Trim effect
-const gainTrimDefinition: AudioEffectDefinition = {
+export const gainTrimDefinition: AudioEffectDefinition = {
 	id: 'gain-trim',
 	name: 'Gain / Trim',
 	category: 'utility',

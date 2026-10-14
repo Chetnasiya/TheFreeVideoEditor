@@ -38,6 +38,7 @@ export default function EffectsSection({
 	const [isDropTarget, setIsDropTarget] = useState(false);
 	const [presetNameInput, setPresetNameInput] = useState('');
 	const [savingPresetForEffectId, setSavingPresetForEffectId] = useState<string | null>(null);
+	const [stackFilter, setStackFilter] = useState('');
 
 	const effects = clip.effects ?? [];
 
@@ -184,6 +185,20 @@ export default function EffectsSection({
 				<div className="effects-toolbar-right">
 					<button
 						type="button"
+						className={`effects-icon-btn fx-master-toggle ${clip.bypassEffects ? 'is-bypassed' : 'is-active'}`}
+						title={
+							clip.bypassEffects
+								? 'Enable all effects on clip (currently bypassed)'
+								: 'Bypass all effects on clip'
+						}
+						aria-label="Toggle bypass all effects"
+						disabled={effects.length === 0}
+						onClick={() => store.getState().toggleBypassClipEffects(clip.id)}
+					>
+						FX
+					</button>
+					<button
+						type="button"
 						className="effects-icon-btn"
 						title="Copy effects"
 						aria-label="Copy effects"
@@ -205,64 +220,113 @@ export default function EffectsSection({
 				</div>
 			</div>
 
+			{clip.bypassEffects && effects.length > 0 && (
+				<div className="effects-bypassed-banner" role="alert">
+					<span>All effects on this clip are currently bypassed.</span>
+					<button
+						type="button"
+						className="effects-enable-btn"
+						onClick={() => store.getState().toggleBypassClipEffects(clip.id, false)}
+					>
+						Enable
+					</button>
+				</div>
+			)}
+
+			{effects.length >= 3 && (
+				<div className="effects-stack-filter-bar">
+					<input
+						type="search"
+						className="effects-stack-filter-input"
+						placeholder="Filter applied effects…"
+						value={stackFilter}
+						onChange={(e) => setStackFilter(e.target.value)}
+						aria-label="Filter applied effects"
+					/>
+				</div>
+			)}
+
 			{effects.length === 0 ? (
 				<div className="effects-empty-dropzone">
 					No effects applied. Click “+ Add Effect” or drag an effect here.
 				</div>
 			) : (
 				<div className="effects-stack">
-					{effects.map((eff, index) => {
-						const def = EFFECT_DEFINITIONS[eff.type];
-						const isExpanded = expandedEffects[eff.id] !== false; // default open
-						const isEnabled = eff.enabled !== false;
+					{effects
+						.filter((eff) => {
+							if (!stackFilter.trim()) return true;
+							const def = EFFECT_DEFINITIONS[eff.type];
+							const q = stackFilter.toLowerCase();
+							return (
+								(def?.name.toLowerCase().includes(q) ?? false) ||
+								eff.type.toLowerCase().includes(q) ||
+								(def?.category.toLowerCase().includes(q) ?? false)
+							);
+						})
+						.map((eff, index) => {
+							const def = EFFECT_DEFINITIONS[eff.type];
+							const isExpanded = expandedEffects[eff.id] !== false; // default open
+							const isEnabled = eff.enabled !== false;
+							const isSoloed =
+								isEnabled &&
+								effects.length > 1 &&
+								effects.every((e) => (e.id === eff.id ? e.enabled !== false : e.enabled === false));
 
-						return (
-							<div key={eff.id} className={`effect-stack-item ${isEnabled ? '' : 'is-disabled'}`}>
-								<div className="effect-item-header">
-									<div className="effect-header-left">
-										<input
-											type="checkbox"
-											checked={isEnabled}
-											onChange={() => store.getState().toggleEffect(clip.id, eff.id)}
-											aria-label={`Enable ${def?.name ?? eff.type}`}
-										/>
-										<button
-											type="button"
-											className="effect-expand-btn"
-											onClick={() => toggleExpand(eff.id)}
-											aria-expanded={isExpanded}
-											title={isExpanded ? 'Collapse' : 'Expand'}
-										>
-											<svg
-												className="section-chevron"
-												style={{
-													transform: isExpanded ? 'rotate(90deg)' : 'none',
-													transition: 'transform 0.15s ease'
-												}}
-												width="10"
-												height="10"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2.5"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												aria-hidden="true"
+							return (
+								<div key={eff.id} className={`effect-stack-item ${isEnabled ? '' : 'is-disabled'}`}>
+									<div className="effect-item-header">
+										<div className="effect-header-left">
+											<input
+												type="checkbox"
+												checked={isEnabled}
+												onChange={() => store.getState().toggleEffect(clip.id, eff.id)}
+												aria-label={`Enable ${def?.name ?? eff.type}`}
+											/>
+											<button
+												type="button"
+												className="effect-expand-btn"
+												onClick={() => toggleExpand(eff.id)}
+												aria-expanded={isExpanded}
+												title={isExpanded ? 'Collapse' : 'Expand'}
 											>
-												<polyline points="9 18 15 12 9 6" />
-											</svg>
-										</button>
-										<span className="effect-title">{def?.name ?? eff.type}</span>
-									</div>
+												<svg
+													className="section-chevron"
+													style={{
+														transform: isExpanded ? 'rotate(90deg)' : 'none',
+														transition: 'transform 0.15s ease'
+													}}
+													width="10"
+													height="10"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													aria-hidden="true"
+												>
+													<polyline points="9 18 15 12 9 6" />
+												</svg>
+											</button>
+											<span className="effect-title">{def?.name ?? eff.type}</span>
+										</div>
 
-									<div className="effect-header-actions">
-										<button
-											type="button"
-											className="effects-action-btn"
-											title="Move up"
-											disabled={index === 0}
-											onClick={() => store.getState().reorderEffect(clip.id, eff.id, index - 1)}
-										>
+										<div className="effect-header-actions">
+											<button
+												type="button"
+												className={`effects-action-btn effect-solo-btn ${isSoloed ? 'is-solo-active' : ''}`}
+												title={isSoloed ? 'Unsolo effect' : 'Solo effect (audition alone)'}
+												onClick={() => store.getState().soloEffect(clip.id, eff.id)}
+											>
+												S
+											</button>
+											<button
+												type="button"
+												className="effects-action-btn"
+												title="Move up"
+												disabled={index === 0}
+												onClick={() => store.getState().reorderEffect(clip.id, eff.id, index - 1)}
+											>
 											<svg
 												width="10"
 												height="10"

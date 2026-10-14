@@ -175,3 +175,26 @@ export function setEffectParamInClip(
 		})
 	};
 }
+
+export function soloEffectInClip(clip: Clip, effectId: string): Clip {
+	if (!clip.effects || clip.effects.length === 0) return clip;
+	const isAlreadySoloed = clip.effects.every((e) =>
+		e.id === effectId ? e.enabled !== false : e.enabled === false
+	);
+	return {
+		...clip,
+		effects: clip.effects.map((e) => ({
+			...e,
+			enabled: isAlreadySoloed ? true : e.id === effectId
+		}))
+	};
+}
+
+export function toggleBypassClipEffects(clip: Clip, bypass?: boolean): Clip {
+	const nextBypass = bypass !== undefined ? bypass : !clip.bypassEffects;
+	return {
+		...clip,
+		bypassEffects: nextBypass
+	};
+}
+
