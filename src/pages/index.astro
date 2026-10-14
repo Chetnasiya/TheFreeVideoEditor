@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import FeaturesShowcase from '../components/FeaturesShowcase.astro';
+import BuyMeACoffee from '../components/BuyMeACoffee.astro';
 
 const seoTitle =
 	'The Free Video Editor — Free Online Video Editor & AI Video Editor in Your Browser';
@@ -107,6 +108,7 @@ const faqJsonLd = {
 							<polyline points="12 5 19 12 12 19"></polyline>
 						</svg>
 					</a>
+					<BuyMeACoffee variant="button" text="Buy me a coffee" className="hero-bmc-btn" />
 				</div>
 
 				<p class="home-note">
@@ -432,6 +434,13 @@ const faqJsonLd = {
 			</div>
 		</article>
 
+		<!-- Buy Me A Coffee Support Section -->
+		<section class="home-support-section" id="support">
+			<div class="support-container">
+				<BuyMeACoffee variant="card" />
+			</div>
+		</section>
+
 		<!-- Multi-page Site Footer -->
 		<Footer currentPage="/" />
 	</div>
@@ -636,7 +645,11 @@ const faqJsonLd = {
 
 	.cta-wrapper {
 		position: relative;
-		display: inline-block;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-wrap: wrap;
+		gap: 1rem;
 	}
 
 	.home-cta {
@@ -701,6 +714,18 @@ const faqJsonLd = {
 		background: var(--color-canvas);
 		border-top: 1px solid var(--color-hairline);
 		padding: var(--spacing-3xl) var(--spacing-lg) var(--spacing-4xl);
+	}
+
+	.home-support-section {
+		position: relative;
+		z-index: 10;
+		background: var(--color-canvas);
+		padding: 0 var(--spacing-lg) var(--spacing-3xl);
+	}
+
+	.support-container {
+		max-width: 56rem;
+		margin: 0 auto;
 	}
 
 	.seo-container {

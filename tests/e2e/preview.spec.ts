@@ -320,9 +320,7 @@ test('composites image layers, hides tracks, meters audio, and shows offline med
 		Object.defineProperty(window, 'showOpenFilePicker', { configurable: true, value: undefined });
 	});
 	await createProject(page, 'Layer and audio check');
-	const addVideoTrack = page.getByRole('button', { name: '+ Video Track' });
-	await addVideoTrack.focus();
-	await addVideoTrack.press('Enter');
+	await page.keyboard.press('Control+Shift+v');
 	await expect(page.getByRole('gridcell', { name: 'Video 2 track lane' })).toBeVisible();
 	await importMedia(
 		page,

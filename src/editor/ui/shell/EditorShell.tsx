@@ -842,6 +842,29 @@ function EditorShell() {
 									<button
 										type="button"
 										role="menuitem"
+										disabled={!project}
+										onClick={() => {
+											editorStore.getState().addTimelineTrack('video');
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Add Video Track <span>⇧⌘/Ctrl+V</span>
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										disabled={!project}
+										onClick={() => {
+											editorStore.getState().addTimelineTrack('audio');
+											setIsEditMenuOpen(false);
+										}}
+									>
+										Add Audio Track <span>⇧⌘/Ctrl+A</span>
+									</button>
+									<hr />
+									<button
+										type="button"
+										role="menuitem"
 										disabled={!project || selectedClipIds.length === 0}
 										onClick={() => {
 											const current = editorStore.getState();
@@ -1215,6 +1238,23 @@ function EditorShell() {
 									>
 										Advanced Codec Pack (Deferred / Build Guide)…
 									</button>
+									<a
+										href="https://buymeacoffee.com/beestack"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										style={{
+											textDecoration: 'none',
+											display: 'flex',
+											alignItems: 'center',
+											justifyContent: 'space-between',
+											color: '#ffdd00',
+											fontWeight: 600
+										}}
+										onClick={() => setIsHelpMenuOpen(false)}
+									>
+										<span>Buy Me a Coffee…</span> <span>☕</span>
+									</a>
 								</div>
 							)}
 						</div>

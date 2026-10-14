@@ -1,5 +1,6 @@
 ---
 import BrandIcon from './BrandIcon.astro';
+import BuyMeACoffee from './BuyMeACoffee.astro';
 
 interface Props {
 	currentPage?: string;
@@ -19,6 +20,9 @@ const currentYear = new Date().getFullYear();
 				<p class="footer-desc">
 					Free, private, browser-based professional video editor with WebCodecs, WebGL2, and zero cloud uploads. Your files never leave your device.
 				</p>
+				<div class="footer-bmc-container">
+					<BuyMeACoffee variant="button" text="Buy me a coffee" />
+				</div>
 			</div>
 
 			<div class="footer-col">
@@ -41,6 +45,11 @@ const currentYear = new Date().getFullYear();
 			<div class="footer-col">
 				<h4 class="col-title">Community</h4>
 				<ul class="footer-links-list">
+					<li>
+						<a href="https://buymeacoffee.com/beestack" target="_blank" rel="noopener noreferrer" class="bmc-footer-link">
+							<span>☕ Buy Me a Coffee</span>
+						</a>
+					</li>
 					<li>
 						<a href="https://github.com/GajananPalepwad/TheFreeVideoEditor" target="_blank" rel="noopener noreferrer" class="github-link">
 							<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -74,6 +83,7 @@ const currentYear = new Date().getFullYear();
 						<img src="/beestack.svg" alt="Beestack Logo" class="beestack-logo" />
 					</a>
 				</div>
+				<BuyMeACoffee variant="badge" text="Buy me a coffee" className="footer-bmc-badge" />
 			</div>
 			<div class="bottom-links">
 				<a href="https://github.com/GajananPalepwad/TheFreeVideoEditor" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -137,6 +147,23 @@ const currentYear = new Date().getFullYear();
 		font-size: 0.85rem;
 		max-width: 24rem;
 		margin: 0;
+	}
+
+	.footer-bmc-container {
+		margin-top: 1.25rem;
+	}
+
+	.bmc-footer-link {
+		color: #ffdd00 !important;
+		font-weight: 600;
+	}
+
+	.bmc-footer-link:hover {
+		filter: brightness(1.1);
+	}
+
+	.footer-bmc-badge {
+		margin-left: 0.5rem;
 	}
 
 	.col-title {

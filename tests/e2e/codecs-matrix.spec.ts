@@ -675,7 +675,7 @@ test.describe('Professional Codecs Matrix (Tier 1 & Tier 3)', () => {
 		await expect(page.getByRole('heading', { name: 'VP9 Alpha Matrix Test' })).toBeVisible();
 
 		// Add text clip to leave background transparent
-		await page.getByRole('button', { name: '+ Text' }).click();
+		await page.getByRole('button', { name: 'Text Layer' }).click();
 		await expect(page.locator('.timeline-clip')).toHaveCount(1);
 
 		await page.getByRole('button', { name: 'Export', exact: true }).click();

@@ -17,6 +17,7 @@ import { settingsForPreset, sanitizeFilename } from '../../services/export/prese
 import type { ExportQuality, ResolutionPreset } from '../../services/export/presets';
 import type { ExportSettings } from '../../services/export/plan';
 import type { InterchangeFormat, PackageProgress } from '../../services/interop/export';
+import { projectToInterchange } from '../../core/interchange/ir';
 import {
 	createStreamingSaveTarget,
 	supportsStreamingSave,
@@ -337,6 +338,16 @@ export default function ExportDialog() {
 		}
 		return `${parts.join(', ')} are not included in project files; use Video export to render them.`;
 	}, [exportProject]);
+
+	const interchangeTimeline = useMemo(() => {
+		if (!exportProject) return null;
+		try {
+			return projectToInterchange(exportProject, { dropFrame: false });
+		} catch {
+			return null;
+		}
+	}, [exportProject]);
+
 	const canExport = Boolean(
 		exportProject &&
 		settings &&
@@ -1239,6 +1250,51 @@ export default function ExportDialog() {
 									{interchangeOmissionWarning}
 								</p>
 							)}
+							{interchangeTimeline && (
+								<details className="interchange-matrix" open>
+									<summary>
+										What’s transferred to{' '}
+										{INTERCHANGE_FORMATS.find((f) => f.value === interchangeFormat)?.label ??
+											'this format'}
+									</summary>
+									<table className="interchange-table">
+										<thead>
+											<tr>
+												<th>Feature</th>
+												<th>Transfer Status</th>
+												<th>Mapping Notes</th>
+											</tr>
+										</thead>
+										<tbody>
+											{interchangeTimeline.featureAudits.map((item) => {
+												const audit = item[interchangeFormat];
+												return (
+													<tr key={item.feature}>
+														<td>{item.feature}</td>
+														<td>
+															<span className={`status-badge ${audit.status}`}>{audit.status}</span>
+														</td>
+														<td>{audit.note}</td>
+													</tr>
+												);
+											})}
+										</tbody>
+									</table>
+									{interchangeTimeline.omissions.length > 0 && (
+										<div
+											className="interchange-omissions"
+											style={{ marginTop: '8px', color: '#f59e0b' }}
+										>
+											<strong>Sequence omissions:</strong>
+											<ul>
+												{interchangeTimeline.omissions.map((om, idx) => (
+													<li key={idx}>{om}</li>
+												))}
+											</ul>
+										</div>
+									)}
+								</details>
+							)}
 						</div>
 					)}
 					{progressValue && (
@@ -1254,6 +1310,45 @@ export default function ExportDialog() {
 									{progress.phase === 'rendering' ? ` · ${progress.fps.toFixed(1)} fps` : ''}
 								</p>
 							)}
+						</div>
+					)}
+					{!isRunning && progressValue && progressValue.value >= 100 && (
+						<div
+							className="export-bmc-callout"
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'space-between',
+								gap: '12px',
+								padding: '10px 14px',
+								background: 'rgba(255, 221, 0, 0.08)',
+								border: '1px solid rgba(255, 221, 0, 0.25)',
+								borderRadius: '8px',
+								marginTop: '12px',
+								fontSize: '12px',
+								color: '#e2e8f0'
+							}}
+						>
+							<span>Enjoying your free watermark-free export?</span>
+							<a
+								href="https://buymeacoffee.com/beestack"
+								target="_blank"
+								rel="noopener noreferrer"
+								style={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									gap: '6px',
+									background: '#ffdd00',
+									color: '#000000',
+									fontWeight: 700,
+									padding: '4px 10px',
+									borderRadius: '6px',
+									textDecoration: 'none',
+									whiteSpace: 'nowrap'
+								}}
+							>
+								<span>Buy me a coffee ☕</span>
+							</a>
 						</div>
 					)}
 					{errorMessage && (

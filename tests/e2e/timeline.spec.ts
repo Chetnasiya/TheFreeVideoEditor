@@ -303,9 +303,9 @@ test('resizes tracks and keeps video above audio tracks', async ({ page }) => {
 	await createDialog.getByRole('button', { name: 'Create project' }).click();
 	await expect(page.getByRole('heading', { name: 'Track layout' })).toBeVisible();
 
-	await page.getByRole('button', { name: '+ Video Track' }).click();
+	await page.keyboard.press('Control+Shift+v');
 	await expect(page.getByRole('gridcell', { name: 'Video 2 track lane' })).toBeVisible();
-	await page.getByRole('button', { name: '+ Audio Track' }).click();
+	await page.keyboard.press('Control+Shift+a');
 	await expect(page.getByRole('gridcell', { name: 'Audio 2 track lane' })).toBeVisible();
 	const rows = page.locator('.timeline-track-row');
 	await expect(rows).toHaveCount(4);

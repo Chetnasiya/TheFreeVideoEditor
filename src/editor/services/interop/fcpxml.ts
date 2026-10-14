@@ -1,81 +1,114 @@
-import { sourceExtent, timelineDuration, type Project, type Track } from '../../core';
-import { frames, mediaPath, secondsAsRational, trackAsset, escapeXml } from './exportUtils';
+import type { Project } from '../../core';
+import {
+	type InterchangeClip,
+	type InterchangeTimeline,
+	type InterchangeTrack,
+	projectToInterchange
+} from '../../core/interchange/ir';
+import { framesToFcpxmlTime, rateToFcpxmlDuration } from '../../core/interchange/time';
 import type { InteropOptions } from './exportUtils';
+import { escapeXml } from './exportUtils';
 
-function clipXml(
-	project: Project,
-	track: Track,
-	clip: Track['clips'][number],
-	ref: string
+function clipToFcpxml(
+	ir: InterchangeTimeline,
+	track: InterchangeTrack,
+	clip: InterchangeClip,
+	ref: string | undefined,
+	lane = 0
 ): string {
-	const asset = trackAsset(project, clip.assetId!);
-	const start = frames(clip.start, project);
-	const duration = Math.max(1, frames(clip.duration, project));
-	const extent = sourceExtent(clip);
-	const sourceIn = frames(extent.min, project);
+	const rate = ir.rate;
+	const offsetStr = framesToFcpxmlTime(clip.recordIn, rate);
+	const startStr = framesToFcpxmlTime(clip.sourceIn, rate);
+	const durationStr = framesToFcpxmlTime(clip.duration, rate);
+	const enabledStr = track.enabled ? '1' : '0';
+
+	// Text clip
+	if (clip.text) {
+		const titleText = escapeXml(clip.text.content);
+		return `<title name="${escapeXml(clip.name)}" offset="${offsetStr}" start="0s" duration="${durationStr}" lane="${lane}"><text><text-style ref="ts1">${titleText}</text-style></text><text-style-def id="ts1"><text-style font="Helvetica" fontSize="${clip.text.fontSize ?? 48}" fontColor="${clip.text.fill ?? '#ffffff'}" alignment="${clip.text.align ?? 'center'}"/></text-style-def></title>`;
+	}
+
+	if (!ref) return '';
+
 	const mediaType = track.kind === 'video' ? 'video' : 'audio';
-	const content = `<${mediaType} ref="${ref}"${track.kind === 'audio' ? ` role="audio.${track.muted ? 'dialogue' : 'music'}"` : ''}/>`;
-	const markers = project.markers
-		.filter((marker) => marker.time >= clip.start && marker.time < clip.start + clip.duration)
+	const roleAttr = track.kind === 'audio' ? ` role="audio.dialogue"` : '';
+	const content = `<${mediaType} ref="${ref}"${roleAttr}/>`;
+
+	const markersXml = ir.markers
+		.filter((m) => m.frame >= clip.recordIn && m.frame < clip.recordOut)
 		.map(
-			(marker) =>
-				`<marker start="${secondsAsRational(frames(marker.time - clip.start, project), project.settings.fps)}" value="${escapeXml(marker.name ?? marker.label ?? 'Marker')}"/>`
+			(m) =>
+				`<marker start="${framesToFcpxmlTime(m.frame - clip.recordIn, rate)}" value="${escapeXml(m.name)}"/>`
 		)
 		.join('');
-	return `<asset-clip name="${escapeXml(asset.name)}" ref="${ref}" offset="${secondsAsRational(start, project.settings.fps)}" start="${secondsAsRational(sourceIn, project.settings.fps)}" duration="${secondsAsRational(duration, project.settings.fps)}" lane="0" enabled="${track.hidden || track.muted ? '0' : '1'}">${content}${markers}</asset-clip>`;
+
+	let adjustments = '';
+	if (clip.volume !== 1 && clip.volume > 0) {
+		const db = (20 * Math.log10(clip.volume)).toFixed(1);
+		adjustments += `<adjust-volume amount="${db}dB"/>`;
+	}
+	if (clip.transform) {
+		const [sx, sy] = clip.transform.scale;
+		const [px, py] = clip.transform.position;
+		adjustments += `<adjust-transform scale="${sx} ${sy}" rotation="${clip.transform.rotation}" position="${px} ${py}"/>`;
+	}
+
+	return `<asset-clip name="${escapeXml(clip.name)}" ref="${ref}" offset="${offsetStr}" start="${startStr}" duration="${durationStr}" lane="${lane}" enabled="${enabledStr}">${content}${adjustments}${markersXml}</asset-clip>`;
 }
 
-export function exportFcpxml(project: Project, options: InteropOptions = {}): string {
-	const fps = project.settings.fps;
-	const assets = Object.values(project.assets);
+export function exportFcpxmlFromIr(ir: InterchangeTimeline): string {
+	const rate = ir.rate;
 	const formatId = 'r1';
+	const assets = Array.from(ir.assets.values());
 	const assetRefs = new Map(assets.map((asset, index) => [asset.id, `r${index + 2}`]));
+
+	const formatDuration = rateToFcpxmlDuration(rate);
 	const resources = [
-		`<format id="${formatId}" name="FFVideoFormat${project.settings.height}p${fps}" frameDuration="1/${fps}s" width="${project.settings.width}" height="${project.settings.height}"/>`,
+		`<format id="${formatId}" name="FFVideoFormat${ir.height}p${rate.timebase}" frameDuration="${formatDuration}" width="${ir.width}" height="${ir.height}"/>`,
 		...assets.map((asset) => {
 			const ref = assetRefs.get(asset.id);
 			if (!ref) return '';
-			return `<asset id="${ref}" name="${escapeXml(asset.name)}" start="0s" duration="${secondsAsRational(frames(asset.duration, project), fps)}" hasVideo="${asset.kind === 'video' || asset.kind === 'image' ? 1 : 0}" hasAudio="${asset.hasAudio ? 1 : 0}"><media-rep kind="original-media" src="file://localhost/${mediaPath(
-				project,
-				asset,
-				options
-			)
-				.split('/')
-				.map(encodeURIComponent)
-				.join('/')}" /></asset>`;
+			const encodedPath = asset.path.split('/').map(encodeURIComponent).join('/');
+			return `<asset id="${ref}" name="${escapeXml(asset.name)}" start="0s" duration="${framesToFcpxmlTime(asset.durationFrames, rate)}" hasVideo="${asset.width ? 1 : 0}" hasAudio="${asset.hasAudio ? 1 : 0}"><media-rep kind="original-media" src="file://localhost/${encodedPath}" /></asset>`;
 		})
 	].join('');
-	const tracks = project.tracks;
+
+	const tracks = ir.tracks;
 	const primary = tracks.find((track) => track.kind === 'video');
 	const spineChildren: string[] = [];
+
 	if (primary) {
 		let cursor = 0;
-		for (const clip of primary.clips.toSorted((a, b) => a.start - b.start)) {
-			const start = frames(clip.start, project);
-			if (start > cursor) {
+		for (const clip of primary.clips.toSorted((a, b) => a.recordIn - b.recordIn)) {
+			if (clip.recordIn > cursor) {
 				spineChildren.push(
-					`<gap name="Gap" offset="${secondsAsRational(cursor, fps)}" duration="${secondsAsRational(start - cursor, fps)}"/>`
+					`<gap name="Gap" offset="${framesToFcpxmlTime(cursor, rate)}" duration="${framesToFcpxmlTime(clip.recordIn - cursor, rate)}"/>`
 				);
 			}
 			const ref = clip.assetId ? assetRefs.get(clip.assetId) : undefined;
-			if (ref) spineChildren.push(clipXml(project, primary, clip, ref));
-			cursor = start + Math.max(1, frames(clip.duration, project));
+			spineChildren.push(clipToFcpxml(ir, primary, clip, ref, 0));
+			cursor = clip.recordOut;
 		}
 	}
+
 	const connected = tracks
 		.filter((track) => track !== primary)
-		.flatMap((track, index) =>
-			track.clips
-				.filter((clip) => Boolean(clip.assetId))
-				.map((clip) => {
-					const ref = assetRefs.get(clip.assetId!);
-					if (!ref) return '';
-					const lane = index + 1;
-					const extent = sourceExtent(clip);
-					return `<asset-clip lane="${lane}" name="${escapeXml(track.name)} — ${escapeXml(trackAsset(project, clip.assetId!).name)}" offset="${secondsAsRational(frames(clip.start, project), fps)}" start="${secondsAsRational(frames(extent.min, project), fps)}" duration="${secondsAsRational(Math.max(1, frames(clip.duration, project)), fps)}" ref="${ref}" enabled="${track.hidden || track.muted ? '0' : '1'}"/>`;
-				})
+		.flatMap((track, trackIndex) =>
+			track.clips.map((clip) => {
+				const ref = clip.assetId ? assetRefs.get(clip.assetId) : undefined;
+				const lane = trackIndex + 1;
+				return clipToFcpxml(ir, track, clip, ref, lane);
+			})
 		)
 		.join('');
-	const duration = Math.max(1, frames(timelineDuration(project), project));
-	return `<?xml version="1.0" encoding="UTF-8"?><fcpxml version="1.10"><resources>${resources}</resources><library><event name="${escapeXml(project.name)}"><project name="${escapeXml(project.name)}"><sequence format="${formatId}" duration="${secondsAsRational(duration, fps)}" tcStart="0s" tcFormat="NDF" audioLayout="stereo" audioRate="48k"><spine>${spineChildren.join('')}${connected}</spine></sequence></project></event></library></fcpxml>`;
+
+	const totalDuration = framesToFcpxmlTime(ir.durationFrames, rate);
+	const tcFormat = rate.dropFrame ? 'DF' : 'NDF';
+
+	return `<?xml version="1.0" encoding="UTF-8"?><fcpxml version="1.10"><resources>${resources}</resources><library><event name="${escapeXml(ir.name)}"><project name="${escapeXml(ir.name)}"><sequence format="${formatId}" duration="${totalDuration}" tcStart="0s" tcFormat="${tcFormat}" audioLayout="stereo" audioRate="48k"><spine>${spineChildren.join('')}${connected}</spine></sequence></project></event></library></fcpxml>`;
+}
+
+export function exportFcpxml(project: Project, options: InteropOptions = {}): string {
+	const ir = projectToInterchange(project, { mediaPaths: options.mediaPaths });
+	return exportFcpxmlFromIr(ir);
 }

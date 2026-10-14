@@ -1,5 +1,9 @@
-import { sourceExtent, timelineDuration, type Project, type Track } from '../../core';
-import { frames, mediaPath, trackAsset } from './exportUtils';
+import type { Project } from '../../core';
+import {
+	type InterchangeTimeline,
+	type InterchangeTrack,
+	projectToInterchange
+} from '../../core/interchange/ir';
 import type { InteropOptions } from './exportUtils';
 
 interface RationalTime {
@@ -8,11 +12,17 @@ interface RationalTime {
 	rate: number;
 }
 
+interface TimeRange {
+	OTIO_SCHEMA: 'TimeRange.1';
+	start_time: RationalTime;
+	duration: RationalTime;
+}
+
 function time(value: number, fps: number): RationalTime {
 	return { OTIO_SCHEMA: 'RationalTime.1', value, rate: fps };
 }
 
-function timeRange(start: number, duration: number, fps: number) {
+function timeRange(start: number, duration: number, fps: number): TimeRange {
 	return {
 		OTIO_SCHEMA: 'TimeRange.1',
 		start_time: time(start, fps),
@@ -20,15 +30,16 @@ function timeRange(start: number, duration: number, fps: number) {
 	};
 }
 
-function trackChildren(project: Project, track: Track, options: InteropOptions) {
-	const fps = project.settings.fps;
-	const clips = track.clips.toSorted((first, second) => first.start - second.start);
+function trackChildren(ir: InterchangeTimeline, track: InterchangeTrack) {
+	const fps = ir.rate.timebase;
+	const clips = track.clips.toSorted((first, second) => first.recordIn - second.recordIn);
 	const children: Record<string, unknown>[] = [];
 	let position = 0;
+
 	for (const clip of clips) {
-		if (!clip.assetId) continue;
-		const start = frames(clip.start, project);
-		const duration = Math.max(1, frames(clip.duration, project));
+		const start = clip.recordIn;
+		const duration = Math.max(1, clip.duration);
+
 		if (start > position) {
 			children.push({
 				OTIO_SCHEMA: 'Gap.1',
@@ -37,88 +48,123 @@ function trackChildren(project: Project, track: Track, options: InteropOptions) 
 				metadata: {}
 			});
 		}
-		const asset = trackAsset(project, clip.assetId);
-		const extent = sourceExtent(clip);
+
+		const asset = clip.assetId ? ir.assets.get(clip.assetId) : undefined;
+		const availableDuration = asset ? asset.durationFrames : duration;
+		const encodedPath = (clip.mediaPath || '').split('/').map(encodeURIComponent).join('/');
+
+		const effects: Record<string, unknown>[] = [];
+		if (clip.speed !== 1) {
+			effects.push({
+				OTIO_SCHEMA: 'LinearTimeWarp.1',
+				name: 'Speed',
+				time_scalar: clip.speed,
+				metadata: {}
+			});
+		}
+
+		const markers = ir.markers
+			.filter((m) => m.frame >= clip.recordIn && m.frame < clip.recordOut)
+			.map((m) => ({
+				OTIO_SCHEMA: 'Marker.1',
+				name: m.name,
+				color: m.color ? 'RED' : 'GREEN',
+				marked_range: timeRange(m.frame - clip.recordIn, 1, fps),
+				metadata: { originalName: m.name }
+			}));
+
 		children.push({
 			OTIO_SCHEMA: 'Clip.2',
-			name: asset.name,
-			source_range: timeRange(frames(extent.min, project), duration, fps),
+			name: clip.name,
+			source_range: timeRange(clip.sourceIn, duration, fps),
+			effects,
+			markers,
 			media_reference: {
 				OTIO_SCHEMA: 'ExternalReference.1',
-				target_url: `file://localhost/${mediaPath(project, asset, options)
-					.split('/')
-					.map(encodeURIComponent)
-					.join('/')}`,
-				available_range: timeRange(0, frames(asset.duration, project), fps),
+				target_url: `file://localhost/${encodedPath}`,
+				available_range: timeRange(0, availableDuration, fps),
 				metadata: {}
 			},
 			metadata: {
 				thefreevideoeditor: {
-					assetId: asset.id,
+					assetId: clip.assetId,
 					clipId: clip.id,
 					linkId: clip.linkId ?? null,
 					speed: clip.speed,
 					volume: clip.volume,
-					trackMuted: track.muted,
-					trackHidden: track.hidden,
-					trackLocked: track.locked
+					pan: clip.pan,
+					transform: clip.transform ?? null,
+					crop: clip.crop ?? null,
+					text: clip.text ?? null,
+					caption: clip.caption ?? null
 				}
 			}
 		});
+
 		position = start + duration;
 	}
-	const projectDuration = frames(timelineDuration(project), project);
-	if (projectDuration > position) {
+
+	if (ir.durationFrames > position) {
 		children.push({
 			OTIO_SCHEMA: 'Gap.1',
 			name: 'Gap',
-			source_range: timeRange(0, projectDuration - position, fps),
+			source_range: timeRange(0, ir.durationFrames - position, fps),
 			metadata: {}
 		});
 	}
+
 	return children;
 }
 
-export function exportOtio(project: Project, options: InteropOptions = {}): string {
-	const fps = project.settings.fps;
+export function exportOtioFromIr(ir: InterchangeTimeline): string {
+	const fps = ir.rate.timebase;
 	const result = {
 		OTIO_SCHEMA: 'Timeline.1',
-		name: project.name,
+		name: ir.name,
 		global_start_time: time(0, fps),
-		duration: time(frames(timelineDuration(project), project), fps),
+		duration: time(ir.durationFrames, fps),
 		tracks: {
 			OTIO_SCHEMA: 'Stack.1',
 			name: 'Tracks',
-			children: project.tracks.map((track) => ({
+			children: ir.tracks.map((track) => ({
 				OTIO_SCHEMA: 'Track.1',
 				name: track.name,
 				kind: track.kind === 'video' ? 'Video' : 'Audio',
-				children: trackChildren(project, track, options),
+				children: trackChildren(ir, track),
 				metadata: {
 					thefreevideoeditor: {
 						trackId: track.id,
-						muted: track.muted,
-						hidden: track.hidden,
-						locked: track.locked
+						enabled: track.enabled,
+						locked: track.locked,
+						volume: track.volume,
+						pan: track.pan
 					}
 				}
 			})),
 			metadata: {}
 		},
+		markers: ir.markers.map((marker) => ({
+			OTIO_SCHEMA: 'Marker.1',
+			name: marker.name,
+			color: marker.color ? 'RED' : 'GREEN',
+			marked_range: timeRange(marker.frame, 1, fps),
+			metadata: { originalName: marker.name }
+		})),
 		metadata: {
 			thefreevideoeditor: {
-				projectId: project.id,
-				schemaVersion: project.schemaVersion,
-				settings: project.settings,
-				markers: project.markers.map((marker) => ({
-					id: marker.id,
-					time: time(frames(marker.time, project), fps),
-					name: marker.name ?? marker.label ?? 'Marker',
-					label: marker.name ?? marker.label ?? 'Marker',
-					color: marker.color ?? null
-				}))
+				rate: ir.rate,
+				width: ir.width,
+				height: ir.height,
+				omissions: ir.omissions,
+				featureAudits: ir.featureAudits
 			}
 		}
 	};
+
 	return JSON.stringify(result, null, 2);
+}
+
+export function exportOtio(project: Project, options: InteropOptions = {}): string {
+	const ir = projectToInterchange(project, { mediaPaths: options.mediaPaths });
+	return exportOtioFromIr(ir);
 }

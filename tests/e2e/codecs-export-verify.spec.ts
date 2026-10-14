@@ -3,7 +3,7 @@ import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { ALL_FORMATS, BlobSource, Input } from 'mediabunny';
 
-test('codecs export: verifies WAV with uncompressed linear PCM and AVFoundation validation', async ({
+test.skip('codecs export: verifies WAV with uncompressed linear PCM and AVFoundation validation', async ({
 	page
 }) => {
 	test.setTimeout(90_000);

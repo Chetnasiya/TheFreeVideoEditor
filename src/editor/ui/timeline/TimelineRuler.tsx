@@ -339,6 +339,7 @@ export default function TimelineRuler({
 								className="timeline-dropdown-menu snap-dropdown-menu"
 								role="menu"
 								aria-label="Snap options"
+								onMouseDown={(e) => e.stopPropagation()}
 							>
 								<button
 									type="button"

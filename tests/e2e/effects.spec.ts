@@ -50,7 +50,7 @@ test.describe('Effects, Color & Scopes (Gate J)', () => {
 		page
 	}) => {
 		// Add an adjustment clip so a clip is selected for color grading
-		await page.getByRole('button', { name: '+ Adjustment' }).click();
+		await page.getByRole('button', { name: 'Adjustment Layer' }).click();
 
 		// Switch inspector tab to Color
 		const colorTab = page.locator('#color-panel-title');
@@ -107,7 +107,7 @@ test.describe('Effects, Color & Scopes (Gate J)', () => {
 	});
 
 	test('Adds Adjustment Layer and Solid Color to sequence', async ({ page }) => {
-		const addAdjBtn = page.getByRole('button', { name: '+ Adjustment' });
+		const addAdjBtn = page.getByRole('button', { name: 'Adjustment Layer' });
 		await expect(addAdjBtn).toBeVisible();
 		await addAdjBtn.click();
 
@@ -118,7 +118,7 @@ test.describe('Effects, Color & Scopes (Gate J)', () => {
 		).toBeVisible();
 
 		// Add solid layer
-		const addSolidBtn = page.getByRole('button', { name: '+ Solid' });
+		const addSolidBtn = page.getByRole('button', { name: 'Solid Layer' });
 		await expect(addSolidBtn).toBeVisible();
 		await addSolidBtn.click();
 
@@ -131,7 +131,7 @@ test.describe('Effects, Color & Scopes (Gate J)', () => {
 		page
 	}) => {
 		// Add an adjustment layer
-		await page.getByRole('button', { name: '+ Adjustment' }).click();
+		await page.getByRole('button', { name: 'Adjustment Layer' }).click();
 
 		// Open Export dialog
 		await page.getByRole('banner').getByRole('button', { name: 'File' }).click();

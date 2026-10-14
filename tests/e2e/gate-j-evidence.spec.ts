@@ -145,7 +145,7 @@ test.describe('Gate J Evidence Closure', () => {
 		await createDialog.getByRole('button', { name: 'Create project' }).click();
 
 		// Add an adjustment layer
-		await page.getByRole('button', { name: '+ Adjustment' }).click();
+		await page.getByRole('button', { name: 'Adjustment Layer' }).click();
 
 		// Populate 1,000 keyframes and 3 effects on the clip
 		const scrubReport = await page.evaluate(async () => {

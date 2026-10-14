@@ -24,7 +24,7 @@ test.describe('Gate O: Text Presets & Animations (Slice 2)', () => {
 
 	test('applies template presets to text clip in inspector', async ({ page }) => {
 		// 1. Add Text Clip from timeline toolbar
-		const addTextBtn = page.getByRole('button', { name: '+ Text' });
+		const addTextBtn = page.getByRole('button', { name: 'Text Layer' });
 		await expect(addTextBtn).toBeVisible();
 		await addTextBtn.click();
 
@@ -48,7 +48,7 @@ test.describe('Gate O: Text Presets & Animations (Slice 2)', () => {
 
 	test('applies typewriter animation and clears animations', async ({ page }) => {
 		// 1. Add Text Clip
-		const addTextBtn = page.getByRole('button', { name: '+ Text' });
+		const addTextBtn = page.getByRole('button', { name: 'Text Layer' });
 		await expect(addTextBtn).toBeVisible();
 		await addTextBtn.click();
 

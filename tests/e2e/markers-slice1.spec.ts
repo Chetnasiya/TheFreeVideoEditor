@@ -185,12 +185,13 @@ test('markers slice 1: add via M key stopped/playback, edit dialog, Premiere swa
 	await page.waitForTimeout(400);
 	await expect(markerItems).toHaveCount(2);
 
-	// 10. Toolbar marker count and snap to markers toggle
-	const snapToMarkersBtn = page.getByRole('button', { name: 'Snap to markers' });
-	await expect(snapToMarkersBtn).toBeVisible();
-	await expect(snapToMarkersBtn).toHaveAttribute('aria-pressed', 'true');
-	await snapToMarkersBtn.click();
-	await expect(snapToMarkersBtn).toHaveAttribute('aria-pressed', 'false');
+	// 10. Snap to markers toggle via snap options dropdown
+	await page.getByRole('button', { name: 'Snap options dropdown' }).click();
+	const snapToMarkersItem = page.getByRole('menuitemcheckbox', { name: 'Snap to Markers' });
+	await expect(snapToMarkersItem).toBeVisible();
+	await expect(snapToMarkersItem).toHaveAttribute('aria-checked', 'true');
+	await snapToMarkersItem.dispatchEvent('click');
+	await expect(snapToMarkersItem).toHaveAttribute('aria-checked', 'false');
 
 	const markerCountDisplay = page.locator('.timeline-marker-count');
 	await expect(markerCountDisplay).toHaveText('2 markers');

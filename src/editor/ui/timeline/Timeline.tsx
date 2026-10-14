@@ -1811,7 +1811,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 														<>
 															{(track.captions ?? []).length === 0 && (
 																<span className="timeline-empty-track">
-																	No captions yet. Click + Caption or auto-generate.
+																	No captions yet. Click Caption Layer or auto-generate.
 																</span>
 															)}
 															{(track.captions ?? []).map((caption) => {

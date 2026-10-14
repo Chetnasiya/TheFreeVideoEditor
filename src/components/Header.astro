@@ -1,5 +1,6 @@
 ---
 import BrandIcon from './BrandIcon.astro';
+import BuyMeACoffee from './BuyMeACoffee.astro';
 
 const navItems = [
 	{ label: 'Editor', href: '/editor' },
@@ -41,6 +42,8 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 		</nav>
 
 		<div class="header-actions">
+			<BuyMeACoffee variant="badge" text="Buy me a coffee" className="desktop-only" />
+
 			<a
 				href="https://github.com/GajananPalepwad/TheFreeVideoEditor"
 				target="_blank"
@@ -120,6 +123,8 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 					</svg>
 					<span>Contribute on GitHub</span>
 				</a>
+
+				<BuyMeACoffee variant="button" text="Buy me a coffee" className="mobile-bmc-btn" />
 			</div>
 		</nav>
 	</div>

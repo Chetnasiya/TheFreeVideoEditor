@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { strFromU8, unzipSync } from 'fflate';
 import { createEmptyProject } from '../../core';
 import { exportInterchangePackage, streamInterchangePackage } from './export';
-import { exportEdlTracks } from './edl';
-import { exportFcpxml } from './fcpxml';
-import { exportOtio } from './otio';
-import { exportXmeml } from './xmeml';
+import { exportEdlTracks, exportEdlFromIr } from './edl';
+import { exportFcpxml, exportFcpxmlFromIr } from './fcpxml';
+import { exportOtio, exportOtioFromIr } from './otio';
+import { exportXmeml, exportXmemlFromIr } from './xmeml';
 import { uniqueMediaPaths } from './exportUtils';
+import { projectToInterchange } from '../../core/interchange/ir';
 
 function fixture() {
 	const project = createEmptyProject({ name: 'Cut & Mix', settings: { fps: 25 } });
@@ -210,5 +211,78 @@ describe('interchange serializers', () => {
 		const otioStr = exportOtio(flattened);
 		const parsedOtio = JSON.parse(otioStr);
 		expect(parsedOtio.OTIO_SCHEMA).toContain('Timeline');
+	});
+
+	it('exports 29.97 drop-frame projects with drop-frame timecode and NTSC flags across all formats', () => {
+		const project = fixture();
+		project.settings.fps = 29.97;
+
+		const irDf = projectToInterchange(project, { dropFrame: true });
+		expect(irDf.rate.dropFrame).toBe(true);
+		expect(irDf.rate.ntsc).toBe(true);
+
+		// EDL drop-frame check
+		const edl = exportEdlFromIr(irDf, irDf.tracks[0]!);
+		expect(edl).toContain('FCM: DROP FRAME');
+		expect(edl).toContain(';'); // Semicolon drop-frame delimiter
+
+		// FCPXML drop-frame check
+		const fcpxml = exportFcpxmlFromIr(irDf);
+		expect(fcpxml).toContain('tcFormat="DF"');
+		expect(fcpxml).toContain('frameDuration="1001/30000s"');
+
+		// xmeml drop-frame check
+		const xmeml = exportXmemlFromIr(irDf);
+		expect(xmeml).toContain('<timebase>30</timebase><ntsc>TRUE</ntsc>');
+		expect(xmeml).toContain('<displayformat>DF</displayformat>');
+
+		// OTIO drop-frame metadata check
+		const otio = JSON.parse(exportOtioFromIr(irDf));
+		expect(otio.metadata.thefreevideoeditor.rate.dropFrame).toBe(true);
+	});
+
+	it('exports clip transforms, speed changes, and audio levels to xmeml and OTIO', () => {
+		const project = fixture();
+		const vTrack = project.tracks.find((t) => t.kind === 'video')!;
+		const clip = vTrack.clips[0]!;
+		clip.speed = 1.5;
+		clip.transform = {
+			x: 100,
+			y: -50,
+			scaleX: 1.2,
+			scaleY: 1.2,
+			rotation: 15,
+			opacity: 0.8
+		};
+
+		const aTrack = project.tracks.find((t) => t.kind === 'audio')!;
+		aTrack.clips[0]!.volume = 0.75;
+		(aTrack.clips[0] as unknown as { pan: number }).pan = -0.5;
+
+		const xmeml = exportXmeml(project);
+		expect(xmeml).toContain('<name>Basic Motion</name>');
+		expect(xmeml).toContain('<value>120</value>'); // 1.2 scale * 100
+		expect(xmeml).toContain('<value>15</value>'); // 15 rotation
+		expect(xmeml).toContain('<value>80</value>'); // 0.8 opacity * 100
+		expect(xmeml).toContain('<name>Audio Levels</name>');
+		expect(xmeml).toContain('<value>0.75</value>');
+
+		const otio = JSON.parse(exportOtio(project));
+		const firstClip = otio.tracks.children[0].children[0];
+		expect(firstClip.effects).toHaveLength(1);
+		expect(firstClip.effects[0].OTIO_SCHEMA).toBe('LinearTimeWarp.1');
+		expect(firstClip.effects[0].time_scalar).toBe(1.5);
+	});
+
+	it('generates strictly well-formed XML for xmeml and fcpxml that passes xmllint validation', async () => {
+		const { execSync } = await import('child_process');
+		const project = fixture();
+		const xmeml = exportXmeml(project);
+		const fcpxml = exportFcpxml(project);
+
+		const xmemlCheck = execSync('xmllint --noout -', { input: xmeml, encoding: 'utf-8' });
+		const fcpxmlCheck = execSync('xmllint --noout -', { input: fcpxml, encoding: 'utf-8' });
+		expect(xmemlCheck).toBe('');
+		expect(fcpxmlCheck).toBe('');
 	});
 });

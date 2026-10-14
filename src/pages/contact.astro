@@ -66,6 +66,17 @@ const seoDescription =
 					<p>Check out our frequently asked questions on our home page for instant help on formats, shortcuts, and performance.</p>
 					<a href="/#faq-section" class="channel-link">Visit FAQ &rarr;</a>
 				</div>
+
+				<div class="contact-card info-card bmc-card">
+					<div class="info-icon bmc-icon" aria-hidden="true">
+						☕
+					</div>
+					<h3>Support Our Work</h3>
+					<p>Love using The Free Video Editor? Support future development, hosting, and AI models:</p>
+					<a href="https://buymeacoffee.com/beestack" target="_blank" rel="noopener noreferrer" class="channel-link bmc-link">
+						Buy Me a Coffee &rarr;
+					</a>
+				</div>
 			</div>
 		</div>
 	</main>
@@ -193,6 +204,30 @@ const seoDescription =
 	.channel-link:hover {
 		color: #7dd3fc;
 		text-decoration: underline;
+	}
+
+	.bmc-card {
+		border-color: rgba(255, 221, 0, 0.25);
+		background: linear-gradient(135deg, rgba(255, 221, 0, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+	}
+
+	.bmc-card:hover {
+		border-color: rgba(255, 221, 0, 0.5);
+	}
+
+	.bmc-icon {
+		background: rgba(255, 221, 0, 0.15);
+		font-size: 1.25rem;
+		line-height: 1;
+	}
+
+	.bmc-link {
+		color: #ffdd00;
+		font-weight: 600;
+	}
+
+	.bmc-link:hover {
+		color: #ffe642;
 	}
 
 	@media (max-width: 640px) {

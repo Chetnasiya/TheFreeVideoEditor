@@ -36,7 +36,7 @@ test.describe('Gate O: Inline Editing, Gizmo & Shortcuts (Slice 3)', () => {
 
 	test('edits text via on-canvas double click inline editor and commits', async ({ page }) => {
 		// Add Text Clip
-		const addTextBtn = page.getByRole('button', { name: '+ Text' });
+		const addTextBtn = page.getByRole('button', { name: 'Text Layer' });
 		await expect(addTextBtn).toBeVisible();
 		await addTextBtn.click();
 

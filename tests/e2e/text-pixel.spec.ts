@@ -16,7 +16,7 @@ test.describe('Text Rendering & Export Verification', () => {
 		} catch {}
 
 		// Add Text Clip from timeline toolbar
-		const addTextBtn = page.getByRole('button', { name: '+ Text' });
+		const addTextBtn = page.getByRole('button', { name: 'Text Layer' });
 		await expect(addTextBtn).toBeVisible();
 		await addTextBtn.click();
 
@@ -100,7 +100,7 @@ test.describe('Text Rendering & Export Verification', () => {
 		} catch {}
 
 		// Add Text Clip from timeline toolbar
-		const addTextBtn = page.getByRole('button', { name: '+ Text' });
+		const addTextBtn = page.getByRole('button', { name: 'Text Layer' });
 		await expect(addTextBtn).toBeVisible();
 		await addTextBtn.click();
 

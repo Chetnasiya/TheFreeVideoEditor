@@ -26,7 +26,7 @@ test.describe('Gate O: Text System (Slice 1)', () => {
 		page
 	}) => {
 		// 1. Add Text Clip from timeline toolbar
-		const addTextBtn = page.getByRole('button', { name: '+ Text' });
+		const addTextBtn = page.getByRole('button', { name: 'Text Layer' });
 		await expect(addTextBtn).toBeVisible();
 		await addTextBtn.click();
 

@@ -105,10 +105,10 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await expect(page.getByRole('heading', { name: 'Multi-Select Nest' })).toBeVisible();
 
 		// Add 2 solid clips on separate tracks
-		const addSolidBtn = page.getByRole('button', { name: '+ Solid Layer' });
+		const addSolidBtn = page.getByRole('button', { name: 'Solid Layer' });
 		await addSolidBtn.click();
 		// Add another video track and add another solid layer
-		await page.getByRole('button', { name: '+ Video Track' }).click();
+		await page.keyboard.press('Control+Shift+v');
 		await addSolidBtn.click();
 
 		const clips = page.locator('.timeline-clip');
@@ -193,7 +193,7 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await expect(page.getByRole('heading', { name: 'Keyboard Seq' })).toBeVisible();
 
 		// Add a solid layer
-		await page.getByRole('button', { name: '+ Solid Layer' }).click();
+		await page.getByRole('button', { name: 'Solid Layer' }).click();
 		const clip = page.locator('.timeline-clip').first();
 		await expect(clip).toBeVisible();
 		await clip.click();
@@ -301,7 +301,7 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await createDialog.getByRole('button', { name: 'Create project' }).click();
 
 		// Add solid layer and nest it
-		await page.getByRole('button', { name: '+ Solid Layer' }).click();
+		await page.getByRole('button', { name: 'Solid Layer' }).click();
 		const clip = page.locator('.timeline-clip').first();
 		await clip.click();
 
@@ -392,7 +392,7 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await expect(page.locator('.timeline-tabs')).toContainText('Inner Seq');
 
 		// Add solid layer inside Inner Seq
-		await page.getByRole('button', { name: '+ Solid Layer' }).click();
+		await page.getByRole('button', { name: 'Solid Layer' }).click();
 		await expect(page.locator('.timeline-clip')).toHaveCount(1);
 
 		// Go back to Main timeline
@@ -483,7 +483,7 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await page.locator('.timeline-tabs button', { hasText: 'Main' }).click();
 
 		// Add another video track on Main timeline
-		await page.getByRole('button', { name: '+ Video Track' }).click();
+		await page.keyboard.press('Control+Shift+v');
 
 		// Add Red Sequence instance onto Video 2 (top track: project.tracks.find(t => t.name === 'Video 2'))
 		await page.evaluate(() => {
@@ -539,7 +539,7 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await expect(page.locator('.timeline-tabs')).toContainText('Red Sequence');
 
 		// Add video track inside Red Sequence and add green solid on the top track
-		await page.getByRole('button', { name: '+ Video Track' }).click();
+		await page.keyboard.press('Control+Shift+v');
 		await page.evaluate(() => {
 			const state = (window as any).__TFVE_STORE__.getState();
 			state.addSolidLayer('#00ff00');
@@ -612,7 +612,7 @@ test.describe('Gate R: Nested Sequences E2E', () => {
 		await page.locator('.timeline-tabs button', { hasText: 'Main' }).click();
 
 		// Add 2 video tracks on Main
-		await page.getByRole('button', { name: '+ Video Track' }).click();
+		await page.keyboard.press('Control+Shift+v');
 
 		// Add two instances at different start offsets
 		await page.evaluate(() => {

@@ -25,8 +25,8 @@ test.describe('Gate P: Captions System E2E', () => {
 	test('creates caption segment from toolbar, edits inline and in captions panel, verifies rendering & styling', async ({
 		page
 	}) => {
-		// 1. Add Caption via Timeline Toolbar (+ Caption)
-		const addCaptionBtn = page.getByRole('button', { name: '+ Caption' });
+		// 1. Add Caption via Timeline Toolbar (Caption Layer)
+		const addCaptionBtn = page.getByRole('button', { name: 'Caption Layer' });
 		await expect(addCaptionBtn).toBeVisible();
 		await addCaptionBtn.click();
 
@@ -120,7 +120,7 @@ test.describe('Gate P: Captions System E2E', () => {
 		page
 	}) => {
 		// 1. Add caption cue
-		await page.getByRole('button', { name: '+ Caption' }).click();
+		await page.getByRole('button', { name: 'Caption Layer' }).click();
 		const captionsTab = page.locator('#captions-panel-title');
 		await captionsTab.click();
 
@@ -213,7 +213,7 @@ test.describe('Gate P: Captions System E2E', () => {
 		page
 	}) => {
 		// 1. Add caption cue 1 at 0
-		await page.getByRole('button', { name: '+ Caption' }).click();
+		await page.getByRole('button', { name: 'Caption Layer' }).click();
 
 		// 2. Seek to 4s and add caption cue 2
 		await page.evaluate(() => {
@@ -224,7 +224,7 @@ test.describe('Gate P: Captions System E2E', () => {
 			).__TFVE_STORE__;
 			s?.getState().setPlayhead(4_000_000);
 		});
-		await page.getByRole('button', { name: '+ Caption' }).click();
+		await page.getByRole('button', { name: 'Caption Layer' }).click();
 
 		const cues = page.locator('.caption-segment-view');
 		await expect(cues).toHaveCount(2);

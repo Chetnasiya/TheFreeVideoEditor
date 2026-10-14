@@ -36,8 +36,6 @@ export default function TimelineToolbar({
 	sequenceTabs,
 	isMaximized = false,
 	onToggleMaximize,
-	snapToMarkers = true,
-	onToggleSnapToMarkers,
 	markerCount,
 	pixelsPerSecond,
 	onSplit,
@@ -45,7 +43,6 @@ export default function TimelineToolbar({
 	onRippleDelete,
 	onZoom,
 	onFit,
-	onAddTrack,
 	onAddAdjustment,
 	onAddSolid,
 	onAddText,
@@ -129,82 +126,16 @@ export default function TimelineToolbar({
 						</svg>
 						<span>Ripple</span>
 					</button>
-					{onToggleSnapToMarkers && (
-						<button
-							className={`tool-button ${snapToMarkers ? 'is-active' : ''}`}
-							type="button"
-							aria-pressed={snapToMarkers}
-							onClick={onToggleSnapToMarkers}
-							title="Snap to markers (start and duration ends)"
-							aria-label="Snap to markers"
-						>
-							<svg
-								className="tool-btn-icon"
-								viewBox="0 0 16 16"
-								width="12"
-								height="12"
-								fill="currentColor"
-								aria-hidden="true"
-							>
-								<path d="M4 2v12h1.5V9.5h6l-1.5-3.5 1.5-4H5.5V2H4z" />
-							</svg>
-							<span>Snap to Markers</span>
-						</button>
-					)}
 				</div>
 				<div className="timeline-toolbar-separator" aria-hidden="true" />
-				<div className="timeline-tool-group" role="group" aria-label="Add tracks and layers">
-					{onAddTrack && (
-						<>
-							<button
-								type="button"
-								className="tool-button"
-								onClick={() => onAddTrack('video')}
-								title="Add video track"
-								aria-label="+ Video Track"
-							>
-								<svg
-									className="tool-btn-icon"
-									viewBox="0 0 16 16"
-									width="12"
-									height="12"
-									fill="currentColor"
-									aria-hidden="true"
-								>
-									<path d="M0 3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2.5l3.5-2.5v9L12 10.5V13a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3z" />
-								</svg>
-								<span>+ Video</span>
-							</button>
-							<button
-								type="button"
-								className="tool-button"
-								onClick={() => onAddTrack('audio')}
-								title="Add audio track"
-								aria-label="+ Audio Track"
-							>
-								<svg
-									className="tool-btn-icon"
-									viewBox="0 0 16 16"
-									width="12"
-									height="12"
-									fill="currentColor"
-									aria-hidden="true"
-								>
-									<path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z" />
-									<path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.482 5.482 0 0 1 11.025 8a5.482 5.482 0 0 1-1.61 3.89l.706.706z" />
-									<path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A1.5 1.5 0 0 1 0 9V7a1.5 1.5 0 0 1 1.5-1.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z" />
-								</svg>
-								<span>+ Audio</span>
-							</button>
-						</>
-					)}
+				<div className="timeline-tool-group" role="group" aria-label="Add layers">
 					{onAddAdjustment && (
 						<button
 							type="button"
 							className="tool-button"
 							onClick={onAddAdjustment}
 							title="Add adjustment layer across sequence"
-							aria-label="+ Adjustment Layer"
+							aria-label="Adjustment Layer"
 						>
 							<svg
 								className="tool-btn-icon"
@@ -216,7 +147,7 @@ export default function TimelineToolbar({
 							>
 								<path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5v11A5.5 5.5 0 0 1 8 2.5z" />
 							</svg>
-							<span>+ Adjust</span>
+							<span>Adjustment Layer</span>
 						</button>
 					)}
 					{onAddSolid && (
@@ -225,7 +156,7 @@ export default function TimelineToolbar({
 							className="tool-button"
 							onClick={onAddSolid}
 							title="Add solid color layer"
-							aria-label="+ Solid Layer"
+							aria-label="Solid Layer"
 						>
 							<svg
 								className="tool-btn-icon"
@@ -237,7 +168,7 @@ export default function TimelineToolbar({
 							>
 								<rect x="2" y="2" width="12" height="12" rx="2" />
 							</svg>
-							<span>+ Solid</span>
+							<span>Solid Layer</span>
 						</button>
 					)}
 					{onAddText && (
@@ -246,7 +177,7 @@ export default function TimelineToolbar({
 							className="tool-button"
 							onClick={onAddText}
 							title="Add text clip at playhead"
-							aria-label="+ Text"
+							aria-label="Text Layer"
 						>
 							<svg
 								className="tool-btn-icon"
@@ -258,7 +189,7 @@ export default function TimelineToolbar({
 							>
 								<path d="M2.5 3v2h4.25v8h2.5V5H13.5V3h-11z" />
 							</svg>
-							<span>+ Text</span>
+							<span>Text Layer</span>
 						</button>
 					)}
 					{onAddCaption && (
@@ -267,7 +198,7 @@ export default function TimelineToolbar({
 							className="tool-button"
 							onClick={onAddCaption}
 							title="Add caption track or subtitle cue"
-							aria-label="+ Caption Layer"
+							aria-label="Caption Layer"
 						>
 							<svg
 								className="tool-btn-icon"
@@ -279,7 +210,7 @@ export default function TimelineToolbar({
 							>
 								<path d="M2 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1.5v2.5L7 13h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H2zm3.5 3h1.5a.5.5 0 0 1 .5.5v.5h-1v-.5H5.5v3H6v-.5h1v.5a.5.5 0 0 1-.5.5h-1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5zm5 0H12a.5.5 0 0 1 .5.5v.5h-1v-.5H10.5v3H11v-.5h1v.5a.5.5 0 0 1-.5.5h-1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5z" />
 							</svg>
-							<span>+ Caption</span>
+							<span>Caption Layer</span>
 						</button>
 					)}
 				</div>

@@ -1,0 +1,206 @@
+---
+interface Props {
+	variant?: 'button' | 'badge' | 'script' | 'card';
+	text?: string;
+	className?: string;
+}
+
+const {
+	variant = 'button',
+	text = 'Buy me a coffee',
+	className = ''
+} = Astro.props;
+---
+
+{
+	variant === 'script' ? (
+		<div class:list={['bmc-script-wrapper', className]}>
+			<script
+				is:inline
+				type="text/javascript"
+				src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js"
+				data-name="bmc-button"
+				data-slug="beestack"
+				data-color="#FFDD00"
+				data-emoji=""
+				data-font="Cookie"
+				data-text={text}
+				data-outline-color="#000000"
+				data-font-color="#000000"
+				data-coffee-color="#ffffff"
+			/>
+		</div>
+	) : variant === 'card' ? (
+		<div class:list={['bmc-card-container', className]}>
+			<div class="bmc-card-inner">
+				<div class="bmc-card-icon" aria-hidden="true">
+					☕
+				</div>
+				<div class="bmc-card-content">
+					<h3 class="bmc-card-title">Support The Free Video Editor</h3>
+					<p class="bmc-card-desc">
+						This project is 100% free, private, and open-source. Buy us a coffee to support continuous development!
+					</p>
+				</div>
+				<a
+					href="https://buymeacoffee.com/beestack"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="bmc-btn-link"
+					aria-label="Buy me a coffee on buymeacoffee.com"
+				>
+					<img
+						src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+						alt=""
+						width="22"
+						height="22"
+						loading="lazy"
+						class="bmc-logo"
+					/>
+					<span class="bmc-btn-text">{text}</span>
+				</a>
+			</div>
+		</div>
+	) : variant === 'badge' ? (
+		<a
+			href="https://buymeacoffee.com/beestack"
+			target="_blank"
+			rel="noopener noreferrer"
+			class:list={['bmc-badge-link', className]}
+			aria-label="Buy me a coffee on buymeacoffee.com"
+		>
+			<img
+				src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+				alt=""
+				width="16"
+				height="16"
+				loading="lazy"
+				class="bmc-logo"
+			/>
+			<span class="bmc-badge-text">{text}</span>
+		</a>
+	) : (
+		<a
+			href="https://buymeacoffee.com/beestack"
+			target="_blank"
+			rel="noopener noreferrer"
+			class:list={['bmc-btn-link', className]}
+			aria-label="Buy me a coffee on buymeacoffee.com"
+		>
+			<img
+				src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+				alt=""
+				width="20"
+				height="20"
+				loading="lazy"
+				class="bmc-logo"
+			/>
+			<span class="bmc-btn-text">{text}</span>
+		</a>
+	)
+}
+
+<style>
+	.bmc-btn-link {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.55rem;
+		background: #ffdd00;
+		color: #000000 !important;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+		font-size: 0.9375rem;
+		font-weight: 700;
+		padding: 0.625rem 1.25rem;
+		border-radius: 10px;
+		text-decoration: none !important;
+		box-shadow: 0 4px 14px rgba(255, 221, 0, 0.25);
+		transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, filter 0.18s ease;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.bmc-btn-link:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(255, 221, 0, 0.4);
+		filter: brightness(1.03);
+	}
+
+	.bmc-btn-link:active {
+		transform: translateY(0);
+		box-shadow: 0 2px 8px rgba(255, 221, 0, 0.3);
+	}
+
+	.bmc-badge-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		background: #ffdd00;
+		color: #000000 !important;
+		font-size: 0.8125rem;
+		font-weight: 700;
+		padding: 0.35rem 0.75rem;
+		border-radius: 8px;
+		text-decoration: none !important;
+		box-shadow: 0 2px 8px rgba(255, 221, 0, 0.2);
+		transition: transform 0.15s ease, box-shadow 0.15s ease;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.bmc-badge-link:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px rgba(255, 221, 0, 0.35);
+	}
+
+	.bmc-logo {
+		display: block;
+		flex-shrink: 0;
+	}
+
+	.bmc-card-container {
+		margin: 2.5rem 0;
+		border-radius: 14px;
+		background: linear-gradient(135deg, rgba(255, 221, 0, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+		border: 1px solid rgba(255, 221, 0, 0.25);
+		padding: 1.75rem;
+		box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+	}
+
+	.bmc-card-inner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.5rem;
+		flex-wrap: wrap;
+	}
+
+	.bmc-card-icon {
+		font-size: 2.25rem;
+		line-height: 1;
+		flex-shrink: 0;
+	}
+
+	.bmc-card-content {
+		flex: 1 1 300px;
+	}
+
+	.bmc-card-title {
+		font-size: 1.15rem;
+		font-weight: 700;
+		color: #ffffff;
+		margin: 0 0 0.35rem 0;
+	}
+
+	.bmc-card-desc {
+		font-size: 0.875rem;
+		color: #94a3b8;
+		margin: 0;
+		line-height: 1.5;
+	}
+
+	.bmc-script-wrapper {
+		display: inline-block;
+	}
+</style>
+
