@@ -15,6 +15,50 @@ interface TextSectionProps {
 	onCancelDisableConfirm: () => void;
 }
 
+const ALL_FONTS = [
+    // Sans-Serif
+    { family: 'MyCustomFont', displayName: 'My Custom Font', category: 'custom' },
+
+    { family: 'Inter', displayName: 'Inter (Sans)', category: 'sans' },
+    { family: 'Roboto', displayName: 'Roboto', category: 'sans' },
+    { family: 'Open Sans', displayName: 'Open Sans', category: 'sans' },
+    { family: 'Lato', displayName: 'Lato', category: 'sans' },
+    { family: 'Poppins', displayName: 'Poppins', category: 'sans' },
+    { family: 'Montserrat', displayName: 'Montserrat', category: 'display' },
+    { family: 'Raleway', displayName: 'Raleway', category: 'sans' },
+    { family: 'Nunito', displayName: 'Nunito', category: 'sans' },
+    { family: 'Ubuntu', displayName: 'Ubuntu', category: 'sans' },
+    { family: 'Work Sans', displayName: 'Work Sans', category: 'sans' },
+    { family: 'Rubik', displayName: 'Rubik', category: 'sans' },
+
+    // Serif & Display
+    { family: 'Playfair Display', displayName: 'Playfair Display', category: 'serif' },
+    { family: 'Merriweather', displayName: 'Merriweather', category: 'serif' },
+    { family: 'Lora', displayName: 'Lora', category: 'serif' },
+    { family: 'Cinzel', displayName: 'Cinzel', category: 'display' },
+    { family: 'Bodoni Moda', displayName: 'Bodoni Moda', category: 'display' },
+    { family: 'Abril Fatface', displayName: 'Abril Fatface', category: 'display' },
+    { family: 'Bebas Neue', displayName: 'Bebas Neue', category: 'condensed' },
+    { family: 'Oswald', displayName: 'Oswald', category: 'condensed' },
+    { family: 'Anton', displayName: 'Anton', category: 'display' },
+    { family: 'Lobster', displayName: 'Lobster', category: 'display' },
+
+    // Handwriting & Script
+    { family: 'Caveat', displayName: 'Caveat', category: 'handwriting' },
+    { family: 'Pacifico', displayName: 'Pacifico', category: 'handwriting' },
+    { family: 'Dancing Script', displayName: 'Dancing Script', category: 'handwriting' },
+    { family: 'Great Vibes', displayName: 'Great Vibes', category: 'handwriting' },
+    { family: 'Sacramento', displayName: 'Sacramento', category: 'handwriting' },
+    { family: 'Satisfy', displayName: 'Satisfy', category: 'handwriting' },
+
+    // Monospace
+    { family: 'Roboto Mono', displayName: 'Roboto Mono', category: 'mono' },
+    { family: 'Fira Code', displayName: 'Fira Code', category: 'mono' },
+    { family: 'JetBrains Mono', displayName: 'JetBrains Mono', category: 'mono' },
+    { family: 'Space Mono', displayName: 'Space Mono', category: 'mono' },
+    { family: 'Source Code Pro', displayName: 'Source Code Pro', category: 'mono' }
+];
+
 export function TextSection({
 	clip,
 	localTime,
@@ -129,11 +173,10 @@ export function TextSection({
 		store.getState().setProperty(clip.id, 'position', [newX, newY], { autoKey: true });
 	};
 
-	const filteredFonts = BUNDLED_FONTS.filter(
-		(f) =>
-			f.displayName.toLowerCase().includes(fontSearch.toLowerCase()) ||
-			f.family.toLowerCase().includes(fontSearch.toLowerCase())
-	);
+	const filteredFonts = ALL_FONTS.filter((font) =>
+    font.displayName.toLowerCase().includes(fontSearch.toLowerCase()) ||
+    font.category.toLowerCase().includes(fontSearch.toLowerCase())
+);
 
 	return (
 		<div className="inspector-section-content text-section-container">
@@ -214,82 +257,98 @@ export function TextSection({
 			</div>
 
 			{/* Font Family Picker */}
-			<div className="property-row">
-				<div className="property-header">
-					<span className="property-label">Font Family</span>
-				</div>
-				<div className="relative w-full">
-					<button
-						type="button"
-						className="font-picker-btn"
-						onClick={() => setFontPickerOpen(!fontPickerOpen)}
-						aria-label="Select font family"
-					>
-						<span style={{ fontFamily: textStyle.fontFamily || 'sans-serif' }}>
-							{textStyle.fontFamily || 'sans-serif'}
-						</span>
-						<svg
-							width="10"
-							height="10"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2.5"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							style={{
-								transform: fontPickerOpen ? 'rotate(180deg)' : 'none',
-								transition: 'transform 0.15s ease'
-							}}
-							aria-hidden="true"
-						>
-							<polyline points="6 9 12 15 18 9" />
-						</svg>
-					</button>
+<div className="property-row">
+    <div className="property-header">
+        <span className="property-label">Font Family</span>
+    </div>
+    <div className="relative w-full">
+        <button
+            type="button"
+            className="font-picker-btn"
+            onClick={() => setFontPickerOpen(!fontPickerOpen)}
+            aria-label="Select font family"
+        >
+            <span style={{ fontFamily: textStyle.fontFamily || 'sans-serif' }}>
+                {textStyle.fontFamily || 'sans-serif'}
+            </span>
+            <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                    transform: fontPickerOpen ? 'rotate(180deg)' : 'none',
+                    transition: 'transform 0.15s ease'
+                }}
+                aria-hidden="true"
+            >
+                <polyline points="6 9 12 15 18 9" />
+            </svg>
+        </button>
 
-					{fontPickerOpen && (
-						<div className="font-picker-dropdown">
-							<input
-								type="text"
-								className="font-search-input"
-								placeholder="Search fonts..."
-								value={fontSearch}
-								onChange={(e) => setFontSearch(e.target.value)}
-								autoFocus
-							/>
-							<div className="flex flex-col gap-0.5">
-								<button
-									type="button"
-									className="font-option-btn"
-									onClick={() => handleFontSelect('sans-serif')}
-								>
-									<span>System Sans-Serif</span>
-								</button>
-								<button
-									type="button"
-									className="font-option-btn"
-									onClick={() => handleFontSelect('monospace')}
-								>
-									<span style={{ fontFamily: 'monospace' }}>System Monospace</span>
-								</button>
-								{filteredFonts.map((font) => (
-									<button
-										key={font.family}
-										type="button"
-										className="font-option-btn"
-										onClick={() => handleFontSelect(font.family)}
-									>
-										<span style={{ fontFamily: font.family }}>{font.displayName}</span>
-										<span className="rounded border border-[#242430] bg-[#1a1a24] px-1.5 py-0.5 font-mono text-[9px] text-[#64748b]">
-											{font.category}
-										</span>
-									</button>
-								))}
-							</div>
-						</div>
-					)}
-				</div>
-			</div>
+        {fontPickerOpen && (
+            <div className="font-picker-dropdown">
+                <input
+                    type="text"
+                    className="font-search-input"
+                    placeholder="Search 30+ fonts..."
+                    value={fontSearch}
+                    onChange={(e) => setFontSearch(e.target.value)}
+                    autoFocus
+                />
+                <div className="flex max-h-60 flex-col gap-0.5 overflow-y-auto">
+                    <button
+                        type="button"
+                        className="font-option-btn"
+                        onClick={() => {
+                            handleFontSelect('sans-serif');
+                            setFontPickerOpen(false);
+                        }}
+                    >
+                        <span>System Sans-Serif</span>
+                    </button>
+                    <button
+                        type="button"
+                        className="font-option-btn"
+                        onClick={() => {
+                            handleFontSelect('monospace');
+                            setFontPickerOpen(false);
+                        }}
+                    >
+                        <span style={{ fontFamily: 'monospace' }}>System Monospace</span>
+                    </button>
+
+                    {filteredFonts.map((font) => (
+                        <button
+                            key={font.family}
+                            type="button"
+                            className="font-option-btn flex items-center justify-between"
+                            onClick={() => {
+                                handleFontSelect(font.family);
+                                setFontPickerOpen(false);
+                            }}
+                        >
+                            <span style={{ fontFamily: font.family }}>{font.displayName}</span>
+                            <span className="rounded border border-[#242430] bg-[#1a1a24] px-1.5 py-0.5 font-mono text-[9px] text-[#64748b]">
+                                {font.category}
+                            </span>
+                        </button>
+                    ))}
+
+                    {filteredFonts.length === 0 && (
+                        <div className="p-2 text-center text-xs text-gray-400">
+                            No fonts found for "{fontSearch}"
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+    </div>
+</div>
 
 			{/* Font Weight & Style */}
 			<div className="flex gap-2">
