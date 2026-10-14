@@ -208,6 +208,18 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 								<span className="tracking-pts-badge" title="Tracked sample points">
 									{selectedTracker.samples.length} pts
 								</span>
+								{selectedTracker.samples.length > 0 && (
+									<button
+										type="button"
+										onClick={() =>
+											store.getState().updateTracker(clip.id, selectedTracker.id, { samples: [] })
+										}
+										className="rounded bg-[#1e293b] px-1.5 py-0.5 text-[10px] text-amber-400/90 transition-colors hover:bg-amber-500/20 hover:text-amber-300"
+										title="Clear tracked sample points"
+									>
+										Clear
+									</button>
+								)}
 								<button
 									type="button"
 									onClick={() => handleRemoveTracker(selectedTracker.id)}
@@ -299,6 +311,157 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 										% size
 									</span>
 								)}
+							</div>
+
+							{/* Tracker Box Size & Search Controls */}
+							<div className="flex flex-col gap-2 rounded-md border border-[#334155]/60 bg-[#0f172a]/60 p-2.5">
+								<div className="flex items-center justify-between text-[11px] font-medium text-[#cbd5e1]">
+									<span>Tracker Box Size</span>
+									<div className="flex items-center gap-1.5 text-[10px]">
+										<button
+											type="button"
+											onClick={() => {
+												store.getState().updateTracker(clip.id, selectedTracker.id, {
+													initialRegion: {
+														...selectedTracker.initialRegion,
+														width: 0.05,
+														height: 0.05
+													}
+												});
+											}}
+											className="rounded bg-[#1e293b] px-1.5 py-0.5 text-[#94a3b8] transition-colors hover:bg-[#334155] hover:text-white"
+											title="Small 5% size"
+										>
+											Small
+										</button>
+										<button
+											type="button"
+											onClick={() => {
+												store.getState().updateTracker(clip.id, selectedTracker.id, {
+													initialRegion: {
+														...selectedTracker.initialRegion,
+														width: 0.08,
+														height: 0.08
+													}
+												});
+											}}
+											className="rounded bg-[#1e293b] px-1.5 py-0.5 text-[#94a3b8] transition-colors hover:bg-[#334155] hover:text-white"
+											title="Default 8% size"
+										>
+											Med
+										</button>
+										<button
+											type="button"
+											onClick={() => {
+												store.getState().updateTracker(clip.id, selectedTracker.id, {
+													initialRegion: {
+														...selectedTracker.initialRegion,
+														width: 0.15,
+														height: 0.15
+													}
+												});
+											}}
+											className="rounded bg-[#1e293b] px-1.5 py-0.5 text-[#94a3b8] transition-colors hover:bg-[#334155] hover:text-white"
+											title="Large 15% size"
+										>
+											Large
+										</button>
+										<button
+											type="button"
+											onClick={() => {
+												store.getState().updateTracker(clip.id, selectedTracker.id, {
+													initialRegion: {
+														...selectedTracker.initialRegion,
+														width: 0.25,
+														height: 0.25
+													}
+												});
+											}}
+											className="rounded bg-[#1e293b] px-1.5 py-0.5 text-[#94a3b8] transition-colors hover:bg-[#334155] hover:text-white"
+											title="Extra Large 25% size"
+										>
+											XL
+										</button>
+									</div>
+								</div>
+
+								{/* Width Slider */}
+								<div className="flex items-center gap-2 text-[11px]">
+									<span className="w-12 text-[#94a3b8]">Width:</span>
+									<input
+										type="range"
+										min="2"
+										max="40"
+										step="1"
+										value={Math.round(selectedTracker.initialRegion.width * 100)}
+										onChange={(e) => {
+											const val = parseFloat(e.target.value) / 100;
+											store.getState().updateTracker(clip.id, selectedTracker.id, {
+												initialRegion: {
+													...selectedTracker.initialRegion,
+													width: val
+												}
+											});
+										}}
+										className="h-1.5 flex-1 cursor-pointer accent-[#38bdf8]"
+										aria-label="Tracker feature box width"
+									/>
+									<span className="w-10 text-right font-mono text-[#38bdf8]">
+										{Math.round(selectedTracker.initialRegion.width * 100)}%
+									</span>
+								</div>
+
+								{/* Height Slider */}
+								<div className="flex items-center gap-2 text-[11px]">
+									<span className="w-12 text-[#94a3b8]">Height:</span>
+									<input
+										type="range"
+										min="2"
+										max="40"
+										step="1"
+										value={Math.round(selectedTracker.initialRegion.height * 100)}
+										onChange={(e) => {
+											const val = parseFloat(e.target.value) / 100;
+											store.getState().updateTracker(clip.id, selectedTracker.id, {
+												initialRegion: {
+													...selectedTracker.initialRegion,
+													height: val
+												}
+											});
+										}}
+										className="h-1.5 flex-1 cursor-pointer accent-[#38bdf8]"
+										aria-label="Tracker feature box height"
+									/>
+									<span className="w-10 text-right font-mono text-[#38bdf8]">
+										{Math.round(selectedTracker.initialRegion.height * 100)}%
+									</span>
+								</div>
+
+								{/* Search Multiplier Slider */}
+								<div className="flex items-center gap-2 text-[11px]">
+									<span className="w-12 text-[#94a3b8]">Search:</span>
+									<input
+										type="range"
+										min="1.2"
+										max="5.0"
+										step="0.1"
+										value={selectedTracker.initialRegion.searchMultiplier ?? 2.5}
+										onChange={(e) => {
+											const val = parseFloat(e.target.value);
+											store.getState().updateTracker(clip.id, selectedTracker.id, {
+												initialRegion: {
+													...selectedTracker.initialRegion,
+													searchMultiplier: val
+												}
+											});
+										}}
+										className="h-1.5 flex-1 cursor-pointer accent-[#fbbf24]"
+										aria-label="Tracker search area multiplier"
+									/>
+									<span className="w-10 text-right font-mono text-[#fbbf24]">
+										{(selectedTracker.initialRegion.searchMultiplier ?? 2.5).toFixed(1)}×
+									</span>
+								</div>
 							</div>
 
 							{/* Direction Controls (Segmented Pill Group) */}

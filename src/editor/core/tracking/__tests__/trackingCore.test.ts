@@ -234,4 +234,95 @@ describe('evaluateTracker & Smoothing', () => {
 		expect(smoothed[2]!.x).toBeGreaterThan(8.5);
 		expect(smoothed[2]!.x).toBeLessThan(11.5);
 	});
+
+	it('merges backward and forward samples maintaining strict ascending order and seamless evaluation', () => {
+		// Forward tracking from 1s to 2s
+		const forwardSamples: TrackerSample[] = [
+			{ sourceTime: 1_000_000, x: 0.5, y: 0.5, rotation: 0, scale: 1, confidence: 1 },
+			{ sourceTime: 1_500_000, x: 0.6, y: 0.55, rotation: 0, scale: 1.1, confidence: 1 },
+			{ sourceTime: 2_000_000, x: 0.7, y: 0.6, rotation: 0, scale: 1.2, confidence: 1 }
+		];
+
+		// Backward tracking from 1s down to 0s (received in descending order from backward pass)
+		const backwardSamples: TrackerSample[] = [
+			{ sourceTime: 1_000_000, x: 0.5, y: 0.5, rotation: 0, scale: 1, confidence: 1 },
+			{ sourceTime: 500_000, x: 0.4, y: 0.45, rotation: 0, scale: 0.9, confidence: 1 },
+			{ sourceTime: 0, x: 0.3, y: 0.4, rotation: 0, scale: 0.8, confidence: 1 }
+		];
+
+		// Deduplicate by timestamp and sort ascending
+		const sampleMap = new Map<number, TrackerSample>();
+		for (const s of forwardSamples) sampleMap.set(s.sourceTime, s);
+		for (const s of backwardSamples) sampleMap.set(s.sourceTime, s);
+		const mergedSamples = Array.from(sampleMap.values()).sort(
+			(a, b) => a.sourceTime - b.sourceTime
+		);
+
+		expect(mergedSamples.length).toBe(5);
+		expect(mergedSamples.map((s) => s.sourceTime)).toEqual([
+			0, 500_000, 1_000_000, 1_500_000, 2_000_000
+		]);
+
+		const tracker: Tracker = {
+			id: 'trk-bidirectional' as TrackerId,
+			name: 'Bidirectional Tracker',
+			type: 'point',
+			enabled: true,
+			seedTime: 1_000_000,
+			initialRegion: { x: 0.5, y: 0.5, width: 0.08, height: 0.08, searchMultiplier: 2.5 },
+			params: {
+				trackTranslation: true,
+				trackRotation: false,
+				trackScale: true,
+				pyramidLevels: 4,
+				searchRadiusPx: 32,
+				maxIterations: 25,
+				tolerance: 0.01,
+				nccThreshold: 0.5,
+				huberThreshold: 0.1,
+				confidenceThreshold: 0.4
+			},
+			samples: mergedSamples
+		};
+
+		// Test evaluation at backward time 250ms
+		const earlyState = evaluateTracker(tracker, 250_000);
+		expect(earlyState.x).toBeCloseTo(0.35, 4);
+		expect(earlyState.y).toBeCloseTo(0.425, 4);
+		expect(earlyState.scale).toBeCloseTo(0.85, 4);
+
+		// Test evaluation at forward time 1750ms
+		const lateState = evaluateTracker(tracker, 1_750_000);
+		expect(lateState.x).toBeCloseTo(0.65, 4);
+		expect(lateState.y).toBeCloseTo(0.575, 4);
+		expect(lateState.scale).toBeCloseTo(1.15, 4);
+	});
+
+	it('supports configuring tracker box dimensions and search multipliers', () => {
+		const tracker: Tracker = {
+			id: 'trk-size' as TrackerId,
+			name: 'Size Tracker',
+			type: 'point',
+			enabled: true,
+			seedTime: 0,
+			initialRegion: { x: 0.5, y: 0.5, width: 0.15, height: 0.12, searchMultiplier: 3.5 },
+			params: {
+				trackTranslation: true,
+				trackRotation: false,
+				trackScale: false,
+				pyramidLevels: 4,
+				searchRadiusPx: 48,
+				maxIterations: 25,
+				tolerance: 0.01,
+				nccThreshold: 0.5,
+				huberThreshold: 0.1,
+				confidenceThreshold: 0.4
+			},
+			samples: []
+		};
+
+		expect(tracker.initialRegion.width).toBe(0.15);
+		expect(tracker.initialRegion.height).toBe(0.12);
+		expect(tracker.initialRegion.searchMultiplier).toBe(3.5);
+	});
 });

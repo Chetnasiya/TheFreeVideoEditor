@@ -85,6 +85,26 @@ test('tracking slice 1: add point tracker on track-target.mp4, move search/featu
 	const trailPolyline = overlay.locator('polyline');
 	await expect(trailPolyline).toBeVisible();
 
+	// Verify resize handles on feature box and search box
+	const resizeHandleSE = page.locator('[data-testid="tracker-resize-handle-se"]');
+	await expect(resizeHandleSE).toBeVisible();
+	const searchResizeHandle = page.locator('[data-testid="tracker-search-resize-handle"]');
+	await expect(searchResizeHandle).toBeVisible();
+
+	// Verify Tracker Box Size controls in Inspector and apply Large preset (15%)
+	const largePresetBtn = inspector.getByRole('button', { name: 'Large' });
+	await expect(largePresetBtn).toBeVisible();
+	await largePresetBtn.click();
+	await expect(inspector.getByText('15%')).toHaveCount(2);
+
+	// Verify Track Backward works and updates the tracking trail
+	const trackBackBtn = inspector.getByRole('button', { name: /Track Backward/i });
+	await expect(trackBackBtn).toBeVisible();
+	await trackBackBtn.click();
+	await expect(inspector.getByText(/Tracking frame/i)).toBeVisible({ timeout: 5_000 });
+	await expect(inspector.getByText(/Tracking frame/i)).toBeHidden({ timeout: 45_000 });
+	await expect(trailPolyline).toBeVisible();
+
 	// Assert no console errors occurred
 	expect(browserProblems).toEqual([]);
 });

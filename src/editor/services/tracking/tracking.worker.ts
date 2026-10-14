@@ -144,15 +144,25 @@ scope.addEventListener('message', async (e: MessageEvent<TrackingWorkerInMessage
 			let prevPrevNormX = normRegion.x;
 			let prevPrevNormY = normRegion.y;
 
-			const halfW = Math.max(4, Math.round((normRegion.width * seedGray.width) / 2));
-			const halfH = Math.max(4, Math.round((normRegion.height * seedGray.height) / 2));
-			const activePatch = extractNormalizedPatch(
-				seedGray,
-				normRegion.x * seedGray.width,
-				normRegion.y * seedGray.height,
-				halfW,
-				halfH
+			const maxHalfW = Math.max(4, Math.floor((seedGray.width - 2) / 2));
+			const maxHalfH = Math.max(4, Math.floor((seedGray.height - 2) / 2));
+			const halfW = Math.max(
+				4,
+				Math.min(maxHalfW, Math.round((normRegion.width * seedGray.width) / 2))
 			);
+			const halfH = Math.max(
+				4,
+				Math.min(maxHalfH, Math.round((normRegion.height * seedGray.height) / 2))
+			);
+			const clampedPxX = Math.max(
+				halfW,
+				Math.min(seedGray.width - 1 - halfW, normRegion.x * seedGray.width)
+			);
+			const clampedPxY = Math.max(
+				halfH,
+				Math.min(seedGray.height - 1 - halfH, normRegion.y * seedGray.height)
+			);
+			const activePatch = extractNormalizedPatch(seedGray, clampedPxX, clampedPxY, halfW, halfH);
 
 			if (!activePatch) {
 				throw new Error('Initial tracker region is out of bounds or invalid.');

@@ -115,12 +115,14 @@ import {
 	type Tracker,
 	type TrackerId,
 	type TrackerRegion,
+	type TrackerSample,
 	type TrackerType
 } from '../core';
 import { trackingService } from '../services/tracking/trackingService';
 import { captureBindingOffsets, bakeTrackingToKeyframes } from '../core/tracking/apply';
 import { bakeTrackingToMask } from '../core/tracking/maskTracking';
 import { computeStabilization, bakeStabilizationToClip } from '../core/tracking/stabilize';
+import { evaluateTracker } from '../core/tracking/evaluateTracker';
 import {
 	addMarker as addMarkerCore,
 	updateMarker as updateMarkerCore,
@@ -6641,17 +6643,62 @@ export function createEditorStore() {
 					const tracker = targetClip.trackers?.find((t) => t.id === trackerId);
 					if (!tracker) return false;
 
+					// Determine effective seed time and starting region based on direction & playhead position
+					const playhead = get().timeline.playhead;
+					const clipStart = targetClip.start;
+					const clipEnd = targetClip.start + targetClip.duration;
+					const speed = targetClip.speed ?? 1.0;
+					const isPlayheadInsideClip = playhead >= clipStart && playhead <= clipEnd;
+					const playheadSourceTime =
+						targetClip.sourceIn + Math.round((playhead - clipStart) * speed);
+
+					let effectiveSeedTime: number;
+					if (direction === 'backward') {
+						if (isPlayheadInsideClip && playheadSourceTime > targetClip.sourceIn) {
+							effectiveSeedTime = Math.min(targetClip.sourceOut, playheadSourceTime);
+						} else if (tracker.samples && tracker.samples.length > 0) {
+							const minSampleTime = Math.min(...tracker.samples.map((s) => s.sourceTime));
+							effectiveSeedTime =
+								minSampleTime > targetClip.sourceIn ? minSampleTime : targetClip.sourceOut;
+						} else {
+							effectiveSeedTime = targetClip.sourceOut;
+						}
+					} else {
+						// Forward tracking
+						if (isPlayheadInsideClip && playheadSourceTime < targetClip.sourceOut) {
+							effectiveSeedTime = Math.max(targetClip.sourceIn, playheadSourceTime);
+						} else if (tracker.samples && tracker.samples.length > 0) {
+							const maxSampleTime = Math.max(...tracker.samples.map((s) => s.sourceTime));
+							effectiveSeedTime =
+								maxSampleTime < targetClip.sourceOut ? maxSampleTime : targetClip.sourceIn;
+						} else {
+							effectiveSeedTime = targetClip.sourceIn;
+						}
+					}
+
+					// Evaluate tracker state at effective seed time so tracking starts from current position & scale
+					const seedState = evaluateTracker(tracker, effectiveSeedTime);
+					const effectiveTracker: Tracker = {
+						...tracker,
+						seedTime: effectiveSeedTime,
+						initialRegion: {
+							...tracker.initialRegion,
+							x: seedState.x,
+							y: seedState.y
+						}
+					};
+
 					set((state) => {
 						state.isTrackingActive = true;
 						state.trackingProgress = { processedFrames: 0, totalFrames: 1 };
 					});
 
 					try {
-						const samples = await trackingService.track(
+						const newSamples = await trackingService.track(
 							project.id,
 							asset,
 							targetClip,
-							tracker,
+							effectiveTracker,
 							direction,
 							(prog) => {
 								set((state) => {
@@ -6663,7 +6710,22 @@ export function createEditorStore() {
 							}
 						);
 
-						get().updateTracker(clipId, trackerId, { samples });
+						// Merge new samples with any existing samples, deduplicating by sourceTime and sorting ascending
+						const sampleMap = new Map<number, TrackerSample>();
+						for (const s of tracker.samples ?? []) {
+							sampleMap.set(s.sourceTime, s);
+						}
+						for (const s of newSamples) {
+							sampleMap.set(s.sourceTime, s);
+						}
+						const mergedSamples = Array.from(sampleMap.values()).sort(
+							(a, b) => a.sourceTime - b.sourceTime
+						);
+
+						get().updateTracker(clipId, trackerId, {
+							seedTime: tracker.samples.length === 0 ? effectiveSeedTime : tracker.seedTime,
+							samples: mergedSamples
+						});
 						return true;
 					} catch (err) {
 						console.error('Tracking error:', err);
