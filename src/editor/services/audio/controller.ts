@@ -41,7 +41,7 @@ export class AudioGraphController {
 	private unavailable = false;
 	private syncRevision = 0;
 	private topologyKey = '';
-	private workletError: string | null = null;
+	private readonly scriptProcessors = new Set<ScriptProcessorNode>();
 	private mockMasterGain: GainNode | null = null;
 	private mockAnalyser: AnalyserNode | null = null;
 
@@ -82,12 +82,17 @@ export class AudioGraphController {
 		return this.workletError;
 	}
 
+	getConnectedCount(): number {
+		return this.connected.size;
+	}
+
 	getNodeCount(): number {
 		let count = this.graph?.getNodeCount?.() ?? 0;
 		// Count clip nodes
 		for (const conn of this.connected.values()) {
 			count += 2; // sourceNode + clipGain
 			if (conn.clipPan) count += 1;
+			if (conn.clipRackNode) count += 1;
 		}
 		return count;
 	}
@@ -107,25 +112,31 @@ export class AudioGraphController {
 	}
 
 	private computeTopologyKey(project: Project): string {
+		const formatEffect = (e: {
+			id: string;
+			type: string;
+			bypass?: boolean;
+			enabled?: boolean;
+			mix?: number;
+			params?: Record<string, unknown>;
+		}) =>
+			`${e.id}:${e.type}:${e.bypass ?? false}:${e.enabled !== false}:${e.mix ?? 1}:${JSON.stringify(e.params ?? {})}`;
+
 		const trackKeys = project.tracks.map((t) => {
-			const effectsKey = (t.audio?.effects ?? [])
-				.map((e) => `${e.id}:${e.type}:${e.bypass}`)
-				.join(',');
+			const effectsKey = (t.audio?.effects ?? []).map(formatEffect).join(',');
 			const clipEffectsKey = t.clips
-				.map(
-					(c) =>
-						`${c.id}:${(c.audioEffects ?? [])
-							.map((e) => `${e.id}:${e.type}:${e.bypass}`)
-							.join(',')}`
-				)
+				.map((c) => `${c.id}:${(c.audioEffects ?? []).map(formatEffect).join(',')}`)
 				.join(';');
-			return `${t.id}:${t.kind}:${t.audio?.output ?? 'master'}:[${effectsKey}]:[${clipEffectsKey}]`;
+			return `${t.id}:${t.kind}:${t.audio?.output ?? 'master'}:${t.audio?.trimDb ?? 0}:[${effectsKey}]:[${clipEffectsKey}]`;
 		});
 		const busKeys = (project.audioBuses ?? []).map((b) => {
-			const effectsKey = (b.effects ?? []).map((e) => `${e.id}:${e.type}:${e.bypass}`).join(',');
+			const effectsKey = (b.effects ?? []).map(formatEffect).join(',');
 			return `${b.id}:${b.output}:[${effectsKey}]`;
 		});
-		return `${trackKeys.join('|')}||${busKeys.join('|')}`;
+		const masterEffectsKey = (project.masterAudio?.effects ?? [])
+			.map(formatEffect)
+			.join(',');
+		return `${trackKeys.join('|')}||${busKeys.join('|')}||${masterEffectsKey}`;
 	}
 
 	updateProject(project: Project): void {
@@ -169,31 +180,123 @@ export class AudioGraphController {
 		}
 	}
 
+	private routeClipTail(
+		conn: ConnectedAudio,
+		project: Project,
+		targetIn?: AudioNode,
+		isNew = false
+	): void {
+		const context = this.context;
+		if (!context) return;
+
+		if (!isNew) {
+			// Disconnect previous DSP node if any and remove reference
+			if (conn.clipRackNode) {
+				try {
+					conn.clipRackNode.disconnect();
+				} catch {}
+				this.scriptProcessors.delete(conn.clipRackNode as ScriptProcessorNode);
+				conn.clipRackNode = undefined;
+			}
+
+			if (conn.clipPan) {
+				try {
+					conn.clipPan.disconnect();
+				} catch {}
+			}
+			try {
+				conn.clipGain.disconnect();
+			} catch {}
+		}
+
+		// Reconnect clipGain to clipPan
+		let clipTail: AudioNode = conn.clipGain;
+		if (conn.clipPan) {
+			conn.clipGain.connect(conn.clipPan);
+			clipTail = conn.clipPan;
+		}
+
+		const fallbackTarget = this.graph?.masterNodes.input ?? this.mockMasterGain ?? context.destination;
+
+		if (typeof context.sampleRate !== 'number') {
+			try {
+				clipTail.connect(targetIn ?? fallbackTarget);
+			} catch {}
+			return;
+		}
+
+		// Build and insert clip DSP rack if active audio effects exist
+		const track = project.tracks.find((t) => t.id === conn.trackId);
+		const clip = track?.clips.find((c) => c.id === conn.clipId);
+		const activeFx = (clip?.audioEffects ?? []).filter(
+			(e) => !e.bypass && e.enabled !== false
+		);
+
+		if (
+			activeFx.length > 0 &&
+			typeof context.createScriptProcessor === 'function'
+		) {
+			const rack = buildAudioRack(activeFx, context.sampleRate, 2);
+			const sp = context.createScriptProcessor(4096, 2, 2);
+			this.scriptProcessors.add(sp);
+			const chBuffers: Float32Array[] = [new Float32Array(4096), new Float32Array(4096)];
+			sp.onaudioprocess = (e) => {
+				const frameCount = e.inputBuffer.length;
+				if (chBuffers[0]!.length < frameCount) {
+					chBuffers[0] = new Float32Array(frameCount);
+					chBuffers[1] = new Float32Array(frameCount);
+				}
+				const in0 = e.inputBuffer.getChannelData(0);
+				const in1 = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : in0;
+				try {
+					chBuffers[0]!.subarray(0, frameCount).set(in0);
+					chBuffers[1]!.subarray(0, frameCount).set(in1);
+					rack.process(chBuffers, frameCount);
+
+					// Sanitize output buffers against NaN / non-finite
+					for (let c = 0; c < 2; c++) {
+						const buf = chBuffers[c]!;
+						for (let s = 0; s < frameCount; s++) {
+							if (!Number.isFinite(buf[s])) {
+								buf[s] = 0;
+							}
+						}
+					}
+
+					e.outputBuffer.getChannelData(0).set(chBuffers[0]!.subarray(0, frameCount));
+					if (e.outputBuffer.numberOfChannels > 1) {
+						e.outputBuffer.getChannelData(1).set(chBuffers[1]!.subarray(0, frameCount));
+					}
+				} catch {
+					e.outputBuffer.getChannelData(0).set(in0);
+					if (e.outputBuffer.numberOfChannels > 1) {
+						e.outputBuffer.getChannelData(1).set(in1);
+					}
+				}
+			};
+			clipTail.connect(sp);
+			clipTail = sp;
+			conn.clipRackNode = sp;
+		}
+
+		try {
+			clipTail.connect(targetIn ?? fallbackTarget);
+		} catch {}
+	}
+
 	private rebuildGraph(project: Project, topologyKey: string): void {
 		const context = this.ensureContext();
 		if (typeof context.sampleRate !== 'number') return;
 		const oldGraph = this.graph;
 
-		// Disconnect all connected media elements from old graph before teardown
-		for (const conn of this.connected.values()) {
-			try {
-				if (conn.clipRackNode) conn.clipRackNode.disconnect();
-				if (conn.clipPan) conn.clipPan.disconnect();
-				conn.clipGain.disconnect();
-			} catch {}
-		}
-
 		const newGraph = buildAudioGraph(context, project, { enableMeters: true });
 		this.graph = newGraph;
 		this.topologyKey = topologyKey;
 
-		// Re-connect active media elements into new graph track inputs
+		// Re-route active media elements into new graph track inputs with updated effect chains
 		for (const conn of this.connected.values()) {
 			const targetIn = newGraph.trackNodes.get(conn.trackId)?.input ?? newGraph.masterNodes.input;
-			const tail: AudioNode = conn.clipRackNode ?? conn.clipPan ?? conn.clipGain;
-			try {
-				tail.connect(targetIn);
-			} catch {}
+			this.routeClipTail(conn, project, targetIn);
 		}
 
 		// Cleanly dispose old graph
@@ -288,14 +391,14 @@ export class AudioGraphController {
 
 		const existing = this.connected.get(element);
 		if (existing) {
-			if (existing.trackId !== trackId && targetIn) {
-				const tail: AudioNode = existing.clipPan ?? existing.clipGain;
-				tail.disconnect();
-				tail.connect(targetIn);
-				existing.trackId = trackId;
-			}
+			const trackChanged = existing.trackId !== trackId;
+			const clipChanged = existing.clipId !== clipId;
 			existing.clipId = clipId;
 			existing.assetId = assetId;
+			existing.trackId = trackId;
+			if ((trackChanged || clipChanged) && this.currentProject) {
+				this.routeClipTail(existing, this.currentProject, targetIn);
+			}
 			return existing;
 		}
 
@@ -309,62 +412,10 @@ export class AudioGraphController {
 		clipGain.gain.value = volume;
 		source.connect(clipGain);
 
-		if (typeof context.sampleRate !== 'number') {
-			clipGain.connect(this.mockMasterGain ?? context.destination);
-			const conn: ConnectedAudio = {
-				clipId,
-				assetId,
-				trackId,
-				element,
-				source,
-				clipGain,
-				volume
-			};
-			this.connected.set(element, conn);
-			return conn;
-		}
-
 		let clipPan: StereoPannerNode | undefined;
-		let clipTail: AudioNode = clipGain;
 		if (typeof context.createStereoPanner === 'function') {
 			clipPan = context.createStereoPanner();
 			clipPan.pan.value = pan;
-			clipGain.connect(clipPan);
-			clipTail = clipPan;
-		}
-
-		let clipRackNode: AudioNode | undefined;
-		const track = this.currentProject?.tracks.find((t) => t.id === trackId);
-		const clip = track?.clips.find((c) => c.id === clipId);
-		if (
-			clip?.audioEffects &&
-			clip.audioEffects.length > 0 &&
-			typeof context.createScriptProcessor === 'function'
-		) {
-			const activeFx = clip.audioEffects.filter((e) => !e.bypass);
-			if (activeFx.length > 0) {
-				const rack = buildAudioRack(activeFx, context.sampleRate, 2);
-				const sp = context.createScriptProcessor(4096, 2, 2);
-				const chBuffers: Float32Array[] = [new Float32Array(4096), new Float32Array(4096)];
-				sp.onaudioprocess = (e) => {
-					const in0 = e.inputBuffer.getChannelData(0);
-					const in1 = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : in0;
-					chBuffers[0]!.set(in0);
-					chBuffers[1]!.set(in1);
-					rack.process(chBuffers, 4096);
-					e.outputBuffer.getChannelData(0).set(chBuffers[0]!);
-					if (e.outputBuffer.numberOfChannels > 1) {
-						e.outputBuffer.getChannelData(1).set(chBuffers[1]!);
-					}
-				};
-				clipTail.connect(sp);
-				clipTail = sp;
-				clipRackNode = sp;
-			}
-		}
-
-		if (targetIn) {
-			clipTail.connect(targetIn);
 		}
 
 		const conn: ConnectedAudio = {
@@ -375,10 +426,16 @@ export class AudioGraphController {
 			source,
 			clipGain,
 			clipPan,
-			clipRackNode,
 			volume: 0
 		};
 		this.connected.set(element, conn);
+
+		if (this.currentProject) {
+			this.routeClipTail(conn, this.currentProject, targetIn, true);
+		} else {
+			clipGain.connect(targetIn ?? context.destination);
+		}
+
 		return conn;
 	}
 
@@ -439,11 +496,24 @@ export class AudioGraphController {
 		const connection = this.connected.get(element);
 		if (!connection) return;
 		element.pause();
-		if (connection.clipPan) {
-			connection.clipPan.disconnect();
+		if (connection.clipRackNode) {
+			try {
+				connection.clipRackNode.disconnect();
+			} catch {}
+			this.scriptProcessors.delete(connection.clipRackNode as ScriptProcessorNode);
+			connection.clipRackNode = undefined;
 		}
-		connection.clipGain.disconnect();
-		connection.source.disconnect();
+		if (connection.clipPan) {
+			try {
+				connection.clipPan.disconnect();
+			} catch {}
+		}
+		try {
+			connection.clipGain.disconnect();
+		} catch {}
+		try {
+			connection.source.disconnect();
+		} catch {}
 		this.connected.delete(element);
 		this.sourceByElement.delete(element);
 	}
@@ -455,6 +525,7 @@ export class AudioGraphController {
 		for (const element of Array.from(this.connected.keys())) {
 			this.releaseElement(element);
 		}
+		this.scriptProcessors.clear();
 		if (this.graph) {
 			this.graph.dispose();
 			this.graph = null;

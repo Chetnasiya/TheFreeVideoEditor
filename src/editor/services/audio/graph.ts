@@ -15,6 +15,7 @@ export interface AudioGraphMeterNodes {
 export interface TrackAudioNodes {
 	input: GainNode;
 	delayNode?: DelayNode;
+	rackNode?: AudioNode;
 	eqNodes?: BiquadFilterNode[];
 	compressorNode?: DynamicsCompressorNode;
 	faderGain: GainNode;
@@ -34,6 +35,7 @@ export interface TrackAudioNodes {
 export interface BusAudioNodes {
 	input: GainNode;
 	delayNode?: DelayNode;
+	rackNode?: AudioNode;
 	faderGain: GainNode;
 	panPanner?: StereoPannerNode;
 	muteGain: GainNode;
@@ -44,6 +46,7 @@ export interface BusAudioNodes {
 
 export interface MasterAudioNodes {
 	input: GainNode;
+	rackNode?: AudioNode;
 	faderGain: GainNode;
 	limiterNode?: DynamicsCompressorNode;
 	clampNode?: WaveShaperNode;
@@ -181,6 +184,58 @@ function buildSingleTrackChain(
 		trackTail = delayNode;
 	}
 
+	// Track Inserts Rack
+	let rackNode: AudioNode | undefined;
+	const activeFx = (tAudio.effects ?? []).filter((e) => !e.bypass && e.enabled !== false);
+	let rack: BuiltAudioRack | undefined;
+	if (activeFx.length > 0) {
+		rack = buildAudioRack(activeFx, ctx.sampleRate, 2);
+		if (typeof ctx.createScriptProcessor === 'function') {
+			const sp = ctx.createScriptProcessor(4096, 2, 2);
+			const chBuffers: Float32Array[] = [new Float32Array(4096), new Float32Array(4096)];
+			sp.onaudioprocess = (e) => {
+				const frameCount = e.inputBuffer.length;
+				if (chBuffers[0]!.length < frameCount) {
+					chBuffers[0] = new Float32Array(frameCount);
+					chBuffers[1] = new Float32Array(frameCount);
+				}
+				const in0 = e.inputBuffer.getChannelData(0);
+				const in1 = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : in0;
+				try {
+					chBuffers[0]!.subarray(0, frameCount).set(in0);
+					chBuffers[1]!.subarray(0, frameCount).set(in1);
+					rack!.process(chBuffers, frameCount);
+
+					// Sanitize output buffers against NaN / non-finite
+					for (let c = 0; c < 2; c++) {
+						const buf = chBuffers[c]!;
+						for (let s = 0; s < frameCount; s++) {
+							if (!Number.isFinite(buf[s])) {
+								buf[s] = 0;
+							}
+						}
+					}
+
+					e.outputBuffer.getChannelData(0).set(chBuffers[0]!.subarray(0, frameCount));
+					if (e.outputBuffer.numberOfChannels > 1) {
+						e.outputBuffer.getChannelData(1).set(chBuffers[1]!.subarray(0, frameCount));
+					}
+				} catch {
+					e.outputBuffer.getChannelData(0).set(in0);
+					if (e.outputBuffer.numberOfChannels > 1) {
+						e.outputBuffer.getChannelData(1).set(in1);
+					}
+				}
+			};
+			allNodes?.add(sp);
+			trackTail.connect(sp);
+			trackTail = sp;
+			rackNode = sp;
+		}
+	} else if (tAudio.effects) {
+		rack = buildAudioRack(tAudio.effects, ctx.sampleRate, 2);
+	}
+
 	// 1. 4-band Parametric EQ (LowShelf, Peaking, Peaking, HighShelf)
 	const defaultBands = [
 		{ type: 'lowshelf' as const, frequencyHz: 120, gainDb: 0, q: 0.71 },
@@ -229,7 +284,7 @@ function buildSingleTrackChain(
 
 	// 3. Track Gain
 	const fader = ctx.createGain();
-	fader.gain.value = dbToGain(tAudio.gainDb);
+	fader.gain.value = dbToGain(tAudio.gainDb + (tAudio.trimDb ?? 0));
 	allNodes?.add(fader);
 	trackTail.connect(fader);
 	trackTail = fader;
@@ -284,6 +339,8 @@ function buildSingleTrackChain(
 	return {
 		input: trackIn,
 		delayNode,
+		rackNode,
+		rack,
 		eqNodes: eqFilters,
 		compressorNode: compNode,
 		faderGain: fader,
@@ -365,13 +422,62 @@ export function buildAudioGraph(
 		splitter.connect(masterMeters.analyserR, 1);
 	}
 
+	let masterRackNode: AudioNode | undefined;
+	const activeMasterFx = (project.masterAudio?.effects ?? []).filter(
+		(e) => !e.bypass && e.enabled !== false
+	);
+	let masterRack: BuiltAudioRack | undefined;
+	if (activeMasterFx.length > 0) {
+		masterRack = buildAudioRack(activeMasterFx, ctx.sampleRate, 2);
+		if (typeof ctx.createScriptProcessor === 'function') {
+			const sp = ctx.createScriptProcessor(4096, 2, 2);
+			const chBuffers: Float32Array[] = [new Float32Array(4096), new Float32Array(4096)];
+			sp.onaudioprocess = (e) => {
+				const frameCount = e.inputBuffer.length;
+				if (chBuffers[0]!.length < frameCount) {
+					chBuffers[0] = new Float32Array(frameCount);
+					chBuffers[1] = new Float32Array(frameCount);
+				}
+				const in0 = e.inputBuffer.getChannelData(0);
+				const in1 = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : in0;
+				try {
+					chBuffers[0]!.subarray(0, frameCount).set(in0);
+					chBuffers[1]!.subarray(0, frameCount).set(in1);
+					masterRack!.process(chBuffers, frameCount);
+					for (let c = 0; c < 2; c++) {
+						const buf = chBuffers[c]!;
+						for (let s = 0; s < frameCount; s++) {
+							if (!Number.isFinite(buf[s])) {
+								buf[s] = 0;
+							}
+						}
+					}
+					e.outputBuffer.getChannelData(0).set(chBuffers[0]!.subarray(0, frameCount));
+					if (e.outputBuffer.numberOfChannels > 1) {
+						e.outputBuffer.getChannelData(1).set(chBuffers[1]!.subarray(0, frameCount));
+					}
+				} catch {
+					e.outputBuffer.getChannelData(0).set(in0);
+					if (e.outputBuffer.numberOfChannels > 1) {
+						e.outputBuffer.getChannelData(1).set(in1);
+					}
+				}
+			};
+			allNodes.add(sp);
+			currentMasterTail.connect(sp);
+			currentMasterTail = sp;
+			masterRackNode = sp;
+		}
+	} else {
+		masterRack = buildAudioRack(project.masterAudio?.effects, ctx.sampleRate, 2);
+	}
+
 	currentMasterTail.connect(masterOutput);
 	masterOutput.connect(destination);
 
-	const masterRack = buildAudioRack(project.masterAudio?.effects, ctx.sampleRate, 2);
-
 	const masterNodes: MasterAudioNodes = {
 		input: masterInput,
+		rackNode: masterRackNode,
 		faderGain: masterFader,
 		limiterNode: masterLimiter,
 		clampNode,
@@ -396,6 +502,54 @@ export function buildAudioGraph(
 			allNodes.add(delayNode);
 			busTail.connect(delayNode);
 			busTail = delayNode;
+		}
+
+		let busRackNode: AudioNode | undefined;
+		const activeBusFx = (bus.effects ?? []).filter((e) => !e.bypass && e.enabled !== false);
+		let busRack: BuiltAudioRack | undefined;
+		if (activeBusFx.length > 0) {
+			busRack = buildAudioRack(activeBusFx, ctx.sampleRate, 2);
+			if (typeof ctx.createScriptProcessor === 'function') {
+				const sp = ctx.createScriptProcessor(4096, 2, 2);
+				const chBuffers: Float32Array[] = [new Float32Array(4096), new Float32Array(4096)];
+				sp.onaudioprocess = (e) => {
+					const frameCount = e.inputBuffer.length;
+					if (chBuffers[0]!.length < frameCount) {
+						chBuffers[0] = new Float32Array(frameCount);
+						chBuffers[1] = new Float32Array(frameCount);
+					}
+					const in0 = e.inputBuffer.getChannelData(0);
+					const in1 = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : in0;
+					try {
+						chBuffers[0]!.subarray(0, frameCount).set(in0);
+						chBuffers[1]!.subarray(0, frameCount).set(in1);
+						busRack!.process(chBuffers, frameCount);
+						for (let c = 0; c < 2; c++) {
+							const buf = chBuffers[c]!;
+							for (let s = 0; s < frameCount; s++) {
+								if (!Number.isFinite(buf[s])) {
+									buf[s] = 0;
+								}
+							}
+						}
+						e.outputBuffer.getChannelData(0).set(chBuffers[0]!.subarray(0, frameCount));
+						if (e.outputBuffer.numberOfChannels > 1) {
+							e.outputBuffer.getChannelData(1).set(chBuffers[1]!.subarray(0, frameCount));
+						}
+					} catch {
+						e.outputBuffer.getChannelData(0).set(in0);
+						if (e.outputBuffer.numberOfChannels > 1) {
+							e.outputBuffer.getChannelData(1).set(in1);
+						}
+					}
+				};
+				allNodes.add(sp);
+				busTail.connect(sp);
+				busTail = sp;
+				busRackNode = sp;
+			}
+		} else {
+			busRack = buildAudioRack(bus.effects, ctx.sampleRate, 2);
 		}
 
 		const busFader = ctx.createGain();
@@ -439,11 +593,10 @@ export function buildAudioGraph(
 		allNodes.add(busOut);
 		busTail.connect(busOut);
 
-		const busRack = buildAudioRack(bus.effects, ctx.sampleRate, 2);
-
 		busNodes.set(bus.id, {
 			input: busIn,
 			delayNode,
+			rackNode: busRackNode,
 			faderGain: busFader,
 			panPanner: busPanner,
 			muteGain: busMute,
@@ -511,7 +664,9 @@ export function buildAudioGraph(
 			nodes.sendGains = sendGains;
 		}
 
-		nodes.rack = buildAudioRack(track.audio?.effects, ctx.sampleRate, 2);
+		if (!nodes.rack) {
+			nodes.rack = buildAudioRack(track.audio?.effects, ctx.sampleRate, 2);
+		}
 		trackNodes.set(track.id, nodes);
 	}
 
@@ -845,7 +1000,7 @@ export function buildAudioGraph(
 	const updateTrackParams = (trackId: string, audio: TrackAudio, audible: boolean) => {
 		const node = trackNodes.get(trackId);
 		if (!node) return;
-		safeSetTarget(node.faderGain.gain, dbToGain(audio.gainDb));
+		safeSetTarget(node.faderGain.gain, dbToGain(audio.gainDb + (audio.trimDb ?? 0)));
 		if (node.panPanner) {
 			safeSetTarget(node.panPanner.pan, audio.pan);
 		}

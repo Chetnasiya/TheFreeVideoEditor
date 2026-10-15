@@ -36,9 +36,14 @@ export const pitchShifterDefinition: AudioEffectDefinition = {
 		}
 	],
 	latencySamples: () => 0,
-	createDSP: (ctx: AudioEffectContext): AudioEffectDSP => {
+	createDSP: (ctx: AudioEffectContext, params?: Record<string, unknown>): AudioEffectDSP => {
+		const semitones = typeof params?.semitones === 'number' ? params.semitones : 0;
+		const cents = typeof params?.cents === 'number' ? params.cents : 0;
+		const totalSemitones = semitones + cents / 100;
 		const coreL = new PitchShifterCore(ctx.sampleRate);
 		const coreR = new PitchShifterCore(ctx.sampleRate);
+		coreL.setPitchSemitones(totalSemitones);
+		coreR.setPitchSemitones(totalSemitones);
 
 		return {
 			reset() {
