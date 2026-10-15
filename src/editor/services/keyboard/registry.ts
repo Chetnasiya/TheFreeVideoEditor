@@ -863,7 +863,7 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		{
 			id: 'workspace-2',
 			keys: { mac: 'alt+shift+2', other: 'alt+shift+2' },
-			label: 'Switch to AI Workspace',
+			label: 'Switch to AI (Beta) Workspace',
 			group: 'Workspaces',
 			scope: 'editor',
 			handler: action('workspace-2'),

@@ -372,7 +372,7 @@ export const PRESET_GRAPHICS: Workspace = {
 
 export const PRESET_AI: Workspace = {
 	id: 'ai',
-	name: 'AI',
+	name: 'AI (Beta)',
 	builtIn: true,
 	timelinePrefs: {
 		videoTrackHeight: 45,

@@ -422,4 +422,77 @@ GUEST: It is wonderful to pair-program with you.`;
 		await clipView.click({ button: 'right' });
 		await expect(page.locator('.timeline-context-menu').getByText('Take 2 (Active)')).toBeVisible();
 	});
+
+	test('auto-aligns imported script with project footage to generate take groups, interactive transcript, and enables assembly', async ({
+		page
+	}) => {
+		await page.click('.workspace-tab:has-text("AI")');
+
+		// Add mock media asset to project
+		await page.evaluate(() => {
+			const store = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						setState: (fn: (s: any) => void) => void;
+					};
+				}
+			).__TFVE_STORE__;
+
+			if (!store) return;
+			store.setState((s) => {
+				if (!s.project) return;
+				s.project.assets['asset_e2e_1'] = {
+					id: 'asset_e2e_1',
+					kind: 'video',
+					name: 'raw_footage.mp4',
+					mimeType: 'video/mp4',
+					size: 5000,
+					duration: 8_000_000,
+					hasAudio: true,
+					width: 1920,
+					height: 1080,
+					fps: 30,
+					opfsPath: 'raw_footage.mp4',
+					offline: true
+				};
+			});
+		});
+
+		// Switch to Script panel in the AI stack
+		await page.click('.layout-tab:has-text("Script")');
+		const scriptPanel = page.getByTestId('script-panel');
+		await expect(scriptPanel).toBeVisible();
+
+		// Paste script text
+		await scriptPanel.getByRole('button', { name: 'Paste Text' }).click();
+		await scriptPanel
+			.locator('textarea')
+			.fill('First line of test footage.\nSecond line of test footage.');
+		await scriptPanel.getByRole('button', { name: 'Import' }).click();
+
+		// Verify alignment produces take count badges in Script panel
+		await expect(scriptPanel.getByText('2 Lines (PASTED)')).toBeVisible();
+		await expect(scriptPanel.getByText(/Take/i).first()).toBeVisible({ timeout: 10000 });
+
+		// Switch to AI Assistant -> Script & Takes tab
+		await page.click('.layout-tab:has-text("AI Assistant")');
+		const assistantPanel = page.getByTestId('ai-assistant-panel');
+		await expect(assistantPanel).toBeVisible();
+		await assistantPanel.getByRole('tab', { name: 'Script & Takes' }).click();
+
+		// Verify take groups count and Assemble Rough Cut button is enabled
+		await expect(assistantPanel.getByText(/2 Take Groups/i)).toBeVisible({ timeout: 10000 });
+		const assembleBtn = assistantPanel.getByRole('button', { name: 'Assemble Rough Cut' });
+		await expect(assembleBtn).toBeEnabled();
+
+		// Switch to Transcript panel and verify interactive word transcript is rendered
+		await page.click('.layout-tab:has-text("Transcript")');
+		const transcriptPanel = page.getByTestId('transcript-panel');
+		await expect(transcriptPanel).toBeVisible();
+		await expect(transcriptPanel.getByText('First')).toBeVisible({ timeout: 10000 });
+		await expect(transcriptPanel.getByText('Second')).toBeVisible();
+
+		// Clicking a word seeks playhead
+		await transcriptPanel.getByText('First').click();
+	});
 });

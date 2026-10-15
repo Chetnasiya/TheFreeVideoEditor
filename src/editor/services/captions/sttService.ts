@@ -88,6 +88,80 @@ export class LocalSttService {
 		});
 	}
 
+	async transcribeSamples(
+		samples: Float32Array,
+		sampleRate = 16000,
+		options: AutoCaptionOptions = {}
+	): Promise<SttWordOutput[]> {
+		if (samples.length === 0) return [];
+
+		const worker = this.getWorker();
+
+		// Check if DEV fake engine is forced
+		const isFake =
+			options.useFake ??
+			(typeof window !== 'undefined' &&
+				(Boolean((window as unknown as { __TFVE_DEV_FAKE_STT?: boolean }).__TFVE_DEV_FAKE_STT) ||
+					new URLSearchParams(window.location.search).get('stt') === 'fake'));
+
+		const modelMeta = options.modelId ? STT_MODELS[options.modelId] : undefined;
+		const actualModelId =
+			modelMeta?.hfModelId ?? options.modelId ?? 'onnx-community/whisper-tiny.en';
+
+		// Copy buffer to avoid detaching caller's Float32Array
+		const bufferCopy = samples.slice().buffer;
+
+		return new Promise<SttWordOutput[]>((resolve, reject) => {
+			const onAbort = () => {
+				worker.postMessage({ type: 'cancel' } as SttWorkerInMessage);
+				cleanup();
+				reject(new DOMException('Operation aborted', 'AbortError'));
+			};
+
+			const handleMessage = (e: MessageEvent<SttWorkerOutMessage>) => {
+				const data = e.data;
+				if (data.type === 'progress' && data.event) {
+					options.onProgress?.(data.event);
+				} else if (data.type === 'result' && data.event) {
+					cleanup();
+					resolve(data.event.words ?? []);
+				} else if (data.type === 'error' && data.event) {
+					cleanup();
+					reject(new Error(data.event.error ?? 'STT Worker transcription error'));
+				}
+			};
+
+			const handleError = (err: ErrorEvent) => {
+				cleanup();
+				reject(new Error(`Worker error: ${err.message}`));
+			};
+
+			const cleanup = () => {
+				worker.removeEventListener('message', handleMessage);
+				worker.removeEventListener('error', handleError);
+				options.signal?.removeEventListener('abort', onAbort);
+			};
+
+			worker.addEventListener('message', handleMessage);
+			worker.addEventListener('error', handleError);
+			options.signal?.addEventListener('abort', onAbort, { once: true });
+
+			worker.postMessage(
+				{
+					type: 'transcribe',
+					samples: new Float32Array(bufferCopy),
+					sampleRate,
+					modelId: actualModelId,
+					useWebGpu: options.useWebGpu ?? true,
+					useFake: isFake,
+					language: options.language,
+					task: options.task
+				} as SttWorkerInMessage,
+				[bufferCopy]
+			);
+		});
+	}
+
 	async transcribeProject(
 		project: Project,
 		options: AutoCaptionOptions = {}
@@ -121,77 +195,14 @@ export class LocalSttService {
 		}
 
 		// 2. Transcribe via Web Worker
-		const worker = this.getWorker();
-
-		// Check if DEV fake engine is forced
-		const isFake =
-			options.useFake ??
-			(typeof window !== 'undefined' &&
-				(Boolean((window as unknown as { __TFVE_DEV_FAKE_STT?: boolean }).__TFVE_DEV_FAKE_STT) ||
-					new URLSearchParams(window.location.search).get('stt') === 'fake'));
-
-		const modelMeta = options.modelId ? STT_MODELS[options.modelId] : undefined;
-		const actualModelId =
-			modelMeta?.hfModelId ?? options.modelId ?? 'onnx-community/whisper-tiny.en';
-
-		return new Promise<SttWordOutput[]>((resolve, reject) => {
-			const onAbort = () => {
-				worker.postMessage({ type: 'cancel' } as SttWorkerInMessage);
-				cleanup();
-				reject(new DOMException('Operation aborted', 'AbortError'));
-			};
-
-			const handleMessage = (e: MessageEvent<SttWorkerOutMessage>) => {
-				const data = e.data;
-				if (data.type === 'progress' && data.event) {
-					options.onProgress?.(data.event);
-				} else if (data.type === 'result' && data.event) {
-					cleanup();
-					const rawWords = data.event.words ?? [];
-					const offsetWords =
-						audio.startOffsetUs > 0
-							? rawWords.map((w) => ({
-									...w,
-									start: w.start + audio.startOffsetUs,
-									end: w.end + audio.startOffsetUs
-								}))
-							: rawWords;
-					resolve(offsetWords);
-				} else if (data.type === 'error' && data.event) {
-					cleanup();
-					reject(new Error(data.event.error ?? 'STT Worker transcription error'));
-				}
-			};
-
-			const handleError = (err: ErrorEvent) => {
-				cleanup();
-				reject(new Error(`Worker error: ${err.message}`));
-			};
-
-			const cleanup = () => {
-				worker.removeEventListener('message', handleMessage);
-				worker.removeEventListener('error', handleError);
-				options.signal?.removeEventListener('abort', onAbort);
-			};
-
-			worker.addEventListener('message', handleMessage);
-			worker.addEventListener('error', handleError);
-			options.signal?.addEventListener('abort', onAbort, { once: true });
-
-			worker.postMessage(
-				{
-					type: 'transcribe',
-					samples: audio.samples,
-					sampleRate: audio.sampleRate,
-					modelId: actualModelId,
-					useWebGpu: options.useWebGpu ?? true,
-					useFake: isFake,
-					language: options.language,
-					task: options.task
-				} as SttWorkerInMessage,
-				[audio.samples.buffer]
-			);
-		});
+		const rawWords = await this.transcribeSamples(audio.samples, audio.sampleRate, options);
+		return audio.startOffsetUs > 0
+			? rawWords.map((w) => ({
+					...w,
+					start: w.start + audio.startOffsetUs,
+					end: w.end + audio.startOffsetUs
+				}))
+			: rawWords;
 	}
 }
 

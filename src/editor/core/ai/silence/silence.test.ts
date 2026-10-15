@@ -443,6 +443,9 @@ describe('Silence Trimming & VAD Engine Oracles', () => {
 		// Extract features once (cached)
 		const cachedFeatures = extractAudioFeatures(combined, sampleRate);
 
+		// Warm up JIT before timing
+		detectSpeechIntervals(cachedFeatures, { sensitivity: 0.5 });
+
 		// Re-run VAD segmentation with different sensitivity parameters
 		const t0 = performance.now();
 		const intervals1 = detectSpeechIntervals(cachedFeatures, { sensitivity: 0.3 });

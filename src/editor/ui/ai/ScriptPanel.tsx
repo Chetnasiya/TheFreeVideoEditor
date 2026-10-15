@@ -15,6 +15,9 @@ export const ScriptPanel: React.FC = () => {
 	const project = useEditorStore((state) => state.project);
 	const script = useEditorStore((state) => state.ai.script);
 	const isTranscribing = useEditorStore((state) => state.ai.isTranscribingScript);
+	const takeGroups = useEditorStore((state) => state.ai.takeGroups);
+	const selectTakeGroup = useEditorStore((state) => state.selectTakeGroup);
+	const setPlayhead = useEditorStore((state) => state.setPlayhead);
 	const setParsedScript = useEditorStore((state) => state.setParsedScript);
 	const alignTakesWithScript = useEditorStore((state) => state.alignTakesWithScript);
 
@@ -31,6 +34,7 @@ export const ScriptPanel: React.FC = () => {
 		try {
 			const parsed = await parseScriptFile(file);
 			setParsedScript(parsed);
+			void alignTakesWithScript();
 		} catch (err) {
 			console.error('Failed to parse script file:', err);
 		} finally {
@@ -42,6 +46,7 @@ export const ScriptPanel: React.FC = () => {
 		if (!pasteText.trim()) return;
 		const parsed = parseScriptFromText(pasteText, 'Pasted Script', 'pasted');
 		setParsedScript(parsed);
+		void alignTakesWithScript();
 		setIsPasteOpen(false);
 		setPasteText('');
 	};
@@ -204,6 +209,11 @@ export const ScriptPanel: React.FC = () => {
 						<div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
 							{script.lines.map((line) => {
 								const isSelected = selectedLineIds.includes(line.id);
+								const group = takeGroups.find((g) => g.scriptLineId === line.id);
+								const bestTake =
+									group?.candidates.find((c) => c.id === group.selectedTakeId) ||
+									group?.candidates[0];
+
 								return (
 									<div
 										key={line.id}
@@ -212,7 +222,11 @@ export const ScriptPanel: React.FC = () => {
 										}`}
 										style={{
 											opacity: line.optional ? 0.6 : 1,
-											borderLeft: line.optional ? '2px dashed #64748b' : undefined
+											borderLeft: line.optional ? '2px dashed #64748b' : undefined,
+											cursor: group ? 'pointer' : 'default'
+										}}
+										onClick={() => {
+											if (group) selectTakeGroup(group.id);
 										}}
 									>
 										<div
@@ -229,20 +243,65 @@ export const ScriptPanel: React.FC = () => {
 													type="checkbox"
 													checked={isSelected}
 													onChange={() => handleToggleSelectLine(line.id)}
+													onClick={(e) => e.stopPropagation()}
 													title="Select line for merging"
 												/>
 												<span style={{ fontWeight: 600 }}>#{line.lineIndex}</span>
 												{line.speaker && (
 													<span style={{ color: '#38bdf8', fontWeight: 500 }}>{line.speaker}</span>
 												)}
+												{group && group.candidates.length > 0 ? (
+													<span
+														className="take-count-pill"
+														style={{
+															background: '#1e3a5f',
+															color: '#38bdf8',
+															padding: '1px 5px',
+															borderRadius: '3px',
+															fontSize: '10px'
+														}}
+													>
+														{group.candidates.length}{' '}
+														{group.candidates.length === 1 ? 'Take' : 'Takes'}
+													</span>
+												) : (
+													<span style={{ opacity: 0.5, fontSize: '10px' }}>No takes</span>
+												)}
+												{bestTake && (
+													<span
+														className={`take-score-pill ${
+															bestTake.score >= 85 ? 'score-high' : 'score-med'
+														}`}
+														style={{ fontSize: '9px', padding: '1px 4px' }}
+													>
+														Score: {bestTake.score}
+													</span>
+												)}
 											</div>
 											<div style={{ display: 'flex', gap: '4px' }}>
+												{bestTake && (
+													<button
+														type="button"
+														className="ai-btn-secondary"
+														style={{ padding: '1px 6px', fontSize: '10px' }}
+														title="Audition best take"
+														onClick={(e) => {
+															e.stopPropagation();
+															setPlayhead(bestTake.startUs);
+														}}
+													>
+														▶
+													</button>
+												)}
 												<button
 													type="button"
 													className="ai-btn-secondary"
 													style={{ padding: '1px 5px', fontSize: '10px' }}
 													title={line.optional ? 'Mark line required' : 'Mark line optional'}
-													onClick={() => handleToggleOptional(line.id)}
+													onClick={(e) => {
+														e.stopPropagation();
+														handleToggleOptional(line.id);
+													}}
 												>
 													{line.optional ? 'Required' : 'Optional'}
 												</button>
@@ -251,7 +310,10 @@ export const ScriptPanel: React.FC = () => {
 													className="ai-btn-secondary"
 													style={{ padding: '1px 5px', fontSize: '10px', color: '#f87171' }}
 													title="Delete line"
-													onClick={() => handleDeleteLine(line.id)}
+													onClick={(e) => {
+														e.stopPropagation();
+														handleDeleteLine(line.id);
+													}}
 												>
 													✕
 												</button>

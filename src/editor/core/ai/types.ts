@@ -83,3 +83,6 @@ export const DEFAULT_TAKE_WEIGHTS: TakeScoringWeights = {
 	audioQuality: 0.15,
 	recency: 0.1
 };
+
+export type AiSourceMode = 'auto' | 'timeline' | 'bin_media';
+export type { TranscribedAudioWord } from './script/alignment';

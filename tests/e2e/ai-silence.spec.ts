@@ -25,7 +25,7 @@ test.describe('AI Workspace & Silence Trimming', () => {
 
 		// 1. Switch via click
 		await page.click('.workspace-tab:has-text("AI")');
-		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI');
+		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI (Beta)');
 		await expect(page.getByTestId('ai-assistant-panel')).toBeVisible();
 
 		// Switch to Assembly
@@ -34,7 +34,7 @@ test.describe('AI Workspace & Silence Trimming', () => {
 
 		// 2. Switch back to AI via shortcut Alt+Shift+2
 		await page.keyboard.press('Alt+Shift+Digit2');
-		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI');
+		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI (Beta)');
 		await expect(page.getByTestId('ai-assistant-panel')).toBeVisible();
 	});
 
@@ -126,5 +126,48 @@ test.describe('AI Workspace & Silence Trimming', () => {
 
 		// Sequence switcher or notification confirms new sequence created
 		await page.waitForTimeout(500);
+	});
+
+	test('scrolls to next options on click of Detect Silences', async ({ page }) => {
+		await page.click('.workspace-tab:has-text("AI")');
+		const panel = page.getByTestId('ai-assistant-panel');
+		await expect(panel).toBeVisible();
+
+		// Override analyzeSilence to populate detected silences when button is clicked
+		await page.evaluate(() => {
+			const store = (window as unknown as { __TFVE_STORE__?: { getState: () => any } })
+				.__TFVE_STORE__;
+			if (store) {
+				store.getState().analyzeSilence = async () => {
+					store.getState().setDetectedSilences([
+						{
+							id: 'silence_1',
+							startUs: 1_000_000,
+							endUs: 2_000_000,
+							durationUs: 1_000_000,
+							cutStartUs: 1_000_000,
+							cutEndUs: 1_600_000,
+							cutDurationUs: 600_000,
+							included: true
+						}
+					]);
+				};
+			}
+		});
+
+		// Ensure top of panel is scrolled to 0
+		await page.evaluate(() => {
+			const container = document.querySelector('.ai-panel-content');
+			if (container) container.scrollTop = 0;
+		});
+
+		// Click "Detect Silences" button
+		const detectBtn = panel.getByRole('button', { name: 'Detect Silences' });
+		await detectBtn.click();
+
+		// Verify review section / next options are rendered and scrolled into view
+		const reviewSection = page.getByTestId('silence-review-section');
+		await expect(reviewSection).toBeVisible();
+		await expect(reviewSection).toBeInViewport();
 	});
 });

@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
-import { useEditorStore } from '../../state/EditorProvider';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import { ticksToTimecode } from '../../core/time';
 import type { SilenceTrimMode, SilenceApplyTarget } from '../../core/ai/types';
 
 export const SilenceTrimPanel: React.FC = () => {
+	const storeApi = useEditorStoreApi();
 	const project = useEditorStore((state) => state.project);
 	const fps = project?.settings.fps ?? 30;
 	const activeSequenceId = useEditorStore((state) => state.activeSequenceId);
@@ -12,9 +13,17 @@ export const SilenceTrimPanel: React.FC = () => {
 	const toggleSilenceIncluded = useEditorStore((state) => state.toggleSilenceIncluded);
 	const includeAllSilences = useEditorStore((state) => state.includeAllSilences);
 	const setSilenceVirtualPreview = useEditorStore((state) => state.setSilenceVirtualPreview);
-	const analyzeSilence = useEditorStore((state) => state.analyzeSilence);
 	const applySilenceTrimAction = useEditorStore((state) => state.applySilenceTrimAction);
 	const setPlayhead = useEditorStore((state) => state.setPlayhead);
+
+	const resultsRef = useRef<HTMLDivElement>(null);
+	const shouldScrollRef = useRef(false);
+
+	const scrollToNextOptions = () => {
+		if (resultsRef.current && typeof resultsRef.current.scrollIntoView === 'function') {
+			resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
+	};
 
 	const options = aiState.silenceOptions;
 	const silences = aiState.detectedSilences;
@@ -52,6 +61,26 @@ export const SilenceTrimPanel: React.FC = () => {
 		);
 		setSilenceOptions({ trackIds: dialogueTracks.map((t) => t.id) });
 	};
+
+	const handleDetectSilences = async () => {
+		shouldScrollRef.current = true;
+		try {
+			scrollToNextOptions();
+			await storeApi.getState().analyzeSilence();
+		} finally {
+			setTimeout(() => {
+				scrollToNextOptions();
+				shouldScrollRef.current = false;
+			}, 60);
+		}
+	};
+
+	useEffect(() => {
+		if (shouldScrollRef.current && silences.length > 0) {
+			shouldScrollRef.current = false;
+			setTimeout(scrollToNextOptions, 60);
+		}
+	}, [silences.length]);
 
 	return (
 		<div className="silence-trim-panel" data-testid="silence-trim-panel">
@@ -325,7 +354,7 @@ export const SilenceTrimPanel: React.FC = () => {
 					type="button"
 					className="ai-btn-primary"
 					disabled={isAnalyzing}
-					onClick={() => void analyzeSilence()}
+					onClick={() => void handleDetectSilences()}
 				>
 					{isAnalyzing ? (
 						<span>Analyzing Audio ({aiState.analysisProgress}%)...</span>
@@ -337,7 +366,7 @@ export const SilenceTrimPanel: React.FC = () => {
 
 			{/* Review Results */}
 			{silences.length > 0 && (
-				<div className="ai-section">
+				<div ref={resultsRef} className="ai-section" data-testid="silence-review-section">
 					<div className="ai-summary-banner">
 						<div>
 							<span className="ai-summary-badge">{includedSilences.length} Silences</span>
@@ -426,6 +455,21 @@ export const SilenceTrimPanel: React.FC = () => {
 						>
 							Apply in Place
 						</button>
+					</div>
+				</div>
+			)}
+
+			{silences.length === 0 && !isAnalyzing && aiState.cachedFeatures && (
+				<div ref={resultsRef} className="ai-section" data-testid="silence-empty-section">
+					<div
+						style={{
+							textAlign: 'center',
+							color: '#94a3b8',
+							fontSize: '11px',
+							padding: '8px 0'
+						}}
+					>
+						No silences detected matching current threshold and duration criteria.
 					</div>
 				</div>
 			)}

@@ -251,11 +251,12 @@ import {
 	swapTakeInProject,
 	type AssembleSequenceOptions
 } from '../core/ai/script/assembly';
+import type { TranscribedAudioWord } from '../core/ai/script/alignment';
 import {
-	alignScriptWithAudioWords,
-	cleanToken,
-	type TranscribedAudioWord
-} from '../core/ai/script/alignment';
+	extractFootageAudioSources,
+	alignFootageWithScript,
+	type AlignmentOptions
+} from '../core/ai/script/footageAlignment';
 
 enablePatches();
 
@@ -991,8 +992,12 @@ export interface EditorState {
 		takeGroups: TakeGroup[];
 		selectedTakeGroupId: string | null;
 		isTranscribingScript: boolean;
+		transcriptWords: TranscribedAudioWord[];
+		alignmentProgress: { phase: string; percent: number } | null;
+		sourceMode: 'auto' | 'timeline' | 'bin_media';
 	};
 	setAiActiveTab: (tab: 'silence' | 'script') => void;
+	setAiSourceMode: (mode: 'auto' | 'timeline' | 'bin_media') => void;
 	setSilenceOptions: (opts: Partial<SilenceTrimOptions>) => void;
 	setDetectedSilences: (silences: DetectedSilence[]) => void;
 	toggleSilenceIncluded: (id: string) => void;
@@ -1006,7 +1011,7 @@ export interface EditorState {
 	setTakeGroups: (groups: TakeGroup[]) => void;
 	selectTakeGroup: (id: string | null) => void;
 	chooseTake: (takeGroupId: string, takeCandidateId: string) => void;
-	alignTakesWithScript: () => Promise<void>;
+	alignTakesWithScript: (options?: AlignmentOptions) => Promise<void>;
 	assembleRoughCut: (options?: AssembleSequenceOptions) => void;
 	swapTimelineClipTake: (clipId: ClipId, newTakeCandidate: TakeCandidate) => void;
 }
@@ -1437,7 +1442,10 @@ export function createEditorStore() {
 					script: null,
 					takeGroups: [],
 					selectedTakeGroupId: null,
-					isTranscribingScript: false
+					isTranscribingScript: false,
+					transcriptWords: [],
+					alignmentProgress: null,
+					sourceMode: 'auto'
 				},
 				async initialize() {
 					if (get().isInitialized) return;
@@ -8089,9 +8097,19 @@ export function createEditorStore() {
 						state.ai.detectedSilences = [];
 					});
 				},
+				setAiSourceMode(mode) {
+					set((state) => {
+						state.ai.sourceMode = mode;
+					});
+				},
 				setParsedScript(script) {
 					set((state) => {
 						state.ai.script = script;
+						if (!script) {
+							state.ai.takeGroups = [];
+							state.ai.selectedTakeGroupId = null;
+							state.ai.transcriptWords = [];
+						}
 					});
 				},
 				updateScriptLine(lineId, patch) {
@@ -8106,6 +8124,13 @@ export function createEditorStore() {
 				setTakeGroups(groups) {
 					set((state) => {
 						state.ai.takeGroups = groups;
+						if (
+							groups.length > 0 &&
+							(!state.ai.selectedTakeGroupId ||
+								!groups.some((g) => g.id === state.ai.selectedTakeGroupId))
+						) {
+							state.ai.selectedTakeGroupId = groups[0]!.id;
+						}
 					});
 				},
 				selectTakeGroup(id) {
@@ -8124,94 +8149,56 @@ export function createEditorStore() {
 						}
 					});
 				},
-				async alignTakesWithScript() {
+				async alignTakesWithScript(options?: AlignmentOptions) {
 					const script = get().ai.script;
 					if (!script || script.lines.length === 0) return;
 
 					const project = get().project;
 					if (!project) return;
 					const activeSequenceId = get().activeSequenceId;
-					const seq = viewProject(project, activeSequenceId);
+					const sourceMode = options?.sourceMode ?? get().ai.sourceMode ?? 'auto';
 
 					set((state) => {
 						state.ai.isTranscribingScript = true;
+						state.ai.alignmentProgress = { phase: 'Starting footage analysis…', percent: 0.05 };
 					});
 
 					try {
-						// Collect words from timeline captions or audio clips
-						const words: TranscribedAudioWord[] = [];
-
-						for (const track of seq.tracks) {
-							if (track.kind === 'caption' && track.captions) {
-								for (const seg of track.captions) {
-									if (seg.words && seg.words.length > 0) {
-										for (const w of seg.words) {
-											words.push({
-												word: w.text,
-												cleanWord: cleanToken(w.text),
-												startUs: w.start,
-												endUs: w.end,
-												confidence: w.confidence ?? 0.95,
-												clipId: seg.id as unknown as ClipId,
-												trackId: track.id
-											});
-										}
-									} else {
-										const tokens = seg.text.split(/\s+/).filter(Boolean);
-										const segDuration = seg.end - seg.start;
-										const tokenDur = Math.floor(segDuration / Math.max(1, tokens.length));
-										tokens.forEach((t, i) => {
-											const wStart = seg.start + i * tokenDur;
-											words.push({
-												word: t,
-												cleanWord: cleanToken(t),
-												startUs: wStart,
-												endUs: wStart + tokenDur,
-												confidence: 0.9,
-												clipId: seg.id as unknown as ClipId,
-												trackId: track.id
-											});
-										});
-									}
-								}
+						// 1. Extract audio sources from timeline or media library
+						const sources = await extractFootageAudioSources(
+							project,
+							activeSequenceId,
+							sourceMode,
+							(msg, pct) => {
+								set((state) => {
+									state.ai.alignmentProgress = { phase: msg, percent: pct };
+								});
 							}
-						}
+						);
 
-						if (words.length === 0) {
-							for (const track of seq.tracks) {
-								if (track.kind === 'audio') {
-									for (const clip of track.clips) {
-										if (clip.text) {
-											const tokens = clip.text.split(/\s+/).filter(Boolean);
-											const tokenDur = Math.floor(clip.duration / Math.max(1, tokens.length));
-											tokens.forEach((t, i) => {
-												words.push({
-													word: t,
-													cleanWord: cleanToken(t),
-													startUs: clip.start + i * tokenDur,
-													endUs: clip.start + (i + 1) * tokenDur,
-													confidence: 0.95,
-													clipId: clip.id,
-													trackId: track.id,
-													assetId: clip.assetId
-												});
-											});
-										}
-									}
-								}
+						// 2. Align footage audio with script lines
+						const { words, groups } = await alignFootageWithScript(project, script, sources, {
+							...options,
+							onProgress: (msg, pct) => {
+								set((state) => {
+									state.ai.alignmentProgress = { phase: msg, percent: pct };
+								});
 							}
-						}
+						});
 
-						const groups = alignScriptWithAudioWords(script, words);
 						set((state) => {
+							state.ai.transcriptWords = words;
 							state.ai.takeGroups = groups;
-							if (groups.length > 0 && !state.ai.selectedTakeGroupId) {
+							if (groups.length > 0) {
 								state.ai.selectedTakeGroupId = groups[0]!.id;
 							}
 						});
+					} catch (err) {
+						console.error('Failed to align footage with script:', err);
 					} finally {
 						set((state) => {
 							state.ai.isTranscribingScript = false;
+							state.ai.alignmentProgress = null;
 						});
 					}
 				},

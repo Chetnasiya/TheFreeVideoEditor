@@ -119,10 +119,10 @@ Persisted per project in UI state:
 
 ## 5. Workspace Integration & Keyboard Shortcuts
 
-- **Workspace Order**: `Assembly · AI · Editing · Color · Effects · Audio · Graphics`
+- **Workspace Order**: `Assembly · AI (Beta) · Editing · Color · Effects · Audio · Graphics`
 - **Shortcuts**: Premiere Pro-style workspace switching:
   - `Alt+Shift+1`: Assembly
-  - `Alt+Shift+2`: AI
+  - `Alt+Shift+2`: AI (Beta)
   - `Alt+Shift+3`: Editing
   - `Alt+Shift+4`: Color
   - `Alt+Shift+5`: Effects

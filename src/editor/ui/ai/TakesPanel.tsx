@@ -9,9 +9,11 @@ export const TakesPanel: React.FC = () => {
 	const script = useEditorStore((state) => state.ai.script);
 	const takeGroups = useEditorStore((state) => state.ai.takeGroups);
 	const selectedTakeGroupId = useEditorStore((state) => state.ai.selectedTakeGroupId);
+	const isTranscribing = useEditorStore((state) => state.ai.isTranscribingScript);
 	const selectTakeGroup = useEditorStore((state) => state.selectTakeGroup);
 	const chooseTake = useEditorStore((state) => state.chooseTake);
 	const assembleRoughCut = useEditorStore((state) => state.assembleRoughCut);
+	const alignTakesWithScript = useEditorStore((state) => state.alignTakesWithScript);
 	const setPlayhead = useEditorStore((state) => state.setPlayhead);
 
 	const activeGroup = takeGroups.find((g) => g.id === selectedTakeGroupId) || takeGroups[0];
@@ -231,11 +233,22 @@ export const TakesPanel: React.FC = () => {
 					</>
 				) : (
 					<div style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b' }}>
-						<p style={{ margin: '0 0 8px' }}>No take candidates generated yet.</p>
-						<p style={{ fontSize: '11px', margin: 0 }}>
+						<p style={{ margin: '0 0 8px', color: '#cbd5e1' }}>No take candidates generated yet.</p>
+						<p style={{ fontSize: '11px', margin: '0 0 16px' }}>
 							Import a script in the Script panel and click "Align Takes with Script" to detect and
 							rank your best takes.
 						</p>
+						{script && (
+							<button
+								type="button"
+								className="ai-btn-primary"
+								style={{ padding: '5px 14px', fontSize: '11px', margin: '0 auto' }}
+								disabled={isTranscribing}
+								onClick={() => void alignTakesWithScript()}
+							>
+								{isTranscribing ? 'Aligning Footage…' : 'Align Takes with Script'}
+							</button>
+						)}
 					</div>
 				)}
 			</div>

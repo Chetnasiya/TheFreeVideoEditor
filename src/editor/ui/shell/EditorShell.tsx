@@ -1501,7 +1501,7 @@ function EditorShell() {
 							const customWs = workspaces.custom.find((c) => c.id === wsId);
 							const nameMap: Record<string, string> = {
 								assembly: 'Assembly',
-								ai: 'AI',
+								ai: 'AI (Beta)',
 								editing: 'Editing',
 								color: 'Color',
 								effects: 'Effects',

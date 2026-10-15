@@ -61,8 +61,8 @@ export async function handleYoutubeInfo(req, res) {
 			dumpSingleJson: true,
 			noWarnings: true,
 			preferFreeFormats: true,
-			youtubeSkipDashManifest: true,
-			ffmpegLocation: ffmpeg.path
+			ffmpegLocation: ffmpeg.path,
+			extractorArgs: 'youtube:player_client=android'
 		});
 
 		const availableHeights = Array.from(
@@ -124,7 +124,8 @@ export async function handleYoutubeDownload(req, res) {
 			const info = await youtubedl(targetUrl, {
 				dumpSingleJson: true,
 				noWarnings: true,
-				ffmpegLocation: ffmpeg.path
+				ffmpegLocation: ffmpeg.path,
+				extractorArgs: 'youtube:player_client=android'
 			});
 			if (info?.title) {
 				title = info.title;
@@ -164,7 +165,8 @@ export async function handleYoutubeDownload(req, res) {
 			output: outPattern,
 			format: dlFormat,
 			ffmpegLocation: ffmpeg.path,
-			noWarnings: true
+			noWarnings: true,
+			extractorArgs: 'youtube:player_client=android'
 		};
 
 		if (mergeFormat) {
