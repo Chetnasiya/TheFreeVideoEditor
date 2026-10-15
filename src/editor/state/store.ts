@@ -479,6 +479,7 @@ export interface EditorState {
 	isExportDialogOpen: boolean;
 	isExportClosePromptOpen: boolean;
 	isExporting: boolean;
+	isImportDialogOpen: boolean;
 	isSpeedDialogOpen: boolean;
 	speedDialogClipId: ClipId | null;
 	proxySuggestion: { assetId: AssetId; assetName: string } | null;
@@ -546,6 +547,8 @@ export interface EditorState {
 	closeSaveCopyPrompt: () => void;
 	openExportDialog: () => void;
 	closeExportDialog: () => void;
+	openImportDialog: () => void;
+	closeImportDialog: () => void;
 	openSpeedDialog: (clipId?: ClipId) => void;
 	closeSpeedDialog: () => void;
 	setClipSpeed: (
@@ -1308,6 +1311,7 @@ export function createEditorStore() {
 				isExportDialogOpen: false,
 				isExportClosePromptOpen: false,
 				isExporting: false,
+				isImportDialogOpen: false,
 				isSpeedDialogOpen: false,
 				speedDialogClipId: null,
 				isSequenceSettingsDialogOpen: false,
@@ -2139,6 +2143,17 @@ export function createEditorStore() {
 					if (get().isExporting) return;
 					set((state) => {
 						state.isExportDialogOpen = false;
+					});
+				},
+				openImportDialog() {
+					set((state) => {
+						state.isImportDialogOpen = true;
+						state.isFileMenuOpen = false;
+					});
+				},
+				closeImportDialog() {
+					set((state) => {
+						state.isImportDialogOpen = false;
 					});
 				},
 				openSpeedDialog(clipId) {

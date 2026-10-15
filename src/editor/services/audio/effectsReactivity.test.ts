@@ -206,6 +206,7 @@ function makeProjectWithClip(): { project: Project; audioTrack: Track; clip: Cli
 		sourceIn: 0,
 		sourceOut: 5_000_000,
 		speed: 1,
+		volume: 1,
 		audioEffects: []
 	};
 	audioTrack.clips.push(clip);
@@ -309,6 +310,7 @@ describe('Audio Effects Dynamic Reactivity & Non-Muting', () => {
 		const limiterEffect = audioEffectRegistry.createDefaultInstance('limiter');
 		project.masterAudio = {
 			gainDb: 0,
+			limiter: false,
 			effects: [limiterEffect]
 		};
 
@@ -346,9 +348,11 @@ describe('Audio Effects Dynamic Reactivity & Non-Muting', () => {
 		await controller.sync([activeSource], project, true, 1.0);
 
 		// Find the ScriptProcessorNode that was created
-		const spNode = allNodes.find((n) => n.type === 'scriptprocessor') as {
-			onaudioprocess: ((e: unknown) => void) | null;
-		} | undefined;
+		const spNode = allNodes.find((n) => n.type === 'scriptprocessor') as
+			| {
+					onaudioprocess: ((e: unknown) => void) | null;
+			  }
+			| undefined;
 		expect(spNode).toBeDefined();
 		expect(spNode?.onaudioprocess).toBeTypeOf('function');
 

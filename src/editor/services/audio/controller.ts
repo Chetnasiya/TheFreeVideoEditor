@@ -44,6 +44,7 @@ export class AudioGraphController {
 	private readonly scriptProcessors = new Set<ScriptProcessorNode>();
 	private mockMasterGain: GainNode | null = null;
 	private mockAnalyser: AnalyserNode | null = null;
+	private workletError: string | null = null;
 
 	constructor(
 		private readonly pool: Pick<MediaPool, 'getAudioElement'>,
@@ -133,9 +134,7 @@ export class AudioGraphController {
 			const effectsKey = (b.effects ?? []).map(formatEffect).join(',');
 			return `${b.id}:${b.output}:[${effectsKey}]`;
 		});
-		const masterEffectsKey = (project.masterAudio?.effects ?? [])
-			.map(formatEffect)
-			.join(',');
+		const masterEffectsKey = (project.masterAudio?.effects ?? []).map(formatEffect).join(',');
 		return `${trackKeys.join('|')}||${busKeys.join('|')}||${masterEffectsKey}`;
 	}
 
@@ -216,7 +215,8 @@ export class AudioGraphController {
 			clipTail = conn.clipPan;
 		}
 
-		const fallbackTarget = this.graph?.masterNodes.input ?? this.mockMasterGain ?? context.destination;
+		const fallbackTarget =
+			this.graph?.masterNodes.input ?? this.mockMasterGain ?? context.destination;
 
 		if (typeof context.sampleRate !== 'number') {
 			try {
@@ -228,14 +228,9 @@ export class AudioGraphController {
 		// Build and insert clip DSP rack if active audio effects exist
 		const track = project.tracks.find((t) => t.id === conn.trackId);
 		const clip = track?.clips.find((c) => c.id === conn.clipId);
-		const activeFx = (clip?.audioEffects ?? []).filter(
-			(e) => !e.bypass && e.enabled !== false
-		);
+		const activeFx = (clip?.audioEffects ?? []).filter((e) => !e.bypass && e.enabled !== false);
 
-		if (
-			activeFx.length > 0 &&
-			typeof context.createScriptProcessor === 'function'
-		) {
+		if (activeFx.length > 0 && typeof context.createScriptProcessor === 'function') {
 			const rack = buildAudioRack(activeFx, context.sampleRate, 2);
 			const sp = context.createScriptProcessor(4096, 2, 2);
 			this.scriptProcessors.add(sp);

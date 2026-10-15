@@ -17,6 +17,7 @@ import KeyboardShortcutsDialog from './KeyboardShortcutsDialog';
 import SpeedDurationDialog from '../dialogs/SpeedDurationDialog';
 import SequenceSettingsDialog from '../dialogs/SequenceSettingsDialog';
 import MarkerDialog from '../dialogs/MarkerDialog';
+import ImportDialog from '../dialogs/ImportDialog';
 import ExportDialog from '../export/ExportDialog';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
 import SourceMonitor from '../preview/SourceMonitor';
@@ -70,6 +71,7 @@ function EditorShell() {
 	const openProjectManager = useEditorStore((state) => state.openProjectManager);
 	const openNewProjectDialog = useEditorStore((state) => state.openNewProjectDialog);
 	const openExportDialog = useEditorStore((state) => state.openExportDialog);
+	const openImportDialog = useEditorStore((state) => state.openImportDialog);
 	const isExporting = useEditorStore((state) => state.isExporting);
 	const closeProject = useEditorStore((state) => state.closeProject);
 	const duplicateProject = useEditorStore((state) => state.duplicateProject);
@@ -401,7 +403,7 @@ function EditorShell() {
 				})();
 			},
 			'import-media': () => {
-				document.querySelector<HTMLInputElement>('input[name="media-files"]')?.click();
+				state().openImportDialog();
 			},
 			'cheat-sheet': openShortcutsDialog,
 			'toggle-keyframe': () => {
@@ -691,9 +693,7 @@ function EditorShell() {
 										type="button"
 										role="menuitem"
 										onClick={() => {
-											document
-												.querySelector<HTMLInputElement>('input[name="media-files"]')
-												?.click();
+											openImportDialog();
 											closeFileMenu();
 										}}
 									>
@@ -1680,6 +1680,7 @@ function EditorShell() {
 			<SpeedDurationDialog />
 			<SequenceSettingsDialog />
 			<MarkerDialog />
+			<ImportDialog />
 			<EditWorkspacesDialog
 				isOpen={isEditWorkspacesOpen}
 				onClose={() => setIsEditWorkspacesOpen(false)}

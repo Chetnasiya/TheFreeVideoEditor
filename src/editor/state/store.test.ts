@@ -675,6 +675,12 @@ LUT_3D_SIZE 2
 		store.getState().closeSpeedDialog();
 		expect(store.getState().isSpeedDialogOpen).toBe(false);
 
+		// Import Dialog toggle
+		store.getState().openImportDialog();
+		expect(store.getState().isImportDialogOpen).toBe(true);
+		store.getState().closeImportDialog();
+		expect(store.getState().isImportDialogOpen).toBe(false);
+
 		// setClipSpeed
 		expect(store.getState().setClipSpeed([solidId], 2, { maintainPitch: true })).toBe(true);
 		let clip = store.getState().project?.tracks[0]?.clips[0];

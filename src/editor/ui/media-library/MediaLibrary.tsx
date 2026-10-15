@@ -19,8 +19,7 @@ import {
 import type { Asset, AssetId, ProjectId } from '../../core';
 import { useEditorStore } from '../../state/EditorProvider';
 import { getDerived, type DerivedData } from '../../services/storage/mediaCache';
-import { projectMediaSize, projectProxyTotalSize } from '../../services/storage/opfs';
-import { openFiles } from '../../services/storage/fileAccess';
+import { getMediaFile, projectMediaSize, projectProxyTotalSize } from '../../services/storage/opfs';
 import './media-library.css';
 
 function formatBytes(bytes: number): string {
@@ -135,7 +134,7 @@ export default function MediaLibrary() {
 	const media = useEditorStore((state) => state.media);
 	const projectMessage = useEditorStore((state) => state.projectMessage);
 	const importMedia = useEditorStore((state) => state.importMedia);
-	const cancelImport = useEditorStore((state) => state.cancelImport);
+	const openImportDialog = useEditorStore((state) => state.openImportDialog);
 	const deleteAsset = useEditorStore((state) => state.deleteAsset);
 	const renameAsset = useEditorStore((state) => state.renameAsset);
 	const relinkAsset = useEditorStore((state) => state.relinkAsset);
@@ -297,17 +296,6 @@ export default function MediaLibrary() {
 		}
 	}
 
-	async function pickFiles(): Promise<void> {
-		try {
-			const files = await openFiles(ACCEPTED_TYPES.join(','));
-			await importFiles(files);
-		} catch (error) {
-			setProjectMessage(
-				`Could not open the media picker: ${error instanceof Error ? error.message : 'Unknown file error.'}`
-			);
-		}
-	}
-
 	function dragEnter(event: DragEvent<HTMLElement>): void {
 		event.preventDefault();
 		setIsDragging(true);
@@ -331,6 +319,25 @@ export default function MediaLibrary() {
 		const nestedFiles = (await Promise.all(entries.map((entry) => filesFromEntry(entry)))).flat();
 		const allFiles = nestedFiles.length ? nestedFiles : files;
 		await importFiles(allFiles);
+	}
+
+	async function downloadAsset(asset: Asset): Promise<void> {
+		if (!project) return;
+		try {
+			const file = await getMediaFile(project.id, asset);
+			const url = URL.createObjectURL(file);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = asset.name || file.name;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			setTimeout(() => URL.revokeObjectURL(url), 2000);
+		} catch (error) {
+			setProjectMessage(
+				`Could not download file: ${error instanceof Error ? error.message : 'Unknown storage error.'}`
+			);
+		}
 	}
 
 	function startRename(asset: Asset): void {
@@ -509,8 +516,8 @@ export default function MediaLibrary() {
 							className="secondary-button media-import-button"
 							type="button"
 							disabled={!project || isImporting}
-							onClick={() => void pickFiles()}
-							title="Import media files from device"
+							onClick={() => openImportDialog()}
+							title="Import media files"
 						>
 							<svg
 								className="media-btn-icon"
@@ -727,7 +734,7 @@ export default function MediaLibrary() {
 						<span>Create or open a project before importing media.</span>
 					</div>
 				) : mediaTab === 'media' && assets.length === 0 ? (
-					<button className="media-drop-empty" type="button" onClick={() => void pickFiles()}>
+					<button className="media-drop-empty" type="button" onClick={() => openImportDialog()}>
 						<div className="media-drop-icon-wrapper" aria-hidden="true">
 							<svg
 								className="media-drop-icon"
@@ -770,7 +777,7 @@ export default function MediaLibrary() {
 						</button>
 					</div>
 				) : mediaTab === 'all' && assets.length === 0 && sequencesList.length === 0 ? (
-					<button className="media-drop-empty" type="button" onClick={() => void pickFiles()}>
+					<button className="media-drop-empty" type="button" onClick={() => openImportDialog()}>
 						<div className="media-drop-icon-wrapper" aria-hidden="true">
 							<svg
 								className="media-drop-icon"
@@ -1195,6 +1202,19 @@ export default function MediaLibrary() {
 														⚡
 													</button>
 												)}
+											{!asset.offline && (
+												<button
+													type="button"
+													aria-label={`Download ${asset.name} to computer`}
+													title="Download to computer"
+													onClick={(e) => {
+														e.stopPropagation();
+														void downloadAsset(asset);
+													}}
+												>
+													↓
+												</button>
+											)}
 											<button
 												type="button"
 												aria-label={`Rename ${asset.name}`}
@@ -1250,28 +1270,51 @@ export default function MediaLibrary() {
 					{projectMessage}
 				</div>
 			</div>
-            {media.importQueue.filter((job) => !dismissedJobIds.has(job.id)).length > 0 && (
-                <div className="media-import-queue" aria-label="Media import progress" style={{ padding: '8px', borderTop: '1px solid #333', backgroundColor: '#1e1e1e' }}>
-                    {media.importQueue
-                        .filter((job) => !dismissedJobIds.has(job.id))
-                        .map((job) => (
-                            <div className="media-import-job" key={job.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#aaa' }}>
-                                <span className="truncate" style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.name}</span>
-                                <span style={{ color: job.status === 'done' ? '#4ade80' : 'inherit' }}>
-                                    {job.status === 'probing'
-                                        ? 'Reading metadata…'
-                                        : job.status === 'done'
-                                            ? 'Imported'
-                                            : job.status === 'failed'
-                                                ? `Failed: ${job.reason}`
-                                                : job.status === 'cancelled'
-                                                    ? 'Cancelled'
-                                                    : `${Math.round(job.progress)}%`}
-                                </span>
-                            </div>
-                        ))}
-                </div>
-            )}
+			{media.importQueue.filter((job) => !dismissedJobIds.has(job.id)).length > 0 && (
+				<div
+					className="media-import-queue"
+					aria-label="Media import progress"
+					style={{ padding: '8px', borderTop: '1px solid #333', backgroundColor: '#1e1e1e' }}
+				>
+					{media.importQueue
+						.filter((job) => !dismissedJobIds.has(job.id))
+						.map((job) => (
+							<div
+								className="media-import-job"
+								key={job.id}
+								style={{
+									display: 'flex',
+									justifyContent: 'space-between',
+									fontSize: '12px',
+									color: '#aaa'
+								}}
+							>
+								<span
+									className="truncate"
+									style={{
+										maxWidth: '200px',
+										whiteSpace: 'nowrap',
+										overflow: 'hidden',
+										textOverflow: 'ellipsis'
+									}}
+								>
+									{job.name}
+								</span>
+								<span style={{ color: job.status === 'done' ? '#4ade80' : 'inherit' }}>
+									{job.status === 'probing'
+										? 'Reading metadata…'
+										: job.status === 'done'
+											? 'Imported'
+											: job.status === 'failed'
+												? `Failed: ${job.reason}`
+												: job.status === 'cancelled'
+													? 'Cancelled'
+													: `${Math.round(job.progress)}%`}
+								</span>
+							</div>
+						))}
+				</div>
+			)}
 			<footer className="media-library-footer">
 				<span className="media-item-count">
 					{assets.length} {assets.length === 1 ? 'item' : 'items'}
