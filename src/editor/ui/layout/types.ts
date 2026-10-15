@@ -4,6 +4,7 @@ export type PanelId =
 	| 'media'
 	| 'effects'
 	| 'captions'
+	| 'graphics'
 	| 'source'
 	| 'program'
 	| 'inspector'

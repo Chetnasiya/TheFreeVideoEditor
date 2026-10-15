@@ -962,7 +962,10 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTrackDragOver(event: DragEvent<HTMLDivElement>, track: Track): void {
-		if (event.dataTransfer.types.includes('application/x-tfve-transition')) {
+		if (
+			event.dataTransfer.types.includes('application/x-tfve-transition') ||
+			event.dataTransfer.types.includes('application/x-tfve-graphic-template')
+		) {
 			event.preventDefault();
 			event.dataTransfer.dropEffect = 'copy';
 			return;
@@ -1132,7 +1135,10 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTimelineDragOver(event: DragEvent<HTMLDivElement>): void {
-		if (event.dataTransfer.types.includes('application/x-tfve-transition')) {
+		if (
+			event.dataTransfer.types.includes('application/x-tfve-transition') ||
+			event.dataTransfer.types.includes('application/x-tfve-graphic-template')
+		) {
 			event.preventDefault();
 			event.dataTransfer.dropEffect = 'copy';
 			return;
@@ -1226,6 +1232,21 @@ function ActiveTimeline({ project }: { project: Project }) {
 				const time = pointerTime(event.clientX);
 				applyTransitionDrop(targetTrack, time, transitionType);
 			}
+			return;
+		}
+		const graphicTemplateId = event.dataTransfer.getData('application/x-tfve-graphic-template');
+		if (graphicTemplateId) {
+			event.preventDefault();
+			const target = document.elementFromPoint(event.clientX, event.clientY);
+			const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
+			const targetTrack =
+				(trackLaneEl && activeProject.tracks.find((t) => t.id === trackLaneEl.dataset.trackLane && t.kind === 'video')) ||
+				activeProject.tracks.find((t) => t.kind === 'video' && !t.locked);
+			const time = pointerTime(event.clientX);
+			store.getState().addGraphicClip(graphicTemplateId, {
+				start: time,
+				trackId: targetTrack?.id
+			});
 			return;
 		}
 		const assetId = assetFromData(event.dataTransfer);

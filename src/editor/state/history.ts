@@ -14,6 +14,7 @@ export interface HistoryEntry {
 	id: string;
 	label: string;
 	mergeKey?: string;
+	coalesceWindowMs?: number;
 	timestamp: number;
 	patches: Patch[];
 	inversePatches: Patch[];
@@ -87,15 +88,17 @@ export function createHistory(options: HistoryOptions = {}): ProjectHistory {
 
 	function record(entry: HistoryEntry): void {
 		const previous = undoStack.at(-1);
+		const windowMs = entry.coalesceWindowMs ?? coalesceWindowMs;
 		const coalesces =
 			entry.mergeKey !== undefined &&
 			previous?.mergeKey === entry.mergeKey &&
 			entry.timestamp >= previous.timestamp &&
-			entry.timestamp - previous.timestamp <= coalesceWindowMs;
+			entry.timestamp - previous.timestamp <= windowMs;
 		if (coalesces && previous) {
 			undoStack[undoStack.length - 1] = {
 				...entry,
 				id: previous.id,
+				coalesceWindowMs: entry.coalesceWindowMs ?? previous.coalesceWindowMs,
 				patches: [...previous.patches, ...entry.patches],
 				inversePatches: [...entry.inversePatches, ...previous.inversePatches],
 				selectionBefore: previous.selectionBefore,

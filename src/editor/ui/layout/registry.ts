@@ -3,6 +3,7 @@ import type { PanelDefinition, PanelId } from './types';
 import MediaLibrary from '../media-library/MediaLibrary';
 import EffectsLibrary from '../effects/EffectsLibrary';
 import { CaptionsPanel } from '../captions/CaptionsPanel';
+import GraphicsPanel from '../graphics/GraphicsPanel';
 import SourceMonitor from '../preview/SourceMonitor';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
 import Inspector from '../inspector/Inspector';
@@ -34,6 +35,14 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
 		id: 'captions',
 		title: 'Captions',
 		component: CaptionsPanel as ComponentType<{ [key: string]: unknown }>,
+		singleInstance: true,
+		keepAlive: false,
+		minSize: { width: 220, height: 180 }
+	},
+	graphics: {
+		id: 'graphics',
+		title: 'Graphics',
+		component: GraphicsPanel as ComponentType<{ [key: string]: unknown }>,
 		singleInstance: true,
 		keepAlive: false,
 		minSize: { width: 220, height: 180 }

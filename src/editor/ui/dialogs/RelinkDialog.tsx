@@ -91,7 +91,7 @@ export default function RelinkDialog({
 			aria-modal="true"
 		>
 			<div
-				className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] shadow-2xl"
+				className="flex max-h-[85vh] w-[min(720px,calc(100vw-2rem))] max-w-[720px] flex-col overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] shadow-2xl"
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Header */}

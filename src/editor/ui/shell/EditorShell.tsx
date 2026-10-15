@@ -1149,6 +1149,7 @@ function EditorShell() {
 											['media', 'Project / Media Library'],
 											['effects', 'Effects'],
 											['captions', 'Captions'],
+											['graphics', 'Graphics'],
 											['source', 'Source Monitor'],
 											['program', 'Program Monitor'],
 											['inspector', 'Properties / Inspector'],

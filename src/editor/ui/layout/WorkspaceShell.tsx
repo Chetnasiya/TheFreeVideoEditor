@@ -423,7 +423,9 @@ function StackRenderer({
 									? 'effects-panel-title'
 									: panelId === 'captions'
 										? 'captions-panel-title'
-										: panelId === 'inspector'
+										: panelId === 'graphics'
+											? 'graphics-panel-title'
+											: panelId === 'inspector'
 											? 'inspector-title'
 											: panelId === 'color'
 												? 'color-panel-title'
@@ -488,6 +490,7 @@ function StackRenderer({
 						media: 'media-panel',
 						effects: 'effects-panel',
 						captions: 'captions-panel',
+						graphics: 'graphics-panel',
 						source: 'source-panel',
 						program: 'program-panel',
 						inspector: 'inspector-panel',

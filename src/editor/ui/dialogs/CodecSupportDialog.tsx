@@ -1,7 +1,7 @@
 // src/editor/ui/dialogs/CodecSupportDialog.tsx
 // Displays hardware acceleration and codec support matrix on the user's device with diagnostic export.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
 	VIDEO_CODEC_REGISTRY,
@@ -14,6 +14,7 @@ import {
 	generateDiagnosticReport,
 	getCachedReport
 } from '../../services/codecs/probe';
+import './codec-dialogs.css';
 
 interface CodecSupportDialogProps {
 	isOpen: boolean;
@@ -21,6 +22,7 @@ interface CodecSupportDialogProps {
 }
 
 export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDialogProps) {
+	const dialogRef = useRef<HTMLDialogElement>(null);
 	const [report, setReport] = useState<CodecCapabilityReport | null>(getCachedReport());
 	const [copied, setCopied] = useState(false);
 	const [loading, setLoading] = useState(!report);
@@ -39,7 +41,23 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 		};
 	}, [isOpen]);
 
+	useEffect(() => {
+		const dialog = dialogRef.current;
+		if (!dialog) return;
+		if (isOpen && !dialog.open) {
+			dialog.showModal();
+		} else if (!isOpen && dialog.open) {
+			dialog.close();
+		}
+	}, [isOpen]);
+
 	if (!isOpen) return null;
+
+	const handleBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+		if (e.target === dialogRef.current) {
+			onClose();
+		}
+	};
 
 	const handleCopyReport = async () => {
 		const text = generateDiagnosticReport();
@@ -59,55 +77,58 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 		}
 	};
 
+	const getPlatformLabel = () => {
+		if (typeof navigator === 'undefined') return 'Standard Engine';
+		const ua = navigator.userAgent;
+		if (/Mac/i.test(ua)) return 'Apple Silicon / Metal GPU';
+		if (/Win/i.test(ua)) return 'Direct3D / Windows GPU';
+		if (/Linux|Android/i.test(ua)) return 'Vulkan / Linux GPU';
+		return 'WebGL2 / Platform GPU';
+	};
+
 	const modalContent = (
-		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+		<dialog
+			ref={dialogRef}
+			className="editor-dialog codec-support-dialog"
 			role="dialog"
 			aria-labelledby="codec-support-title"
 			aria-modal="true"
-			onClick={(e) => {
-				if (e.target === e.currentTarget) onClose();
+			onClick={handleBackdropClick}
+			onCancel={(e) => {
+				e.preventDefault();
+				onClose();
 			}}
 		>
-			<div
-				className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] shadow-2xl"
-				onClick={(e) => e.stopPropagation()}
-			>
+			<div className="codec-dialog-inner">
 				{/* Header */}
-				<div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-6 py-4">
+				<div className="codec-dialog-header">
 					<div>
-						<h2
-							id="codec-support-title"
-							className="text-base font-semibold text-[var(--color-text)]"
-						>
+						<p className="dialog-eyebrow">DIAGNOSTICS</p>
+						<h2 id="codec-support-title" className="text-sm font-semibold text-[#f1f5f9]">
 							Codec & Hardware Acceleration Support
 						</h2>
-						<p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+						<p className="dialog-description mt-1 text-xs">
 							Live audit of video and audio encoders supported on this device.
 						</p>
 					</div>
 					<button
 						type="button"
 						onClick={onClose}
-						className="rounded-lg p-1.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+						className="icon-button dialog-close"
 						aria-label="Close dialog"
 					>
-						<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-							<path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06z" />
-						</svg>
+						✕
 					</button>
 				</div>
 
 				{/* Body Content */}
-				<div className="flex-1 space-y-6 overflow-y-auto px-6 py-4 text-sm">
+				<div className="codec-dialog-body">
 					{/* Status Summary Cards */}
 					<div className="grid grid-cols-3 gap-3">
-						<div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-inset)] p-3">
-							<span className="block text-[11px] font-medium tracking-wider text-[var(--color-text-muted)] uppercase">
-								WebCodecs API
-							</span>
+						<div className="codec-card">
+							<span className="codec-card-label">WebCodecs API</span>
 							<span
-								className={`mt-1 inline-flex items-center gap-1.5 text-xs font-semibold ${report?.hasWebCodecs ? 'text-emerald-400' : 'text-amber-400'}`}
+								className={`codec-card-value ${report?.hasWebCodecs ? 'text-emerald-400' : 'text-amber-400'}`}
 							>
 								<span
 									className={`h-2 w-2 rounded-full ${report?.hasWebCodecs ? 'bg-emerald-400' : 'bg-amber-400'}`}
@@ -115,12 +136,10 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 								{report?.hasWebCodecs ? 'Available' : 'Restricted'}
 							</span>
 						</div>
-						<div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-inset)] p-3">
-							<span className="block text-[11px] font-medium tracking-wider text-[var(--color-text-muted)] uppercase">
-								Context Security
-							</span>
+						<div className="codec-card">
+							<span className="codec-card-label">Context Security</span>
 							<span
-								className={`mt-1 inline-flex items-center gap-1.5 text-xs font-semibold ${report?.isSecureContext ? 'text-emerald-400' : 'text-rose-400'}`}
+								className={`codec-card-value ${report?.isSecureContext ? 'text-emerald-400' : 'text-rose-400'}`}
 							>
 								<span
 									className={`h-2 w-2 rounded-full ${report?.isSecureContext ? 'bg-emerald-400' : 'bg-rose-400'}`}
@@ -128,23 +147,17 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 								{report?.isSecureContext ? 'Secure Origin' : 'Insecure (No HW)'}
 							</span>
 						</div>
-						<div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-inset)] p-3">
-							<span className="block text-[11px] font-medium tracking-wider text-[var(--color-text-muted)] uppercase">
-								Platform Engine
-							</span>
-							<span className="mt-1 block truncate text-xs font-semibold text-[var(--color-text)]">
-								Apple Silicon GPU
-							</span>
+						<div className="codec-card">
+							<span className="codec-card-label">Platform Engine</span>
+							<span className="codec-card-value truncate text-[#f1f5f9]">{getPlatformLabel()}</span>
 						</div>
 					</div>
 
 					{/* Video Codecs Table */}
 					<div>
-						<h3 className="mb-2.5 text-xs font-semibold tracking-wider text-[var(--color-text-muted)] uppercase">
-							Video Codecs (Export & Encode)
-						</h3>
-						<div className="overflow-hidden rounded-lg border border-[var(--color-border-subtle)]">
-							<div className="divide-y divide-[var(--color-border-subtle)] bg-[var(--color-surface)]">
+						<div className="codec-table-container">
+							<div className="codec-table-header">Video Codecs (Export & Encode)</div>
+							<div>
 								{VIDEO_CODEC_REGISTRY.map((codec) => {
 									const status = report?.codecs[codec.id];
 									const isSupported = status?.supported ?? false;
@@ -152,13 +165,10 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 									const isPack = codec.tier === 2;
 
 									return (
-										<div
-											key={codec.id}
-											className="flex items-center justify-between px-3.5 py-2.5 text-xs"
-										>
-											<div>
-												<span className="font-medium text-[var(--color-text)]">{codec.label}</span>
-												<div className="mt-0.5 flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
+										<div key={codec.id} className="codec-table-row">
+											<div className="min-w-0 pr-4">
+												<span className="font-medium text-[#f1f5f9]">{codec.label}</span>
+												<div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-[#94a3b8]">
 													<span>{codec.container.toUpperCase()}</span>
 													<span>•</span>
 													<span>{codec.bitDepth}-bit</span>
@@ -166,26 +176,21 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 													<span className="font-mono text-[10px]">{codec.videoCodecString}</span>
 												</div>
 											</div>
-											<div className="text-right">
+											<div className="shrink-0 text-right">
 												{loading ? (
-													<span className="text-xs text-[var(--color-text-muted)]">Checking…</span>
+													<span className="text-xs text-[#94a3b8]">Checking…</span>
 												) : isPack ? (
-													<span className="inline-flex items-center rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-400">
-														Advanced Pack (Deferred)
-													</span>
+													<span className="codec-badge-deferred">Advanced Pack (Deferred)</span>
 												) : isSupported ? (
-													<span
-														className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${isHw ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-400' : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-400'}`}
-													>
-														<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+													<span className={isHw ? 'codec-badge-hw' : 'codec-badge-supported'}>
+														<span
+															className={`h-1.5 w-1.5 rounded-full ${isHw ? 'bg-[#38bdf8]' : 'bg-[#34d399]'}`}
+														/>
 														{isHw ? 'Hardware Accelerated' : 'Supported'}
 													</span>
 												) : (
-													<span
-														className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-400"
-														title={status?.reason}
-													>
-														<span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+													<span className="codec-badge-unsupported" title={status?.reason}>
+														<span className="h-1.5 w-1.5 rounded-full bg-[#f87171]" />
 														Unsupported
 													</span>
 												)}
@@ -199,23 +204,18 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 
 					{/* Audio Codecs & Formats */}
 					<div>
-						<h3 className="mb-2.5 text-xs font-semibold tracking-wider text-[var(--color-text-muted)] uppercase">
-							Audio Codecs & Master Containers
-						</h3>
-						<div className="overflow-hidden rounded-lg border border-[var(--color-border-subtle)]">
-							<div className="divide-y divide-[var(--color-border-subtle)] bg-[var(--color-surface)]">
+						<div className="codec-table-container">
+							<div className="codec-table-header">Audio Codecs & Master Containers</div>
+							<div>
 								{AUDIO_CODEC_REGISTRY.map((audio) => {
 									const status = report?.audioCodecs[audio.id];
 									const isSupported = status?.supported ?? false;
 
 									return (
-										<div
-											key={audio.id}
-											className="flex items-center justify-between px-3.5 py-2.5 text-xs"
-										>
-											<div>
-												<span className="font-medium text-[var(--color-text)]">{audio.label}</span>
-												<div className="mt-0.5 flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
+										<div key={audio.id} className="codec-table-row">
+											<div className="min-w-0 pr-4">
+												<span className="font-medium text-[#f1f5f9]">{audio.label}</span>
+												<div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-[#94a3b8]">
 													<span>
 														{audio.isLossless ? 'Uncompressed / Lossless' : 'Compressed AAC/Opus'}
 													</span>
@@ -223,20 +223,17 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 													<span className="font-mono text-[10px]">{audio.codecString}</span>
 												</div>
 											</div>
-											<div>
+											<div className="shrink-0 text-right">
 												{loading ? (
-													<span className="text-xs text-[var(--color-text-muted)]">Checking…</span>
+													<span className="text-xs text-[#94a3b8]">Checking…</span>
 												) : isSupported ? (
-													<span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
-														<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+													<span className="codec-badge-supported">
+														<span className="h-1.5 w-1.5 rounded-full bg-[#34d399]" />
 														Supported
 													</span>
 												) : (
-													<span
-														className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-400"
-														title={status?.reason}
-													>
-														<span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+													<span className="codec-badge-unsupported" title={status?.reason}>
+														<span className="h-1.5 w-1.5 rounded-full bg-[#f87171]" />
 														Unsupported
 													</span>
 												)}
@@ -245,21 +242,18 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 									);
 								})}
 								{AUDIO_ONLY_PRESETS.map((preset) => (
-									<div
-										key={preset.id}
-										className="flex items-center justify-between px-3.5 py-2.5 text-xs"
-									>
-										<div>
-											<span className="font-medium text-[var(--color-text)]">{preset.label}</span>
-											<div className="mt-0.5 flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
+									<div key={preset.id} className="codec-table-row">
+										<div className="min-w-0 pr-4">
+											<span className="font-medium text-[#f1f5f9]">{preset.label}</span>
+											<div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-[#94a3b8]">
 												<span>WAV Audio Master</span>
 												<span>•</span>
 												<span>{preset.bitDepth}-bit Lossless</span>
 											</div>
 										</div>
-										<div>
-											<span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
-												<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+										<div className="shrink-0 text-right">
+											<span className="codec-badge-supported">
+												<span className="h-1.5 w-1.5 rounded-full bg-[#34d399]" />
 												Supported (Lossless)
 											</span>
 										</div>
@@ -271,28 +265,25 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 				</div>
 
 				{/* Footer */}
-				<div className="flex items-center justify-between border-t border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-6 py-3">
+				<div className="codec-dialog-footer">
 					<button
 						type="button"
 						onClick={handleCopyReport}
-						className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-inset)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
+						className="secondary-button"
+						style={{ gap: '6px' }}
 					>
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+						<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
 							<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
 							<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
 						</svg>
 						{copied ? 'Copied to Clipboard!' : 'Copy Diagnostic Report'}
 					</button>
-					<button
-						type="button"
-						onClick={onClose}
-						className="rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-xs font-semibold text-white shadow-xs transition-opacity hover:opacity-90"
-					>
+					<button type="button" onClick={onClose} className="primary-button">
 						Close
 					</button>
 				</div>
 			</div>
-		</div>
+		</dialog>
 	);
 
 	if (typeof document === 'undefined') return null;

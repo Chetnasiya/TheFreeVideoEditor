@@ -461,6 +461,38 @@ export function resolveFrame(
 				const lineHeight = finite(read('text.lineHeight', style.lineHeight ?? 1.2), 1.2);
 				const reveal = Math.min(1, Math.max(0, finite(read('text.reveal', 1), 1)));
 
+				const rawShadow = read('text.shadowColor', null);
+				const shadowColor =
+					Array.isArray(rawShadow) && rawShadow.length >= 4
+						? {
+								r: finite(rawShadow[0], 0),
+								g: finite(rawShadow[1], 0),
+								b: finite(rawShadow[2], 0),
+								a: finite(rawShadow[3], 1)
+							}
+						: undefined;
+				const shadowBlur = finite(read('text.shadowBlur', 0), 0);
+				const shadowOffsetX = finite(read('text.shadowOffsetX', 0), 0);
+				const shadowOffsetY = finite(read('text.shadowOffsetY', 0), 0);
+
+				const rawBg = read('text.backgroundBoxColor', null);
+				const backgroundBoxColor =
+					Array.isArray(rawBg) && rawBg.length >= 4
+						? {
+								r: finite(rawBg[0], 0),
+								g: finite(rawBg[1], 0),
+								b: finite(rawBg[2], 0),
+								a: finite(rawBg[3], 1)
+							}
+						: undefined;
+				const backgroundBoxRadius = finite(read('text.backgroundBoxRadius', 0), 0);
+				const backgroundBoxPadding = finite(read('text.backgroundBoxPadding', 0), 0);
+
+				const colorRuns =
+					'colorRuns' in clip.source && Array.isArray(clip.source.colorRuns)
+						? (clip.source.colorRuns as NonNullable<import('./playback').ActiveLayer['textData']>['colorRuns'])
+						: undefined;
+
 				return {
 					clipId: clip.id,
 					trackId: track.id,
@@ -479,7 +511,15 @@ export function resolveFrame(
 						strokeWidth,
 						letterSpacing,
 						lineHeight,
-						reveal
+						reveal,
+						shadowColor,
+						shadowBlur,
+						shadowOffsetX,
+						shadowOffsetY,
+						backgroundBoxColor,
+						backgroundBoxRadius,
+						backgroundBoxPadding,
+						colorRuns
 					},
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,

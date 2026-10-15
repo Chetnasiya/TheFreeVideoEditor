@@ -137,9 +137,24 @@ export interface TextBox {
 	paddingY?: number;
 }
 
+export interface TextColorRun {
+	startIndex: number;
+	endIndex: number;
+	fillColor?: { r: number; g: number; b: number; a: number };
+	strokeColor?: { r: number; g: number; b: number; a: number };
+}
+
 export type ClipSource =
 	| { type: 'asset' }
-	| { type: 'text'; text: string; style?: TextStyle; box?: TextBox }
+	| {
+			type: 'text';
+			text: string;
+			style?: TextStyle;
+			box?: TextBox;
+			colorRuns?: TextColorRun[];
+			graphicTemplateId?: string;
+			animationPresetId?: string;
+	  }
 	| { type: 'sequence'; sequenceId: SequenceId }
 	| { type: 'solid'; color: { r: number; g: number; b: number; a: number } }
 	| { type: 'adjustment' };

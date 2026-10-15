@@ -8,6 +8,7 @@ export const KNOWN_PANEL_IDS: ReadonlySet<PanelId> = new Set<PanelId>([
 	'media',
 	'effects',
 	'captions',
+	'graphics',
 	'source',
 	'program',
 	'inspector',
@@ -78,7 +79,50 @@ export function validateAndNormalizeLayout(root: LayoutNode): LayoutNode {
 		}
 	}
 
+	// Ensure 'graphics' is placed beside 'captions' if captions is present and graphics is missing
+	if (seenPanels.has('captions') && !seenPanels.has('graphics')) {
+		normalized = insertPanelBeside(normalized, 'captions', 'graphics');
+		seenPanels.add('graphics');
+	}
+
 	return normalized;
+}
+
+/**
+ * Inserts a panel right after a target panel inside the same stack,
+ * or falls back to injectPanel if target panel is not found.
+ */
+export function insertPanelBeside(
+	root: LayoutNode,
+	targetPanelId: PanelId,
+	newPanelId: PanelId
+): LayoutNode {
+	let inserted = false;
+
+	function visit(node: LayoutNode): LayoutNode {
+		if (inserted) return node;
+		if (node.type === 'stack') {
+			const idx = node.panelIds.indexOf(targetPanelId);
+			if (idx !== -1 && !node.panelIds.includes(newPanelId)) {
+				inserted = true;
+				const updated = [...node.panelIds];
+				updated.splice(idx + 1, 0, newPanelId);
+				return {
+					...node,
+					panelIds: updated
+				};
+			}
+			return node;
+		}
+		return {
+			...node,
+			children: node.children.map((c) => visit(c))
+		};
+	}
+
+	const result = visit(root);
+	if (inserted) return result;
+	return injectPanel(root, newPanelId);
 }
 
 /**

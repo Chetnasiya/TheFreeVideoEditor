@@ -174,6 +174,14 @@ import {
 import { parseSrt, serializeSrt } from '../core/captions/srt';
 import { parseVtt, serializeVtt } from '../core/captions/vtt';
 import { DEFAULT_CAPTION_STYLE } from '../core/captions/presets';
+import {
+	createGraphicClip,
+	applyGraphicTemplateToClip,
+	getGraphicTemplate,
+	computeColorRuns,
+	GRAPHIC_ANIMATION_PRESETS,
+	applyAnimationPresetToClip
+} from '../core/text/graphicsTemplates';
 import { detectVoiceActivity, generateDuckingKeyframes } from '../core/audio/ducking';
 import { defaultTrackAudio } from '../core/audioMath';
 import { ensureLutLoaded, storeParsedLut } from '../services/media/lutCache';
@@ -817,6 +825,19 @@ export interface EditorState {
 	applyTextTemplate: (clipId: ClipId, templateId: string) => boolean;
 	applyTextAnimation: (clipId: ClipId, presetId: string) => boolean;
 	clearTextAnimations: (clipId: ClipId) => boolean;
+	addGraphicClip: (
+		templateId: string,
+		options?: { text?: string; trackId?: TrackId; start?: Time; duration?: Time }
+	) => ClipId | null;
+	applyGraphicTemplate: (
+		clipId: ClipId,
+		templateId: string,
+		customText?: string
+	) => boolean;
+	setGraphicAccentColor: (
+		clipId: ClipId,
+		color: { r: number; g: number; b: number; a: number }
+	) => boolean;
 	setSolidColor: (
 		clipId: ClipId,
 		color: { r: number; g: number; b: number; a?: number }
@@ -964,6 +985,7 @@ export function createEditorStore() {
 					dirty?: boolean;
 					history?: HistoryPolicy;
 					mergeKey?: string;
+					coalesceWindowMs?: number;
 					resetHistory?: boolean;
 				} = {}
 			): Project | null {
@@ -1054,6 +1076,7 @@ export function createEditorStore() {
 							id: `${current.id}:${state.revision}`,
 							label,
 							...(options.mergeKey ? { mergeKey: options.mergeKey } : {}),
+							...(options.coalesceWindowMs ? { coalesceWindowMs: options.coalesceWindowMs } : {}),
 							timestamp: Date.now(),
 							patches,
 							inversePatches,
@@ -5789,18 +5812,25 @@ export function createEditorStore() {
 										...t,
 										clips: t.clips.map((c) => {
 											if (c.id !== clipId || c.source?.type !== 'text') return c;
+											const tplId = c.source.graphicTemplateId;
+											const tpl = tplId ? getGraphicTemplate(tplId) : undefined;
+											const currentAccent = c.source.colorRuns?.[0]?.fillColor;
+											const colorRuns = tpl
+												? computeColorRuns(text, tpl, currentAccent)
+												: c.source.colorRuns;
 											return {
 												...c,
 												text,
 												source: {
 													...c.source,
-													text
+													text,
+													colorRuns
 												}
 											};
 										})
 									}))
 								})),
-							{ history: 'record', mergeKey: `text-edit-${clipId}` }
+							{ history: 'record', mergeKey: `text-edit-${clipId}`, coalesceWindowMs: 1200 }
 						);
 						return true;
 					} catch {
@@ -5910,7 +5940,32 @@ export function createEditorStore() {
 										...t,
 										clips: t.clips.map((c) => {
 											if (c.id !== clipId || c.source?.type !== 'text') return c;
-											return applyTextAnimationPreset(c, presetId);
+											const textSrc = c.source;
+											const animPreset = GRAPHIC_ANIMATION_PRESETS.find(
+												(a) => a.id === presetId
+											);
+											if (animPreset) {
+												const baseTime =
+													animPreset.kind === 'out'
+														? Math.max(0, c.duration - animPreset.duration)
+														: 0;
+												const animated = applyAnimationPresetToClip(c, animPreset, baseTime);
+												return {
+													...animated,
+													source: {
+														...textSrc,
+														animationPresetId: presetId
+													}
+												};
+											}
+											const animated = applyTextAnimationPreset(c, presetId);
+											return {
+												...animated,
+												source: {
+													...textSrc,
+													animationPresetId: presetId
+												}
+											};
 										})
 									}))
 								})),
@@ -5934,11 +5989,154 @@ export function createEditorStore() {
 										...t,
 										clips: t.clips.map((c) => {
 											if (c.id !== clipId || c.source?.type !== 'text') return c;
-											return clearTextAnimations(c);
+											const textSrc = c.source;
+											const cleared = clearTextAnimations(c);
+											return {
+												...cleared,
+												source: {
+													...textSrc,
+													animationPresetId: undefined
+												}
+											};
 										})
 									}))
 								})),
 							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				addGraphicClip(templateId, options) {
+					const activeSeqId = get().activeSequenceId;
+					const project = get().project;
+					if (!project) return null;
+					const activeView = viewProject(project, activeSeqId);
+					if (!activeView) return null;
+
+					const clipStart = options?.start ?? get().timeline.playhead;
+					const clipDuration = options?.duration ?? 5_000_000;
+
+					const selTrackId = options?.trackId ?? get().timeline.selection.trackId;
+					let targetTrackId: TrackId | null = null;
+					if (selTrackId) {
+						const selectedTrack = activeView.tracks.find(
+							(t) => t.id === selTrackId && t.kind === 'video' && !t.locked
+						);
+						if (selectedTrack) targetTrackId = selectedTrack.id;
+					}
+					if (!targetTrackId) {
+						const videoTracks = activeView.tracks.filter((t) => t.kind === 'video' && !t.locked);
+						if (videoTracks.length > 0) {
+							targetTrackId = videoTracks[0]!.id;
+						}
+					}
+
+					let createdClipId: ClipId | null = null;
+					try {
+						mutateProject(
+							'Add graphic title',
+							(proj) => {
+								return applyToSequence(proj, activeSeqId, (view) => {
+									let currentView = view;
+									let trackToUse = targetTrackId
+										? currentView.tracks.find(
+												(t) => t.id === targetTrackId && t.kind === 'video' && !t.locked
+											)
+										: undefined;
+									if (!trackToUse) {
+										const prevIds = new Set(currentView.tracks.map((t) => t.id));
+										currentView = addTrackOperation(currentView, 'video');
+										trackToUse = currentView.tracks.find(
+											(t) => !prevIds.has(t.id) && t.kind === 'video'
+										);
+									}
+									const clip = createGraphicClip(
+										templateId,
+										clipStart,
+										clipDuration,
+										options?.text
+									);
+									createdClipId = clip.id;
+									return insertClip(currentView, trackToUse!.id, clip);
+								});
+							},
+							{ history: 'record' }
+						);
+						if (createdClipId) {
+							get().selectClips([createdClipId]);
+							projectHistory.updateSelectionAfter([createdClipId]);
+						}
+						return createdClipId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				applyGraphicTemplate(clipId, templateId, customText) {
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Apply graphic template',
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'text') return c;
+											return applyGraphicTemplateToClip(c, templateId, customText);
+										})
+									}))
+								})),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setGraphicAccentColor(clipId, color) {
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Update graphic accent color',
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'text') return c;
+											const tplId = c.source.graphicTemplateId;
+											const tpl = tplId ? getGraphicTemplate(tplId) : undefined;
+											const text = c.source.text || '';
+											const colorRuns = tpl
+												? computeColorRuns(text, tpl, color)
+												: [
+														{
+															startIndex: Math.max(0, text.lastIndexOf('\n') + 1),
+															endIndex: text.length,
+															fillColor: color
+														}
+													];
+											return {
+												...c,
+												source: {
+													...c.source,
+													colorRuns
+												}
+											};
+										})
+									}))
+								})),
+							{ history: 'record', mergeKey: `graphic-accent-${clipId}` }
 						);
 						return true;
 					} catch {
