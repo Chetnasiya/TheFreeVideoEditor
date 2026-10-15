@@ -196,7 +196,7 @@ export default function MediaLibrary() {
 			scheduledJobIds.current.add(job.id);
 			setTimeout(() => {
 				setDismissedJobIds((prev) => new Set(prev).add(job.id));
-			}, 4000);
+			}, 3000);
 		});
 	}, [media.importQueue, dismissedJobIds]);
 
@@ -1234,37 +1234,7 @@ export default function MediaLibrary() {
 							})}
 					</div>
 				)}
-				{media.importQueue.filter((job) => !dismissedJobIds.has(job.id)).length > 0 && (
-					<div className="media-import-queue" aria-label="Media import progress">
-						{media.importQueue
-							.filter((job) => !dismissedJobIds.has(job.id))
-							.map((job) => (
-								<div className="media-import-job" key={job.id}>
-									<span>{job.name}</span>
-									<span>
-										{job.status === 'probing'
-											? 'Reading metadata…'
-											: job.status === 'done'
-												? 'Imported'
-												: job.status === 'failed'
-													? `Failed: ${job.reason}`
-													: job.status === 'cancelled'
-														? 'Cancelled'
-														: `${Math.round(job.progress)}%`}
-									</span>
-									{!['done', 'failed', 'cancelled'].includes(job.status) && (
-										<button
-											type="button"
-											aria-label={`Cancel import of ${job.name}`}
-											onClick={() => cancelImport(job.id)}
-										>
-											Cancel
-										</button>
-									)}
-								</div>
-							))}
-					</div>
-				)}
+
 				{hasImportFailures && (
 					<div className="media-failures" role="status" aria-live="polite">
 						{media.importQueue
@@ -1280,6 +1250,28 @@ export default function MediaLibrary() {
 					{projectMessage}
 				</div>
 			</div>
+            {media.importQueue.filter((job) => !dismissedJobIds.has(job.id)).length > 0 && (
+                <div className="media-import-queue" aria-label="Media import progress" style={{ padding: '8px', borderTop: '1px solid #333', backgroundColor: '#1e1e1e' }}>
+                    {media.importQueue
+                        .filter((job) => !dismissedJobIds.has(job.id))
+                        .map((job) => (
+                            <div className="media-import-job" key={job.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#aaa' }}>
+                                <span className="truncate" style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.name}</span>
+                                <span style={{ color: job.status === 'done' ? '#4ade80' : 'inherit' }}>
+                                    {job.status === 'probing'
+                                        ? 'Reading metadata…'
+                                        : job.status === 'done'
+                                            ? 'Imported'
+                                            : job.status === 'failed'
+                                                ? `Failed: ${job.reason}`
+                                                : job.status === 'cancelled'
+                                                    ? 'Cancelled'
+                                                    : `${Math.round(job.progress)}%`}
+                                </span>
+                            </div>
+                        ))}
+                </div>
+            )}
 			<footer className="media-library-footer">
 				<span className="media-item-count">
 					{assets.length} {assets.length === 1 ? 'item' : 'items'}
