@@ -478,9 +478,9 @@
 	align-items: center;
 	justify-content: center;
 	gap: 5px;
-	border: 1px solid #242432;
+	border: 1px solid #242430;
 	border-radius: 5px;
-	background: #13131a;
+	background: #111116;
 	padding: 0 8px;
 	color: #94a3b8;
 	font-size: 11px;
@@ -496,8 +496,8 @@
 .view-toggle:hover:not(:disabled),
 .transport-actions button:hover:not(:disabled),
 .tool-button:hover:not(:disabled) {
-	border-color: #333346;
-	background: #1b1b24;
+	border-color: #38bdf8;
+	background: #181824;
 	color: #f1f5f9;
 }
 
@@ -1375,9 +1375,10 @@
 }
 
 .tool-button.is-active {
-	border-color: var(--color-link);
-	background: var(--color-link-soft);
-	color: var(--color-link);
+	border-color: #38bdf8;
+	background: rgba(56, 189, 248, 0.15);
+	color: #38bdf8;
+	box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
 }
 
 .timeline-actions {

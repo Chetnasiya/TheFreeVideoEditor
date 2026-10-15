@@ -112,7 +112,7 @@
 .timeline-toolbar-separator {
 	width: 1px;
 	height: 14px;
-	background: var(--color-hairline);
+	background: #242430;
 	margin: 0 4px;
 	flex: 0 0 1px;
 }
@@ -122,7 +122,8 @@
 	gap: var(--spacing-xxs);
 }
 
-.timeline-tool-group .tool-button {
+.timeline-tool-group .tool-button,
+.timeline-toolbar-row .tool-button {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -132,38 +133,46 @@
 	min-width: 1.75rem;
 	min-height: 1.625rem;
 	height: 1.625rem;
-	border: 1px solid var(--color-hairline);
+	border: 1px solid #242430;
 	border-radius: var(--radius-sm);
-	background: var(--color-canvas-elevated);
+	background: #111116;
 	padding: 0 var(--spacing-xs);
-	color: var(--color-body);
+	color: #94a3b8;
 	font-size: var(--text-body-sm);
+	font-weight: 500;
 	white-space: nowrap;
+	cursor: pointer;
+	transition: all 0.12s ease;
 }
 
-.timeline-tool-group .tool-button .tool-btn-icon {
+.timeline-tool-group .tool-button .tool-btn-icon,
+.timeline-toolbar-row .tool-button .tool-btn-icon {
 	flex: 0 0 auto;
-	opacity: 0.85;
+	color: #64748b;
+	transition: color 0.12s ease;
+}
+
+.timeline-tool-group .tool-button:hover:not(:disabled),
+.timeline-toolbar-row .tool-button:hover:not(:disabled) {
+	border-color: #38bdf8;
+	background: #181824;
+	color: #f1f5f9;
 }
 
 .timeline-tool-group .tool-button:hover .tool-btn-icon,
-.timeline-tool-group .tool-button.is-active .tool-btn-icon {
-	opacity: 1;
-}
-
-.timeline-tool-group .tool-button:hover:not(:disabled) {
-	border-color: var(--color-mute);
-	color: var(--color-ink);
+.timeline-toolbar-row .tool-button:hover .tool-btn-icon {
+	color: #38bdf8;
 }
 
 .timeline-tool-group .tool-button:focus-visible,
+.timeline-toolbar-row .tool-button:focus-visible,
 .timeline-track-header button:focus-visible,
 .timeline-track-header input:focus-visible,
 .timeline-clip:focus-visible,
 .clip-trim-handle:focus-visible,
 .timeline-zoom-tools input:focus-visible,
 .timeline-context-menu button:focus-visible {
-	outline: 2px solid var(--color-link);
+	outline: 2px solid #38bdf8;
 	outline-offset: 2px;
 }
 
@@ -176,10 +185,26 @@
 	outline: none;
 }
 
-.timeline-tool-group .tool-button.is-active {
-	border-color: var(--color-link);
-	background: var(--color-link-soft);
-	color: var(--color-link);
+.timeline-tool-group .tool-button.is-active,
+.timeline-toolbar-row .tool-button.is-active {
+	border-color: #38bdf8;
+	background: rgba(56, 189, 248, 0.15);
+	color: #38bdf8;
+	box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
+}
+
+.timeline-tool-group .tool-button.is-active .tool-btn-icon,
+.timeline-toolbar-row .tool-button.is-active .tool-btn-icon {
+	color: #38bdf8;
+}
+
+.timeline-tool-group .tool-button:disabled,
+.timeline-toolbar-row .tool-button:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+	border-color: #1e1e28;
+	background: #111116;
+	color: #555566;
 }
 
 .timeline-zoom-tools {
@@ -1879,4 +1904,40 @@
 	background: #ffffff;
 	border: 1px solid #cbd5e1;
 	color: #475569;
+}
+
+:root[data-theme='light'] .timeline-tool-group .tool-button,
+:root[data-theme='light'] .timeline-toolbar-row .tool-button {
+	background: #ffffff;
+	border: 1px solid #cbd5e1;
+	color: #475569;
+}
+
+:root[data-theme='light'] .timeline-tool-group .tool-button .tool-btn-icon,
+:root[data-theme='light'] .timeline-toolbar-row .tool-button .tool-btn-icon {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .timeline-tool-group .tool-button:hover:not(:disabled),
+:root[data-theme='light'] .timeline-toolbar-row .tool-button:hover:not(:disabled) {
+	border-color: #0284c7;
+	background: #f0f9ff;
+	color: #0284c7;
+}
+
+:root[data-theme='light'] .timeline-tool-group .tool-button:hover .tool-btn-icon,
+:root[data-theme='light'] .timeline-toolbar-row .tool-button:hover .tool-btn-icon {
+	color: #0284c7;
+}
+
+:root[data-theme='light'] .timeline-tool-group .tool-button.is-active,
+:root[data-theme='light'] .timeline-toolbar-row .tool-button.is-active {
+	border-color: #0284c7;
+	background: rgba(2, 132, 199, 0.12);
+	color: #0284c7;
+	box-shadow: 0 0 6px rgba(2, 132, 199, 0.2);
+}
+
+:root[data-theme='light'] .timeline-toolbar-separator {
+	background: #e2e8f0;
 }
