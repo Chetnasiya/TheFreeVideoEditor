@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 import { fileURLToPath } from 'node:url';
 import { youtubeDownloadPlugin } from './src/server/youtubeDownloader.mjs';
+import { instagramDownloadPlugin } from './src/server/instagramDownloader.mjs';
 
 // Plugin to prevent bundling the massive 26MB onnxruntime wasm files into dist assets
 function externalizeOnnxWasmPlugin() {
@@ -48,7 +49,12 @@ function externalizeOnnxWasmPlugin() {
 export default defineConfig({
 	integrations: [react()],
 	vite: {
-		plugins: [tailwindcss(), externalizeOnnxWasmPlugin(), youtubeDownloadPlugin()],
+		plugins: [
+			tailwindcss(),
+			externalizeOnnxWasmPlugin(),
+			youtubeDownloadPlugin(),
+			instagramDownloadPlugin()
+		],
 		resolve: {
 			alias: {
 				'@huggingface/transformers': fileURLToPath(

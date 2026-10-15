@@ -112,7 +112,7 @@ function AssetPreview({ asset, projectId }: { asset: Asset; projectId: ProjectId
 		);
 	}
 	if (posterUrl) {
-		return <img className="asset-poster" src={posterUrl} alt="" width="160" height="90" />;
+		return <img className="asset-poster" src={posterUrl} alt="" width="160" height="100" />;
 	}
 	return (
 		<div className="asset-kind-icon" aria-hidden="true">
@@ -156,7 +156,6 @@ export default function MediaLibrary() {
 	const [relinkMismatch, setRelinkMismatch] = useState('');
 	const [isImporting, setIsImporting] = useState(false);
 	const [activeAssetId, setActiveAssetId] = useState<AssetId | null>(null);
-	const [thumbnailHeight, setThumbnailHeight] = useState(40);
 	const [proxySettingsOpen, setProxySettingsOpen] = useState(false);
 	const generateAssetDerived = useEditorStore((state) => state.generateAssetDerived);
 	const createProxy = useEditorStore((state) => state.createProxy);
@@ -208,9 +207,18 @@ export default function MediaLibrary() {
 	const cardRefs = useRef(new Map<string, HTMLDivElement>());
 	const lastDropAt = useRef(0);
 	const selectionAnchor = useRef<AssetId | null>(null);
-	const assets = useMemo(() => Object.values(project?.assets ?? {}), [project?.assets]);
+	const assets = useMemo(
+		() =>
+			Object.values(project?.assets ?? {})
+				.slice()
+				.reverse(),
+		[project?.assets]
+	);
 	const sequencesList = useMemo(
-		() => Object.values(project?.sequences ?? {}),
+		() =>
+			Object.values(project?.sequences ?? {})
+				.slice()
+				.reverse(),
 		[project?.sequences]
 	);
 	const filteredAssets = useMemo(() => {
@@ -499,7 +507,7 @@ export default function MediaLibrary() {
 	return (
 		<div
 			className={`media-library ${isDragging ? 'is-drop-target' : ''}`}
-			style={{ '--media-thumbnail-height': `${thumbnailHeight}px` } as CSSProperties}
+			style={{ '--media-thumbnail-height': '48px' } as CSSProperties}
 			onDragEnter={dragEnter}
 			onDragOver={(event) => event.preventDefault()}
 			onDragLeave={dragLeave}
@@ -598,45 +606,6 @@ export default function MediaLibrary() {
 							event.currentTarget.value = '';
 						}}
 					/>
-					<div className="media-view-toggle" role="group" aria-label="Media view">
-						<button
-							type="button"
-							aria-pressed={media.viewMode === 'list'}
-							aria-label="List view"
-							title="List view"
-							onClick={() => setMediaView('list')}
-						>
-							<svg
-								viewBox="0 0 16 16"
-								width="13"
-								height="13"
-								fill="currentColor"
-								aria-hidden="true"
-							>
-								<path d="M2.5 3.5h11v1.5h-11zm0 3.75h11v1.5h-11zm0 3.75h11v1.5h-11z" />
-							</svg>
-						</button>
-						<button
-							type="button"
-							aria-pressed={media.viewMode === 'grid'}
-							aria-label="Grid view"
-							title="Grid view"
-							onClick={() => setMediaView('grid')}
-						>
-							<svg
-								viewBox="0 0 16 16"
-								width="13"
-								height="13"
-								fill="currentColor"
-								aria-hidden="true"
-							>
-								<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
-								<rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
-								<rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
-								<rect x="9" y="9" width="4.5" height="4.5" rx="1" />
-							</svg>
-						</button>
-					</div>
 				</div>
 				<div className="media-filter-tabs" role="tablist" aria-label="Filter items">
 					<button
@@ -696,31 +665,45 @@ export default function MediaLibrary() {
 							/>
 						</div>
 					</label>
-					<label className="media-thumbnail-size" title={`Thumbnail height: ${thumbnailHeight}px`}>
-						<span className="media-size-icon" aria-hidden="true">
+					<div className="media-view-toggle" role="group" aria-label="Media view">
+						<button
+							type="button"
+							aria-pressed={media.viewMode === 'list'}
+							aria-label="List view"
+							title="List view"
+							onClick={() => setMediaView('list')}
+						>
 							<svg
 								viewBox="0 0 16 16"
-								width="12"
-								height="12"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1.5"
+								width="13"
+								height="13"
+								fill="currentColor"
+								aria-hidden="true"
 							>
-								<rect x="2" y="3" width="12" height="10" rx="1.5" />
+								<path d="M2.5 3.5h11v1.5h-11zm0 3.75h11v1.5h-11zm0 3.75h11v1.5h-11z" />
 							</svg>
-						</span>
-						<input
-							type="range"
-							name="media-thumbnail-height"
-							min="40"
-							max="160"
-							step="8"
-							aria-label="Thumbnail height"
-							value={thumbnailHeight}
-							onChange={(event) => setThumbnailHeight(Number(event.currentTarget.value))}
-						/>
-						<output>{thumbnailHeight}px</output>
-					</label>
+						</button>
+						<button
+							type="button"
+							aria-pressed={media.viewMode === 'grid'}
+							aria-label="Grid view"
+							title="Grid view"
+							onClick={() => setMediaView('grid')}
+						>
+							<svg
+								viewBox="0 0 16 16"
+								width="13"
+								height="13"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+								<rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+								<rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+								<rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+							</svg>
+						</button>
+					</div>
 				</div>
 				<div className="media-column-heading">
 					<span>Name</span>

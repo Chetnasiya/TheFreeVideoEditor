@@ -193,7 +193,9 @@ LUT_3D_SIZE 2
 		await expect(select).not.toHaveValue('');
 
 		// Verify LUT Intensity slider is displayed and has valid value (not NaN)
-		const sliderVal = page.locator('.color-slider-row', { hasText: 'LUT Intensity' }).locator('.color-slider-val');
+		const sliderVal = page
+			.locator('.color-slider-row', { hasText: 'LUT Intensity' })
+			.locator('.color-slider-val');
 		await expect(sliderVal).toBeVisible();
 		await expect(sliderVal).not.toHaveText(/NaN/);
 		await expect(sliderVal).toHaveText('+1.00');

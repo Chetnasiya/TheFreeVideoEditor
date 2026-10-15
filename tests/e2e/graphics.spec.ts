@@ -231,4 +231,3 @@ test.describe('Editable Motion Graphics & Kinetic Typography Tab', () => {
 		await expect(headlineInput).toHaveValue('DREAM BIG');
 	});
 });
-

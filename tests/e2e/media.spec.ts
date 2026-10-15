@@ -41,16 +41,19 @@ test('imports, persists, and archives local media with a project', async ({ page
 		]);
 	const assets = page.getByRole('listbox', { name: 'Project media' });
 	await expect(assets.getByRole('option')).toHaveCount(3, { timeout: 20_000 });
-	const thumbnailHeight = page.locator('input[name="media-thumbnail-height"]');
-	await thumbnailHeight.fill('104');
-	await expect(page.locator('.media-asset-preview').first()).toHaveCSS('height', '104px');
+	// Newest imported file (still.png) is at top
+	await expect(assets.getByRole('option').first()).toContainText('still.png');
+	// Thumbnail height fixed at 48px
+	await expect(page.locator('.media-asset-preview').first()).toHaveCSS('height', '48px');
 	await page.getByRole('button', { name: 'Grid view' }).click();
-	await expect(page.locator('.media-asset-preview').first()).toHaveCSS('height', '104px');
+	await expect(page.locator('.media-asset-preview').first()).toHaveCSS('height', '48px');
 	await page.getByRole('button', { name: 'List view' }).click();
-	await assets.getByRole('option').first().click();
+	await expect(page.locator('.media-asset-preview').first()).toHaveCSS('height', '48px');
+	await assets.getByRole('option').first().locator('.media-asset-preview').click();
 	await assets
 		.getByRole('option')
 		.nth(2)
+		.locator('.media-asset-preview')
 		.click({ modifiers: ['Shift'] });
 	await expect(assets.getByRole('option', { selected: true })).toHaveCount(3);
 	await expect(page.getByRole('status').filter({ hasText: 'bad.mp4' })).toContainText('Failed:', {

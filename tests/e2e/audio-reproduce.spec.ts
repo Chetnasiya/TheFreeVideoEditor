@@ -22,7 +22,9 @@ test.describe('Part 1 — Audio System Reproductions & Diagnostics', () => {
 			.getByRole('button', { name: 'New project' })
 			.click();
 		const createDialog = page.getByRole('dialog', { name: 'Create a Project' });
-		await createDialog.getByRole('textbox', { name: 'Project name' }).fill('Audio Reproduction Diagnostic');
+		await createDialog
+			.getByRole('textbox', { name: 'Project name' })
+			.fill('Audio Reproduction Diagnostic');
 		await createDialog.getByRole('button', { name: 'Create project' }).click();
 		await expect(createDialog).not.toBeVisible();
 
@@ -149,16 +151,36 @@ test.describe('Part 1 — Audio System Reproductions & Diagnostics', () => {
 		await page.waitForTimeout(1000);
 
 		const masterStrip = page.locator('.mixer-strip.is-master');
-		const tpTextBefore = await masterStrip.locator('.strip-pan-header').first().locator('span').nth(1).textContent();
-		const lufsTextBefore = await masterStrip.locator('.strip-pan-header').nth(1).locator('span').nth(1).textContent();
+		const tpTextBefore = await masterStrip
+			.locator('.strip-pan-header')
+			.first()
+			.locator('span')
+			.nth(1)
+			.textContent();
+		const lufsTextBefore = await masterStrip
+			.locator('.strip-pan-header')
+			.nth(1)
+			.locator('span')
+			.nth(1)
+			.textContent();
 
 		// Toggle Limiter
 		const limiterBtn = masterStrip.locator('button', { hasText: /LIMITER/i });
 		await limiterBtn.click();
 		await page.waitForTimeout(1000);
 
-		const tpTextWithLimiter = await masterStrip.locator('.strip-pan-header').first().locator('span').nth(1).textContent();
-		const lufsTextWithLimiter = await masterStrip.locator('.strip-pan-header').nth(1).locator('span').nth(1).textContent();
+		const tpTextWithLimiter = await masterStrip
+			.locator('.strip-pan-header')
+			.first()
+			.locator('span')
+			.nth(1)
+			.textContent();
+		const lufsTextWithLimiter = await masterStrip
+			.locator('.strip-pan-header')
+			.nth(1)
+			.locator('span')
+			.nth(1)
+			.textContent();
 
 		await page.keyboard.press('Space'); // pause
 
@@ -167,7 +189,7 @@ test.describe('Part 1 — Audio System Reproductions & Diagnostics', () => {
 			lufsTextBefore: lufsTextBefore?.trim(),
 			tpTextWithLimiter: tpTextWithLimiter?.trim(),
 			lufsTextWithLimiter: lufsTextWithLimiter?.trim(),
-			limiterExceedsCeiling: (parseFloat(tpTextWithLimiter || '0') > -0.5)
+			limiterExceedsCeiling: parseFloat(tpTextWithLimiter || '0') > -0.5
 		};
 
 		// -------------------------------------------------------------

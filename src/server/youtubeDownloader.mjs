@@ -14,7 +14,13 @@ export function isYoutubeUrl(url) {
 }
 
 function sanitizeFilename(name) {
-	return name.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'youtube_video';
+	if (!name || typeof name !== 'string') return 'youtube_video';
+	const singleLine = name.replace(/[\r\n\t]+/g, ' ').trim();
+	const safe = singleLine
+		.replace(/[/\\?%*:|"<>]/g, '_')
+		.replace(/\s+/g, ' ')
+		.trim();
+	return safe.slice(0, 60) || 'youtube_video';
 }
 
 async function parseBody(req) {
@@ -180,17 +186,21 @@ export async function handleYoutubeDownload(req, res) {
 		const targetFile = path.join(os.tmpdir(), files[0]);
 		const stat = fs.statSync(targetFile);
 		const safeTitle = sanitizeFilename(title);
-		const filenameWithExt = `${safeTitle}.${ext}`;
-		const encodedTitle = encodeURIComponent(filenameWithExt);
+		const asciiFilename =
+			safeTitle
+				.replace(/[^a-zA-Z0-9_.\- ]/g, ' ')
+				.replace(/\s+/g, ' ')
+				.trim() || 'youtube_video';
+		const encodedTitle = encodeURIComponent(`${safeTitle}.${ext}`);
 
 		res.statusCode = 200;
 		res.setHeader('Content-Type', contentType);
 		res.setHeader('Content-Length', stat.size);
 		res.setHeader(
 			'Content-Disposition',
-			`attachment; filename="${filenameWithExt}"; filename*=UTF-8''${encodedTitle}`
+			`attachment; filename="${asciiFilename}.${ext}"; filename*=UTF-8''${encodedTitle}`
 		);
-		res.setHeader('X-Video-Title', encodeURIComponent(title));
+		res.setHeader('X-Video-Title', encodeURIComponent(safeTitle));
 		res.setHeader('X-File-Type', ext);
 
 		const readStream = fs.createReadStream(targetFile);

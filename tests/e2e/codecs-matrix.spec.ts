@@ -381,9 +381,8 @@ test.describe('Professional Codecs Matrix (Tier 1 & Tier 3)', () => {
 		await page.goto('/editor', { waitUntil: 'networkidle' });
 
 		const diff = await page.evaluate(async () => {
-			const { ShaderPassManager } = await import(
-				'../../src/editor/services/render/passes/ShaderPass'
-			);
+			const { ShaderPassManager } =
+				await import('../../src/editor/services/render/passes/ShaderPass');
 			const canvas = document.createElement('canvas');
 			canvas.width = 64;
 			canvas.height = 64;
@@ -1049,9 +1048,8 @@ test.describe('Professional Codecs Matrix (Tier 1 & Tier 3)', () => {
 		await page.goto('/editor');
 
 		const presetsValidation = await page.evaluate(async () => {
-			const { settingsForPreset, dimensionsForPreset, bitrateFor } = await import(
-				'../../src/editor/services/export/presets'
-			);
+			const { settingsForPreset, dimensionsForPreset, bitrateFor } =
+				await import('../../src/editor/services/export/presets');
 			const mockProject: any = {
 				id: 'test-project',
 				name: 'Presets Test',
@@ -1117,9 +1115,7 @@ test.describe('Professional Codecs Matrix (Tier 1 & Tier 3)', () => {
 		});
 
 		// Check quality bitrate scaling: Low < Medium < High < Pro
-		const qMap = Object.fromEntries(
-			presetsValidation.bitrates.map((b) => [b.quality, b.bitrate])
-		);
+		const qMap = Object.fromEntries(presetsValidation.bitrates.map((b) => [b.quality, b.bitrate]));
 		expect(qMap.low).toBeLessThan(qMap.medium);
 		expect(qMap.medium).toBeLessThan(qMap.high);
 		expect(qMap.high).toBeLessThan(qMap.pro);
