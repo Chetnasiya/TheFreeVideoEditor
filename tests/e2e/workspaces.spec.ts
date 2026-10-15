@@ -26,11 +26,11 @@ test.describe('Workspaces & Layouts', () => {
 		});
 	});
 
-	test('renders all 6 Premiere Pro style workspace tabs', async ({ page }) => {
+	test('renders all 7 Premiere Pro style workspace tabs', async ({ page }) => {
 		const tabs = page.locator('.workspace-tab');
-		await expect(tabs).toHaveCount(6);
+		await expect(tabs).toHaveCount(7);
 
-		const names = ['Assembly', 'Editing', 'Color', 'Effects', 'Audio', 'Graphics'];
+		const names = ['Assembly', 'AI', 'Editing', 'Color', 'Effects', 'Audio', 'Graphics'];
 		for (let i = 0; i < names.length; i++) {
 			await expect(tabs.nth(i)).toHaveText(names[i]);
 		}
@@ -42,6 +42,10 @@ test.describe('Workspaces & Layouts', () => {
 	});
 
 	test('switches workspaces by clicking tabs', async ({ page }) => {
+		// Switch to AI workspace
+		await page.click('.workspace-tab:has-text("AI")');
+		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI');
+
 		// Switch to Color workspace
 		await page.click('.workspace-tab:has-text("Color")');
 		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('Color');
@@ -65,21 +69,25 @@ test.describe('Workspaces & Layouts', () => {
 		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('Editing');
 	});
 
-	test('switches workspaces using keyboard shortcuts Alt+Shift+1..6', async ({ page }) => {
-		// Alt+Shift+3 -> Color
-		await page.keyboard.press('Alt+Shift+3');
+	test('switches workspaces using keyboard shortcuts Alt+Shift+1..7', async ({ page }) => {
+		// Alt+Shift+4 -> Color
+		await page.keyboard.press('Alt+Shift+4');
 		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('Color');
 
-		// Alt+Shift+4 -> Effects
-		await page.keyboard.press('Alt+Shift+4');
+		// Alt+Shift+5 -> Effects
+		await page.keyboard.press('Alt+Shift+5');
 		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('Effects');
 
 		// Alt+Shift+1 -> Assembly
 		await page.keyboard.press('Alt+Shift+1');
 		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('Assembly');
 
-		// Alt+Shift+2 -> Editing
+		// Alt+Shift+2 -> AI
 		await page.keyboard.press('Alt+Shift+2');
+		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI');
+
+		// Alt+Shift+3 -> Editing
+		await page.keyboard.press('Alt+Shift+3');
 		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('Editing');
 	});
 
@@ -100,7 +108,7 @@ test.describe('Workspaces & Layouts', () => {
 		});
 
 		// Switch between workspaces
-		const workspaces = ['Assembly', 'Color', 'Effects', 'Audio', 'Graphics', 'Editing'];
+		const workspaces = ['Assembly', 'AI', 'Color', 'Effects', 'Audio', 'Graphics', 'Editing'];
 		for (const ws of workspaces) {
 			await page.click(`.workspace-tab:has-text("${ws}")`);
 			await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText(ws);

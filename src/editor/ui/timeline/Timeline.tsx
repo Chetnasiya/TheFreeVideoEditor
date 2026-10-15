@@ -46,6 +46,7 @@ import TimelineToolbar from './TimelineToolbar';
 import TimelineTools from './TimelineTools';
 import GraphEditor from '../graph/GraphEditor';
 import './timeline.css';
+import '../ai/ai.css';
 
 const HEADER_WIDTH = 212;
 const TAIL_SECONDS = 12;
@@ -565,6 +566,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}, [context]);
 
 	const activeSequenceId = useEditorStore((state) => state.activeSequenceId);
+	const detectedSilences = useEditorStore((state) => state.ai?.detectedSilences ?? []);
 	const activeProject = useMemo(
 		() => viewProject(project, activeSequenceId),
 		[project, activeSequenceId]
@@ -2092,6 +2094,25 @@ function ActiveTimeline({ project }: { project: Project }) {
 								aria-hidden="true"
 							/>
 						)}
+						{detectedSilences.map((silence) => {
+							const startPx = HEADER_WIDTH + timeToPixels(silence.cutStartUs, pixelsPerSecond);
+							const widthPx = Math.max(2, timeToPixels(silence.cutDurationUs, pixelsPerSecond));
+							return (
+								<div
+									key={silence.id}
+									className={`timeline-silence-region ${silence.included ? '' : 'is-excluded'}`}
+									style={{
+										left: `${startPx}px`,
+										width: `${widthPx}px`
+									}}
+									title={`Silence: ${(silence.durationUs / 1_000_000).toFixed(2)}s (${silence.included ? 'Will cut ' + (silence.cutDurationUs / 1_000_000).toFixed(2) + 's' : 'Excluded'})`}
+								>
+									<span className="timeline-silence-label">
+										{(silence.cutDurationUs / 1_000_000).toFixed(2)}s
+									</span>
+								</div>
+							);
+						})}
 						<ConnectedPlayhead pixelsPerSecond={pixelsPerSecond} offset={HEADER_WIDTH} />
 						{drag?.snappedTo !== undefined &&
 							timeToPixels(drag.snappedTo, pixelsPerSecond) >= scrollLeft && (
@@ -2400,6 +2421,52 @@ function ActiveTimeline({ project }: { project: Project }) {
 							</button>
 						</>
 					)}
+					{context.clip.takeGroupId &&
+						(() => {
+							const takeGroups = store.getState().ai.takeGroups;
+							const group = takeGroups.find((g) => g.id === context.clip.takeGroupId);
+							if (!group || group.candidates.length <= 1) return null;
+							return (
+								<>
+									<hr />
+									<div
+										style={{
+											padding: '4px 10px',
+											fontSize: '10px',
+											color: '#94a3b8',
+											fontWeight: 600
+										}}
+									>
+										Choose Alternate Take:
+									</div>
+									{group.candidates.map((take, tIdx) => {
+										const isCurrent = take.id === context.clip.takeCandidateId;
+										return (
+											<button
+												key={take.id}
+												type="button"
+												onClick={() => {
+													store.getState().swapTimelineClipTake(context.clip.id, take);
+													closeContextMenu();
+												}}
+												style={{
+													display: 'flex',
+													justifyContent: 'space-between',
+													alignItems: 'center',
+													fontWeight: isCurrent ? 600 : 400,
+													color: isCurrent ? '#38bdf8' : undefined
+												}}
+											>
+												<span>
+													Take {tIdx + 1} {isCurrent ? '(Active)' : ''}
+												</span>
+												<span style={{ fontSize: '10px', opacity: 0.8 }}>Score: {take.score}</span>
+											</button>
+										);
+									})}
+								</>
+							);
+						})()}
 				</div>
 			)}
 			{message && <span className="sr-only">{message}</span>}

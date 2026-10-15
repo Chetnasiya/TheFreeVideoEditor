@@ -863,7 +863,7 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		{
 			id: 'workspace-2',
 			keys: { mac: 'alt+shift+2', other: 'alt+shift+2' },
-			label: 'Switch to Editing Workspace',
+			label: 'Switch to AI Workspace',
 			group: 'Workspaces',
 			scope: 'editor',
 			handler: action('workspace-2'),
@@ -872,7 +872,7 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		{
 			id: 'workspace-3',
 			keys: { mac: 'alt+shift+3', other: 'alt+shift+3' },
-			label: 'Switch to Color Workspace',
+			label: 'Switch to Editing Workspace',
 			group: 'Workspaces',
 			scope: 'editor',
 			handler: action('workspace-3'),
@@ -881,7 +881,7 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		{
 			id: 'workspace-4',
 			keys: { mac: 'alt+shift+4', other: 'alt+shift+4' },
-			label: 'Switch to Effects Workspace',
+			label: 'Switch to Color Workspace',
 			group: 'Workspaces',
 			scope: 'editor',
 			handler: action('workspace-4'),
@@ -890,7 +890,7 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		{
 			id: 'workspace-5',
 			keys: { mac: 'alt+shift+5', other: 'alt+shift+5' },
-			label: 'Switch to Audio Workspace',
+			label: 'Switch to Effects Workspace',
 			group: 'Workspaces',
 			scope: 'editor',
 			handler: action('workspace-5'),
@@ -899,10 +899,19 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		{
 			id: 'workspace-6',
 			keys: { mac: 'alt+shift+6', other: 'alt+shift+6' },
-			label: 'Switch to Graphics Workspace',
+			label: 'Switch to Audio Workspace',
 			group: 'Workspaces',
 			scope: 'editor',
 			handler: action('workspace-6'),
+			preventDefault: true
+		},
+		{
+			id: 'workspace-7',
+			keys: { mac: 'alt+shift+7', other: 'alt+shift+7' },
+			label: 'Switch to Graphics Workspace',
+			group: 'Workspaces',
+			scope: 'editor',
+			handler: action('workspace-7'),
 			preventDefault: true
 		},
 		{

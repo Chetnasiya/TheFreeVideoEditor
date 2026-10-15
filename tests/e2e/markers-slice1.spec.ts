@@ -177,11 +177,11 @@ test('markers slice 1: add via M key stopped/playback, edit dialog, Premiere swa
 	await expect(markerItems).toHaveCount(2);
 
 	// 9. Workspace switching keeps markers intact
-	await page.keyboard.press('Alt+Shift+5'); // Switch to Audio workspace
+	await page.keyboard.press('Alt+Shift+6'); // Switch to Audio workspace
 	await page.waitForTimeout(400);
 	await expect(markerItems).toHaveCount(2);
 
-	await page.keyboard.press('Alt+Shift+2'); // Switch back to Editing workspace
+	await page.keyboard.press('Alt+Shift+3'); // Switch back to Editing workspace
 	await page.waitForTimeout(400);
 	await expect(markerItems).toHaveCount(2);
 

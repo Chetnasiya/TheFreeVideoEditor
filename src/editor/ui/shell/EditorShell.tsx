@@ -501,18 +501,21 @@ function EditorShell() {
 				state().switchWorkspace('assembly');
 			},
 			'workspace-2': () => {
-				state().switchWorkspace('editing');
+				state().switchWorkspace('ai');
 			},
 			'workspace-3': () => {
-				state().switchWorkspace('color');
+				state().switchWorkspace('editing');
 			},
 			'workspace-4': () => {
-				state().switchWorkspace('effects');
+				state().switchWorkspace('color');
 			},
 			'workspace-5': () => {
-				state().switchWorkspace('audio');
+				state().switchWorkspace('effects');
 			},
 			'workspace-6': () => {
+				state().switchWorkspace('audio');
+			},
+			'workspace-7': () => {
 				state().switchWorkspace('graphics');
 			},
 			'toggle-maximize-panel': () => {
@@ -1498,6 +1501,7 @@ function EditorShell() {
 							const customWs = workspaces.custom.find((c) => c.id === wsId);
 							const nameMap: Record<string, string> = {
 								assembly: 'Assembly',
+								ai: 'AI',
 								editing: 'Editing',
 								color: 'Color',
 								effects: 'Effects',

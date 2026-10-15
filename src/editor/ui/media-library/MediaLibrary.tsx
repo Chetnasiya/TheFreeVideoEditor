@@ -438,7 +438,10 @@ export default function MediaLibrary() {
 	}
 
 	function handleAssetClick(event: MouseEvent<HTMLDivElement>, assetId: AssetId): void {
-		if (event.target instanceof HTMLElement && event.target.closest('button, input')) {
+		if (
+			event.target instanceof HTMLElement &&
+			event.target.closest('.media-item-action-btn, .media-rename-form')
+		) {
 			return;
 		}
 		setActiveAssetId(assetId);
@@ -989,12 +992,13 @@ export default function MediaLibrary() {
 												<button
 													className="media-asset-name"
 													type="button"
-													onClick={(event) =>
+													onClick={(event) => {
+														setActiveAssetId(asset.id);
 														selectAsset(asset.id, {
 															toggle: event.ctrlKey || event.metaKey,
 															extend: event.shiftKey
-														})
-													}
+														});
+													}}
 													onDoubleClick={() => startRename(asset)}
 													title={`${asset.name} · F2 to rename`}
 												>

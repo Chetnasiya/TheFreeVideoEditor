@@ -4,6 +4,7 @@ import {
 	activateTab,
 	collectPanels,
 	createDefaultWorkspaceState,
+	loadUserWorkspaceState,
 	migrateOldPanelSizes,
 	resizeSplit,
 	resolveWorkspaceLayout,
@@ -135,5 +136,63 @@ describe('Layout pure operations and normalization', () => {
 
 		const withOverride = resolveWorkspaceLayout('editing', state);
 		expect(collectPanels(withOverride.layout)).toEqual(['program', 'timeline']);
+	});
+
+	it('workspace order includes ai between assembly and editing with migration for existing users', () => {
+		const defaultState = createDefaultWorkspaceState();
+		expect(defaultState.order).toEqual([
+			'assembly',
+			'ai',
+			'editing',
+			'color',
+			'effects',
+			'audio',
+			'graphics'
+		]);
+
+		const store = new Map<string, string>();
+		const mockStorage = {
+			getItem: (k: string) => store.get(k) ?? null,
+			setItem: (k: string, v: string) => store.set(k, v),
+			removeItem: (k: string) => store.delete(k),
+			clear: () => store.clear(),
+			key: () => null,
+			length: 0
+		};
+		const originalStorage = globalThis.localStorage;
+		Object.defineProperty(globalThis, 'localStorage', {
+			value: mockStorage,
+			configurable: true,
+			writable: true
+		});
+
+		try {
+			// Simulate legacy user state in localStorage without 'ai'
+			const legacyState = {
+				version: 1,
+				activeWorkspaceId: 'editing',
+				overrides: {},
+				custom: [],
+				order: ['assembly', 'editing', 'color', 'effects', 'audio', 'graphics']
+			};
+			mockStorage.setItem('tfve:workspace-state', JSON.stringify(legacyState));
+
+			const loaded = loadUserWorkspaceState();
+			expect(loaded.order).toEqual([
+				'assembly',
+				'ai',
+				'editing',
+				'color',
+				'effects',
+				'audio',
+				'graphics'
+			]);
+		} finally {
+			Object.defineProperty(globalThis, 'localStorage', {
+				value: originalStorage,
+				configurable: true,
+				writable: true
+			});
+		}
 	});
 });

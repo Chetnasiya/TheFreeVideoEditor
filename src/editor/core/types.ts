@@ -346,6 +346,8 @@ export interface Clip {
 	fadeCurve?: 'equalPower' | 'linear';
 	trackers?: Tracker[];
 	markers?: ClipMarker[];
+	takeGroupId?: string;
+	takeCandidateId?: string;
 }
 
 export type TrackerType = 'point' | 'planar' | 'stabilize';

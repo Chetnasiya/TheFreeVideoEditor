@@ -18,7 +18,11 @@ export const KNOWN_PANEL_IDS: ReadonlySet<PanelId> = new Set<PanelId>([
 	'essential-sound',
 	'effect-controls-audio',
 	'timeline',
-	'graph'
+	'graph',
+	'ai-assistant',
+	'takes',
+	'script',
+	'transcript'
 ]);
 
 export const REQUIRED_PANELS: readonly PanelId[] = ['program', 'timeline'];
@@ -310,7 +314,7 @@ export function createDefaultWorkspaceState(): UserWorkspaceState {
 		activeWorkspaceId: 'editing',
 		overrides: {},
 		custom: [],
-		order: ['assembly', 'editing', 'color', 'effects', 'audio', 'graphics']
+		order: ['assembly', 'ai', 'editing', 'color', 'effects', 'audio', 'graphics']
 	};
 }
 
@@ -365,8 +369,18 @@ export function loadUserWorkspaceState(): UserWorkspaceState {
 				typeof parsed.activeWorkspaceId === 'string' ? parsed.activeWorkspaceId : 'editing',
 			overrides: {},
 			custom: Array.isArray(parsed.custom) ? parsed.custom : [],
-			order: Array.isArray(parsed.order) ? parsed.order : fallback.order
+			order: Array.isArray(parsed.order) ? [...parsed.order] : fallback.order
 		};
+
+		// Migrate saved user order: ensure 'ai' is present in order right after 'assembly'
+		if (!state.order.includes('ai')) {
+			const assemblyIdx = state.order.indexOf('assembly');
+			if (assemblyIdx !== -1) {
+				state.order.splice(assemblyIdx + 1, 0, 'ai');
+			} else {
+				state.order.unshift('ai');
+			}
+		}
 
 		if (parsed.overrides && typeof parsed.overrides === 'object') {
 			for (const [id, node] of Object.entries(parsed.overrides)) {

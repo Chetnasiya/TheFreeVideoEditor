@@ -370,8 +370,64 @@ export const PRESET_GRAPHICS: Workspace = {
 	}
 };
 
+export const PRESET_AI: Workspace = {
+	id: 'ai',
+	name: 'AI',
+	builtIn: true,
+	timelinePrefs: {
+		videoTrackHeight: 45,
+		audioTrackHeight: 45,
+		waveformEmphasis: true,
+		keyframeLanesMode: 'selected'
+	},
+	inspectorDefaults: {
+		expanded: { transform: true, effects: true },
+		linkScale: true
+	},
+	layout: {
+		type: 'split',
+		direction: 'vertical',
+		sizes: [60, 40],
+		children: [
+			{
+				type: 'split',
+				direction: 'horizontal',
+				sizes: [18, 30, 28, 24],
+				children: [
+					{
+						type: 'stack',
+						panelIds: ['media'],
+						activeId: 'media'
+					},
+					{
+						type: 'stack',
+						panelIds: ['ai-assistant', 'script', 'transcript'],
+						activeId: 'ai-assistant'
+					},
+					{
+						type: 'stack',
+						panelIds: ['program', 'source'],
+						activeId: 'program'
+					},
+					{
+						type: 'stack',
+						panelIds: ['takes', 'inspector'],
+						activeId: 'takes'
+					}
+				]
+			},
+			{
+				type: 'stack',
+				panelIds: ['timeline'],
+				activeId: 'timeline'
+			}
+		]
+	}
+};
+
 export const BUILT_IN_WORKSPACES: readonly Workspace[] = [
 	PRESET_ASSEMBLY,
+	PRESET_AI,
 	PRESET_EDITING,
 	PRESET_COLOR,
 	PRESET_EFFECTS,
@@ -381,6 +437,7 @@ export const BUILT_IN_WORKSPACES: readonly Workspace[] = [
 
 export const WORKSPACE_ORDER: readonly string[] = [
 	'assembly',
+	'ai',
 	'editing',
 	'color',
 	'effects',

@@ -207,6 +207,16 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		};
 		this.clockUnsubscribe = clock.onTick((time, playing, rate) => {
 			if (this.disposed) return;
+			const aiState = this.store.getState().ai;
+			if (playing && aiState?.virtualPreview && aiState.detectedSilences.length > 0) {
+				const currentSilence = aiState.detectedSilences.find(
+					(s) => s.included && time >= s.cutStartUs && time < s.cutEndUs
+				);
+				if (currentSilence && currentSilence.cutEndUs > time) {
+					clock.seek(currentSilence.cutEndUs);
+					return;
+				}
+			}
 			this.writingPlayhead = true;
 			try {
 				this.store.getState().setPlayhead(time);

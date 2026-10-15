@@ -500,7 +500,11 @@ function StackRenderer({
 						'essential-sound': 'essential-sound-panel',
 						'effect-controls-audio': 'effect-controls-audio-panel',
 						timeline: 'timeline-panel',
-						graph: 'graph-panel'
+						graph: 'graph-panel',
+						'ai-assistant': 'ai-assistant-panel',
+						takes: 'takes-panel',
+						script: 'script-panel',
+						transcript: 'transcript-panel'
 					};
 
 					const Tag =

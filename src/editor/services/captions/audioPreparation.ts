@@ -35,6 +35,7 @@ export async function prepareProjectAudioForStt(
 	project: Project,
 	options: {
 		trackId?: string;
+		trackIds?: string[];
 		clipIds?: string[];
 		range?: { start: Time; end: Time };
 		onProgress?: (progress: number) => void;
@@ -97,11 +98,17 @@ export async function prepareProjectAudioForStt(
 
 	// Filter project by track or clip selection if provided
 	let projectToRender: Project = project;
-	if (options.trackId || options.clipIds) {
+	if (options.trackId || (options.trackIds && options.trackIds.length > 0) || options.clipIds) {
+		const allowedTracks =
+			options.trackIds && options.trackIds.length > 0
+				? new Set(options.trackIds)
+				: options.trackId
+					? new Set([options.trackId])
+					: null;
 		projectToRender = {
 			...project,
 			tracks: project.tracks
-				.filter((t) => !options.trackId || t.id === options.trackId)
+				.filter((t) => !allowedTracks || allowedTracks.has(t.id))
 				.map((t) => ({
 					...t,
 					clips: options.clipIds ? t.clips.filter((c) => options.clipIds!.includes(c.id)) : t.clips

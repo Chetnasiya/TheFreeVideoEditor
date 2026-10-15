@@ -155,7 +155,7 @@ async function extractVideoDerived(
 		video.removeAttribute('src');
 		video.load();
 		video.remove();
-		URL.revokeObjectURL(url);
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
 	}
 }
 

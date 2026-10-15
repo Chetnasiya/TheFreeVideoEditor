@@ -14,7 +14,11 @@ export type PanelId =
 	| 'essential-sound'
 	| 'effect-controls-audio'
 	| 'timeline'
-	| 'graph';
+	| 'graph'
+	| 'ai-assistant'
+	| 'takes'
+	| 'script'
+	| 'transcript';
 
 export type SplitDirection = 'horizontal' | 'vertical';
 

@@ -159,9 +159,12 @@ function FilmstripView({
 
 	useEffect(() => {
 		return () => {
-			for (const item of thumbUrls) {
-				URL.revokeObjectURL(item.url);
-			}
+			const toRevoke = [...thumbUrls];
+			setTimeout(() => {
+				for (const item of toRevoke) {
+					URL.revokeObjectURL(item.url);
+				}
+			}, 2000);
 		};
 	}, [thumbUrls]);
 
@@ -236,7 +239,10 @@ function ClipArtwork({
 			.catch((error: unknown) => console.error(`Could not load preview for ${asset.name}.`, error));
 		return () => {
 			active = false;
-			if (objectUrl) URL.revokeObjectURL(objectUrl);
+			if (objectUrl) {
+				const url = objectUrl;
+				setTimeout(() => URL.revokeObjectURL(url), 2000);
+			}
 		};
 	}, [asset.id, asset.name, project.id]);
 
@@ -695,6 +701,29 @@ export default function ClipView({
 					aria-label="Speed curve exceeds media duration"
 				>
 					⚠️
+				</span>
+			)}
+			{clip.takeGroupId && (
+				<span
+					className="clip-take-badge"
+					data-testid="clip-take-badge"
+					style={{
+						position: 'relative',
+						zIndex: 1,
+						marginLeft: 'var(--spacing-xxs)',
+						padding: '1px 5px',
+						borderRadius: 'var(--radius-sm, 2px)',
+						background: 'rgba(56, 189, 248, 0.25)',
+						color: '#38bdf8',
+						fontFamily: 'var(--font-mono)',
+						fontSize: '0.625rem',
+						lineHeight: 1,
+						fontWeight: 600,
+						border: '1px solid rgba(56, 189, 248, 0.4)'
+					}}
+					title="Take clip. Right-click to choose alternate take."
+				>
+					◆ Take
 				</span>
 			)}
 			<span className="timeline-clip-duration">{durationLabel}</span>

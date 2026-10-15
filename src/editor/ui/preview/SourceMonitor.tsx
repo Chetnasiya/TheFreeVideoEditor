@@ -85,7 +85,10 @@ export default function SourceMonitor({ engine = null }: SourceMonitorProps) {
 		return () => {
 			active = false;
 			mediaRef.current?.pause();
-			release?.();
+			if (release) {
+				const rel = release;
+				setTimeout(rel, 2000);
+			}
 		};
 	}, [asset, projectId]);
 

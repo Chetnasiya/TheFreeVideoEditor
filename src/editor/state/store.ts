@@ -231,6 +231,31 @@ import {
 	collectPanels,
 	migrateOldPanelSizes
 } from '../ui/layout/operations';
+import {
+	DEFAULT_SILENCE_OPTIONS,
+	type AudioFeatures,
+	type DetectedSilence,
+	type ParsedScript,
+	type ScriptLine,
+	type SilenceTrimOptions,
+	type TakeCandidate,
+	type TakeGroup
+} from '../core/ai/types';
+import { extractAudioFeatures } from '../core/ai/silence/features';
+import { detectSpeechIntervals } from '../core/ai/silence/vad';
+import { computeSilenceRegions } from '../core/ai/silence/detector';
+import { applySilenceTrimToProject } from '../core/ai/silence/operations';
+import { prepareProjectAudioForStt } from '../services/captions/audioPreparation';
+import {
+	assembleSequenceFromScriptTakes,
+	swapTakeInProject,
+	type AssembleSequenceOptions
+} from '../core/ai/script/assembly';
+import {
+	alignScriptWithAudioWords,
+	cleanToken,
+	type TranscribedAudioWord
+} from '../core/ai/script/alignment';
 
 enablePatches();
 
@@ -952,6 +977,38 @@ export interface EditorState {
 	setSnapToMarkers: (enabled: boolean) => void;
 	openMarkerDialog: (id?: MarkerId) => void;
 	closeMarkerDialog: () => void;
+	// AI Assistant State & Actions
+	ai: {
+		activeTab: 'silence' | 'script';
+		silenceOptions: SilenceTrimOptions;
+		detectedSilences: DetectedSilence[];
+		cachedFeatures: AudioFeatures | null;
+		cachedTrackKey: string | null;
+		isAnalyzingSilence: boolean;
+		analysisProgress: number;
+		virtualPreview: boolean;
+		script: ParsedScript | null;
+		takeGroups: TakeGroup[];
+		selectedTakeGroupId: string | null;
+		isTranscribingScript: boolean;
+	};
+	setAiActiveTab: (tab: 'silence' | 'script') => void;
+	setSilenceOptions: (opts: Partial<SilenceTrimOptions>) => void;
+	setDetectedSilences: (silences: DetectedSilence[]) => void;
+	toggleSilenceIncluded: (id: string) => void;
+	includeAllSilences: (included: boolean) => void;
+	setSilenceVirtualPreview: (active: boolean) => void;
+	analyzeSilence: () => Promise<void>;
+	recomputeSilencesFromCache: () => void;
+	applySilenceTrimAction: (mode: 'new-sequence' | 'in-place') => void;
+	setParsedScript: (script: ParsedScript | null) => void;
+	updateScriptLine: (lineId: string, patch: Partial<ScriptLine>) => void;
+	setTakeGroups: (groups: TakeGroup[]) => void;
+	selectTakeGroup: (id: string | null) => void;
+	chooseTake: (takeGroupId: string, takeCandidateId: string) => void;
+	alignTakesWithScript: () => Promise<void>;
+	assembleRoughCut: (options?: AssembleSequenceOptions) => void;
+	swapTimelineClipTake: (clipId: ClipId, newTakeCandidate: TakeCandidate) => void;
 }
 
 function errorMessage(error: unknown): string {
@@ -1368,6 +1425,20 @@ export function createEditorStore() {
 				})(),
 				maximizedPanelId: null,
 				workspaceMessage: '',
+				ai: {
+					activeTab: 'silence',
+					silenceOptions: structuredClone(DEFAULT_SILENCE_OPTIONS),
+					detectedSilences: [],
+					cachedFeatures: null,
+					cachedTrackKey: null,
+					isAnalyzingSilence: false,
+					analysisProgress: 0,
+					virtualPreview: false,
+					script: null,
+					takeGroups: [],
+					selectedTakeGroupId: null,
+					isTranscribingScript: false
+				},
 				async initialize() {
 					if (get().isInitialized) return;
 					set((state) => {
@@ -7865,6 +7936,329 @@ export function createEditorStore() {
 					set((state) => {
 						state.isMarkerDialogOpen = false;
 						state.editingMarkerId = null;
+					});
+				},
+				setAiActiveTab(tab) {
+					set((state) => {
+						state.ai.activeTab = tab;
+					});
+				},
+				setSilenceOptions(opts) {
+					set((state) => {
+						state.ai.silenceOptions = {
+							...state.ai.silenceOptions,
+							...opts
+						};
+					});
+					get().recomputeSilencesFromCache();
+				},
+				setDetectedSilences(silences) {
+					set((state) => {
+						state.ai.detectedSilences = silences;
+					});
+				},
+				toggleSilenceIncluded(id) {
+					set((state) => {
+						const target = state.ai.detectedSilences.find((s) => s.id === id);
+						if (target) {
+							target.included = !target.included;
+						}
+					});
+				},
+				includeAllSilences(included) {
+					set((state) => {
+						for (const s of state.ai.detectedSilences) {
+							s.included = included;
+						}
+					});
+				},
+				setSilenceVirtualPreview(active) {
+					set((state) => {
+						state.ai.virtualPreview = active;
+					});
+				},
+				async analyzeSilence() {
+					const project = get().project;
+					if (!project) return;
+					const activeSequenceId = get().activeSequenceId;
+					const activeView = viewProject(project, activeSequenceId);
+					const options = get().ai.silenceOptions;
+
+					let targetTrackIds = options.trackIds;
+					if (!targetTrackIds || targetTrackIds.length === 0) {
+						targetTrackIds = activeView.tracks.filter((t) => t.kind === 'audio').map((t) => t.id);
+					}
+
+					set((state) => {
+						state.ai.isAnalyzingSilence = true;
+						state.ai.analysisProgress = 0;
+					});
+
+					try {
+						const prepared = await prepareProjectAudioForStt(activeView, {
+							trackIds: targetTrackIds,
+							onProgress(ratio) {
+								set((state) => {
+									state.ai.analysisProgress = Math.round(ratio * 50);
+								});
+							}
+						});
+
+						if (prepared.samples.length === 0) {
+							set((state) => {
+								state.ai.isAnalyzingSilence = false;
+								state.ai.detectedSilences = [];
+								state.ai.cachedFeatures = null;
+							});
+							return;
+						}
+
+						const features = extractAudioFeatures(prepared.samples, prepared.sampleRate);
+						const speechIntervals = detectSpeechIntervals(features, options);
+						const timelineDur = timelineDuration(activeView);
+						const result = computeSilenceRegions(
+							speechIntervals,
+							timelineDur,
+							options,
+							prepared.samples
+						);
+
+						const trackKey = targetTrackIds.sort().join(',') + '_' + prepared.samples.length;
+
+						set((state) => {
+							state.ai.isAnalyzingSilence = false;
+							state.ai.analysisProgress = 100;
+							state.ai.cachedFeatures = features;
+							state.ai.cachedTrackKey = trackKey;
+							state.ai.detectedSilences = result.silences;
+						});
+					} catch {
+						set((state) => {
+							state.ai.isAnalyzingSilence = false;
+						});
+					}
+				},
+				recomputeSilencesFromCache() {
+					const features = get().ai.cachedFeatures;
+					const project = get().project;
+					if (!features || !project) return;
+					const activeSequenceId = get().activeSequenceId;
+					const activeView = viewProject(project, activeSequenceId);
+					const options = get().ai.silenceOptions;
+
+					const speechIntervals = detectSpeechIntervals(features, options);
+					const timelineDur = timelineDuration(activeView);
+					const result = computeSilenceRegions(speechIntervals, timelineDur, options);
+
+					set((state) => {
+						state.ai.detectedSilences = result.silences;
+					});
+				},
+				applySilenceTrimAction(mode) {
+					const project = get().project;
+					if (!project) return;
+					const activeSequenceId = get().activeSequenceId;
+					const silences = get().ai.detectedSilences;
+					const options = get().ai.silenceOptions;
+
+					let createdSeqId: SequenceId | null = null;
+
+					mutateProject(
+						'Trim silence',
+						(curr) => {
+							const res = applySilenceTrimToProject(curr, activeSequenceId, silences, {
+								action: options.mode,
+								applyTarget: options.applyTarget,
+								crossfadeMs: options.crossfadeMs,
+								mode
+							});
+							if (mode === 'new-sequence') {
+								createdSeqId = res.resultSequenceId;
+							}
+							return res.project;
+						},
+						{ history: 'record' }
+					);
+
+					if (createdSeqId) {
+						get().openSequence(createdSeqId);
+					}
+
+					set((state) => {
+						state.ai.virtualPreview = false;
+						state.ai.detectedSilences = [];
+					});
+				},
+				setParsedScript(script) {
+					set((state) => {
+						state.ai.script = script;
+					});
+				},
+				updateScriptLine(lineId, patch) {
+					set((state) => {
+						if (!state.ai.script) return;
+						const line = state.ai.script.lines.find((l) => l.id === lineId);
+						if (line) {
+							Object.assign(line, patch);
+						}
+					});
+				},
+				setTakeGroups(groups) {
+					set((state) => {
+						state.ai.takeGroups = groups;
+					});
+				},
+				selectTakeGroup(id) {
+					set((state) => {
+						state.ai.selectedTakeGroupId = id;
+					});
+				},
+				chooseTake(takeGroupId, takeCandidateId) {
+					set((state) => {
+						const group = state.ai.takeGroups.find((g) => g.id === takeGroupId);
+						if (group) {
+							group.selectedTakeId = takeCandidateId;
+							for (const c of group.candidates) {
+								c.isChosen = c.id === takeCandidateId;
+							}
+						}
+					});
+				},
+				async alignTakesWithScript() {
+					const script = get().ai.script;
+					if (!script || script.lines.length === 0) return;
+
+					const project = get().project;
+					if (!project) return;
+					const activeSequenceId = get().activeSequenceId;
+					const seq = viewProject(project, activeSequenceId);
+
+					set((state) => {
+						state.ai.isTranscribingScript = true;
+					});
+
+					try {
+						// Collect words from timeline captions or audio clips
+						const words: TranscribedAudioWord[] = [];
+
+						for (const track of seq.tracks) {
+							if (track.kind === 'caption' && track.captions) {
+								for (const seg of track.captions) {
+									if (seg.words && seg.words.length > 0) {
+										for (const w of seg.words) {
+											words.push({
+												word: w.text,
+												cleanWord: cleanToken(w.text),
+												startUs: w.start,
+												endUs: w.end,
+												confidence: w.confidence ?? 0.95,
+												clipId: seg.id as unknown as ClipId,
+												trackId: track.id
+											});
+										}
+									} else {
+										const tokens = seg.text.split(/\s+/).filter(Boolean);
+										const segDuration = seg.end - seg.start;
+										const tokenDur = Math.floor(segDuration / Math.max(1, tokens.length));
+										tokens.forEach((t, i) => {
+											const wStart = seg.start + i * tokenDur;
+											words.push({
+												word: t,
+												cleanWord: cleanToken(t),
+												startUs: wStart,
+												endUs: wStart + tokenDur,
+												confidence: 0.9,
+												clipId: seg.id as unknown as ClipId,
+												trackId: track.id
+											});
+										});
+									}
+								}
+							}
+						}
+
+						if (words.length === 0) {
+							for (const track of seq.tracks) {
+								if (track.kind === 'audio') {
+									for (const clip of track.clips) {
+										if (clip.text) {
+											const tokens = clip.text.split(/\s+/).filter(Boolean);
+											const tokenDur = Math.floor(clip.duration / Math.max(1, tokens.length));
+											tokens.forEach((t, i) => {
+												words.push({
+													word: t,
+													cleanWord: cleanToken(t),
+													startUs: clip.start + i * tokenDur,
+													endUs: clip.start + (i + 1) * tokenDur,
+													confidence: 0.95,
+													clipId: clip.id,
+													trackId: track.id,
+													assetId: clip.assetId
+												});
+											});
+										}
+									}
+								}
+							}
+						}
+
+						const groups = alignScriptWithAudioWords(script, words);
+						set((state) => {
+							state.ai.takeGroups = groups;
+							if (groups.length > 0 && !state.ai.selectedTakeGroupId) {
+								state.ai.selectedTakeGroupId = groups[0]!.id;
+							}
+						});
+					} finally {
+						set((state) => {
+							state.ai.isTranscribingScript = false;
+						});
+					}
+				},
+				assembleRoughCut(options) {
+					const script = get().ai.script;
+					const takeGroups = get().ai.takeGroups;
+					if (!script || takeGroups.length === 0) return;
+
+					let newSeqId: SequenceId | null = null;
+					mutateProject(
+						'Assemble Rough Cut',
+						(curr) => {
+							const { project: updated, sequenceId } = assembleSequenceFromScriptTakes(
+								curr,
+								script,
+								takeGroups,
+								options
+							);
+							newSeqId = sequenceId;
+							return updated;
+						},
+						{ history: 'record' }
+					);
+
+					if (newSeqId) {
+						get().openSequence(newSeqId);
+					}
+				},
+				swapTimelineClipTake(clipId, newTakeCandidate) {
+					const activeSequenceId = get().activeSequenceId;
+					mutateProject(
+						'Swap Take',
+						(curr) => {
+							return swapTakeInProject(curr, activeSequenceId, clipId, newTakeCandidate);
+						},
+						{ history: 'record' }
+					);
+
+					set((state) => {
+						for (const group of state.ai.takeGroups) {
+							if (group.candidates.some((c) => c.id === newTakeCandidate.id)) {
+								group.selectedTakeId = newTakeCandidate.id;
+								for (const c of group.candidates) {
+									c.isChosen = c.id === newTakeCandidate.id;
+								}
+							}
+						}
 					});
 				}
 			};

@@ -8,6 +8,7 @@ This document details the workspace and docking architecture introduced in The F
 
 The Free Video Editor features a flexible, Premiere Pro-style workspace system allowing editors to switch between specialized panel arrangements instantly:
 - **Assembly**: Media library prominent for logging, reviewing source footage, tagging, and initial cuts.
+- **AI**: Automated silence trimming, script parsing, take candidates, alignment, and take selection.
 - **Editing**: The standard balanced default layout with Media bottom-left, Program/Source monitors top-center, Timeline bottom, and Inspector right.
 - **Color**: Large Program monitor with side-by-side scopes and Color controls.
 - **Effects**: Dedicated column for Effects library, expanded Inspector sections, Timeline with Graph Editor tab.
@@ -56,7 +57,7 @@ During evaluation, two primary paths were considered:
 
 ## 4. Keyboard Shortcuts & Accessibility
 
-- **Workspace Switching**: `Alt+Shift+1` through `Alt+Shift+6` switches instantly between `Assembly`, `Editing`, `Color`, `Effects`, `Audio`, and `Graphics`.
+- **Workspace Switching**: `Alt+Shift+1` through `Alt+Shift+7` switches instantly between `Assembly` (1), `AI` (2), `Editing` (3), `Color` (4), `Effects` (5), `Audio` (6), and `Graphics` (7).
 - **Maximize Panel**: Pressing \` \` \` (`Backquote`) maximizes the currently hovered or active panel to occupy the entire workspace; pressing it again restores the split layout.
 - **Splitter Adjustment**: Focusable separator bars allow resizing splits using arrow keys (`Left`/`Right` or `Up`/`Down`).
 - **Screen Reader Announcements**: Live region alerts announce workspace changes (`aria-live="polite"`).
