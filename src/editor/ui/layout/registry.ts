@@ -11,6 +11,7 @@ import ColorPanel from '../color/ColorPanel';
 import { MixerPanel } from '../audio/MixerPanel';
 import { LoudnessPanel } from '../audio/LoudnessPanel';
 import { EssentialSoundPanel } from '../audio/EssentialSoundPanel';
+import { EffectControlsAudio } from '../audio/EffectControlsAudio';
 import Timeline from '../timeline/Timeline';
 import GraphEditor from '../graph/GraphEditor';
 
@@ -99,6 +100,14 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
 		id: 'essential-sound',
 		title: 'Essential Sound',
 		component: EssentialSoundPanel as ComponentType<{ [key: string]: unknown }>,
+		singleInstance: true,
+		keepAlive: false,
+		minSize: { width: 220, height: 180 }
+	},
+	'effect-controls-audio': {
+		id: 'effect-controls-audio',
+		title: 'Effect Controls',
+		component: EffectControlsAudio as ComponentType<{ [key: string]: unknown }>,
 		singleInstance: true,
 		keepAlive: false,
 		minSize: { width: 220, height: 180 }

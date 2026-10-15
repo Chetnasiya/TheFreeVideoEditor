@@ -1,4 +1,13 @@
-import type { Clip, Keyframe, PropertyId, Time, TextStyle, TextBox, TextColorRun, AnimatedValue } from '../types';
+import type {
+	Clip,
+	Keyframe,
+	PropertyId,
+	Time,
+	TextStyle,
+	TextBox,
+	TextColorRun,
+	AnimatedValue
+} from '../types';
 import { TEXT_ANIMATION_PRESETS, type TextAnimationPreset } from './presets';
 
 export type GraphicCategory = 'all' | 'kinetic' | 'minimal' | 'badge' | 'neon' | 'social';
@@ -1085,4 +1094,3 @@ export function applyAnimationPresetToClip(
 		properties
 	};
 }
-

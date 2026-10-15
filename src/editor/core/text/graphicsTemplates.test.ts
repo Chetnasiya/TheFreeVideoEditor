@@ -156,47 +156,90 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 
 		// Undo adding clip
 		expect(store.getState().undo()).toBe(true);
-		expect(store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId)).toBeUndefined();
+		expect(
+			store
+				.getState()
+				.project?.tracks.flatMap((t) => t.clips)
+				.find((c) => c.id === clipId)
+		).toBeUndefined();
 		expect(store.getState().timeline.selection.clipIds).toEqual([]);
 
 		// Redo adding clip
 		expect(store.getState().redo()).toBe(true);
-		expect(store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId)).toBeDefined();
+		expect(
+			store
+				.getState()
+				.project?.tracks.flatMap((t) => t.clips)
+				.find((c) => c.id === clipId)
+		).toBeDefined();
 		expect(store.getState().timeline.selection.clipIds).toEqual([clipId]);
 
 		// 2. Edit text content
 		store.getState().setTextContent(clipId, 'NEW HEADLINE\nAND LINE TWO');
-		let currentClip = store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
-		expect(currentClip?.source?.type === 'text' && currentClip.source.text).toBe('NEW HEADLINE\nAND LINE TWO');
+		let currentClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === clipId);
+		expect(currentClip?.source?.type === 'text' && currentClip.source.text).toBe(
+			'NEW HEADLINE\nAND LINE TWO'
+		);
 
 		// Undo text edit
 		expect(store.getState().undo()).toBe(true);
-		currentClip = store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
-		expect(currentClip?.source?.type === 'text' && currentClip.source.text).toBe('DREAM BIG\nAND DARE\nTO FAIL');
+		currentClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === clipId);
+		expect(currentClip?.source?.type === 'text' && currentClip.source.text).toBe(
+			'DREAM BIG\nAND DARE\nTO FAIL'
+		);
 
 		// Redo text edit
 		expect(store.getState().redo()).toBe(true);
-		currentClip = store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
-		expect(currentClip?.source?.type === 'text' && currentClip.source.text).toBe('NEW HEADLINE\nAND LINE TWO');
+		currentClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === clipId);
+		expect(currentClip?.source?.type === 'text' && currentClip.source.text).toBe(
+			'NEW HEADLINE\nAND LINE TWO'
+		);
 
 		// 3. Switch template
 		store.getState().applyGraphicTemplate(clipId, 'ae-motion-title');
-		currentClip = store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
-		expect(currentClip?.source?.type === 'text' && currentClip.source.graphicTemplateId).toBe('ae-motion-title');
+		currentClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === clipId);
+		expect(currentClip?.source?.type === 'text' && currentClip.source.graphicTemplateId).toBe(
+			'ae-motion-title'
+		);
 
 		// Undo template switch
 		expect(store.getState().undo()).toBe(true);
-		currentClip = store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
-		expect(currentClip?.source?.type === 'text' && currentClip.source.graphicTemplateId).toBe('dream-big');
+		currentClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === clipId);
+		expect(currentClip?.source?.type === 'text' && currentClip.source.graphicTemplateId).toBe(
+			'dream-big'
+		);
 
 		// Redo template switch
 		expect(store.getState().redo()).toBe(true);
-		currentClip = store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
-		expect(currentClip?.source?.type === 'text' && currentClip.source.graphicTemplateId).toBe('ae-motion-title');
+		currentClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === clipId);
+		expect(currentClip?.source?.type === 'text' && currentClip.source.graphicTemplateId).toBe(
+			'ae-motion-title'
+		);
 
 		// 4. Apply animation preset
 		store.getState().applyTextAnimation(clipId, 'bounce-in');
-		currentClip = store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
+		currentClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === clipId);
 		expect(currentClip?.properties?.['scale']).toBeDefined();
 
 		// Undo animation preset
@@ -207,7 +250,10 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 
 		// 5. Update accent color
 		store.getState().setGraphicAccentColor(clipId, { r: 0.1, g: 0.8, b: 0.9, a: 1 });
-		currentClip = store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
+		currentClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === clipId);
 		if (currentClip?.source?.type === 'text') {
 			expect(currentClip.source.colorRuns?.[0]?.fillColor?.r).toBeCloseTo(0.1, 2);
 		}
@@ -217,10 +263,12 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 
 		// Redo color
 		expect(store.getState().redo()).toBe(true);
-		currentClip = store.getState().project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
+		currentClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === clipId);
 		if (currentClip?.source?.type === 'text') {
 			expect(currentClip.source.colorRuns?.[0]?.fillColor?.r).toBeCloseTo(0.1, 2);
 		}
 	});
 });
-

@@ -69,6 +69,18 @@ export interface PlaybackEngine {
 	enableScopes(enabled: boolean): void;
 	getLastScopeFrame(): ScopeFrameData | null;
 	getRenderer(): FrameRenderer | null;
+	getDebugMasterAnalyser?(): AnalyserNode | null;
+	getDebugMasterAnalysers?(): { analyserL: AnalyserNode; analyserR: AnalyserNode } | null;
+	getTrackMeterLevels?(trackId: string): {
+		peakL: number;
+		peakR: number;
+		rmsL: number;
+		rmsR: number;
+	};
+	getMasterMeterLevels?(): { peakL: number; peakR: number; rmsL: number; rmsR: number };
+	getBusMeterLevels?(busId: string): { peakL: number; peakR: number; rmsL: number; rmsR: number };
+	getAudioNodeCount?(): number;
+	unlock?(): Promise<void>;
 	dispose(): void;
 }
 
@@ -313,6 +325,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		this.updateAllProjectClipIds();
 		this.cachedResolvedFrame = null;
 		this.pool.setProject(project);
+		this.audio.updateProject(project);
 		for (const assetId of this.runtimeMissing) {
 			if (project.assets[assetId]?.opfsPath !== previousProject.assets[assetId]?.opfsPath) {
 				this.runtimeMissing.delete(assetId);
@@ -650,6 +663,34 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	private reportError(error: unknown): void {
 		const message = error instanceof Error ? error.message : 'Playback failed unexpectedly.';
 		this.updateSnapshot({ error: message });
+	}
+
+	getDebugMasterAnalyser(): AnalyserNode | null {
+		return this.audio.debugMasterAnalyser;
+	}
+
+	getDebugMasterAnalysers(): { analyserL: AnalyserNode; analyserR: AnalyserNode } | null {
+		return this.audio.debugMasterAnalysers;
+	}
+
+	getTrackMeterLevels(trackId: string) {
+		return this.audio.getTrackMeterLevels(trackId);
+	}
+
+	getMasterMeterLevels() {
+		return this.audio.getMasterMeterLevels();
+	}
+
+	getBusMeterLevels(busId: string) {
+		return this.audio.getBusMeterLevels(busId);
+	}
+
+	getAudioNodeCount(): number {
+		return this.audio.getNodeCount();
+	}
+
+	async unlock(): Promise<void> {
+		await this.audio.unlock();
 	}
 
 	private updateSnapshot(patch: Partial<PlaybackSnapshot>): void {

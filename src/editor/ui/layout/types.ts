@@ -12,6 +12,7 @@ export type PanelId =
 	| 'mixer'
 	| 'loudness'
 	| 'essential-sound'
+	| 'effect-controls-audio'
 	| 'timeline'
 	| 'graph';
 

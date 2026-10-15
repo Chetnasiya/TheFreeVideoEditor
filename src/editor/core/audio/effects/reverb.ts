@@ -58,9 +58,16 @@ export const reverbDefinition: AudioEffectDefinition = {
 		}
 	],
 	latencySamples: () => 0,
-	createDSP: (ctx: AudioEffectContext): AudioEffectDSP => {
+	createDSP: (ctx: AudioEffectContext, params?: Record<string, unknown>): AudioEffectDSP => {
+		const roomSize = typeof params?.roomSize === 'number' ? params.roomSize : 0.7;
+		const damping = typeof params?.damping === 'number' ? params.damping : 0.25;
+		const width = typeof params?.width === 'number' ? params.width : 1.0;
+		const rawMix = typeof params?.mix === 'number' ? params.mix : 0.3;
+		const wet = Math.min(1, Math.max(0, rawMix > 1 ? rawMix / 100 : rawMix));
+		const dry = 1 - wet;
+
 		const core = new ReverbCore(ctx.sampleRate);
-		core.setParameters(0.7, 0.25, 1.0);
+		core.setParameters(roomSize, damping, width);
 
 		return {
 			reset() {
@@ -73,9 +80,6 @@ export const reverbDefinition: AudioEffectDefinition = {
 				const chL = channels[0];
 				const chR = channels[1] ?? chL;
 				if (!chL) return;
-
-				const wet = 0.3;
-				const dry = 1 - wet;
 
 				for (let i = 0; i < frameCount; i++) {
 					const inL = chL[i]!;

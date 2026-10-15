@@ -3,6 +3,7 @@ import {
 	dbToGain,
 	gainToDb,
 	panGains,
+	balanceGains,
 	fadeGain,
 	resolveAudibleTracks,
 	totalEqResponse,
@@ -62,6 +63,48 @@ describe('audioMath unit tests', () => {
 				const { left, right } = panGains(p);
 				expect(left * left + right * right).toBeCloseTo(1.0, 5);
 			}
+		});
+	});
+
+	describe('Stereo balance law', () => {
+		it('returns unity 1.0 on both channels at center (pan = 0)', () => {
+			const { left, right } = balanceGains(0);
+			expect(left).toBe(1.0);
+			expect(right).toBe(1.0);
+		});
+
+		it('snaps within +/- 2% center detent to 1.0 on both channels', () => {
+			const detentPos = balanceGains(0.015);
+			expect(detentPos.left).toBe(1.0);
+			expect(detentPos.right).toBe(1.0);
+
+			const detentNeg = balanceGains(-0.015);
+			expect(detentNeg.left).toBe(1.0);
+			expect(detentNeg.right).toBe(1.0);
+		});
+
+		it('attenuates right channel when panned left without boosting left', () => {
+			const { left, right } = balanceGains(-0.5);
+			expect(left).toBe(1.0);
+			expect(right).toBeLessThan(1.0);
+			expect(right).toBeGreaterThan(0.0);
+		});
+
+		it('attenuates left channel when panned right without boosting right', () => {
+			const { left, right } = balanceGains(0.5);
+			expect(left).toBeLessThan(1.0);
+			expect(left).toBeGreaterThan(0.0);
+			expect(right).toBe(1.0);
+		});
+
+		it('fully isolates channels at hard left and hard right', () => {
+			const hardL = balanceGains(-1);
+			expect(hardL.left).toBe(1.0);
+			expect(hardL.right).toBeCloseTo(0.0, 5);
+
+			const hardR = balanceGains(1);
+			expect(hardR.left).toBeCloseTo(0.0, 5);
+			expect(hardR.right).toBe(1.0);
 		});
 	});
 

@@ -647,7 +647,8 @@ export const EFFECT_DEFINITIONS: Record<string, EffectDefinition> = {
 		name: 'RGB Split',
 		category: 'stylize',
 		version: 1,
-		description: 'Separates RGB channels along an angle for chromatic aberration and glitch aesthetics',
+		description:
+			'Separates RGB channels along an angle for chromatic aberration and glitch aesthetics',
 		params: {
 			amount: {
 				type: 'number',

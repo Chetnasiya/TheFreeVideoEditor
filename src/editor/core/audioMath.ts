@@ -31,10 +31,11 @@ export function gainToDb(gain: number): number {
 }
 
 /**
- * Constant-power stereo pan law:
+ * Constant-power stereo pan law (for mono sources):
  * theta = (pi / 4) * (pan + 1)
  * L = cos(theta), R = sin(theta)
- * pan in [-1, 1]. At pan = 0: L = R = sqrt(0.5) ≈ 0.7071 (-3 dB center).
+ * pan in [-1, 1]. At pan = 0: L = R = sqrt(0.5) ≈ 0.7071 (-3.01 dB center).
+ * Preserves total acoustic energy L^2 + R^2 = 1.0.
  */
 export function panGains(pan: number): { left: number; right: number } {
 	const clampedPan = Math.max(-1, Math.min(1, Number.isFinite(pan) ? pan : 0));
@@ -42,6 +43,31 @@ export function panGains(pan: number): { left: number; right: number } {
 	return {
 		left: Math.cos(theta),
 		right: Math.sin(theta)
+	};
+}
+
+/**
+ * Stereo balance law (for stereo sources):
+ * At center (pan = 0): L = 1.0, R = 1.0 (bit-identical pass-through, zero attenuation).
+ * Panning left (pan < 0): Left remains 1.0, Right attenuates: R = sin((pan + 1) * pi / 2). At pan = -1: R = 0.
+ * Panning right (pan > 0): Right remains 1.0, Left attenuates: L = sin((1 - pan) * pi / 2). At pan = +1: L = 0.
+ */
+export function balanceGains(pan: number): { left: number; right: number } {
+	const clampedPan = Math.max(-1, Math.min(1, Number.isFinite(pan) ? pan : 0));
+	if (Math.abs(clampedPan) <= 0.02) {
+		return { left: 1.0, right: 1.0 };
+	}
+	if (clampedPan < 0) {
+		const theta = ((clampedPan + 1) * Math.PI) / 2;
+		return {
+			left: 1.0,
+			right: Math.sin(theta)
+		};
+	}
+	const theta = ((1 - clampedPan) * Math.PI) / 2;
+	return {
+		left: Math.sin(theta),
+		right: 1.0
 	};
 }
 
@@ -136,7 +162,7 @@ export function resolveAudibleTracks(tracks: readonly Track[]): Set<string> {
 	for (const track of audioTracks) {
 		if (track.muted) continue;
 		if (hasSolo) {
-			if (track.audio?.solo === true) {
+			if (track.audio?.solo === true || track.audio?.soloSafe === true) {
 				audible.add(track.id);
 			}
 		} else {

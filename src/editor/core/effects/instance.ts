@@ -197,4 +197,3 @@ export function toggleBypassClipEffects(clip: Clip, bypass?: boolean): Clip {
 		bypassEffects: nextBypass
 	};
 }
-

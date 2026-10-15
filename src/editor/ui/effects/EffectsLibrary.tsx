@@ -62,6 +62,7 @@ export default function EffectsLibrary() {
 	const [mainTab, setMainTab] = useState<MainTab>('video');
 	const [activeCategory, setActiveCategory] = useState<string>('all');
 	const [announcement, setAnnouncement] = useState('');
+	const [inlineAudioMessage, setInlineAudioMessage] = useState<string | null>(null);
 
 	const allEffects = useMemo(() => Object.values(EFFECT_DEFINITIONS), []);
 	const allTransitions = useMemo(
@@ -147,20 +148,44 @@ export default function EffectsLibrary() {
 	};
 
 	const handleAddAudioEffect = (def: AudioEffectDefinition) => {
-		if (selectedClipIds.length === 0) {
-			setAnnouncement(`Select a clip in the timeline to apply ${def.name}.`);
-			return;
-		}
-		const clipId = selectedClipIds[0]!;
 		const project = store.getState().project;
-		const clip = project?.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
-		if (!clip) return;
-		const existing = clip.audioEffects ? [...clip.audioEffects] : [];
-		const newFx = audioEffectRegistry.createDefaultInstance(def.id);
-		newFx.managedBy = 'user';
-		existing.push(newFx);
-		store.getState().setClipAudioEffects(clipId, existing);
-		setAnnouncement(`Added ${def.name} audio effect to selected clip.`);
+		if (!project) return;
+		const curSelectedClipIds = store.getState().timeline.selection.clipIds;
+		const curSelectedTrackId = store.getState().timeline.selection.trackId;
+
+		if (curSelectedClipIds.length > 0) {
+			const clipId = curSelectedClipIds[0]!;
+			const clip = project.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId);
+			if (clip) {
+				const existing = clip.audioEffects ? [...clip.audioEffects] : [];
+				const newFx = audioEffectRegistry.createDefaultInstance(def.id);
+				newFx.managedBy = 'user';
+				existing.push(newFx);
+				store.getState().setClipAudioEffects(clipId, existing);
+				setAnnouncement(`Added ${def.name} audio effect to selected clip.`);
+				setInlineAudioMessage(null);
+				return;
+			}
+		}
+
+		if (curSelectedTrackId) {
+			const track = project.tracks.find((t) => t.id === curSelectedTrackId);
+			if (track && track.kind === 'audio') {
+				const existing = track.audio?.effects ? [...track.audio.effects] : [];
+				const newFx = audioEffectRegistry.createDefaultInstance(def.id);
+				newFx.managedBy = 'user';
+				existing.push(newFx);
+				store.getState().setTrackAudioEffects(track.id, existing);
+				setAnnouncement(`Added ${def.name} audio effect to ${track.name}.`);
+				setInlineAudioMessage(null);
+				return;
+			}
+		}
+
+		// Neither is selected
+		const msg = 'Select an audio clip or track first';
+		setInlineAudioMessage(msg);
+		setAnnouncement(msg);
 	};
 
 	const handleDragStart = (e: DragEvent, def: EffectDefinition) => {
@@ -248,6 +273,24 @@ export default function EffectsLibrary() {
 					))}
 				</div>
 			</div>
+
+			{inlineAudioMessage && (
+				<div
+					className="mx-3 my-1.5 flex items-center justify-between rounded border border-amber-500/50 bg-amber-950/70 px-3 py-1.5 text-xs text-amber-200 shadow-md"
+					role="alert"
+					data-testid="audio-effect-inline-message"
+				>
+					<span className="font-medium">{inlineAudioMessage}</span>
+					<button
+						type="button"
+						onClick={() => setInlineAudioMessage(null)}
+						className="ml-2 cursor-pointer text-amber-300 hover:text-white"
+						title="Dismiss"
+					>
+						✕
+					</button>
+				</div>
+			)}
 
 			<div className="effects-list" role="list">
 				{mainTab === 'video' &&

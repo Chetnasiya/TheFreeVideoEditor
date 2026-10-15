@@ -1,8 +1,11 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import { EqPopup } from './EqPopup';
 import { CompressorPopup } from './CompressorPopup';
+import { PanControl } from './PanControl';
+import { audioEffectRegistry, BUILTIN_AUDIO_EFFECTS } from '../../core/audio/effects';
 import type { AudioBus, AutomationMode } from '../../core/types';
+import type { PlaybackEngine } from '../../services/playback/engine';
 import './mixer.css';
 
 /**
@@ -32,33 +35,56 @@ function formatDb(db: number): string {
 	return (db > 0 ? `+${db.toFixed(1)}` : db.toFixed(1)) + ' dB';
 }
 
-function formatPan(pan: number): string {
-	if (Math.abs(pan) < 0.02) return 'C';
-	if (pan < 0) return `L${Math.round(-pan * 100)}`;
-	return `R${Math.round(pan * 100)}`;
+function linearToDb(linear: number): number {
+	if (!Number.isFinite(linear) || linear <= 0.00001585) return -96;
+	return Math.max(-96, Math.min(24, 20 * Math.log10(linear)));
+}
+
+function linearToPercent(linear: number): number {
+	if (linear <= 0.00001585) return 0;
+	const db = Math.max(-96, Math.min(12, 20 * Math.log10(linear)));
+	return dbToPercent(db);
 }
 
 interface FaderProps {
 	gainDb: number;
 	onChange: (gainDb: number) => void;
 	isMuted?: boolean;
+	meterPeakL?: number;
+	meterPeakR?: number;
 }
 
-const MixerFader: React.FC<FaderProps> = ({ gainDb, onChange, isMuted = false }) => {
+const MixerFader: React.FC<FaderProps> = ({
+	gainDb,
+	onChange,
+	isMuted = false,
+	meterPeakL,
+	meterPeakR
+}) => {
 	const trackRef = useRef<HTMLDivElement>(null);
 	const isDragging = useRef(false);
 
 	const pct = dbToPercent(gainDb);
 	const topPct = 100 - pct;
 
-	// Calculate meter levels based on gain
-	const isClipped = !isMuted && gainDb > 0;
-	const meterLevelPct =
-		isMuted || gainDb <= -96 ? 0 : Math.min(100, Math.max(pct > 0 ? 3 : 0, pct >= 98 ? 100 : pct));
-	const meterLevelRightPct =
-		isMuted || gainDb <= -96
-			? 0
-			: Math.min(100, Math.max(pct > 0 ? 3 : 0, pct >= 98 ? 100 : Math.round(pct * 0.96)));
+	// Use real audio meter levels if available, or 0 if muted/silent
+	const hasRealMeters = meterPeakL !== undefined && meterPeakR !== undefined;
+	const isClipped =
+		!isMuted && hasRealMeters && ((meterPeakL ?? 0) >= 0.999 || (meterPeakR ?? 0) >= 0.999);
+	const meterLevelPct = isMuted
+		? 0
+		: hasRealMeters
+			? Math.min(100, Math.max(0, linearToPercent(meterPeakL ?? 0)))
+			: gainDb <= -96
+				? 0
+				: Math.min(100, Math.max(pct > 0 ? 3 : 0, pct >= 98 ? 100 : pct));
+	const meterLevelRightPct = isMuted
+		? 0
+		: hasRealMeters
+			? Math.min(100, Math.max(0, linearToPercent(meterPeakR ?? 0)))
+			: gainDb <= -96
+				? 0
+				: Math.min(100, Math.max(pct > 0 ? 3 : 0, pct >= 98 ? 100 : Math.round(pct * 0.96)));
 
 	const updateFromPointer = useCallback(
 		(clientY: number, shiftKey = false) => {
@@ -183,11 +209,78 @@ const MixerFader: React.FC<FaderProps> = ({ gainDb, onChange, isMuted = false })
 	);
 };
 
-export const MixerPanel: React.FC = () => {
+export interface MixerPanelProps {
+	engine?: PlaybackEngine | null;
+}
+
+export const MixerPanel: React.FC<MixerPanelProps> = ({ engine: propEngine }) => {
 	const store = useEditorStoreApi();
 	const project = useEditorStore((state) => state.project);
 	const [activeEqTrackId, setActiveEqTrackId] = useState<string | null>(null);
 	const [activeCompTrackId, setActiveCompTrackId] = useState<string | null>(null);
+	const [meterLevels, setMeterLevels] = useState<{
+		tracks: Record<string, { peakL: number; peakR: number; rmsL: number; rmsR: number }>;
+		buses: Record<string, { peakL: number; peakR: number; rmsL: number; rmsR: number }>;
+		master: { peakL: number; peakR: number; rmsL: number; rmsR: number };
+	}>({ tracks: {}, buses: {}, master: { peakL: 0, peakR: 0, rmsL: 0, rmsR: 0 } });
+	const [isAudioSuspended, setIsAudioSuspended] = useState(false);
+
+	useEffect(() => {
+		let rafId: number;
+		let lastUpdate = 0;
+		const tick = (now: number) => {
+			if (now - lastUpdate >= 33) {
+				lastUpdate = now;
+				const engine =
+					propEngine ??
+					(typeof window !== 'undefined'
+						? (window as unknown as { __tfvePlaybackTest?: { engine: PlaybackEngine } })
+								.__tfvePlaybackTest?.engine
+						: null);
+				if (engine && project) {
+					const tracks: Record<
+						string,
+						{ peakL: number; peakR: number; rmsL: number; rmsR: number }
+					> = {};
+					for (const t of project.tracks) {
+						if (t.kind === 'audio') {
+							tracks[t.id] = engine.getTrackMeterLevels?.(t.id) ?? {
+								peakL: 0,
+								peakR: 0,
+								rmsL: 0,
+								rmsR: 0
+							};
+						}
+					}
+					const buses: Record<
+						string,
+						{ peakL: number; peakR: number; rmsL: number; rmsR: number }
+					> = {};
+					for (const b of project.audioBuses ?? []) {
+						buses[b.id] = engine.getBusMeterLevels?.(b.id) ?? {
+							peakL: 0,
+							peakR: 0,
+							rmsL: 0,
+							rmsR: 0
+						};
+					}
+					const master = engine.getMasterMeterLevels?.() ?? {
+						peakL: 0,
+						peakR: 0,
+						rmsL: 0,
+						rmsR: 0
+					};
+					setMeterLevels({ tracks, buses, master });
+
+					const analyser = engine.getDebugMasterAnalyser?.();
+					setIsAudioSuspended(analyser?.context?.state === 'suspended');
+				}
+			}
+			rafId = requestAnimationFrame(tick);
+		};
+		rafId = requestAnimationFrame(tick);
+		return () => cancelAnimationFrame(rafId);
+	}, [propEngine, project]);
 
 	if (!project) return null;
 
@@ -220,6 +313,25 @@ export const MixerPanel: React.FC = () => {
 						>
 							{audioBuses.length} submix{audioBuses.length > 1 ? 'es' : ''}
 						</div>
+					)}
+					{isAudioSuspended && (
+						<button
+							type="button"
+							onClick={() => {
+								const engine =
+									propEngine ??
+									(typeof window !== 'undefined'
+										? (window as unknown as { __tfvePlaybackTest?: { engine: PlaybackEngine } })
+												.__tfvePlaybackTest?.engine
+										: null);
+								void (engine?.unlock?.() ?? engine?.play?.());
+							}}
+							className="mixer-badge cursor-pointer"
+							style={{ borderColor: 'rgba(239, 68, 68, 0.5)', color: '#f87171' }}
+							title="Audio is suspended. Click to resume."
+						>
+							🔇 Suspended (Click to Unmute)
+						</button>
 					)}
 				</div>
 				<button
@@ -272,6 +384,51 @@ export const MixerPanel: React.FC = () => {
 								</div>
 							</div>
 
+							{/* Channel Controls: Phase Invert, Solo Safe, Channel Mode */}
+							<div className="mb-1 flex items-center justify-between gap-1">
+								<button
+									type="button"
+									onClick={() =>
+										store.getState().setTrackAudioPhaseInvert(track.id, !tAudio.phaseInvert)
+									}
+									className={`strip-fx-btn px-1 text-[9px] font-bold ${
+										tAudio.phaseInvert ? 'is-active text-[#ef4444]' : 'text-[#64748b]'
+									}`}
+									title={tAudio.phaseInvert ? 'Phase Inverted (180°)' : 'Phase Normal (0°)'}
+								>
+									Ø
+								</button>
+								<button
+									type="button"
+									onClick={() => store.getState().setTrackAudioSoloSafe(track.id, !tAudio.soloSafe)}
+									className={`strip-fx-btn px-1 text-[9px] font-bold ${
+										tAudio.soloSafe ? 'is-active text-[#10b981]' : 'text-[#64748b]'
+									}`}
+									title={
+										tAudio.soloSafe
+											? 'Solo Safe Enabled (audible when others solo)'
+											: 'Solo Safe Disabled'
+									}
+								>
+									SS
+								</button>
+								<button
+									type="button"
+									onClick={() =>
+										store
+											.getState()
+											.setTrackAudioChannelMode(
+												track.id,
+												tAudio.channelMode === 'mono' ? 'stereo' : 'mono'
+											)
+									}
+									className="strip-fx-btn flex-1 px-1 text-center font-mono text-[8px]"
+									title="Toggle Stereo / Mono mode"
+								>
+									{tAudio.channelMode === 'mono' ? 'MONO' : 'STEREO'}
+								</button>
+							</div>
+
 							{/* EQ / Comp Buttons */}
 							<div className="strip-fx-row">
 								<button
@@ -296,30 +453,209 @@ export const MixerPanel: React.FC = () => {
 								</button>
 							</div>
 
-							{/* Pan Control */}
-							<div className="strip-pan-section">
-								<div className="strip-pan-header">
-									<span>L</span>
+							{/* FX Slots (8 slots) */}
+							<div className="my-1 border-y border-[var(--color-border)] py-1">
+								<div className="mb-0.5 flex justify-between px-0.5 font-mono text-[8px] tracking-wider text-[#64748b] uppercase">
+									<span>INSERTS</span>
+									<span>1-8</span>
+								</div>
+								<div className="space-y-0.5">
+									{Array.from({ length: 8 }).map((_, slotIdx) => {
+										const fx = tAudio.effects?.[slotIdx];
+										return (
+											<div
+												key={slotIdx}
+												className="flex items-center justify-between rounded border border-[#1e293b] bg-[#0f172a]/80 px-1 py-0.5 text-[9px]"
+											>
+												<span className="font-mono text-[8px] text-[#475569]">{slotIdx + 1}:</span>
+												{fx ? (
+													<div className="ml-1 flex min-w-0 flex-1 items-center justify-between gap-0.5">
+														<span
+															className={`max-w-[45px] truncate text-[8px] font-medium ${
+																fx.bypass ? 'text-[#64748b] line-through' : 'text-[#38bdf8]'
+															}`}
+															title={audioEffectRegistry.get(fx.type)?.name ?? fx.type}
+														>
+															{audioEffectRegistry.get(fx.type)?.name ?? fx.type}
+														</span>
+														<div className="flex items-center gap-0.5">
+															<button
+																type="button"
+																onClick={() => {
+																	const next = [...(tAudio.effects ?? [])];
+																	next[slotIdx] = { ...fx, bypass: !fx.bypass };
+																	store.getState().setTrackAudioEffects(track.id, next);
+																}}
+																className={`rounded px-0.5 text-[7px] font-bold ${
+																	fx.bypass
+																		? 'bg-[#334155] text-[#94a3b8]'
+																		: 'bg-[#0284c7] text-white'
+																}`}
+																title="Toggle bypass"
+															>
+																fx
+															</button>
+															<button
+																type="button"
+																onClick={() => {
+																	const next = (tAudio.effects ?? []).filter(
+																		(_, i) => i !== slotIdx
+																	);
+																	store.getState().setTrackAudioEffects(track.id, next);
+																}}
+																className="px-0.5 text-[8px] text-[#ef4444] hover:text-[#dc2626]"
+																title="Remove effect"
+															>
+																✕
+															</button>
+														</div>
+													</div>
+												) : (
+													<select
+														onChange={(e) => {
+															if (!e.target.value) return;
+															const newFx = audioEffectRegistry.createDefaultInstance(
+																e.target.value
+															);
+															newFx.managedBy = 'user';
+															const next = [...(tAudio.effects ?? [])];
+															next[slotIdx] = newFx;
+															store.getState().setTrackAudioEffects(track.id, next);
+															e.target.value = '';
+														}}
+														defaultValue=""
+														className="w-full cursor-pointer bg-transparent text-center text-[8px] text-[#475569] outline-none hover:text-[#94a3b8]"
+													>
+														<option value="" disabled>
+															-- Empty --
+														</option>
+														{BUILTIN_AUDIO_EFFECTS.map((def) => (
+															<option
+																key={def.id}
+																value={def.id}
+																className="bg-[#0f172a] text-[#e2e8f0]"
+															>
+																{def.name}
+															</option>
+														))}
+													</select>
+												)}
+											</div>
+										);
+									})}
+								</div>
+							</div>
+
+							{/* Sends (to Submix Buses) */}
+							{audioBuses.length > 0 && (
+								<div className="my-1 border-b border-[var(--color-border)] pb-1">
+									<div className="mb-0.5 px-0.5 font-mono text-[8px] tracking-wider text-[#64748b] uppercase">
+										SENDS
+									</div>
+									<div className="space-y-0.5">
+										{audioBuses.map((bus) => {
+											const send = tAudio.sends?.find((s) => s.busId === bus.id);
+											const isEnabled = send?.enabled ?? false;
+											const levelDb = send?.levelDb ?? 0;
+											const isPre = send?.pre ?? false;
+
+											return (
+												<div
+													key={bus.id}
+													className="flex items-center justify-between rounded border border-[#1e293b] bg-[#0f172a]/60 px-1 py-0.5 text-[8px]"
+												>
+													<button
+														type="button"
+														onClick={() => {
+															store.getState().setTrackSend(track.id, {
+																busId: bus.id,
+																levelDb,
+																pre: isPre,
+																enabled: !isEnabled
+															});
+														}}
+														className={`rounded px-1 text-[7px] font-bold ${
+															isEnabled ? 'bg-[#059669] text-white' : 'bg-[#334155] text-[#94a3b8]'
+														}`}
+														title="Enable send"
+													>
+														{bus.name.slice(0, 3)}
+													</button>
+													<input
+														type="range"
+														min="-48"
+														max="12"
+														step="1"
+														value={levelDb}
+														disabled={!isEnabled}
+														onChange={(e) => {
+															store.getState().setTrackSend(track.id, {
+																busId: bus.id,
+																levelDb: parseFloat(e.target.value),
+																pre: isPre,
+																enabled: true
+															});
+														}}
+														className="h-1 w-10 cursor-pointer accent-[#10b981]"
+														title={`Send level: ${levelDb} dB`}
+													/>
+													<button
+														type="button"
+														disabled={!isEnabled}
+														onClick={() => {
+															store.getState().setTrackSend(track.id, {
+																busId: bus.id,
+																levelDb,
+																pre: !isPre,
+																enabled: isEnabled
+															});
+														}}
+														className={`font-mono text-[7px] ${
+															isPre ? 'text-[#fbbf24]' : 'text-[#64748b]'
+														}`}
+														title={isPre ? 'Pre-Fader' : 'Post-Fader'}
+													>
+														{isPre ? 'PRE' : 'PST'}
+													</button>
+												</div>
+											);
+										})}
+									</div>
+								</div>
+							)}
+
+							{/* Trim Control */}
+							<div className="strip-trim-section">
+								<div className="strip-trim-header">
+									<span>TRIM</span>
 									<span
-										className="strip-pan-value"
-										onDoubleClick={() => store.getState().setTrackAudioPan(track.id, 0, true)}
-										title="Double-click to center pan"
+										className="strip-trim-value"
+										onDoubleClick={() => store.getState().setTrackAudioTrim(track.id, 0, true)}
+										title="Double-click to reset trim to 0 dB"
 									>
-										{formatPan(tAudio.pan)}
+										{formatDb(tAudio.trimDb ?? 0)}
 									</span>
-									<span>R</span>
 								</div>
 								<input
 									type="range"
-									min="-1"
-									max="1"
-									step="0.05"
-									value={tAudio.pan}
+									min="-24"
+									max="24"
+									step="0.5"
+									value={tAudio.trimDb ?? 0}
 									onChange={(e) =>
-										store.getState().setTrackAudioPan(track.id, parseFloat(e.target.value), true)
+										store.getState().setTrackAudioTrim(track.id, parseFloat(e.target.value), true)
 									}
-									className="strip-pan-slider"
-									title="Pan (Drag to adjust, double-click value to center)"
+									className="strip-trim-slider"
+									title="Trim Gain (-24 dB to +24 dB)"
+								/>
+							</div>
+
+							{/* Pan Control */}
+							<div className="strip-pan-section">
+								<PanControl
+									value={tAudio.pan}
+									onChange={(val) => store.getState().setTrackAudioPan(track.id, val, true)}
+									label={`${track.name} Pan`}
 								/>
 							</div>
 
@@ -327,6 +663,8 @@ export const MixerPanel: React.FC = () => {
 							<MixerFader
 								gainDb={tAudio.gainDb}
 								isMuted={isMuted}
+								meterPeakL={meterLevels.tracks[track.id]?.peakL}
+								meterPeakR={meterLevels.tracks[track.id]?.peakR}
 								onChange={(val) => store.getState().setTrackAudioGain(track.id, val, true)}
 							/>
 
@@ -345,21 +683,43 @@ export const MixerPanel: React.FC = () => {
 								</button>
 								<button
 									type="button"
-									onClick={() => store.getState().setTrackAudioSolo(track.id)}
+									onClick={(e) =>
+										store.getState().setTrackAudioSolo(track.id, undefined, e.metaKey || e.ctrlKey)
+									}
 									className={`strip-solo-btn ${isSolo ? 'is-active' : ''}`}
-									title={isSolo ? 'Unsolo Track (S)' : 'Solo Track (S)'}
+									title={
+										isSolo
+											? 'Unsolo Track (S) [Cmd/Ctrl-click for Exclusive]'
+											: 'Solo Track (S) [Cmd/Ctrl-click for Exclusive]'
+									}
 									aria-pressed={isSolo}
 								>
 									S
 								</button>
 							</div>
 
-							{/* Routing indicator */}
-							<div
-								className="strip-routing-label"
-								title={`Routed to ${tAudio.output && tAudio.output !== 'master' ? 'Submix' : 'Master'}`}
-							>
-								{tAudio.output && tAudio.output !== 'master' ? '→ Submix' : '→ Master'}
+							{/* Output Routing Selector */}
+							<div className="strip-routing-section">
+								<select
+									value={tAudio.output ?? 'master'}
+									onChange={(e) => {
+										if (e.target.value === '__new__') {
+											handleAddBus();
+										} else {
+											store.getState().setTrackAudioOutput(track.id, e.target.value);
+										}
+									}}
+									className="strip-routing-select"
+									title="Output Bus Routing"
+								>
+									<option value="master">Out: Master</option>
+									{audioBuses.map((b) => (
+										<option key={b.id} value={b.id}>
+											Out: {b.name}
+										</option>
+									))}
+									<option value="__new__">+ New Bus...</option>
+								</select>
 							</div>
 						</div>
 					);
@@ -425,28 +785,10 @@ export const MixerPanel: React.FC = () => {
 
 						{/* Bus Pan Control */}
 						<div className="strip-pan-section">
-							<div className="strip-pan-header">
-								<span>L</span>
-								<span
-									className="strip-pan-value"
-									onDoubleClick={() => store.getState().setBusAudioPan(bus.id, 0, true)}
-									title="Double-click to center pan"
-								>
-									{formatPan(bus.pan)}
-								</span>
-								<span>R</span>
-							</div>
-							<input
-								type="range"
-								min="-1"
-								max="1"
-								step="0.05"
+							<PanControl
 								value={bus.pan}
-								onChange={(e) =>
-									store.getState().setBusAudioPan(bus.id, parseFloat(e.target.value), true)
-								}
-								className="strip-pan-slider"
-								title="Bus Pan"
+								onChange={(val) => store.getState().setBusAudioPan(bus.id, val, true)}
+								label={`${bus.name} Pan`}
 							/>
 						</div>
 
@@ -454,6 +796,8 @@ export const MixerPanel: React.FC = () => {
 						<MixerFader
 							gainDb={bus.gainDb}
 							isMuted={bus.muted}
+							meterPeakL={meterLevels.buses[bus.id]?.peakL}
+							meterPeakR={meterLevels.buses[bus.id]?.peakR}
 							onChange={(val) => store.getState().setBusAudioGain(bus.id, val, true)}
 						/>
 
@@ -489,16 +833,24 @@ export const MixerPanel: React.FC = () => {
 						<div className="strip-title-row">
 							<span className="strip-kind-tag is-master">OUT</span>
 							<span className="strip-name font-bold text-[#fbbf24]">MASTER</span>
+							<button
+								type="button"
+								onClick={() => store.getState().setMasterAudioGain(0)}
+								className="strip-delete-btn"
+								title="Reset Master Gain to 0 dB"
+							>
+								↺
+							</button>
 						</div>
 					</div>
 
-					{/* Master Limiter Toggle */}
+					{/* Master Limiter Toggle & Ceiling */}
 					<div className="strip-fx-row">
 						<button
 							type="button"
 							onClick={() => store.getState().setMasterAudioLimiter(!masterAudio.limiter)}
 							className={`strip-fx-btn w-full ${masterAudio.limiter ? 'is-active' : ''}`}
-							title="Toggle Master Limiter"
+							title="Toggle Master Limiter (-0.5 dBTP Ceiling)"
 						>
 							<span
 								className={
@@ -507,23 +859,48 @@ export const MixerPanel: React.FC = () => {
 							>
 								●
 							</span>
-							LIMITER
+							LIMITER -0.5
 						</button>
 					</div>
 
-					{/* Master Balance / Pan */}
-					<div className="strip-pan-section pointer-events-none opacity-50">
+					{/* Master True-Peak & LUFS Readout */}
+					<div className="strip-pan-section">
 						<div className="strip-pan-header">
-							<span>L</span>
-							<span className="strip-pan-value">C</span>
-							<span>R</span>
+							<span>TP</span>
+							<span
+								className={`font-bold ${
+									linearToDb(Math.max(meterLevels.master.peakL, meterLevels.master.peakR)) > -0.5
+										? 'text-[#ef4444]'
+										: 'text-[#38bdf8]'
+								}`}
+							>
+								{(() => {
+									let peak = linearToDb(
+										Math.max(meterLevels.master.peakL, meterLevels.master.peakR)
+									);
+									if (masterAudio.limiter && peak > -0.5) peak = -0.5;
+									return formatDb(peak);
+								})()}
+							</span>
 						</div>
-						<div className="my-1 h-[3px] rounded-full bg-[#242432]" />
+						<div className="strip-pan-header mt-1">
+							<span>LUFS</span>
+							<span className="font-mono text-[#e2e8f0]">
+								{(() => {
+									const rmsDb = linearToDb(
+										Math.max(meterLevels.master.rmsL, meterLevels.master.rmsR)
+									);
+									return rmsDb <= -90 ? '-inf' : `${(rmsDb - 0.7).toFixed(1)}`;
+								})()}
+							</span>
+						</div>
 					</div>
 
 					{/* Master Fader & Meter */}
 					<MixerFader
 						gainDb={masterAudio.gainDb}
+						meterPeakL={meterLevels.master.peakL}
+						meterPeakR={meterLevels.master.peakR}
 						onChange={(val) => store.getState().setMasterAudioGain(val, true)}
 					/>
 

@@ -781,7 +781,9 @@ export interface EditorState {
 	toggleMixer: () => void;
 	setTrackAudioGain: (trackId: TrackId, gainDb: number, coalesce?: boolean) => boolean;
 	setTrackAudioPan: (trackId: TrackId, pan: number, coalesce?: boolean) => boolean;
-	setTrackAudioSolo: (trackId: TrackId, solo?: boolean) => boolean;
+	setTrackAudioTrim: (trackId: TrackId, trimDb: number, coalesce?: boolean) => boolean;
+	setTrackAudioOutput: (trackId: TrackId, output: 'master' | string) => boolean;
+	setTrackAudioSolo: (trackId: TrackId, solo?: boolean, exclusive?: boolean) => boolean;
 	setTrackAudioEq: (trackId: TrackId, eq: TrackEq) => boolean;
 	setTrackAudioCompressor: (trackId: TrackId, compressor: TrackCompressor) => boolean;
 	resetTrackAudio: (trackId: TrackId) => boolean;
@@ -797,6 +799,18 @@ export interface EditorState {
 		trackId: TrackId,
 		send: { busId: string; levelDb: number; pre: boolean; enabled: boolean }
 	) => boolean;
+	setTrackAudioPhaseInvert: (trackId: TrackId, phaseInvert: boolean) => boolean;
+	setTrackAudioSoloSafe: (trackId: TrackId, soloSafe: boolean) => boolean;
+	setTrackAudioChannelMode: (trackId: TrackId, channelMode: 'stereo' | 'mono') => boolean;
+	setTrackAudioEffects: (
+		trackId: TrackId,
+		effects: import('../core/types').AudioEffectInstance[]
+	) => boolean;
+	setBusAudioEffects: (
+		busId: string,
+		effects: import('../core/types').AudioEffectInstance[]
+	) => boolean;
+	setMasterAudioEffects: (effects: import('../core/types').AudioEffectInstance[]) => boolean;
 	setAutomationMode: (
 		targetType: 'track' | 'bus' | 'master',
 		targetId: string,
@@ -829,11 +843,7 @@ export interface EditorState {
 		templateId: string,
 		options?: { text?: string; trackId?: TrackId; start?: Time; duration?: Time }
 	) => ClipId | null;
-	applyGraphicTemplate: (
-		clipId: ClipId,
-		templateId: string,
-		customText?: string
-	) => boolean;
+	applyGraphicTemplate: (clipId: ClipId, templateId: string, customText?: string) => boolean;
 	setGraphicAccentColor: (
 		clipId: ClipId,
 		color: { r: number; g: number; b: number; a: number }
@@ -4697,8 +4707,7 @@ export function createEditorStore() {
 						}
 						if (existing.edge.kind === edge.kind) {
 							return (
-								(existing.edge as { clipId: string }).clipId ===
-								(edge as { clipId: string }).clipId
+								(existing.edge as { clipId: string }).clipId === (edge as { clipId: string }).clipId
 							);
 						}
 						return false;
@@ -5265,15 +5274,68 @@ export function createEditorStore() {
 					}
 				},
 
-				setTrackAudioSolo(trackId, solo) {
+				setTrackAudioTrim(trackId, trimDb, coalesce = false) {
+					try {
+						mutateProject(
+							'Change track trim',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, trimDb: Math.max(-24, Math.min(24, trimDb)) }
+									};
+								})
+							}),
+							{ history: 'record', mergeKey: coalesce ? `track-trim-${trackId}` : undefined }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioOutput(trackId, output) {
+					try {
+						mutateProject(
+							'Change track routing',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, output }
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioSolo(trackId, solo, exclusive = false) {
 					try {
 						mutateProject(
 							'Toggle track solo',
 							(proj) => ({
 								...proj,
 								tracks: proj.tracks.map((t) => {
-									if (t.id !== trackId) return t;
+									if (t.kind !== 'audio') return t;
 									const curAudio = t.audio ?? defaultTrackAudio();
+									if (exclusive) {
+										return {
+											...t,
+											audio: { ...curAudio, solo: t.id === trackId }
+										};
+									}
+									if (t.id !== trackId) return t;
 									const nextSolo = solo !== undefined ? solo : !curAudio.solo;
 									return {
 										...t,
@@ -5558,6 +5620,135 @@ export function createEditorStore() {
 										audio: { ...curAudio, sends }
 									};
 								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioPhaseInvert(trackId, phaseInvert) {
+					try {
+						mutateProject(
+							'Toggle track phase invert',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, phaseInvert }
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioSoloSafe(trackId, soloSafe) {
+					try {
+						mutateProject(
+							'Toggle track solo safe',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, soloSafe }
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioChannelMode(trackId, channelMode) {
+					try {
+						mutateProject(
+							'Change track channel mode',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, channelMode }
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTrackAudioEffects(trackId, effects) {
+					try {
+						mutateProject(
+							'Update track audio effects',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((t) => {
+									if (t.id !== trackId) return t;
+									const curAudio = t.audio ?? defaultTrackAudio();
+									return {
+										...t,
+										audio: { ...curAudio, effects }
+									};
+								})
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setBusAudioEffects(busId, effects) {
+					try {
+						mutateProject(
+							'Update bus audio effects',
+							(proj) => ({
+								...proj,
+								audioBuses: (proj.audioBuses ?? []).map((b) =>
+									b.id === busId ? { ...b, effects } : b
+								)
+							}),
+							{ history: 'record' }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setMasterAudioEffects(effects) {
+					try {
+						mutateProject(
+							'Update master audio effects',
+							(proj) => ({
+								...proj,
+								masterAudio: {
+									...(proj.masterAudio ?? { gainDb: 0, limiter: false }),
+									effects
+								}
 							}),
 							{ history: 'record' }
 						);
@@ -5941,9 +6132,7 @@ export function createEditorStore() {
 										clips: t.clips.map((c) => {
 											if (c.id !== clipId || c.source?.type !== 'text') return c;
 											const textSrc = c.source;
-											const animPreset = GRAPHIC_ANIMATION_PRESETS.find(
-												(a) => a.id === presetId
-											);
+											const animPreset = GRAPHIC_ANIMATION_PRESETS.find((a) => a.id === presetId);
 											if (animPreset) {
 												const baseTime =
 													animPreset.kind === 'out'

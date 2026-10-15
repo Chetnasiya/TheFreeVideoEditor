@@ -279,6 +279,8 @@ export interface AudioBus {
 	name: string;
 	gainDb: number;
 	pan: number;
+	trimDb?: number;
+	width?: number; // 0..2 (1.0 = 100%)
 	muted: boolean;
 	solo: boolean;
 	output: 'master' | string; // target busId
@@ -290,6 +292,8 @@ export interface AudioBus {
 export interface TrackAudio {
 	gainDb: number;
 	pan: number;
+	trimDb?: number;
+	width?: number; // 0..2 (1.0 = 100%)
 	solo: boolean;
 	output?: 'master' | string; // master or busId
 	sends?: TrackSend[];
@@ -297,6 +301,8 @@ export interface TrackAudio {
 	automation?: Record<string, AnimatedValue<number>>;
 	automationMode?: AutomationMode;
 	channelMode?: 'stereo' | 'mono';
+	phaseInvert?: boolean;
+	soloSafe?: boolean;
 	eq?: TrackEq;
 	compressor?: TrackCompressor;
 }

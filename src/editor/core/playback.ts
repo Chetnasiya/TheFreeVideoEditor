@@ -490,7 +490,9 @@ export function resolveFrame(
 
 				const colorRuns =
 					'colorRuns' in clip.source && Array.isArray(clip.source.colorRuns)
-						? (clip.source.colorRuns as NonNullable<import('./playback').ActiveLayer['textData']>['colorRuns'])
+						? (clip.source.colorRuns as NonNullable<
+								import('./playback').ActiveLayer['textData']
+							>['colorRuns'])
 						: undefined;
 
 				return {

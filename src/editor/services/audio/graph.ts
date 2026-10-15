@@ -23,6 +23,7 @@ export interface TrackAudioNodes {
 	panGainL?: GainNode;
 	panGainR?: GainNode;
 	merger?: ChannelMergerNode;
+	phaseGain?: GainNode;
 	muteGain: GainNode;
 	meters?: AudioGraphMeterNodes;
 	output: GainNode;
@@ -45,6 +46,7 @@ export interface MasterAudioNodes {
 	input: GainNode;
 	faderGain: GainNode;
 	limiterNode?: DynamicsCompressorNode;
+	clampNode?: WaveShaperNode;
 	meters?: AudioGraphMeterNodes;
 	output: GainNode;
 	rack?: BuiltAudioRack;
@@ -81,7 +83,9 @@ export interface BuiltAudioGraph {
 	};
 	getMasterMeterLevels: () => { peakL: number; peakR: number; rmsL: number; rmsR: number };
 	updateTrackParams: (trackId: string, audio: TrackAudio, audible: boolean) => void;
-	updateMasterParams: (gainDb: number, limiter: boolean) => void;
+	updateMasterParams: (gainDb: number, limiter?: boolean) => void;
+	updateBusParams: (busId: string, gainDb: number, pan: number, muted: boolean) => void;
+	getNodeCount: () => number;
 	dispose: () => void;
 }
 
@@ -135,16 +139,36 @@ function calculateMeterLevels(analyser: AnalyserNode): { peak: number; rms: numb
 	return { peak, rms };
 }
 
+function updateMasterClampCurve(shaper: WaveShaperNode | undefined, limiterEnabled: boolean): void {
+	if (!shaper) return;
+	const samples = 4096;
+	const curve = new Float32Array(samples);
+	const ceiling = Math.pow(10, -0.5 / 20); // ~0.94406 (-0.5 dBTP)
+	for (let i = 0; i < samples; i++) {
+		const x = (i / (samples - 1)) * 4 - 2; // -2.0 to +2.0
+		if (!limiterEnabled) {
+			curve[i] = x;
+		} else {
+			if (x > ceiling) curve[i] = ceiling;
+			else if (x < -ceiling) curve[i] = -ceiling;
+			else curve[i] = x;
+		}
+	}
+	shaper.curve = curve;
+}
+
 function buildSingleTrackChain(
 	ctx: BaseAudioContext,
 	track: Track,
 	destination: AudioNode,
 	isAudible: boolean,
 	enableMeters: boolean,
-	pdcDelaySamples = 0
+	pdcDelaySamples = 0,
+	allNodes?: Set<AudioNode>
 ): TrackAudioNodes {
 	const tAudio = track.audio ?? { gainDb: 0, pan: 0, solo: false };
 	const trackIn = ctx.createGain();
+	allNodes?.add(trackIn);
 	let trackTail: AudioNode = trackIn;
 
 	// PDC Delay Node if compensation is needed
@@ -152,36 +176,53 @@ function buildSingleTrackChain(
 	if (pdcDelaySamples > 0 && typeof ctx.createDelay === 'function') {
 		delayNode = ctx.createDelay(Math.max(1, (pdcDelaySamples + 100) / ctx.sampleRate));
 		delayNode.delayTime.value = pdcDelaySamples / ctx.sampleRate;
+		allNodes?.add(delayNode);
 		trackTail.connect(delayNode);
 		trackTail = delayNode;
 	}
 
-	// 1. Legacy EQ (if not using rack)
-	let eqFilters: BiquadFilterNode[] | undefined;
-	if (tAudio.eq?.enabled) {
-		eqFilters = tAudio.eq.bands.map((band) => {
-			const filter = ctx.createBiquadFilter();
-			filter.type = band.type;
-			filter.frequency.value = band.frequencyHz;
-			filter.gain.value = band.gainDb;
-			filter.Q.value = band.q;
-			return filter;
-		});
-		for (const f of eqFilters) {
-			trackTail.connect(f);
-			trackTail = f;
-		}
+	// 1. 4-band Parametric EQ (LowShelf, Peaking, Peaking, HighShelf)
+	const defaultBands = [
+		{ type: 'lowshelf' as const, frequencyHz: 120, gainDb: 0, q: 0.71 },
+		{ type: 'peaking' as const, frequencyHz: 500, gainDb: 0, q: 1.0 },
+		{ type: 'peaking' as const, frequencyHz: 2500, gainDb: 0, q: 1.0 },
+		{ type: 'highshelf' as const, frequencyHz: 8000, gainDb: 0, q: 0.71 }
+	];
+	const bands = tAudio.eq?.bands?.length === 4 ? tAudio.eq.bands : defaultBands;
+	const eqEnabled = tAudio.eq?.enabled ?? false;
+
+	const eqFilters =
+		typeof ctx.createBiquadFilter === 'function'
+			? bands.map((band) => {
+					const filter = ctx.createBiquadFilter();
+					filter.type = band.type;
+					filter.frequency.value = band.frequencyHz;
+					filter.gain.value = eqEnabled ? band.gainDb : 0;
+					filter.Q.value = band.q;
+					allNodes?.add(filter);
+					return filter;
+				})
+			: [];
+	for (const f of eqFilters) {
+		trackTail.connect(f);
+		trackTail = f;
 	}
 
-	// 2. Legacy Compressor (if not using rack)
+	// 2. Dynamics Compressor
 	let compNode: DynamicsCompressorNode | undefined;
-	if (tAudio.compressor?.enabled) {
+	if (typeof ctx.createDynamicsCompressor === 'function') {
 		compNode = ctx.createDynamicsCompressor();
-		compNode.threshold.value = tAudio.compressor.thresholdDb;
-		compNode.ratio.value = tAudio.compressor.ratio;
-		compNode.attack.value = tAudio.compressor.attackMs / 1000;
-		compNode.release.value = tAudio.compressor.releaseMs / 1000;
-		compNode.knee.value = tAudio.compressor.kneeDb;
+		allNodes?.add(compNode);
+		if (tAudio.compressor?.enabled) {
+			compNode.threshold.value = tAudio.compressor.thresholdDb;
+			compNode.ratio.value = tAudio.compressor.ratio;
+			compNode.attack.value = tAudio.compressor.attackMs / 1000;
+			compNode.release.value = tAudio.compressor.releaseMs / 1000;
+			compNode.knee.value = tAudio.compressor.kneeDb;
+		} else {
+			compNode.threshold.value = 0;
+			compNode.ratio.value = 1;
+		}
 		trackTail.connect(compNode);
 		trackTail = compNode;
 	}
@@ -189,6 +230,7 @@ function buildSingleTrackChain(
 	// 3. Track Gain
 	const fader = ctx.createGain();
 	fader.gain.value = dbToGain(tAudio.gainDb);
+	allNodes?.add(fader);
 	trackTail.connect(fader);
 	trackTail = fader;
 
@@ -197,28 +239,45 @@ function buildSingleTrackChain(
 	if (typeof ctx.createStereoPanner === 'function') {
 		panner = ctx.createStereoPanner();
 		panner.pan.value = tAudio.pan;
+		allNodes?.add(panner);
 		trackTail.connect(panner);
 		trackTail = panner;
 	}
 
-	// 5. Mute/Solo Gate
+	// 5. Phase Invert
+	const phaseGain = ctx.createGain();
+	phaseGain.gain.value = tAudio.phaseInvert ? -1.0 : 1.0;
+	allNodes?.add(phaseGain);
+	trackTail.connect(phaseGain);
+	trackTail = phaseGain;
+
+	// 6. Mute/Solo Gate
 	const muteGain = ctx.createGain();
 	muteGain.gain.value = isAudible ? 1.0 : 0.0;
+	allNodes?.add(muteGain);
 	trackTail.connect(muteGain);
 	trackTail = muteGain;
 
-	// 6. Track Meters
+	// 7. Track Meters
 	let trackMeters: AudioGraphMeterNodes | undefined;
-	if (enableMeters) {
+	if (
+		enableMeters &&
+		typeof ctx.createAnalyser === 'function' &&
+		typeof ctx.createChannelSplitter === 'function'
+	) {
 		trackMeters = createMeterPair(ctx);
+		allNodes?.add(trackMeters.analyserL);
+		allNodes?.add(trackMeters.analyserR);
 		const splitter = ctx.createChannelSplitter(2);
+		allNodes?.add(splitter);
 		trackTail.connect(splitter);
 		splitter.connect(trackMeters.analyserL, 0);
 		splitter.connect(trackMeters.analyserR, 1);
 	}
 
-	// 7. Track Output -> Destination
+	// 8. Track Output -> Destination
 	const trackOut = ctx.createGain();
+	allNodes?.add(trackOut);
 	trackTail.connect(trackOut);
 	trackOut.connect(destination);
 
@@ -229,6 +288,7 @@ function buildSingleTrackChain(
 		compressorNode: compNode,
 		faderGain: fader,
 		panPanner: panner,
+		phaseGain,
 		muteGain,
 		meters: trackMeters,
 		output: trackOut
@@ -244,38 +304,62 @@ export function buildAudioGraph(
 	const enableMeters = options.enableMeters ?? false;
 	const destination = options.destination ?? ctx.destination;
 
+	const allNodes = new Set<AudioNode>();
+
 	// Compute PDC across project
 	const pdc = computeGraphPdc(project);
 
 	// Master Chain
 	const masterInput = ctx.createGain();
+	allNodes.add(masterInput);
 	const masterFader = ctx.createGain();
+	allNodes.add(masterFader);
 	const masterDb = project.masterAudio?.gainDb ?? 0;
 	masterFader.gain.value = dbToGain(masterDb);
+	masterInput.connect(masterFader);
 
 	let masterLimiter: DynamicsCompressorNode | undefined;
-	if (project.masterAudio?.limiter) {
-		masterLimiter = ctx.createDynamicsCompressor();
-		masterLimiter.threshold.value = -0.5;
-		masterLimiter.knee.value = 0;
-		masterLimiter.ratio.value = 20;
-		masterLimiter.attack.value = 0.001;
-		masterLimiter.release.value = 0.05;
-	}
-
-	const masterOutput = ctx.createGain();
-	let masterMeters: AudioGraphMeterNodes | undefined;
-
-	masterInput.connect(masterFader);
 	let currentMasterTail: AudioNode = masterFader;
-	if (masterLimiter) {
-		currentMasterTail.connect(masterLimiter);
+	if (typeof ctx.createDynamicsCompressor === 'function') {
+		masterLimiter = ctx.createDynamicsCompressor();
+		allNodes.add(masterLimiter);
+		if (project.masterAudio?.limiter) {
+			masterLimiter.threshold.value = -0.5;
+			masterLimiter.knee.value = 0;
+			masterLimiter.ratio.value = 20;
+			masterLimiter.attack.value = 0.001;
+			masterLimiter.release.value = 0.05;
+		} else {
+			masterLimiter.threshold.value = 0;
+			masterLimiter.ratio.value = 1;
+		}
+		masterFader.connect(masterLimiter);
 		currentMasterTail = masterLimiter;
 	}
 
-	if (enableMeters) {
+	let clampNode: WaveShaperNode | undefined;
+	if (typeof ctx.createWaveShaper === 'function') {
+		clampNode = ctx.createWaveShaper();
+		allNodes.add(clampNode);
+		updateMasterClampCurve(clampNode, project.masterAudio?.limiter ?? false);
+		currentMasterTail.connect(clampNode);
+		currentMasterTail = clampNode;
+	}
+
+	const masterOutput = ctx.createGain();
+	allNodes.add(masterOutput);
+	let masterMeters: AudioGraphMeterNodes | undefined;
+
+	if (
+		enableMeters &&
+		typeof ctx.createAnalyser === 'function' &&
+		typeof ctx.createChannelSplitter === 'function'
+	) {
 		masterMeters = createMeterPair(ctx);
+		allNodes.add(masterMeters.analyserL);
+		allNodes.add(masterMeters.analyserR);
 		const splitter = ctx.createChannelSplitter(2);
+		allNodes.add(splitter);
 		currentMasterTail.connect(splitter);
 		splitter.connect(masterMeters.analyserL, 0);
 		splitter.connect(masterMeters.analyserR, 1);
@@ -290,6 +374,7 @@ export function buildAudioGraph(
 		input: masterInput,
 		faderGain: masterFader,
 		limiterNode: masterLimiter,
+		clampNode,
 		meters: masterMeters,
 		output: masterOutput,
 		rack: masterRack
@@ -299,6 +384,7 @@ export function buildAudioGraph(
 	const busNodes = new Map<string, BusAudioNodes>();
 	for (const bus of project.audioBuses ?? []) {
 		const busIn = ctx.createGain();
+		allNodes.add(busIn);
 		let busTail: AudioNode = busIn;
 
 		// PDC Delay Node for bus
@@ -307,12 +393,14 @@ export function buildAudioGraph(
 		if (pdcDelay > 0 && typeof ctx.createDelay === 'function') {
 			delayNode = ctx.createDelay(Math.max(1, (pdcDelay + 100) / ctx.sampleRate));
 			delayNode.delayTime.value = pdcDelay / ctx.sampleRate;
+			allNodes.add(delayNode);
 			busTail.connect(delayNode);
 			busTail = delayNode;
 		}
 
 		const busFader = ctx.createGain();
 		busFader.gain.value = dbToGain(bus.gainDb);
+		allNodes.add(busFader);
 		busTail.connect(busFader);
 		busTail = busFader;
 
@@ -320,25 +408,35 @@ export function buildAudioGraph(
 		if (typeof ctx.createStereoPanner === 'function') {
 			busPanner = ctx.createStereoPanner();
 			busPanner.pan.value = bus.pan;
+			allNodes.add(busPanner);
 			busTail.connect(busPanner);
 			busTail = busPanner;
 		}
 
 		const busMute = ctx.createGain();
 		busMute.gain.value = bus.muted ? 0.0 : 1.0;
+		allNodes.add(busMute);
 		busTail.connect(busMute);
 		busTail = busMute;
 
 		let busMeters: AudioGraphMeterNodes | undefined;
-		if (enableMeters) {
+		if (
+			enableMeters &&
+			typeof ctx.createAnalyser === 'function' &&
+			typeof ctx.createChannelSplitter === 'function'
+		) {
 			busMeters = createMeterPair(ctx);
+			allNodes.add(busMeters.analyserL);
+			allNodes.add(busMeters.analyserR);
 			const splitter = ctx.createChannelSplitter(2);
+			allNodes.add(splitter);
 			busTail.connect(splitter);
 			splitter.connect(busMeters.analyserL, 0);
 			splitter.connect(busMeters.analyserR, 1);
 		}
 
 		const busOut = ctx.createGain();
+		allNodes.add(busOut);
 		busTail.connect(busOut);
 
 		const busRack = buildAudioRack(bus.effects, ctx.sampleRate, 2);
@@ -389,7 +487,8 @@ export function buildAudioGraph(
 			trackDest,
 			audibleTracks.has(track.id),
 			enableMeters,
-			pdcDelay
+			pdcDelay,
+			allNodes
 		);
 
 		// Connect Auxiliary Sends
@@ -401,6 +500,7 @@ export function buildAudioGraph(
 				if (!targetBus) continue;
 
 				const sendGain = ctx.createGain();
+				allNodes.add(sendGain);
 				sendGain.gain.value = dbToGain(send.levelDb);
 				// Pre vs post-fader send
 				const sourceNode = send.pre ? nodes.input : nodes.faderGain;
@@ -458,14 +558,22 @@ export function buildAudioGraph(
 
 		// Apply clip-level DSP rack if present
 		if (clip.audioEffects && clip.audioEffects.length > 0) {
-			const rack = buildAudioRack(clip.audioEffects, ctx.sampleRate, playBuffer.numberOfChannels);
-			const numChannels = playBuffer.numberOfChannels;
-			const frameCount = playBuffer.length;
-			const channels: Float32Array[] = [];
-			for (let c = 0; c < numChannels; c++) {
-				channels.push(playBuffer.getChannelData(c));
+			const activeFx = clip.audioEffects.filter((e) => !e.bypass);
+			if (activeFx.length > 0) {
+				const rack = buildAudioRack(activeFx, ctx.sampleRate, playBuffer.numberOfChannels);
+				const numChannels = playBuffer.numberOfChannels;
+				const frameCount = playBuffer.length;
+				const cloned = ctx.createBuffer(numChannels, frameCount, playBuffer.sampleRate);
+				const channels: Float32Array[] = [];
+				for (let c = 0; c < numChannels; c++) {
+					const srcData = playBuffer.getChannelData(c);
+					const dstData = cloned.getChannelData(c);
+					dstData.set(srcData);
+					channels.push(dstData);
+				}
+				rack.process(channels, frameCount);
+				playBuffer = cloned;
 			}
-			rack.process(channels, frameCount);
 		}
 
 		// Clip-level chain: source -> clipGain -> clipPan -> destInput
@@ -723,22 +831,87 @@ export function buildAudioGraph(
 		return { peakL: l.peak, peakR: r.peak, rmsL: l.rms, rmsR: r.rms };
 	};
 
+	const safeSetTarget = (param: AudioParam, value: number, timeConstant = 0.015) => {
+		const now = ctx.currentTime;
+		if (typeof param.setTargetAtTime === 'function') {
+			param.setTargetAtTime(value, now, timeConstant);
+		} else if (typeof param.setValueAtTime === 'function') {
+			param.setValueAtTime(value, now);
+		} else {
+			param.value = value;
+		}
+	};
+
 	const updateTrackParams = (trackId: string, audio: TrackAudio, audible: boolean) => {
 		const node = trackNodes.get(trackId);
 		if (!node) return;
-		node.faderGain.gain.value = dbToGain(audio.gainDb);
+		safeSetTarget(node.faderGain.gain, dbToGain(audio.gainDb));
 		if (node.panPanner) {
-			node.panPanner.pan.value = audio.pan;
+			safeSetTarget(node.panPanner.pan, audio.pan);
 		}
-		node.muteGain.gain.value = audible ? 1.0 : 0.0;
+		safeSetTarget(node.muteGain.gain, audible ? 1.0 : 0.0);
+
+		// Smooth EQ updates
+		if (node.eqNodes && node.eqNodes.length > 0) {
+			const eqEnabled = audio.eq?.enabled ?? false;
+			const bands = audio.eq?.bands ?? [];
+			for (let i = 0; i < node.eqNodes.length; i++) {
+				const filter = node.eqNodes[i]!;
+				const band = bands[i];
+				if (band) {
+					filter.type = band.type;
+					safeSetTarget(filter.frequency, band.frequencyHz);
+					safeSetTarget(filter.gain, eqEnabled ? band.gainDb : 0);
+					safeSetTarget(filter.Q, band.q);
+				} else {
+					safeSetTarget(filter.gain, 0);
+				}
+			}
+		}
+
+		if (node.phaseGain && audio.phaseInvert !== undefined) {
+			safeSetTarget(node.phaseGain.gain, audio.phaseInvert ? -1.0 : 1.0);
+		}
+
+		// Smooth Dynamics Compressor updates
+		if (node.compressorNode) {
+			const compEnabled = audio.compressor?.enabled ?? false;
+			const comp = audio.compressor;
+			if (compEnabled && comp) {
+				safeSetTarget(node.compressorNode.threshold, comp.thresholdDb);
+				safeSetTarget(node.compressorNode.ratio, comp.ratio);
+				safeSetTarget(node.compressorNode.attack, comp.attackMs / 1000);
+				safeSetTarget(node.compressorNode.release, comp.releaseMs / 1000);
+				safeSetTarget(node.compressorNode.knee, comp.kneeDb);
+			} else {
+				safeSetTarget(node.compressorNode.threshold, 0);
+				safeSetTarget(node.compressorNode.ratio, 1);
+			}
+		}
 	};
 
 	const updateMasterParams = (gainDb: number, limiter?: boolean) => {
-		masterNodes.faderGain.gain.value = dbToGain(gainDb);
+		safeSetTarget(masterNodes.faderGain.gain, dbToGain(gainDb));
 		if (masterNodes.limiterNode && limiter !== undefined) {
-			masterNodes.limiterNode.threshold.value = limiter ? -0.5 : 0;
+			safeSetTarget(masterNodes.limiterNode.threshold, limiter ? -0.5 : 0);
+			safeSetTarget(masterNodes.limiterNode.ratio, limiter ? 20 : 1);
+		}
+		if (masterNodes.clampNode && limiter !== undefined) {
+			updateMasterClampCurve(masterNodes.clampNode, limiter);
 		}
 	};
+
+	const updateBusParams = (busId: string, gainDb: number, pan: number, muted: boolean) => {
+		const node = busNodes.get(busId);
+		if (!node) return;
+		safeSetTarget(node.faderGain.gain, dbToGain(gainDb));
+		if (node.panPanner) {
+			safeSetTarget(node.panPanner.pan, pan);
+		}
+		safeSetTarget(node.muteGain.gain, muted ? 0.0 : 1.0);
+	};
+
+	const getNodeCount = () => allNodes.size;
 
 	const dispose = () => {
 		for (const src of activeSources) {
@@ -748,21 +921,14 @@ export function buildAudioGraph(
 			} catch {}
 		}
 		activeSources.length = 0;
-		for (const tNode of trackNodes.values()) {
-			tNode.input.disconnect();
-			tNode.faderGain.disconnect();
-			tNode.output.disconnect();
+		for (const node of allNodes) {
+			try {
+				node.disconnect();
+			} catch {}
 		}
+		allNodes.clear();
 		trackNodes.clear();
-		for (const bNode of busNodes.values()) {
-			bNode.input.disconnect();
-			bNode.faderGain.disconnect();
-			bNode.output.disconnect();
-		}
 		busNodes.clear();
-		masterInput.disconnect();
-		masterFader.disconnect();
-		masterOutput.disconnect();
 	};
 
 	return {
@@ -776,6 +942,8 @@ export function buildAudioGraph(
 		getMasterMeterLevels,
 		updateTrackParams,
 		updateMasterParams,
+		updateBusParams,
+		getNodeCount,
 		dispose
 	};
 }

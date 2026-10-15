@@ -724,4 +724,3 @@ void main() {
     outColor = mix(orig, vec4(toned, orig.a), u_mix);
 }
 `;
-

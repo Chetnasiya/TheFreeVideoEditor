@@ -14,6 +14,9 @@ export const KNOWN_PANEL_IDS: ReadonlySet<PanelId> = new Set<PanelId>([
 	'inspector',
 	'color',
 	'mixer',
+	'loudness',
+	'essential-sound',
+	'effect-controls-audio',
 	'timeline',
 	'graph'
 ]);

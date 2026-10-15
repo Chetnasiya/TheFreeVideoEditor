@@ -227,7 +227,7 @@ export const PRESET_EFFECTS: Workspace = {
 						children: [
 							{
 								type: 'stack',
-								panelIds: ['source'],
+								panelIds: ['source', 'effect-controls-audio'],
 								activeId: 'source'
 							},
 							{
@@ -275,12 +275,17 @@ export const PRESET_AUDIO: Workspace = {
 			{
 				type: 'split',
 				direction: 'horizontal',
-				sizes: [22, 42, 36],
+				sizes: [18, 30, 28, 24],
 				children: [
 					{
 						type: 'stack',
-						panelIds: ['media'],
+						panelIds: ['media', 'effects'],
 						activeId: 'media'
+					},
+					{
+						type: 'stack',
+						panelIds: ['source', 'effect-controls-audio'],
+						activeId: 'effect-controls-audio'
 					},
 					{
 						type: 'stack',
@@ -289,15 +294,27 @@ export const PRESET_AUDIO: Workspace = {
 					},
 					{
 						type: 'stack',
-						panelIds: ['mixer', 'loudness', 'inspector'],
-						activeId: 'mixer'
+						panelIds: ['essential-sound', 'inspector'],
+						activeId: 'essential-sound'
 					}
 				]
 			},
 			{
-				type: 'stack',
-				panelIds: ['timeline'],
-				activeId: 'timeline'
+				type: 'split',
+				direction: 'horizontal',
+				sizes: [65, 35],
+				children: [
+					{
+						type: 'stack',
+						panelIds: ['timeline'],
+						activeId: 'timeline'
+					},
+					{
+						type: 'stack',
+						panelIds: ['mixer', 'loudness'],
+						activeId: 'mixer'
+					}
+				]
 			}
 		]
 	}

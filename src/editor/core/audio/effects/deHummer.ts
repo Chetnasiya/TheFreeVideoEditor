@@ -45,26 +45,33 @@ export const deHummerDefinition: AudioEffectDefinition = {
 		}
 	],
 	latencySamples: () => 0,
-	createDSP: (ctx: AudioEffectContext): AudioEffectDSP => {
-		const baseFreq = 60;
+	createDSP: (ctx: AudioEffectContext, params?: Record<string, unknown>): AudioEffectDSP => {
+		const baseFreq = params?.baseFrequencyHz === '50' || params?.frequency === '50' ? 50 : 60;
+		const maxHarmonics =
+			typeof params?.harmonics === 'number'
+				? params.harmonics
+				: typeof params?.harmonicsCount === 'number'
+					? params.harmonicsCount
+					: 4;
+		const q = typeof params?.q === 'number' ? params.q : 10.0;
 		const notchesL: BiquadFilter[] = [];
 		const notchesR: BiquadFilter[] = [];
 
-		for (let h = 1; h <= 8; h++) {
+		for (let h = 1; h <= maxHarmonics; h++) {
 			const freq = baseFreq * h;
 			if (freq < ctx.sampleRate / 2) {
 				notchesL.push(
 					new BiquadFilter(ctx.sampleRate, {
 						type: 'notch',
 						frequencyHz: freq,
-						q: 10.0
+						q
 					})
 				);
 				notchesR.push(
 					new BiquadFilter(ctx.sampleRate, {
 						type: 'notch',
 						frequencyHz: freq,
-						q: 10.0
+						q
 					})
 				);
 			}

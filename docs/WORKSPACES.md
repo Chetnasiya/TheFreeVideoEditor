@@ -67,3 +67,36 @@ During evaluation, two primary paths were considered:
 
 Older sessions that stored panel sizes in `tfve:panel-sizes` are automatically read and migrated into the `Editing` workspace layout override on first launch. If a corrupted layout is loaded, the validator automatically resets to built-in presets without crashing the editor.
 
+---
+
+## 6. Audio Workspace Specification (Premiere Pro 6-Zone Layout)
+
+The **Audio** workspace (`PRESET_AUDIO` / `Alt+Shift+5`) mirrors the professional Premiere Pro audio editing environment:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Left Stack           │ Center Monitor / Inspector    │ Right Stack          │
+│ • Project Media      │ • Source Monitor              │ • Essential Sound    │
+│ • Effects Library    │ • Effect Controls (Audio)     │ • Audio Inspector    │
+│                      │ • Program Monitor             │                      │
+├──────────────────────┴───────────────────────────────┴──────────────────────┤
+│ Lower Left / Center                  │ Lower Right                          │
+│ • Timeline (Tracks A1–A4 + Master)   │ • Audio Track Mixer (Faders & Sends) │
+│                                      │ • Loudness Panel (EBU R128 / BS.1770)│
+└──────────────────────────────────────┴──────────────────────────────────────┘
+```
+
+### Registered Panels
+All 10 panels are registered in `KNOWN_PANEL_IDS` and layout operations:
+1. `media`: Project media library and imported audio/video assets.
+2. `effects`: Effects library with dedicated Audio tab (15 real-time DSP effects).
+3. `source`: Source footage audio/video preview.
+4. `effect-controls-audio`: Premiere Pro-style clip audio inspector with Volume level dB slider, PanControl, and applied audio effects rack.
+5. `program`: Program monitor preview canvas (`keepAlive: true`).
+6. `essential-sound`: Dialogue/Music/SFX/Ambience tagging, auto-match loudness, repair, clarity, and ducking.
+7. `inspector`: Standard inspector properties tab.
+8. `timeline`: Video and audio tracks with tall audio track lanes (`keepAlive: true`).
+9. `mixer`: Full multi-channel audio mixer with Trim, EQ, Dynamics, Faders, PanControl, Phase Invert, Solo Safe, Channel Mode, Sends, and Master True-Peak Limiter.
+10. `loudness`: Calibrated ITU-R BS.1770-4 / EBU R128 Loudness Radar and Metering.
+
+

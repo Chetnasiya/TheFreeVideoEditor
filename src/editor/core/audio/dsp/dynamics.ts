@@ -142,3 +142,94 @@ export class CompressorCore {
 		}
 	}
 }
+
+export interface GateCoreParams {
+	thresholdDb: number;
+	ratio: number;
+	attackMs: number;
+	holdMs: number;
+	releaseMs: number;
+	hysteresisDb: number;
+	rangeDb: number;
+}
+
+export class GateCore {
+	private readonly follower: EnvelopeFollower;
+	public thresholdDb: number;
+	public ratio: number;
+	public holdMs: number;
+	public hysteresisDb: number;
+	public rangeDb: number;
+	private holdCounter = 0;
+	private isOpen = false;
+
+	constructor(
+		public sampleRate = 48000,
+		params?: Partial<GateCoreParams>
+	) {
+		this.thresholdDb = params?.thresholdDb ?? -40;
+		this.ratio = params?.ratio ?? 10;
+		this.holdMs = params?.holdMs ?? 10;
+		this.hysteresisDb = params?.hysteresisDb ?? 3;
+		this.rangeDb = params?.rangeDb ?? -80;
+		this.follower = new EnvelopeFollower(
+			sampleRate,
+			params?.attackMs ?? 2,
+			params?.releaseMs ?? 100
+		);
+	}
+
+	public reset(): void {
+		this.follower.reset();
+		this.holdCounter = 0;
+		this.isOpen = false;
+	}
+
+	public setParams(params: Partial<GateCoreParams>): void {
+		if (params.thresholdDb !== undefined) this.thresholdDb = params.thresholdDb;
+		if (params.ratio !== undefined) this.ratio = Math.max(1, params.ratio);
+		if (params.holdMs !== undefined) this.holdMs = Math.max(0, params.holdMs);
+		if (params.hysteresisDb !== undefined) this.hysteresisDb = Math.max(0, params.hysteresisDb);
+		if (params.rangeDb !== undefined) this.rangeDb = params.rangeDb;
+		if (params.attackMs !== undefined || params.releaseMs !== undefined) {
+			this.follower.setTimeConstants(params.attackMs ?? 2, params.releaseMs ?? 100);
+		}
+	}
+
+	public computeGainReductionDb(detectedDb: number): number {
+		const openThreshold = this.thresholdDb;
+		const closeThreshold = this.thresholdDb - this.hysteresisDb;
+
+		if (detectedDb >= openThreshold) {
+			this.isOpen = true;
+			this.holdCounter = Math.round((this.holdMs / 1000) * this.sampleRate);
+		} else if (detectedDb < closeThreshold) {
+			if (this.holdCounter > 0) {
+				this.holdCounter--;
+			} else {
+				this.isOpen = false;
+			}
+		}
+
+		if (this.isOpen) {
+			return 0;
+		}
+
+		const deltaDb = openThreshold - detectedDb;
+		const attenuation = -deltaDb * (this.ratio - 1);
+		return Math.max(this.rangeDb, attenuation);
+	}
+
+	public step(sample: number): number {
+		const env = this.follower.step(sample);
+		const envDb = gainToDb(env);
+		const grDb = this.computeGainReductionDb(envDb);
+		return sample * dbToGain(grDb);
+	}
+
+	public process(buffer: Float32Array, length: number = buffer.length): void {
+		for (let i = 0; i < length; i++) {
+			buffer[i] = this.step(buffer[i]!);
+		}
+	}
+}

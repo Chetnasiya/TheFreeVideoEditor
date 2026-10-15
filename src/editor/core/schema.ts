@@ -389,6 +389,8 @@ export const trackAudioSchema = z.object({
 		.optional(),
 	automationMode: automationModeSchema.optional(),
 	channelMode: z.enum(['stereo', 'mono']).optional(),
+	phaseInvert: z.boolean().optional(),
+	soloSafe: z.boolean().optional(),
 	eq: trackEqSchema.optional(),
 	compressor: trackCompressorSchema.optional()
 });

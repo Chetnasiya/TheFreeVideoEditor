@@ -327,282 +327,287 @@ export default function EffectsSection({
 												disabled={index === 0}
 												onClick={() => store.getState().reorderEffect(clip.id, eff.id, index - 1)}
 											>
-											<svg
-												width="10"
-												height="10"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2.5"
-												strokeLinecap="round"
-												strokeLinejoin="round"
+												<svg
+													width="10"
+													height="10"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<polyline points="18 15 12 9 6 15" />
+												</svg>
+											</button>
+											<button
+												type="button"
+												className="effects-action-btn"
+												title="Move down"
+												disabled={index === effects.length - 1}
+												onClick={() => store.getState().reorderEffect(clip.id, eff.id, index + 1)}
 											>
-												<polyline points="18 15 12 9 6 15" />
-											</svg>
-										</button>
-										<button
-											type="button"
-											className="effects-action-btn"
-											title="Move down"
-											disabled={index === effects.length - 1}
-											onClick={() => store.getState().reorderEffect(clip.id, eff.id, index + 1)}
-										>
-											<svg
-												width="10"
-												height="10"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2.5"
-												strokeLinecap="round"
-												strokeLinejoin="round"
+												<svg
+													width="10"
+													height="10"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<polyline points="6 9 12 15 18 9" />
+												</svg>
+											</button>
+											<button
+												type="button"
+												className="effects-action-btn"
+												title="Duplicate effect"
+												onClick={() => store.getState().duplicateEffect(clip.id, eff.id)}
 											>
-												<polyline points="6 9 12 15 18 9" />
-											</svg>
-										</button>
-										<button
-											type="button"
-											className="effects-action-btn"
-											title="Duplicate effect"
-											onClick={() => store.getState().duplicateEffect(clip.id, eff.id)}
-										>
-											<svg
-												width="11"
-												height="11"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2"
-												strokeLinecap="round"
-												strokeLinejoin="round"
+												<svg
+													width="11"
+													height="11"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+													<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+												</svg>
+											</button>
+											<button
+												type="button"
+												className="effects-action-btn"
+												title="Reset effect to defaults"
+												onClick={() => store.getState().resetEffect(clip.id, eff.id)}
 											>
-												<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-												<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-											</svg>
-										</button>
-										<button
-											type="button"
-											className="effects-action-btn"
-											title="Reset effect to defaults"
-											onClick={() => store.getState().resetEffect(clip.id, eff.id)}
-										>
-											<svg
-												width="11"
-												height="11"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2.2"
-												strokeLinecap="round"
-												strokeLinejoin="round"
+												<svg
+													width="11"
+													height="11"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2.2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+													<polyline points="3 3 3 8 8 8" />
+												</svg>
+											</button>
+											<button
+												type="button"
+												className="effects-action-btn is-danger"
+												title="Delete effect"
+												onClick={() => store.getState().removeEffect(clip.id, eff.id)}
 											>
-												<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-												<polyline points="3 3 3 8 8 8" />
-											</svg>
-										</button>
-										<button
-											type="button"
-											className="effects-action-btn is-danger"
-											title="Delete effect"
-											onClick={() => store.getState().removeEffect(clip.id, eff.id)}
-										>
-											<svg
-												width="11"
-												height="11"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2.2"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-											>
-												<line x1="18" y1="6" x2="6" y2="18" />
-												<line x1="6" y1="6" x2="18" y2="18" />
-											</svg>
-										</button>
+												<svg
+													width="11"
+													height="11"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2.2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<line x1="18" y1="6" x2="6" y2="18" />
+													<line x1="6" y1="6" x2="18" y2="18" />
+												</svg>
+											</button>
+										</div>
 									</div>
-								</div>
 
-								{isExpanded && (
-									<div className="effect-item-body">
-										{/* Universal Mix slider */}
-										<PropertyRow
-											clip={clip}
-											propertyId={`effect:${eff.type}:${eff.id}:mix`}
-											localTime={localTime}
-											fps={fps}
-											confirmDisable={confirmDisable}
-											onStartDisableConfirm={onStartDisableConfirm}
-											onCancelDisableConfirm={onCancelDisableConfirm}
-										/>
+									{isExpanded && (
+										<div className="effect-item-body">
+											{/* Universal Mix slider */}
+											<PropertyRow
+												clip={clip}
+												propertyId={`effect:${eff.type}:${eff.id}:mix`}
+												localTime={localTime}
+												fps={fps}
+												confirmDisable={confirmDisable}
+												onStartDisableConfirm={onStartDisableConfirm}
+												onCancelDisableConfirm={onCancelDisableConfirm}
+											/>
 
-										{/* Parameter controls */}
-										{def &&
-											Object.entries(def.params).map(([paramName, paramSchema]) => {
-												if (paramName === 'mix') return null;
-												const propId = `effect:${eff.type}:${eff.id}:${paramName}`;
+											{/* Parameter controls */}
+											{def &&
+												Object.entries(def.params).map(([paramName, paramSchema]) => {
+													if (paramName === 'mix') return null;
+													const propId = `effect:${eff.type}:${eff.id}:${paramName}`;
 
-												if (paramSchema.type === 'color') {
-													const colorVal = eff.params[paramName] as
-														| [number, number, number]
-														| [number, number, number, number]
-														| string
-														| undefined;
-													return (
-														<div key={propId} className="effect-custom-param-row">
-															<span className="property-label">{paramSchema.label}</span>
-															<ColorPickerField
-																value={colorVal ?? [0, 1, 0]}
-																hasAlpha={false}
-																label={paramSchema.label}
-																onChange={(rgba) => {
-																	store
-																		.getState()
-																		.setEffectParam(clip.id, eff.id, paramName, [
-																			rgba[0],
-																			rgba[1],
-																			rgba[2]
-																		]);
-																}}
+													if (paramSchema.type === 'color') {
+														const colorVal = eff.params[paramName] as
+															| [number, number, number]
+															| [number, number, number, number]
+															| string
+															| undefined;
+														return (
+															<div key={propId} className="effect-custom-param-row">
+																<span className="property-label">{paramSchema.label}</span>
+																<ColorPickerField
+																	value={colorVal ?? [0, 1, 0]}
+																	hasAlpha={false}
+																	label={paramSchema.label}
+																	onChange={(rgba) => {
+																		store
+																			.getState()
+																			.setEffectParam(clip.id, eff.id, paramName, [
+																				rgba[0],
+																				rgba[1],
+																				rgba[2]
+																			]);
+																	}}
+																/>
+															</div>
+														);
+													}
+
+													if (paramSchema.animatable) {
+														return (
+															<PropertyRow
+																key={propId}
+																clip={clip}
+																propertyId={propId}
+																localTime={localTime}
+																fps={fps}
+																confirmDisable={confirmDisable}
+																onStartDisableConfirm={onStartDisableConfirm}
+																onCancelDisableConfirm={onCancelDisableConfirm}
 															/>
-														</div>
-													);
-												}
+														);
+													}
 
-												if (paramSchema.animatable) {
-													return (
-														<PropertyRow
-															key={propId}
-															clip={clip}
-															propertyId={propId}
-															localTime={localTime}
-															fps={fps}
-															confirmDisable={confirmDisable}
-															onStartDisableConfirm={onStartDisableConfirm}
-															onCancelDisableConfirm={onCancelDisableConfirm}
-														/>
-													);
-												}
-
-												if (paramSchema.type === 'enum' && paramSchema.options) {
-													const currentVal =
-														(eff.params[paramName] as string) || paramSchema.defaultValue;
-													return (
-														<div key={propId} className="effect-custom-param-row">
-															<span className="property-label">{paramSchema.label}</span>
-															<select
-																value={currentVal as string}
-																onChange={(e) =>
-																	store
-																		.getState()
-																		.setEffectParam(clip.id, eff.id, paramName, e.target.value)
-																}
-																className="effect-enum-select"
-															>
-																{paramSchema.options.map((opt) => (
-																	<option key={opt.value} value={opt.value}>
-																		{opt.label}
-																	</option>
-																))}
-															</select>
-														</div>
-													);
-												}
-
-												if (paramSchema.type === 'boolean') {
-													const currentVal = Boolean(
-														eff.params[paramName] ?? paramSchema.defaultValue
-													);
-													return (
-														<div key={propId} className="effect-custom-param-row">
-															<label className="effect-bool-label">
-																<input
-																	type="checkbox"
-																	checked={currentVal}
+													if (paramSchema.type === 'enum' && paramSchema.options) {
+														const currentVal =
+															(eff.params[paramName] as string) || paramSchema.defaultValue;
+														return (
+															<div key={propId} className="effect-custom-param-row">
+																<span className="property-label">{paramSchema.label}</span>
+																<select
+																	value={currentVal as string}
 																	onChange={(e) =>
 																		store
 																			.getState()
-																			.setEffectParam(clip.id, eff.id, paramName, e.target.checked)
+																			.setEffectParam(clip.id, eff.id, paramName, e.target.value)
 																	}
-																/>
-																<span>{paramSchema.label}</span>
-															</label>
-														</div>
-													);
-												}
+																	className="effect-enum-select"
+																>
+																	{paramSchema.options.map((opt) => (
+																		<option key={opt.value} value={opt.value}>
+																			{opt.label}
+																		</option>
+																	))}
+																</select>
+															</div>
+														);
+													}
 
-												return null;
-											})}
+													if (paramSchema.type === 'boolean') {
+														const currentVal = Boolean(
+															eff.params[paramName] ?? paramSchema.defaultValue
+														);
+														return (
+															<div key={propId} className="effect-custom-param-row">
+																<label className="effect-bool-label">
+																	<input
+																		type="checkbox"
+																		checked={currentVal}
+																		onChange={(e) =>
+																			store
+																				.getState()
+																				.setEffectParam(
+																					clip.id,
+																					eff.id,
+																					paramName,
+																					e.target.checked
+																				)
+																		}
+																	/>
+																	<span>{paramSchema.label}</span>
+																</label>
+															</div>
+														);
+													}
 
-										{/* Save preset inline dialog and Mask this effect */}
-										<div
-											className="effect-preset-save-bar"
-											style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-										>
-											{savingPresetForEffectId === eff.id ? (
-												<div className="effect-save-preset-form">
-													<input
-														type="text"
-														placeholder="Preset name…"
-														value={presetNameInput}
-														onChange={(e) => setPresetNameInput(e.target.value)}
-														className="effect-preset-name-input"
-													/>
-													<button
-														type="button"
-														className="effects-btn-primary"
-														onClick={() => void handleSavePreset(eff)}
-													>
-														Save
-													</button>
-													<button
-														type="button"
-														className="effects-btn-secondary"
-														onClick={() => {
-															setSavingPresetForEffectId(null);
-															setPresetNameInput('');
-														}}
-													>
-														Cancel
-													</button>
-												</div>
-											) : (
-												<>
-													<button
-														type="button"
-														className="effect-save-preset-trigger"
-														onClick={() => {
-															setSavingPresetForEffectId(eff.id);
-															setPresetNameInput(`${def?.name ?? eff.type} Preset`);
-														}}
-													>
-														Save as Preset…
-													</button>
-													<button
-														type="button"
-														className="effect-save-preset-trigger"
-														title="Create a shape mask targeting only this effect"
-														onClick={() => {
-															const maskId = store.getState().addMask(clip.id, 'rect', {
-																name: `Mask (${def?.name ?? eff.type})`,
-																effectId: eff.id
-															});
-															if (maskId) {
-																store.getState().setInspectorExpanded('masks', true);
-																store.getState().selectMask(maskId);
-															}
-														}}
-													>
-														Mask this effect
-													</button>
-												</>
-											)}
+													return null;
+												})}
+
+											{/* Save preset inline dialog and Mask this effect */}
+											<div
+												className="effect-preset-save-bar"
+												style={{ display: 'flex', gap: 6, alignItems: 'center' }}
+											>
+												{savingPresetForEffectId === eff.id ? (
+													<div className="effect-save-preset-form">
+														<input
+															type="text"
+															placeholder="Preset name…"
+															value={presetNameInput}
+															onChange={(e) => setPresetNameInput(e.target.value)}
+															className="effect-preset-name-input"
+														/>
+														<button
+															type="button"
+															className="effects-btn-primary"
+															onClick={() => void handleSavePreset(eff)}
+														>
+															Save
+														</button>
+														<button
+															type="button"
+															className="effects-btn-secondary"
+															onClick={() => {
+																setSavingPresetForEffectId(null);
+																setPresetNameInput('');
+															}}
+														>
+															Cancel
+														</button>
+													</div>
+												) : (
+													<>
+														<button
+															type="button"
+															className="effect-save-preset-trigger"
+															onClick={() => {
+																setSavingPresetForEffectId(eff.id);
+																setPresetNameInput(`${def?.name ?? eff.type} Preset`);
+															}}
+														>
+															Save as Preset…
+														</button>
+														<button
+															type="button"
+															className="effect-save-preset-trigger"
+															title="Create a shape mask targeting only this effect"
+															onClick={() => {
+																const maskId = store.getState().addMask(clip.id, 'rect', {
+																	name: `Mask (${def?.name ?? eff.type})`,
+																	effectId: eff.id
+																});
+																if (maskId) {
+																	store.getState().setInspectorExpanded('masks', true);
+																	store.getState().selectMask(maskId);
+																}
+															}}
+														>
+															Mask this effect
+														</button>
+													</>
+												)}
+											</div>
 										</div>
-									</div>
-								)}
-							</div>
-						);
-					})}
+									)}
+								</div>
+							);
+						})}
 				</div>
 			)}
 		</div>

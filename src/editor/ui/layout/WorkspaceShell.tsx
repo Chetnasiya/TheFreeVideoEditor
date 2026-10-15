@@ -426,10 +426,10 @@ function StackRenderer({
 										: panelId === 'graphics'
 											? 'graphics-panel-title'
 											: panelId === 'inspector'
-											? 'inspector-title'
-											: panelId === 'color'
-												? 'color-panel-title'
-												: undefined;
+												? 'inspector-title'
+												: panelId === 'color'
+													? 'color-panel-title'
+													: undefined;
 
 						return (
 							<button
@@ -498,6 +498,7 @@ function StackRenderer({
 						mixer: 'mixer-panel',
 						loudness: 'loudness-panel',
 						'essential-sound': 'essential-sound-panel',
+						'effect-controls-audio': 'effect-controls-audio-panel',
 						timeline: 'timeline-panel',
 						graph: 'graph-panel'
 					};

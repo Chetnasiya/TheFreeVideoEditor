@@ -42,12 +42,15 @@ export const noiseReductionDefinition: AudioEffectDefinition = {
 		}
 	],
 	latencySamples: () => 512,
-	createDSP: (): AudioEffectDSP => {
+	createDSP: (_ctx: unknown, params: Record<string, unknown> = {}): AudioEffectDSP => {
 		const gateL = new SpectralGateCore(512);
 		const gateR = new SpectralGateCore(512);
 
-		gateL.setParameters(-40, -15, false);
-		gateR.setParameters(-40, -15, false);
+		const thresh = typeof params.thresholdDb === 'number' ? params.thresholdDb : -40;
+		const red = typeof params.reductionDb === 'number' ? params.reductionDb : -15;
+		const learn = typeof params.learn === 'boolean' ? params.learn : false;
+		gateL.setParameters(thresh, red, learn);
+		gateR.setParameters(thresh, red, learn);
 
 		return {
 			reset() {
@@ -61,6 +64,12 @@ export const noiseReductionDefinition: AudioEffectDefinition = {
 				const chL = channels[0];
 				const chR = channels[1] ?? chL;
 				if (!chL) return;
+
+				const curThresh = typeof params.thresholdDb === 'number' ? params.thresholdDb : -40;
+				const curRed = typeof params.reductionDb === 'number' ? params.reductionDb : -15;
+				const curLearn = typeof params.learn === 'boolean' ? params.learn : false;
+				gateL.setParameters(curThresh, curRed, curLearn);
+				gateR.setParameters(curThresh, curRed, curLearn);
 
 				for (let i = 0; i < frameCount; i++) {
 					const inL = chL[i]!;

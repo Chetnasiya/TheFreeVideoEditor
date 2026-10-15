@@ -66,20 +66,28 @@ export const delayDefinition: AudioEffectDefinition = {
 		}
 	],
 	latencySamples: () => 0,
-	createDSP: (ctx: AudioEffectContext): AudioEffectDSP => {
-		const maxSamples = Math.round(2.0 * ctx.sampleRate);
+	createDSP: (ctx: AudioEffectContext, params?: Record<string, unknown>): AudioEffectDSP => {
+		const delayMs = typeof params?.delayTimeMs === 'number' ? params.delayTimeMs : 350;
+		const rawFeedback = typeof params?.feedback === 'number' ? params.feedback : 0.4;
+		const feedback = Math.min(0.95, Math.max(0, rawFeedback > 1 ? rawFeedback / 100 : rawFeedback));
+		const rawMix = typeof params?.mix === 'number' ? params.mix : 0.25;
+		const wet = Math.min(1, Math.max(0, rawMix > 1 ? rawMix / 100 : rawMix));
+		const dry = 1 - wet;
+		const dampFreq = typeof params?.dampFreqHz === 'number' ? params.dampFreqHz : 5000;
+
+		const delaySamples = Math.round((delayMs / 1000) * ctx.sampleRate);
+		const maxSamples = Math.max(Math.round(2.0 * ctx.sampleRate), delaySamples + 10);
 		const dlL = new DelayLine(maxSamples);
 		const dlR = new DelayLine(maxSamples);
-		const initSamples = Math.round((350 / 1000) * ctx.sampleRate);
 
 		const dampL = new BiquadFilter(ctx.sampleRate, {
 			type: 'lowpass',
-			frequencyHz: 5000,
+			frequencyHz: dampFreq,
 			q: Math.SQRT1_2
 		});
 		const dampR = new BiquadFilter(ctx.sampleRate, {
 			type: 'lowpass',
-			frequencyHz: 5000,
+			frequencyHz: dampFreq,
 			q: Math.SQRT1_2
 		});
 
@@ -98,19 +106,16 @@ export const delayDefinition: AudioEffectDefinition = {
 				const chR = channels[1] ?? chL;
 				if (!chL) return;
 
-				const feedback = 0.4;
-				const wet = 0.25;
-				const dry = 1 - wet;
-
+				const readDelay = Math.max(0, delaySamples - 1);
 				for (let i = 0; i < frameCount; i++) {
 					const inL = chL[i]!;
 					const inR = chR![i]!;
 
-					const delL = dlL.read(initSamples);
-					const delR = dlR.read(initSamples);
+					const delL = dlL.read(readDelay);
+					const delR = dlR.read(readDelay);
 
-					const filteredL = dampL.step(delL);
-					const filteredR = dampR.step(delR);
+					const filteredL = dampFreq >= 20000 ? delL : dampL.step(delL);
+					const filteredR = dampFreq >= 20000 ? delR : dampR.step(delR);
 
 					dlL.write(inL + filteredL * feedback);
 					dlR.write(inR + filteredR * feedback);

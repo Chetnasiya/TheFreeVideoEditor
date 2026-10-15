@@ -68,7 +68,7 @@ test.describe('Gate N: Audio Architecture & Mixer E2E Tests', () => {
 		await expect(strip1).toBeVisible();
 
 		// Click Solo (S) button on Track 1
-		const soloBtn = strip1.getByRole('button', { name: 'S' });
+		const soloBtn = strip1.getByRole('button', { name: 'S', exact: true });
 		await soloBtn.click();
 
 		// Verify track solo state in store
@@ -80,7 +80,7 @@ test.describe('Gate N: Audio Architecture & Mixer E2E Tests', () => {
 		expect(isSolo).toBe(true);
 
 		// Click Mute (M) button
-		const muteBtn = strip1.getByRole('button', { name: 'M' });
+		const muteBtn = strip1.getByRole('button', { name: 'M', exact: true });
 		await muteBtn.click();
 		const isMuted = await page.evaluate(() => {
 			const tracks = (window as any).__TFVE_STORE__.getState().project.tracks;

@@ -151,7 +151,9 @@ export default function GraphicsPanel() {
 	// Color adjustments in Quick Editor
 	const handleFillColorChange = (rgba: [number, number, number, number]) => {
 		if (!selectedClip || !isTextClipSelected) return;
-		store.getState().setProperty(selectedClip.id, 'text.fillColor', rgba, { autoKey: true, coalesce: true });
+		store
+			.getState()
+			.setProperty(selectedClip.id, 'text.fillColor', rgba, { autoKey: true, coalesce: true });
 	};
 
 	const handleAccentColorChange = (rgba: [number, number, number, number]) => {
@@ -209,7 +211,11 @@ export default function GraphicsPanel() {
 
 	// Live neon accent color evaluated from colorRuns or template default
 	const accentColorValue: [number, number, number, number] = useMemo(() => {
-		if (textSource?.colorRuns && textSource.colorRuns.length > 0 && textSource.colorRuns[0].fillColor) {
+		if (
+			textSource?.colorRuns &&
+			textSource.colorRuns.length > 0 &&
+			textSource.colorRuns[0].fillColor
+		) {
 			const c = textSource.colorRuns[0].fillColor;
 			return [c.r, c.g, c.b, c.a ?? 1.0];
 		}
@@ -221,11 +227,7 @@ export default function GraphicsPanel() {
 	}, [textSource, selectedTemplate]);
 
 	return (
-		<div
-			className="graphics-panel"
-			aria-label="Graphics Library"
-			onKeyDown={handlePanelKeyDown}
-		>
+		<div className="graphics-panel" aria-label="Graphics Library" onKeyDown={handlePanelKeyDown}>
 			<div className="graphics-header">
 				{/* Top row with Mode Nav Tabs and Persistent Undo/Redo */}
 				<div className="graphics-header-top-row">
@@ -353,7 +355,8 @@ export default function GraphicsPanel() {
 													const color = isHighlight
 														? template.previewColors.accent
 														: template.previewColors.primary;
-													const isFramed = template.category === 'badge' && idx === lines.length - 1;
+													const isFramed =
+														template.category === 'badge' && idx === lines.length - 1;
 
 													return (
 														<span
@@ -371,7 +374,7 @@ export default function GraphicsPanel() {
 																	: undefined,
 																borderRadius: isFramed ? '4px' : undefined,
 																background: isFramed
-																	? template.previewColors.badge ?? 'rgba(0,0,0,0.5)'
+																	? (template.previewColors.badge ?? 'rgba(0,0,0,0.5)')
 																	: undefined,
 																textShadow:
 																	template.category === 'neon'
@@ -434,7 +437,9 @@ export default function GraphicsPanel() {
 											className="graphic-undo-btn"
 											onClick={handleUndo}
 											disabled={!canUndo}
-											title={canUndo ? `Undo (${history.undoLabel ?? 'Action'})` : 'Nothing to undo'}
+											title={
+												canUndo ? `Undo (${history.undoLabel ?? 'Action'})` : 'Nothing to undo'
+											}
 											aria-label="Undo graphic action"
 											data-testid="graphic-undo-btn"
 										>
@@ -445,7 +450,9 @@ export default function GraphicsPanel() {
 											className="graphic-redo-btn"
 											onClick={handleRedo}
 											disabled={!canRedo}
-											title={canRedo ? `Redo (${history.redoLabel ?? 'Action'})` : 'Nothing to redo'}
+											title={
+												canRedo ? `Redo (${history.redoLabel ?? 'Action'})` : 'Nothing to redo'
+											}
 											aria-label="Redo graphic action"
 											data-testid="graphic-redo-btn"
 										>
@@ -610,8 +617,8 @@ export default function GraphicsPanel() {
 								<div className="graphics-empty-icon">✨</div>
 								<div className="graphics-empty-title">No Text Clip Selected</div>
 								<div className="graphics-empty-desc">
-									Select any text or graphic clip on the timeline to edit its lines, colors, and motion —
-									or click below to insert a new animated graphic title.
+									Select any text or graphic clip on the timeline to edit its lines, colors, and
+									motion — or click below to insert a new animated graphic title.
 								</div>
 								<div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
 									<button
@@ -649,4 +656,3 @@ export default function GraphicsPanel() {
 		</div>
 	);
 }
-

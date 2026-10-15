@@ -21,6 +21,7 @@ import ExportDialog from '../export/ExportDialog';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
 import SourceMonitor from '../preview/SourceMonitor';
 import Timeline from '../timeline/Timeline';
+import { MixerPanel } from '../audio/MixerPanel';
 import WorkspaceShell from '../layout/WorkspaceShell';
 import EditWorkspacesDialog from '../dialogs/EditWorkspacesDialog';
 import CodecSupportDialog from '../dialogs/CodecSupportDialog';
@@ -1656,6 +1657,9 @@ function EditorShell() {
 					renderPanel={(panelId) => {
 						if (panelId === 'source') {
 							return <SourceMonitor engine={playbackEngine} />;
+						}
+						if (panelId === 'mixer') {
+							return <MixerPanel engine={playbackEngine} />;
 						}
 						return undefined;
 					}}

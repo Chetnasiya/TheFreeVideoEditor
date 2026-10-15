@@ -28,6 +28,7 @@ import { TrackingSection } from './TrackingSection';
 import TimeRemapSection from './TimeRemapSection';
 import { TextSection } from './TextSection';
 import { TransitionInspector } from './TransitionInspector';
+import { audioEffectRegistry } from '../../core/audio/effects';
 import { ColorPickerField } from './ColorPickerField';
 import './inspector.css';
 
@@ -445,6 +446,63 @@ export default function Inspector() {
 										</select>
 									</div>
 								</div>
+							</div>
+
+							{/* Applied Audio Effects Stack */}
+							<div className="mt-3 border-t border-[var(--color-hairline)] pt-2">
+								<div className="mb-1.5 flex items-center justify-between">
+									<span className="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase">
+										Audio Effects ({selectedClip.audioEffects?.length ?? 0})
+									</span>
+								</div>
+								{!selectedClip.audioEffects || selectedClip.audioEffects.length === 0 ? (
+									<p className="text-[10px] text-[var(--color-text-tertiary)] italic">
+										No audio effects applied. Use Effects panel to add audio effects.
+									</p>
+								) : (
+									<div className="space-y-1.5">
+										{selectedClip.audioEffects.map((fx) => (
+											<div
+												key={fx.id}
+												className="flex items-center justify-between rounded border border-[var(--color-hairline)] bg-[var(--color-surface-sunken)] px-2 py-1 text-[11px]"
+											>
+												<span className={fx.bypass ? 'line-through opacity-50' : 'font-medium'}>
+													{audioEffectRegistry.get(fx.type)?.name ?? fx.type}
+												</span>
+												<div className="flex items-center gap-1">
+													<button
+														type="button"
+														onClick={() => {
+															const next = selectedClip.audioEffects!.map((item) =>
+																item.id === fx.id ? { ...item, bypass: !item.bypass } : item
+															);
+															store.getState().setClipAudioEffects(selectedClip.id, next);
+														}}
+														className={`cursor-pointer rounded px-1.5 py-0.5 text-[9px] font-bold ${
+															fx.bypass ? 'bg-[#334155] text-[#94a3b8]' : 'bg-[#0284c7] text-white'
+														}`}
+														title={fx.bypass ? 'Enable effect' : 'Bypass effect'}
+													>
+														fx
+													</button>
+													<button
+														type="button"
+														onClick={() => {
+															const next = selectedClip.audioEffects!.filter(
+																(item) => item.id !== fx.id
+															);
+															store.getState().setClipAudioEffects(selectedClip.id, next);
+														}}
+														className="cursor-pointer px-1 text-[11px] text-red-400 hover:text-red-300"
+														title="Remove effect"
+													>
+														✕
+													</button>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
 							</div>
 						</div>
 					)}

@@ -58,6 +58,13 @@ export class DelayLine {
 	}
 
 	/**
+	 * Read with fractional sample delay using linear interpolation (alias).
+	 */
+	public readLinear(delaySamples: number): number {
+		return this.readInterpolated(delaySamples);
+	}
+
+	/**
 	 * Process a sample: write input, read delayed output.
 	 */
 	public step(sample: number, delaySamples: number): number {

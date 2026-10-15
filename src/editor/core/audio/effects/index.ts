@@ -14,6 +14,9 @@ import { reverbDefinition } from './reverb';
 import { delayDefinition } from './delay';
 import { pitchShifterDefinition } from './pitchShifter';
 import { noiseReductionDefinition } from './noiseReduction';
+import { gateDefinition } from './gate';
+import { chorusFlangerDefinition } from './chorusFlanger';
+import { stereoWidenerDefinition } from './stereoWidener';
 
 export {
 	gainTrimDefinition,
@@ -27,7 +30,10 @@ export {
 	reverbDefinition,
 	delayDefinition,
 	pitchShifterDefinition,
-	noiseReductionDefinition
+	noiseReductionDefinition,
+	gateDefinition,
+	chorusFlangerDefinition,
+	stereoWidenerDefinition
 };
 
 export const BUILTIN_AUDIO_EFFECTS: AudioEffectDefinition[] = [
@@ -42,7 +48,10 @@ export const BUILTIN_AUDIO_EFFECTS: AudioEffectDefinition[] = [
 	reverbDefinition,
 	delayDefinition,
 	pitchShifterDefinition,
-	noiseReductionDefinition
+	noiseReductionDefinition,
+	gateDefinition,
+	chorusFlangerDefinition,
+	stereoWidenerDefinition
 ];
 
 // Ensure all built-in definitions are registered in the singleton audioEffectRegistry
