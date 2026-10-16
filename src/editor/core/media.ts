@@ -51,6 +51,8 @@ export const ACCEPTED_TYPES = [
 	'.cube'
 ] as const;
 
+export const ACCEPTED_MEDIA_INPUT = 'video/*,audio/*,image/*,' + ACCEPTED_TYPES.join(',');
+
 export function classifyMime(mime: string, filename: string): MediaKind | null {
 	const normalizedMime = mime.toLowerCase().split(';', 1)[0]?.trim() ?? '';
 	if (normalizedMime.startsWith('video/')) return 'video';

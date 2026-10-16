@@ -241,10 +241,10 @@ function SplitRenderer({
 	};
 
 	const childPanels = collectPanels(node);
-	const hasMonitors =
-		childPanels.includes('program') && (childPanels.includes('source') || childPanels.length <= 2);
 	const isMonitorSplit =
-		hasMonitors && !childPanels.includes('timeline') && !childPanels.includes('media');
+		childPanels.length > 0 &&
+		childPanels.includes('program') &&
+		childPanels.every((p) => p === 'source' || p === 'program');
 
 	return (
 		<div
@@ -265,11 +265,18 @@ function SplitRenderer({
 				const hasInspector = childPanelsSub.includes('inspector');
 				const hasMonitorsSub =
 					childPanelsSub.includes('program') || childPanelsSub.includes('source');
+				const isSourceOnly = childPanelsSub.length === 1 && childPanelsSub[0] === 'source';
+				const hasProgram = childPanelsSub.includes('program');
+				const hasColor = childPanelsSub.includes('color');
+				const hasEffects = childPanelsSub.includes('effects');
+				const hasMixer = childPanelsSub.includes('mixer');
+				const hasCaptions =
+					childPanelsSub.includes('captions') || childPanelsSub.includes('auto-caption');
 
 				return (
 					<div key={idx} style={{ display: 'contents' }}>
 						<div
-							className={`layout-split-child ${hasMedia ? 'has-media-panel' : ''} ${hasInspector ? 'has-inspector-panel' : ''} ${hasMonitorsSub ? 'has-monitors' : ''}`}
+							className={`layout-split-child ${hasMedia ? 'has-media-panel' : ''} ${hasInspector ? 'has-inspector-panel' : ''} ${hasMonitorsSub ? 'has-monitors' : ''} ${isSourceOnly ? 'has-source-monitor' : ''} ${hasProgram ? 'has-program-monitor' : ''} ${hasColor ? 'has-color-panel' : ''} ${hasEffects ? 'has-effects-panel' : ''} ${hasMixer ? 'has-mixer-panel' : ''} ${hasCaptions ? 'has-captions-panel' : ''}`}
 							style={style}
 						>
 							<LayoutNodeRenderer

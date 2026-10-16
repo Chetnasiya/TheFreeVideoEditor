@@ -182,4 +182,29 @@ describe('OPFS media storage', () => {
 		expect(report.foreignFiles).toEqual(['foreign-notes.txt']);
 		expect([...media.files.keys()]).toEqual([`${retainedId}.mp4`, 'foreign-notes.txt']);
 	});
+
+	it('falls back to IndexedDB when OPFS is unavailable', async () => {
+		// No OPFS stubbed - storageRoot() returns null
+		const fallbackAssetId = 'fallback-asset-123' as AssetId;
+		const file = new File(['fallback-video-bytes'], 'mobile-video.mp4', { type: 'video/mp4' });
+		const path = await writeMedia(projectId, fallbackAssetId, file);
+		expect(path).toBe(`projects/${projectId}/media/${fallbackAssetId}.mp4`);
+
+		const asset: Asset = {
+			id: fallbackAssetId,
+			kind: 'video',
+			name: 'mobile-video.mp4',
+			mimeType: 'video/mp4',
+			size: file.size,
+			duration: 1_000_000,
+			hasAudio: true,
+			opfsPath: path
+		};
+		const retrieved = await getMediaFile(projectId, asset);
+		expect(await retrieved.text()).toBe('fallback-video-bytes');
+		expect(retrieved.name).toBe('mobile-video.mp4');
+
+		await deleteMedia(projectId, fallbackAssetId);
+		await expect(getMediaFile(projectId, asset)).rejects.toThrow('missing');
+	});
 });

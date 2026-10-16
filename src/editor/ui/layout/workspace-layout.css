@@ -280,17 +280,216 @@
 	overflow: hidden;
 }
 
-@media (max-width: 54rem) {
-	/* On mobile/narrow screens, hide left/right sidebars in the top horizontal split */
-	.layout-split.is-horizontal > div > .layout-split-child.has-media-panel,
-	.layout-split.is-horizontal > div > .layout-split-child.has-inspector-panel {
+@media (max-width: 48rem) {
+	/* In the monitor split on mobile, hide the secondary source monitor when program monitor is present */
+	.layout-split.monitor-panel .layout-split-child.has-source-monitor {
 		display: none !important;
 	}
-	.layout-split.is-horizontal > div > .layout-split-child.has-monitors {
+	.layout-split.monitor-panel .layout-split-child.has-program-monitor {
+		flex: 1 1 100% !important;
+		width: 100% !important;
+		min-width: 0 !important;
+	}
+	.layout-split.monitor-panel .layout-splitter {
+		display: none !important;
+	}
+
+	/* In Editing workspace: hide left/right sidebars so program monitor gets full width */
+	.editor-workspace[data-workspace-id='editing']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-media-panel,
+	.editor-workspace[data-workspace-id='editing']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-inspector-panel {
+		display: none !important;
+	}
+	.editor-workspace[data-workspace-id='editing']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-monitors {
 		flex: 1 1 100% !important;
 		width: 100% !important;
 	}
-	.layout-split.is-horizontal > div > .layout-splitter {
+	.editor-workspace[data-workspace-id='editing']
+		.layout-split.is-horizontal
+		> div
+		> .layout-splitter {
+		display: none !important;
+	}
+
+	/* In AI workspace: hide media and inspector, stack AI assistant and program monitor */
+	.editor-workspace[data-workspace-id='ai']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-media-panel,
+	.editor-workspace[data-workspace-id='ai']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-inspector-panel {
+		display: none !important;
+	}
+	.editor-workspace[data-workspace-id='ai']
+		.workspace-shell-container
+		> .layout-split.is-vertical
+		> div:first-child
+		.layout-split.is-horizontal {
+		flex-direction: column !important;
+	}
+	.editor-workspace[data-workspace-id='ai'] .layout-split-child.has-monitors {
+		flex: 1 1 50% !important;
+		width: 100% !important;
+		min-height: 120px;
+	}
+	.editor-workspace[data-workspace-id='ai'] .layout-split.is-horizontal > div > .layout-splitter {
+		display: none !important;
+	}
+
+	/* In Assembly workspace: hide monitors and inspector so media panel gets full top area above timeline */
+	.editor-workspace[data-workspace-id='assembly']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-inspector-panel,
+	.editor-workspace[data-workspace-id='assembly']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-monitors {
+		display: none !important;
+	}
+	.editor-workspace[data-workspace-id='assembly']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-media-panel {
+		flex: 1 1 100% !important;
+		width: 100% !important;
+	}
+	.editor-workspace[data-workspace-id='assembly']
+		.layout-split.is-horizontal
+		> div
+		> .layout-splitter {
+		display: none !important;
+	}
+
+	/* In Color workspace: stack monitors on top and color grading panel below */
+	.editor-workspace[data-workspace-id='color']
+		.workspace-shell-container
+		> .layout-split.is-vertical
+		> div:first-child
+		.layout-split.is-horizontal:not(.monitor-panel) {
+		flex-direction: column !important;
+	}
+	.editor-workspace[data-workspace-id='color'] .layout-split-child.has-monitors {
+		flex: 1 1 50% !important;
+		width: 100% !important;
+		min-height: 120px;
+	}
+	.editor-workspace[data-workspace-id='color'] .layout-split-child.has-color-panel {
+		flex: 1 1 50% !important;
+		width: 100% !important;
+		min-height: 120px;
+	}
+	.editor-workspace[data-workspace-id='color']
+		.layout-split.is-horizontal
+		> div
+		> .layout-splitter {
+		display: none !important;
+	}
+
+	/* In Effects workspace: stack effects and monitors */
+	.editor-workspace[data-workspace-id='effects']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-inspector-panel {
+		display: none !important;
+	}
+	.editor-workspace[data-workspace-id='effects']
+		.workspace-shell-container
+		> .layout-split.is-vertical
+		> div:first-child
+		.layout-split.is-horizontal {
+		flex-direction: column !important;
+	}
+	.editor-workspace[data-workspace-id='effects'] .layout-split-child.has-effects-panel {
+		flex: 1 1 50% !important;
+		width: 100% !important;
+		min-height: 120px;
+	}
+	.editor-workspace[data-workspace-id='effects'] .layout-split-child.has-monitors {
+		flex: 1 1 50% !important;
+		width: 100% !important;
+		min-height: 120px;
+	}
+	.editor-workspace[data-workspace-id='effects']
+		.layout-split.is-horizontal
+		> div
+		> .layout-splitter {
+		display: none !important;
+	}
+
+	/* In Audio workspace: stack mixer and monitors */
+	.editor-workspace[data-workspace-id='audio']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-media-panel,
+	.editor-workspace[data-workspace-id='audio']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-source-monitor {
+		display: none !important;
+	}
+	.editor-workspace[data-workspace-id='audio']
+		.workspace-shell-container
+		> .layout-split.is-vertical
+		> div:first-child
+		.layout-split.is-horizontal {
+		flex-direction: column !important;
+	}
+	.editor-workspace[data-workspace-id='audio'] .layout-split-child.has-program-monitor {
+		flex: 1 1 50% !important;
+		width: 100% !important;
+		min-height: 120px;
+	}
+	.editor-workspace[data-workspace-id='audio'] .layout-split-child.has-inspector-panel {
+		flex: 1 1 50% !important;
+		width: 100% !important;
+		min-height: 120px;
+	}
+	.editor-workspace[data-workspace-id='audio']
+		.layout-split.is-horizontal
+		> div
+		> .layout-splitter {
+		display: none !important;
+	}
+
+	/* In Graphics workspace: stack captions and monitors */
+	.editor-workspace[data-workspace-id='graphics']
+		.layout-split.is-horizontal
+		> div
+		> .layout-split-child.has-inspector-panel {
+		display: none !important;
+	}
+	.editor-workspace[data-workspace-id='graphics']
+		.workspace-shell-container
+		> .layout-split.is-vertical
+		> div:first-child
+		.layout-split.is-horizontal {
+		flex-direction: column !important;
+	}
+	.editor-workspace[data-workspace-id='graphics'] .layout-split-child.has-captions-panel {
+		flex: 1 1 50% !important;
+		width: 100% !important;
+		min-height: 120px;
+	}
+	.editor-workspace[data-workspace-id='graphics'] .layout-split-child.has-monitors {
+		flex: 1 1 50% !important;
+		width: 100% !important;
+		min-height: 120px;
+	}
+	.editor-workspace[data-workspace-id='graphics']
+		.layout-split.is-horizontal
+		> div
+		> .layout-splitter {
 		display: none !important;
 	}
 }

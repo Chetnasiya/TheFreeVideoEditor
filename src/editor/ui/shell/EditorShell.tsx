@@ -1796,6 +1796,7 @@ function EditorShell() {
 			<main
 				id="editor-workspace"
 				className="editor-workspace"
+				data-workspace-id={activeWorkspaceId}
 				style={{ width: '100%', height: '100%', flex: 1, minHeight: 0, overflow: 'hidden' }}
 				aria-label="Video editing workspace"
 			>

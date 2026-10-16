@@ -48,8 +48,27 @@ import GraphEditor from '../graph/GraphEditor';
 import './timeline.css';
 import '../ai/ai.css';
 
-const HEADER_WIDTH = 212;
+const DEFAULT_HEADER_WIDTH = 212;
+const MOBILE_HEADER_WIDTH = 88;
 const TAIL_SECONDS = 12;
+
+function useIsMobile(breakpoint = '(max-width: 48rem)'): boolean {
+	const [isMobile, setIsMobile] = useState<boolean>(() => {
+		if (typeof window === 'undefined') return false;
+		return window.matchMedia(breakpoint).matches;
+	});
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		const mql = window.matchMedia(breakpoint);
+		const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+		setIsMobile(mql.matches);
+		mql.addEventListener('change', handler);
+		return () => mql.removeEventListener('change', handler);
+	}, [breakpoint]);
+
+	return isMobile;
+}
 
 interface ContextPosition {
 	x: number;
@@ -84,6 +103,13 @@ function ConnectedToolbar({
 	const activeSeqId = useEditorStore((state) => state.activeSequenceId);
 	const maximizedPanelId = useEditorStore((state) => state.maximizedPanelId);
 	const snapToMarkers = useEditorStore((state) => state.timeline.snapToMarkers);
+	const snapEnabled = useEditorStore((state) => state.timeline.snapEnabled);
+	const showLanes = useEditorStore((state) => state.keyframes.showLanes);
+	const graphOpen = useEditorStore((state) => state.keyframes.graph.open);
+	const toggleSnap = useEditorStore((state) => state.toggleSnap);
+	const setSnapToMarkers = useEditorStore((state) => state.setSnapToMarkers);
+	const toggleKeyframeLanes = useEditorStore((state) => state.toggleKeyframeLanes);
+	const toggleGraphEditor = useEditorStore((state) => state.toggleGraphEditor);
 	const store = useEditorStoreApi();
 	const duration = timelineDuration(project);
 	const seqMarkers =
@@ -96,8 +122,14 @@ function ConnectedToolbar({
 			sequenceTabs={sequenceTabs}
 			isMaximized={maximizedPanelId === 'timeline'}
 			onToggleMaximize={() => store.getState().toggleMaximizePanel('timeline')}
+			snapEnabled={snapEnabled}
+			onToggleSnap={toggleSnap}
 			snapToMarkers={snapToMarkers}
-			onToggleSnapToMarkers={() => store.getState().setSnapToMarkers(!snapToMarkers)}
+			onToggleSnapToMarkers={() => setSnapToMarkers(!snapToMarkers)}
+			showLanes={showLanes}
+			onToggleKeyframes={toggleKeyframeLanes}
+			graphOpen={graphOpen}
+			onToggleGraph={toggleGraphEditor}
 			markerCount={seqMarkers.length}
 			pixelsPerSecond={pixelsPerSecond}
 			onSplit={onSplit}
@@ -471,16 +503,34 @@ function ActiveTimeline({ project }: { project: Project }) {
 	const removeDialogRef = useRef<HTMLDialogElement>(null);
 	const contextMenuRef = useRef<HTMLDivElement>(null);
 	const contextTriggerRef = useRef<HTMLElement | null>(null);
+
+	const isMobile = useIsMobile();
+	const headerWidth = isMobile ? MOBILE_HEADER_WIDTH : DEFAULT_HEADER_WIDTH;
+
+	const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const longPressSession = useRef<{
+		clip: Clip;
+		startX: number;
+		startY: number;
+		startScrollLeft: number;
+		startScrollTop: number;
+		pointerId: number;
+		session: DragSession;
+	} | null>(null);
+	const isLongPressDragActive = useRef<boolean>(false);
+	const suppressContextMenuUntil = useRef<number>(0);
+	const [liftedClipId, setLiftedClipId] = useState<ClipId | null>(null);
+
 	const clips = useMemo(() => project.tracks.flatMap((track) => track.clips), [project]);
 	const firstTabStopClipId = selection.clipIds.at(-1) ?? clips[0]?.id;
 	const duration = timelineDuration(project);
 	const visibleDuration = Math.max(duration + TAIL_SECONDS * 1_000_000, 60_000_000);
 	const laneWidth = Math.max(760, timeToPixels(visibleDuration, pixelsPerSecond));
-	const worldWidth = HEADER_WIDTH + laneWidth;
+	const worldWidth = headerWidth + laneWidth;
 	const clipOverscan = 600;
 	const visibleClipRange = {
-		start: Math.max(0, scrollLeft - HEADER_WIDTH - clipOverscan),
-		end: scrollLeft + viewportWidth - HEADER_WIDTH + clipOverscan
+		start: Math.max(0, scrollLeft - headerWidth - clipOverscan),
+		end: scrollLeft + viewportWidth - headerWidth + clipOverscan
 	};
 	const setTrackHeight = (trackId: TrackId, height: number) => {
 		setTrackHeights((current) => ({ ...current, [trackId]: Math.max(48, Math.min(240, height)) }));
@@ -512,12 +562,12 @@ function ActiveTimeline({ project }: { project: Project }) {
 			if (!state.timeline.followPlayhead) return;
 			const scroller = scrollerRef.current;
 			if (!scroller) return;
-			const x = HEADER_WIDTH + timeToPixels(nextPlayhead, pixelsPerSecond);
+			const x = headerWidth + timeToPixels(nextPlayhead, pixelsPerSecond);
 			const rightEdge = scroller.scrollLeft + scroller.clientWidth;
 			let nextScrollLeft = scroller.scrollLeft;
 			if (x > rightEdge - 72) nextScrollLeft = x - scroller.clientWidth + 72;
-			else if (x < scroller.scrollLeft + HEADER_WIDTH + 40) {
-				nextScrollLeft = x - HEADER_WIDTH - 40;
+			else if (x < scroller.scrollLeft + headerWidth + 40) {
+				nextScrollLeft = x - headerWidth - 40;
 			}
 			nextScrollLeft = Math.max(0, nextScrollLeft);
 			if (Math.abs(nextScrollLeft - scroller.scrollLeft) < 1) return;
@@ -525,7 +575,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 			scroller.scrollLeft = nextScrollLeft;
 			setScroll(nextScrollLeft, scroller.scrollTop);
 		});
-	}, [pixelsPerSecond, setScroll, store]);
+	}, [pixelsPerSecond, setScroll, store, headerWidth]);
 
 	useEffect(() => {
 		const dialog = removeDialogRef.current;
@@ -594,7 +644,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 			clientX,
 			rect.left,
 			scroller.scrollLeft,
-			HEADER_WIDTH,
+			headerWidth,
 			pixelsPerSecond,
 			activeProject.settings.fps
 		);
@@ -749,7 +799,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 		event.preventDefault();
 		const scroller = scrollerRef.current;
 		if (!scroller) return;
-		scroller.setPointerCapture(event.pointerId);
+		try {
+			scroller.setPointerCapture(event.pointerId);
+		} catch {
+			// Pointer capture can fail on untracked touch or synthetic events
+		}
 		scroller.focus({ preventScroll: true });
 		dragPointer.current = event.pointerId;
 		const selectedIds = selection.clipIds.includes(clip.id) ? selection.clipIds : [clip.id];
@@ -765,6 +819,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 			...allPositions.filter((item) => item.clipId !== clip.id)
 		];
 		const time = pointerTime(event.clientX);
+		const isTouch = event.pointerType === 'touch';
 		const session: DragSession = {
 			kind:
 				activeTool === 'slip'
@@ -782,7 +837,36 @@ function ActiveTimeline({ project }: { project: Project }) {
 			allowed: true,
 			unlink: event.altKey
 		};
-		beginTimelineDrag(session);
+
+		if (!isTouch || edge) {
+			// Mouse or edge handle trimming: immediate drag
+			beginTimelineDrag(session);
+			return;
+		}
+
+		// Mobile touch on clip body: Hold-to-drag (200ms threshold)
+		longPressSession.current = {
+			clip,
+			startX: event.clientX,
+			startY: event.clientY,
+			startScrollLeft: scroller.scrollLeft,
+			startScrollTop: scroller.scrollTop,
+			pointerId: event.pointerId,
+			session
+		};
+		isLongPressDragActive.current = false;
+		if (longPressTimer.current) clearTimeout(longPressTimer.current);
+		longPressTimer.current = setTimeout(() => {
+			longPressTimer.current = null;
+			isLongPressDragActive.current = true;
+			setLiftedClipId(clip.id);
+			try {
+				navigator.vibrate?.(25);
+			} catch {
+				// Ignore if vibrate is disallowed
+			}
+			beginTimelineDrag(session);
+		}, 200);
 	}
 
 	function handleClipSelect(
@@ -810,6 +894,15 @@ function ActiveTimeline({ project }: { project: Project }) {
 		event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>,
 		clip: Clip
 	): void {
+		if (
+			store.getState().timeline.drag ||
+			isLongPressDragActive.current ||
+			Date.now() < suppressContextMenuUntil.current
+		) {
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
 		event.preventDefault();
 		if (!selection.clipIds.includes(clip.id)) selectClips([clip.id]);
 		contextTriggerRef.current = event.currentTarget;
@@ -878,9 +971,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 			return;
 		}
 		const rect = scroller.getBoundingClientRect();
-		const anchorX = clientX ?? rect.left + HEADER_WIDTH + 100;
+		const anchorX = clientX ?? rect.left + headerWidth + 100;
 		const time = pointerTime(anchorX);
-		setZoom(value, { time, pixel: anchorX - rect.left - HEADER_WIDTH });
+		setZoom(value, { time, pixel: anchorX - rect.left - headerWidth });
 	}
 
 	function handleWheel(event: React.WheelEvent<HTMLDivElement>): void {
@@ -1403,6 +1496,31 @@ function ActiveTimeline({ project }: { project: Project }) {
 			updateMarquee(event);
 			return;
 		}
+
+		if (longPressSession.current && !isLongPressDragActive.current) {
+			if (event.pointerId !== longPressSession.current.pointerId) return;
+			const dist = Math.hypot(
+				event.clientX - longPressSession.current.startX,
+				event.clientY - longPressSession.current.startY
+			);
+			if (dist > 8) {
+				if (longPressTimer.current) {
+					clearTimeout(longPressTimer.current);
+					longPressTimer.current = null;
+				}
+				const scroller = scrollerRef.current;
+				if (scroller) {
+					const deltaX = event.clientX - longPressSession.current.startX;
+					const deltaY = event.clientY - longPressSession.current.startY;
+					scroller.scrollLeft = Math.max(0, longPressSession.current.startScrollLeft - deltaX);
+					scroller.scrollTop = Math.max(0, longPressSession.current.startScrollTop - deltaY);
+					setScroll(scroller.scrollLeft, scroller.scrollTop);
+				}
+				return;
+			}
+			return;
+		}
+
 		const session = store.getState().timeline.drag;
 		if (!session || dragPointer.current !== event.pointerId) return;
 		const scroller = scrollerRef.current;
@@ -1490,7 +1608,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 
 		const rect = scroller.getBoundingClientRect();
 		if (event.clientX > rect.right - 28) scroller.scrollLeft += 14;
-		else if (event.clientX < rect.left + HEADER_WIDTH + 28)
+		else if (event.clientX < rect.left + headerWidth + 28)
 			scroller.scrollLeft = Math.max(0, scroller.scrollLeft - 14);
 		setScroll(scroller.scrollLeft, scroller.scrollTop);
 	}
@@ -1504,6 +1622,21 @@ function ActiveTimeline({ project }: { project: Project }) {
 			endMarquee(event);
 			return;
 		}
+
+		if (longPressSession.current && event.pointerId === longPressSession.current.pointerId) {
+			if (longPressTimer.current) {
+				clearTimeout(longPressTimer.current);
+				longPressTimer.current = null;
+			}
+			const wasLongPressDrag = isLongPressDragActive.current;
+			isLongPressDragActive.current = false;
+			longPressSession.current = null;
+			setLiftedClipId(null);
+			if (wasLongPressDrag) {
+				suppressContextMenuUntil.current = Date.now() + 400;
+			}
+		}
+
 		if (dragPointer.current !== event.pointerId) return;
 		dragPointer.current = null;
 		if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
@@ -1596,6 +1729,13 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function cancelTimelineInteraction(): void {
+		if (longPressTimer.current) {
+			clearTimeout(longPressTimer.current);
+			longPressTimer.current = null;
+		}
+		longPressSession.current = null;
+		isLongPressDragActive.current = false;
+		setLiftedClipId(null);
 		if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
 		dragFrame.current = null;
 		pendingDragPreview.current = null;
@@ -1735,13 +1875,18 @@ function ActiveTimeline({ project }: { project: Project }) {
 					}}
 					aria-label="Timeline tracks and clips"
 				>
-					<div className="timeline-world" style={{ width: worldWidth }}>
+					<div
+						className="timeline-world"
+						style={
+							{ width: worldWidth, '--timeline-header-width': `${headerWidth}px` } as CSSProperties
+						}
+					>
 						<TimelineRuler
 							project={activeProject}
 							duration={visibleDuration}
 							playhead={playhead}
 							pixelsPerSecond={pixelsPerSecond}
-							headerWidth={HEADER_WIDTH}
+							headerWidth={headerWidth}
 							visibleStart={visibleClipRange.start}
 							visibleEnd={visibleClipRange.end}
 							onScrub={scrubRuler}
@@ -1956,6 +2101,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 																		pixelsPerSecond={pixelsPerSecond}
 																		selected={isSelected}
 																		tabIndex={clip.id === firstTabStopClipId ? 0 : -1}
+																		isLifted={liftedClipId === clip.id}
 																		onPointerDown={beginClipDrag}
 																		onKeyboardTrim={handleKeyboardTrim}
 																		onSelect={handleClipSelect}
@@ -2123,7 +2269,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 							/>
 						)}
 						{detectedSilences.map((silence) => {
-							const startPx = HEADER_WIDTH + timeToPixels(silence.cutStartUs, pixelsPerSecond);
+							const startPx = headerWidth + timeToPixels(silence.cutStartUs, pixelsPerSecond);
 							const widthPx = Math.max(2, timeToPixels(silence.cutDurationUs, pixelsPerSecond));
 							return (
 								<div
@@ -2141,12 +2287,12 @@ function ActiveTimeline({ project }: { project: Project }) {
 								</div>
 							);
 						})}
-						<ConnectedPlayhead pixelsPerSecond={pixelsPerSecond} offset={HEADER_WIDTH} />
+						<ConnectedPlayhead pixelsPerSecond={pixelsPerSecond} offset={headerWidth} />
 						{drag?.snappedTo !== undefined &&
 							timeToPixels(drag.snappedTo, pixelsPerSecond) >= scrollLeft && (
 								<div
 									className="timeline-snap-guide"
-									style={{ left: HEADER_WIDTH + timeToPixels(drag.snappedTo, pixelsPerSecond) }}
+									style={{ left: headerWidth + timeToPixels(drag.snappedTo, pixelsPerSecond) }}
 									aria-hidden="true"
 								/>
 							)}

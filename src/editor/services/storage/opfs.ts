@@ -1,8 +1,110 @@
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Asset, AssetId, Project, ProjectId } from '../../core';
 import { rebaseMediaPath } from '../../core';
 import { collectOrphanedDerived } from './mediaCache';
 
 const ROOT_DIRECTORY = 'projects';
+const IDB_MEDIA_DB = 'tfve-media-fallback';
+const IDB_MEDIA_STORE = 'media';
+
+interface FallbackMediaRecord {
+	key: string;
+	projectId: ProjectId;
+	filename: string;
+	file: Blob;
+	name: string;
+	mimeType: string;
+	size: number;
+	lastModified: number;
+}
+
+interface FallbackMediaDatabase extends DBSchema {
+	media: {
+		key: string;
+		value: FallbackMediaRecord;
+		indexes: { projectId: ProjectId };
+	};
+}
+
+let fallbackDbPromise: Promise<IDBPDatabase<FallbackMediaDatabase>> | undefined;
+
+function getFallbackDb(): Promise<IDBPDatabase<FallbackMediaDatabase>> | null {
+	if (typeof indexedDB === 'undefined') return null;
+	fallbackDbPromise ??= openDB<FallbackMediaDatabase>(IDB_MEDIA_DB, 1, {
+		upgrade(db) {
+			if (!db.objectStoreNames.contains(IDB_MEDIA_STORE)) {
+				const store = db.createObjectStore(IDB_MEDIA_STORE, { keyPath: 'key' });
+				store.createIndex('projectId', 'projectId');
+			}
+		}
+	});
+	return fallbackDbPromise;
+}
+
+async function writeFallbackMedia(
+	projectId: ProjectId,
+	filename: string,
+	file: File,
+	onProgress?: (loaded: number, total: number) => void,
+	signal?: AbortSignal
+): Promise<void> {
+	if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
+	const db = await getFallbackDb();
+	if (!db) throw new UnsupportedMediaStorageError();
+	const key = `${projectId}:${filename}`;
+	const record: FallbackMediaRecord = {
+		key,
+		projectId,
+		filename,
+		file,
+		name: file.name,
+		mimeType: file.type,
+		size: file.size,
+		lastModified: file.lastModified || Date.now()
+	};
+	if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
+	await db.put(IDB_MEDIA_STORE, record);
+	onProgress?.(file.size, file.size);
+}
+
+async function getFallbackMedia(projectId: ProjectId, filename: string): Promise<File | null> {
+	const db = await getFallbackDb();
+	if (!db) return null;
+	try {
+		const record = (await db.get(IDB_MEDIA_STORE, `${projectId}:${filename}`)) as
+			FallbackMediaRecord | undefined;
+		if (!record) return null;
+		return new File([record.file], record.name, {
+			type: record.mimeType,
+			lastModified: record.lastModified
+		});
+	} catch {
+		return null;
+	}
+}
+
+async function deleteFallbackMedia(projectId: ProjectId, assetIdOrFilename: string): Promise<void> {
+	const db = await getFallbackDb();
+	if (!db) return;
+	try {
+		const tx = db.transaction(IDB_MEDIA_STORE, 'readwrite');
+		const index = tx.store.index('projectId');
+		let cursor = await index.openCursor(projectId);
+		while (cursor) {
+			const record = cursor.value as FallbackMediaRecord;
+			if (
+				record.filename === assetIdOrFilename ||
+				record.filename.startsWith(`${assetIdOrFilename}.`) ||
+				record.filename.startsWith(assetIdOrFilename)
+			) {
+				await cursor.delete();
+			}
+			cursor = await cursor.continue();
+		}
+		await tx.done;
+	} catch {}
+}
+
 let persistenceRequest: Promise<boolean> | undefined;
 
 interface StorageEstimate {
@@ -77,16 +179,18 @@ function storageRoot(): StorageManager | null {
 	return navigator.storage;
 }
 
-function requestPersistence(storage: StorageManager): Promise<boolean> {
-	if (!storage.persist) return Promise.resolve(false);
-	persistenceRequest ??= storage.persist();
-	return persistenceRequest;
+function requestPersistence(storage: StorageManager): void {
+	if (!storage.persist || persistenceRequest) return;
+	persistenceRequest = Promise.race([
+		storage.persist(),
+		new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1000))
+	]).catch(() => false);
 }
 
 async function projectDirectory(projectId: ProjectId): Promise<FileSystemDirectoryHandle> {
 	const storage = storageRoot();
 	if (!storage) throw new UnsupportedMediaStorageError();
-	await requestPersistence(storage);
+	requestPersistence(storage);
 	const root = await storage.getDirectory();
 	const app = await root.getDirectoryHandle(ROOT_DIRECTORY, { create: true });
 	return app.getDirectoryHandle(projectId, { create: true });
@@ -120,13 +224,16 @@ function mediaFilenameForFile(assetId: AssetId, file: File): string {
 	return `${assetId}${extension ? `.${extension}` : ''}`;
 }
 
-function quotaEstimate(): Promise<StorageEstimate> {
-	if (typeof navigator === 'undefined' || !navigator.storage?.estimate) return Promise.resolve({});
-	return navigator.storage.estimate();
+async function quotaEstimate(): Promise<StorageEstimate> {
+	if (typeof navigator === 'undefined' || !navigator.storage?.estimate) return {};
+	return Promise.race([
+		navigator.storage.estimate(),
+		new Promise<StorageEstimate>((resolve) => setTimeout(() => resolve({}), 1500))
+	]).catch(() => ({}));
 }
 
 export function isSupported(): boolean {
-	return storageRoot() !== null;
+	return storageRoot() !== null || typeof indexedDB !== 'undefined';
 }
 
 export async function ensureProjectDir(
@@ -138,22 +245,16 @@ export async function ensureProjectDir(
 
 export async function deleteProjectDir(projectId: ProjectId): Promise<void> {
 	const storage = storageRoot();
-	if (!storage) return;
-
-	const originDirectory = await storage.getDirectory();
-	let appDirectory: FileSystemDirectoryHandle;
-	try {
-		appDirectory = await originDirectory.getDirectoryHandle(ROOT_DIRECTORY);
-	} catch (error) {
-		if (error instanceof DOMException && error.name === 'NotFoundError') return;
-		throw error;
-	}
-
-	try {
-		await appDirectory.removeEntry(projectId, { recursive: true });
-	} catch (error) {
-		if (error instanceof DOMException && error.name === 'NotFoundError') return;
-		throw error;
+	if (storage) {
+		try {
+			const originDirectory = await storage.getDirectory();
+			const appDirectory = await originDirectory.getDirectoryHandle(ROOT_DIRECTORY);
+			await appDirectory.removeEntry(projectId, { recursive: true });
+		} catch (error) {
+			if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+				console.warn('Could not remove project directory:', error);
+			}
+		}
 	}
 
 	for (const [key, entry] of objectUrls) {
@@ -161,6 +262,20 @@ export async function deleteProjectDir(projectId: ProjectId): Promise<void> {
 			URL.revokeObjectURL(entry.url);
 			objectUrls.delete(key);
 		}
+	}
+
+	const db = await getFallbackDb();
+	if (db) {
+		try {
+			const tx = db.transaction(IDB_MEDIA_STORE, 'readwrite');
+			const index = tx.store.index('projectId');
+			let cursor = await index.openCursor(projectId);
+			while (cursor) {
+				await cursor.delete();
+				cursor = await cursor.continue();
+			}
+			await tx.done;
+		} catch {}
 	}
 }
 
@@ -171,84 +286,110 @@ export async function writeMedia(
 	onProgress?: (loaded: number, total: number) => void,
 	signal?: AbortSignal
 ): Promise<string> {
-	const directory = await mediaDirectory(projectId);
 	const filename = mediaFilenameForFile(assetId, file);
 	const path = `projects/${projectId}/media/${filename}`;
-	let handle: FileSystemFileHandle | null = null;
-	let writable: FileSystemWritableFileStream | null = null;
-	try {
-		if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
-		const estimate = await quotaEstimate();
-		if (estimate.quota !== undefined && estimate.usage !== undefined) {
-			const available = Math.max(0, estimate.quota - estimate.usage);
-			if (file.size > available) throw new StorageQuotaError(file.size, estimate);
-		}
-		handle = await directory.getFileHandle(filename, { create: true });
-		writable = await handle.createWritable();
-		const reader = file.stream().getReader();
-		let loaded = 0;
-		const abort = () => {
-			void reader.cancel(signal?.reason);
-		};
-		signal?.addEventListener('abort', abort, { once: true });
+
+	let directory: FileSystemDirectoryHandle | null = null;
+	if (storageRoot()) {
 		try {
-			while (true) {
-				if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
-				const { done, value } = await reader.read();
-				if (done) break;
-				await writable.write(value);
-				loaded += value.byteLength;
-				onProgress?.(loaded, file.size);
-			}
-			await writable.close();
-			writable = null;
-			return path;
-		} finally {
-			signal?.removeEventListener('abort', abort);
-			reader.releaseLock();
-		}
-	} catch (error) {
-		if (writable) {
-			try {
-				await writable.abort();
-			} catch (abortError) {
-				console.error('Could not abort a partial media write.', abortError);
+			directory = await mediaDirectory(projectId);
+		} catch (error) {
+			if (!(error instanceof UnsupportedMediaStorageError)) {
+				console.warn('Could not open OPFS media directory:', error);
 			}
 		}
-		if (handle) {
-			try {
-				await directory.removeEntry(filename);
-			} catch (removeError) {
-				if (!(removeError instanceof DOMException && removeError.name === 'NotFoundError')) {
-					console.error('Could not remove a partial media file.', removeError);
+	}
+
+	if (directory) {
+		let handle: FileSystemFileHandle | null = null;
+		let writable: FileSystemWritableFileStream | null = null;
+		try {
+			if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
+			const estimate = await quotaEstimate();
+			if (estimate.quota !== undefined && estimate.usage !== undefined) {
+				const available = Math.max(0, estimate.quota - estimate.usage);
+				if (file.size > available) throw new StorageQuotaError(file.size, estimate);
+			}
+			handle = await directory.getFileHandle(filename, { create: true });
+			if (typeof handle.createWritable === 'function') {
+				writable = await handle.createWritable();
+				const CHUNK_SIZE = 2 * 1024 * 1024;
+				let loaded = 0;
+				if (file.size === 0) {
+					await writable.write(new Uint8Array(0));
+					onProgress?.(0, 0);
+				} else {
+					while (loaded < file.size) {
+						if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
+						const end = Math.min(loaded + CHUNK_SIZE, file.size);
+						const chunk = file.slice(loaded, end);
+						const buffer = await chunk.arrayBuffer();
+						await writable.write(buffer);
+						loaded = end;
+						onProgress?.(loaded, file.size);
+					}
+				}
+				await writable.close();
+				writable = null;
+				return path;
+			}
+		} catch (error) {
+			if (writable) {
+				try {
+					await writable.abort();
+				} catch (abortError) {
+					console.error('Could not abort a partial media write.', abortError);
 				}
 			}
+			if (handle) {
+				try {
+					await directory.removeEntry(filename);
+				} catch (removeError) {
+					if (!(removeError instanceof DOMException && removeError.name === 'NotFoundError')) {
+						console.error('Could not remove a partial media file.', removeError);
+					}
+				}
+			}
+			if (
+				error instanceof StorageQuotaError ||
+				(error instanceof DOMException && error.name === 'AbortError')
+			) {
+				throw error;
+			}
+			console.warn('OPFS write failed, attempting fallback storage:', error);
 		}
-		if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-			throw new StorageQuotaError(file.size, await quotaEstimate());
-		}
+	}
+
+	try {
+		await writeFallbackMedia(projectId, filename, file, onProgress, signal);
+		return path;
+	} catch (fallbackError) {
 		if (
-			error instanceof StorageQuotaError ||
-			(error instanceof DOMException && error.name === 'AbortError')
+			fallbackError instanceof StorageQuotaError ||
+			(fallbackError instanceof DOMException && fallbackError.name === 'AbortError')
 		) {
-			throw error;
+			throw fallbackError;
 		}
-		throw new MediaWriteError(`Could not store “${file.name}” on this device.`, error);
+		throw new MediaWriteError(`Could not store “${file.name}” on this device.`, fallbackError);
 	}
 }
 
 export async function getMediaFile(projectId: ProjectId, asset: Asset): Promise<File> {
-	let directory: FileSystemDirectoryHandle;
-	try {
-		directory = await mediaDirectory(projectId);
-		const handle = await directory.getFileHandle(mediaFilename(asset));
-		return await handle.getFile();
-	} catch (error) {
-		if (error instanceof DOMException && error.name === 'NotFoundError') {
-			throw new MediaMissingError(asset);
+	const filename = mediaFilename(asset);
+	if (storageRoot()) {
+		try {
+			const directory = await mediaDirectory(projectId);
+			const handle = await directory.getFileHandle(filename);
+			return await handle.getFile();
+		} catch (error) {
+			if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+				console.warn('OPFS read failed, trying fallback:', error);
+			}
 		}
-		throw error;
 	}
+	const fallback = await getFallbackMedia(projectId, filename);
+	if (fallback) return fallback;
+	throw new MediaMissingError(asset);
 }
 
 export async function getMediaObjectUrl(
@@ -287,13 +428,24 @@ export async function deleteMedia(projectId: ProjectId, assetId: AssetId): Promi
 		URL.revokeObjectURL(entry.url);
 		objectUrls.delete(key);
 	}
-	const directory = await mediaDirectory(projectId);
-	for await (const [name] of directory.entries()) {
-		if (name === assetId || name.startsWith(`${assetId}.`)) {
-			await directory.removeEntry(name);
-			return;
+	let filename = `${assetId}`;
+	if (storageRoot()) {
+		try {
+			const directory = await mediaDirectory(projectId);
+			for await (const [name] of directory.entries()) {
+				if (name === assetId || name.startsWith(`${assetId}.`)) {
+					filename = name;
+					await directory.removeEntry(name);
+					break;
+				}
+			}
+		} catch (error) {
+			if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+				console.warn('Could not remove OPFS media file:', error);
+			}
 		}
 	}
+	await deleteFallbackMedia(projectId, filename);
 }
 
 export async function deleteMediaFile(projectId: ProjectId, asset: Asset): Promise<void> {
@@ -303,13 +455,18 @@ export async function deleteMediaFile(projectId: ProjectId, asset: Asset): Promi
 		URL.revokeObjectURL(entry.url);
 		objectUrls.delete(key);
 	}
-	try {
-		const directory = await mediaDirectory(projectId);
-		await directory.removeEntry(mediaFilename(asset));
-	} catch (error) {
-		if (error instanceof DOMException && error.name === 'NotFoundError') return;
-		throw error;
+	const filename = mediaFilename(asset);
+	if (storageRoot()) {
+		try {
+			const directory = await mediaDirectory(projectId);
+			await directory.removeEntry(filename);
+		} catch (error) {
+			if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+				console.warn('Could not remove OPFS media file:', error);
+			}
+		}
 	}
+	await deleteFallbackMedia(projectId, filename);
 }
 
 export interface StoredMedia {
@@ -385,23 +542,45 @@ export async function collectMediaGarbage(project: Project): Promise<MediaGarbag
 }
 
 export async function listMedia(projectId: ProjectId): Promise<StoredMedia[]> {
-	let directory: FileSystemDirectoryHandle;
-	try {
-		directory = await mediaDirectory(projectId);
-	} catch (error) {
-		if (error instanceof DOMException && error.name === 'NotFoundError') return [];
-		throw error;
-	}
 	const media: StoredMedia[] = [];
-	for await (const [filename, handle] of directory.entries()) {
-		if (handle.kind !== 'file') continue;
-		const file = await handle.getFile();
-		const match = /^(.+?)(?:\.[a-z0-9]+)?$/i.exec(filename);
-		media.push({
-			filename,
-			assetId: match ? (match[1] as AssetId) : null,
-			size: file.size
-		});
+	if (storageRoot()) {
+		try {
+			const directory = await mediaDirectory(projectId);
+			for await (const [filename, handle] of directory.entries()) {
+				if (handle.kind !== 'file') continue;
+				const file = await handle.getFile();
+				const match = /^(.+?)(?:\.[a-z0-9]+)?$/i.exec(filename);
+				media.push({
+					filename,
+					assetId: match ? (match[1] as AssetId) : null,
+					size: file.size
+				});
+			}
+		} catch (error) {
+			if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+				console.warn('Could not read OPFS media list:', error);
+			}
+		}
+	}
+	const db = await getFallbackDb();
+	if (db) {
+		try {
+			const tx = db.transaction(IDB_MEDIA_STORE, 'readonly');
+			const index = tx.store.index('projectId');
+			let cursor = await index.openCursor(projectId);
+			while (cursor) {
+				const record = cursor.value as FallbackMediaRecord;
+				if (!media.some((m) => m.filename === record.filename)) {
+					const match = /^(.+?)(?:\.[a-z0-9]+)?$/i.exec(record.filename);
+					media.push({
+						filename: record.filename,
+						assetId: match ? (match[1] as AssetId) : null,
+						size: record.size
+					});
+				}
+				cursor = await cursor.continue();
+			}
+		} catch {}
 	}
 	return media;
 }
@@ -509,19 +688,23 @@ export async function writeProxy(
 		handle = await directory.getFileHandle(filename, { create: true });
 		writable = await handle.createWritable();
 		if (data instanceof Blob) {
-			const stream = data.stream();
-			const reader = stream.getReader();
+			const CHUNK_SIZE = 2 * 1024 * 1024;
 			let loaded = 0;
 			const total = data.size;
-			while (true) {
-				if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
-				const { done, value } = await reader.read();
-				if (done) break;
-				await writable.write(value);
-				loaded += value.byteLength;
-				onProgress?.(loaded, total);
+			if (total === 0) {
+				await writable.write(new Uint8Array(0));
+				onProgress?.(0, 0);
+			} else {
+				while (loaded < total) {
+					if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
+					const end = Math.min(loaded + CHUNK_SIZE, total);
+					const chunk = data.slice(loaded, end);
+					const buffer = await chunk.arrayBuffer();
+					await writable.write(buffer);
+					loaded = end;
+					onProgress?.(loaded, total);
+				}
 			}
-			reader.releaseLock();
 		} else {
 			await writable.write(data);
 			onProgress?.(data.byteLength, data.byteLength);

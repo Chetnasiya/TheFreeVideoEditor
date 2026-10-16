@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent, type SyntheticEvent } from 'react';
-import { ACCEPTED_TYPES } from '../../core';
+import { ACCEPTED_MEDIA_INPUT } from '../../core';
 import { useEditorStore } from '../../state/EditorProvider';
 import { openFiles } from '../../services/storage/fileAccess';
 import './import-dialog.css';
@@ -193,7 +193,7 @@ export default function ImportDialog() {
 	// 1. Handle Computer File Import
 	const handleComputerImport = async () => {
 		try {
-			const files = await openFiles(ACCEPTED_TYPES.join(','));
+			const files = await openFiles(ACCEPTED_MEDIA_INPUT);
 			if (files.length > 0) {
 				close();
 				await importMedia(files);
@@ -642,7 +642,7 @@ export default function ImportDialog() {
 										className="primary-button"
 										style={{ pointerEvents: 'none' }}
 									>
-										Choose Files from Computer
+										Choose Files from Device
 									</button>
 								</div>
 								<div className="import-formats-list">

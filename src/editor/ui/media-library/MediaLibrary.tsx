@@ -9,6 +9,7 @@ import {
 	type CSSProperties
 } from 'react';
 import {
+	ACCEPTED_MEDIA_INPUT,
 	ACCEPTED_TYPES,
 	getAssetUsage,
 	ticksToTimecode,
@@ -601,7 +602,7 @@ export default function MediaLibrary() {
 						ref={fileInputRef}
 						type="file"
 						name="media-files"
-						accept={ACCEPTED_TYPES.join(',')}
+						accept={ACCEPTED_MEDIA_INPUT}
 						multiple
 						hidden
 						onChange={(event) => {
@@ -1227,7 +1228,9 @@ export default function MediaLibrary() {
 													<span>
 														{job.status === 'probing'
 															? 'Reading metadata…'
-															: `Importing ${Math.round(job.progress)}%`}
+															: job.status === 'queued'
+																? 'Preparing…'
+																: `Importing ${Math.round(job.progress)}%`}
 													</span>
 													<progress
 														value={job.progress}
@@ -1290,13 +1293,15 @@ export default function MediaLibrary() {
 								<span style={{ color: job.status === 'done' ? '#4ade80' : 'inherit' }}>
 									{job.status === 'probing'
 										? 'Reading metadata…'
-										: job.status === 'done'
-											? 'Imported'
-											: job.status === 'failed'
-												? `Failed: ${job.reason}`
-												: job.status === 'cancelled'
-													? 'Cancelled'
-													: `${Math.round(job.progress)}%`}
+										: job.status === 'queued'
+											? 'Preparing…'
+											: job.status === 'done'
+												? 'Imported'
+												: job.status === 'failed'
+													? `Failed: ${job.reason}`
+													: job.status === 'cancelled'
+														? 'Cancelled'
+														: `${Math.round(job.progress)}%`}
 								</span>
 							</div>
 						))}
@@ -1372,7 +1377,7 @@ export default function MediaLibrary() {
 								ref={relinkInputRef}
 								type="file"
 								name="relink-file"
-								accept={ACCEPTED_TYPES.join(',')}
+								accept={ACCEPTED_MEDIA_INPUT}
 								onChange={(event) => void chooseRelinkFile(event.currentTarget.files)}
 							/>
 						</label>

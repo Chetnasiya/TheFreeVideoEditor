@@ -1968,8 +1968,15 @@ export function createEditorStore() {
 						}
 						return result;
 					} catch (error) {
+						const message = errorMessage(error);
 						set((state) => {
-							state.projectMessage = `Media import failed: ${errorMessage(error)}`;
+							state.projectMessage = `Media import failed: ${message}`;
+							for (const job of state.media.importQueue) {
+								if (jobs.some((j) => j.id === job.id) && job.status !== 'done') {
+									job.status = 'failed';
+									job.reason = message;
+								}
+							}
 						});
 						return null;
 					} finally {

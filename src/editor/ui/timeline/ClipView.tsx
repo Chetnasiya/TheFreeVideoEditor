@@ -37,6 +37,7 @@ interface ClipViewProps {
 	selected: boolean;
 	tabIndex: number;
 	ghost?: boolean;
+	isLifted?: boolean;
 	onPointerDown: (event: PointerEvent<HTMLElement>, clip: Clip, edge?: 'start' | 'end') => void;
 	onKeyboardTrim: (clip: Clip, edge: 'start' | 'end', frameDelta: number) => void;
 	onSelect: (
@@ -292,6 +293,7 @@ export default function ClipView({
 	selected,
 	tabIndex,
 	ghost = false,
+	isLifted = false,
 	onPointerDown,
 	onKeyboardTrim,
 	onSelect,
@@ -485,7 +487,7 @@ export default function ClipView({
 	return (
 		<div
 			ref={clipRef}
-			className={`timeline-clip ${kindClass} ${selected ? 'is-selected' : ''} ${asset?.offline ? 'is-offline' : ''} ${ghost ? 'is-ghost' : ''}`}
+			className={`timeline-clip ${kindClass} ${selected ? 'is-selected' : ''} ${asset?.offline ? 'is-offline' : ''} ${ghost ? 'is-ghost' : ''} ${isLifted ? 'is-drag-lifted' : ''}`}
 			data-clip-id={clip.id}
 			data-track-id={track.id}
 			role="group"
@@ -517,7 +519,13 @@ export default function ClipView({
 				}
 			}}
 			onContextMenu={(event) => {
-				if (!ghost) onContextMenu(event, clip);
+				if (ghost) return;
+				if (store.getState().timeline.drag) {
+					event.preventDefault();
+					event.stopPropagation();
+					return;
+				}
+				onContextMenu(event, clip);
 			}}
 			onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
 				if (ghost) return;
