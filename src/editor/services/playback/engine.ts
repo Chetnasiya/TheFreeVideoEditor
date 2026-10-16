@@ -615,6 +615,12 @@ class PlaybackEngineImpl implements PlaybackEngine {
 						backgroundBoxColor: data.backgroundBoxColor,
 						backgroundBoxPadding: data.backgroundBoxPadding,
 						backgroundBoxRadius: data.backgroundBoxRadius,
+						boxBorderColor: data.boxBorderColor,
+						boxBorderWidth: data.boxBorderWidth,
+						accentBarColor: data.accentBarColor,
+						accentBarWidth: data.accentBarWidth,
+						frameStyle: data.frameStyle,
+						badgeText: data.badgeText,
 						colorRuns: data.colorRuns,
 						scale
 					});

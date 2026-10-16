@@ -153,6 +153,12 @@ export interface ActiveLayer {
 		backgroundBoxColor?: { r: number; g: number; b: number; a: number };
 		backgroundBoxPadding?: number;
 		backgroundBoxRadius?: number;
+		boxBorderColor?: { r: number; g: number; b: number; a: number };
+		boxBorderWidth?: number;
+		accentBarColor?: { r: number; g: number; b: number; a: number };
+		accentBarWidth?: number;
+		frameStyle?: import('./types').GraphicFrameStyle;
+		badgeText?: string;
 		colorRuns?: Array<{
 			startIndex: number;
 			endIndex: number;
@@ -488,6 +494,39 @@ export function resolveFrame(
 				const backgroundBoxRadius = finite(read('text.backgroundBoxRadius', 0), 0);
 				const backgroundBoxPadding = finite(read('text.backgroundBoxPadding', 0), 0);
 
+				const rawBorder = read('text.boxBorderColor', null);
+				const boxBorderColor =
+					Array.isArray(rawBorder) && rawBorder.length >= 4
+						? {
+								r: finite(rawBorder[0], 1),
+								g: finite(rawBorder[1], 1),
+								b: finite(rawBorder[2], 1),
+								a: finite(rawBorder[3], 1)
+							}
+						: clip.source.box?.borderColor;
+				const boxBorderWidth = finite(
+					read('text.boxBorderWidth', clip.source.box?.borderWidth ?? 0),
+					0
+				);
+
+				const rawAccentBar = read('text.accentBarColor', null);
+				const accentBarColor =
+					Array.isArray(rawAccentBar) && rawAccentBar.length >= 4
+						? {
+								r: finite(rawAccentBar[0], 1),
+								g: finite(rawAccentBar[1], 1),
+								b: finite(rawAccentBar[2], 1),
+								a: finite(rawAccentBar[3], 1)
+							}
+						: clip.source.box?.accentBarColor;
+				const accentBarWidth = finite(
+					read('text.accentBarWidth', clip.source.box?.accentBarWidth ?? 0),
+					0
+				);
+
+				const frameStyle = clip.source.box?.frameStyle;
+				const badgeText = clip.source.box?.badgeText;
+
 				const colorRuns =
 					'colorRuns' in clip.source && Array.isArray(clip.source.colorRuns)
 						? (clip.source.colorRuns as NonNullable<
@@ -521,6 +560,12 @@ export function resolveFrame(
 						backgroundBoxColor,
 						backgroundBoxRadius,
 						backgroundBoxPadding,
+						boxBorderColor,
+						boxBorderWidth,
+						accentBarColor,
+						accentBarWidth,
+						frameStyle,
+						badgeText,
 						colorRuns
 					},
 					masks: evaluatedMasks,

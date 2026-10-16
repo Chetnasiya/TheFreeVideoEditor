@@ -494,3 +494,437 @@
 .graphics-create-btn:hover {
 	background: #7dd3fc;
 }
+
+/* ==========================================================================
+   Visual Previews matching Reference Image Graphic Designs
+   ========================================================================== */
+.preview-card-trendy {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.preview-trendy-box {
+	background: #ffffff;
+	color: #000000;
+	padding: 8px 18px;
+	border-radius: 3px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.preview-trendy-sub {
+	font-size: 8px;
+	font-weight: 700;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	color: #000000;
+}
+
+.preview-trendy-main {
+	font-size: 17px;
+	font-weight: 900;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #000000;
+	line-height: 1;
+}
+
+/* Modern Title Split */
+.preview-split-title {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	width: 100%;
+	height: 100%;
+}
+
+.preview-split-badge {
+	background: #ffffff;
+	color: #000000;
+	padding: 2px 10px;
+	border-radius: 3px;
+	font-size: 9px;
+	font-weight: 900;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+}
+
+.preview-split-main {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	color: #ffffff;
+	font-size: 15px;
+	font-weight: 900;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	position: relative;
+}
+
+.preview-split-cut-line {
+	width: 100%;
+	height: 2px;
+	background: #ffffff;
+	margin-top: 2px;
+}
+
+/* Run Wild Side */
+.preview-run-wild {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-transform: uppercase;
+	font-weight: 900;
+	line-height: 1.05;
+	width: 100%;
+	height: 100%;
+}
+
+.preview-wild-solid {
+	color: #ffffff;
+	font-size: 17px;
+	letter-spacing: 1px;
+	z-index: 2;
+}
+
+.preview-wild-outline {
+	color: transparent;
+	-webkit-text-stroke: 1px #ffffff;
+	font-size: 16px;
+	letter-spacing: 1px;
+	z-index: 2;
+}
+
+.preview-wild-slash {
+	position: absolute;
+	width: 120px;
+	height: 2px;
+	background: #ffffff;
+	transform: rotate(-30deg);
+	z-index: 1;
+}
+
+/* Tutorial Video Badge */
+.preview-tutorial-lockup {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.preview-tutorial-header {
+	display: flex;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.preview-tutorial-title {
+	font-size: 20px;
+	font-weight: 900;
+	color: #ffffff;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+}
+
+.preview-tutorial-badge {
+	background: #ffffff;
+	color: #000000;
+	font-size: 7px;
+	font-weight: 900;
+	letter-spacing: 1px;
+	padding: 1px 4px;
+	border-radius: 2px;
+	text-transform: uppercase;
+}
+
+/* Diagonal Repeat Marquee */
+.preview-diagonal-marquee {
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.preview-marquee-scroller {
+	transform: rotate(-18deg) scale(1.1);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	text-transform: uppercase;
+	font-weight: 900;
+	line-height: 0.95;
+	white-space: nowrap;
+}
+
+.preview-marquee-solid {
+	font-size: 18px;
+	color: #ffffff;
+	letter-spacing: 2px;
+}
+
+.preview-marquee-outline {
+	font-size: 16px;
+	color: transparent;
+	-webkit-text-stroke: 1px #ffffff;
+	letter-spacing: 2px;
+}
+
+/* Cubed Box */
+.preview-cubed-box {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.preview-cubed-inner {
+	background: #ffffff;
+	color: #000000;
+	width: 72px;
+	height: 72px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	font-size: 15px;
+	font-weight: 900;
+	letter-spacing: 2px;
+	line-height: 1.05;
+	border-radius: 2px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* Circle Emblem */
+.preview-circle-emblem {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.preview-circle-outer {
+	width: 78px;
+	height: 78px;
+	border-radius: 9999px;
+	border: 4px solid #ffffff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+}
+
+.preview-circle-inner {
+	width: 62px;
+	height: 62px;
+	border-radius: 9999px;
+	border: 1px solid #ffffff;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	color: #ffffff;
+	font-size: 10px;
+	font-weight: 900;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	line-height: 1.1;
+	box-sizing: border-box;
+}
+
+/* Kinetic Bar */
+.preview-kinetic-bar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.preview-bar-pipe {
+	width: 4px;
+	height: 34px;
+	background: #ffffff;
+	border-radius: 1px;
+}
+
+.preview-bar-text {
+	display: flex;
+	flex-direction: column;
+	color: #ffffff;
+	font-size: 13px;
+	font-weight: 900;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+	line-height: 1.1;
+}
+
+/* Stylish Frame */
+.preview-stylish-frame {
+	border: 3px solid #ffffff;
+	padding: 6px 14px;
+	color: #ffffff;
+	font-size: 16px;
+	font-weight: 900;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Slanted Box */
+.preview-slanted-box {
+	border: 2px solid #ffffff;
+	padding: 5px 12px;
+	color: #ffffff;
+	font-size: 14px;
+	font-weight: 900;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	transform: rotate(-8deg);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Italic Slash */
+.preview-italic-slash {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	transform: rotate(-10deg) skewX(-6deg);
+	text-transform: uppercase;
+	font-weight: 900;
+	line-height: 1.05;
+}
+
+.preview-italic-outline {
+	font-size: 15px;
+	color: transparent;
+	-webkit-text-stroke: 1px #ffffff;
+	letter-spacing: 2px;
+}
+
+.preview-italic-solid {
+	font-size: 17px;
+	color: #ffffff;
+	letter-spacing: 2px;
+}
+
+/* Multiline Frame with Divider */
+.preview-multiline-frame {
+	border: 2px solid #ffffff;
+	padding: 8px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	color: #ffffff;
+	text-transform: uppercase;
+}
+
+.preview-multiline-top {
+	font-size: 8px;
+	font-weight: 800;
+	letter-spacing: 2px;
+}
+
+.preview-multiline-divider {
+	width: 100%;
+	height: 1px;
+	background: #ffffff;
+}
+
+.preview-multiline-bottom {
+	display: flex;
+	flex-direction: column;
+	font-size: 13px;
+	font-weight: 900;
+	letter-spacing: 1px;
+	line-height: 1.05;
+}
+
+/* ==========================================================================
+   Quick Editor Extended Controls: Sliders, Style Pills, Sections
+   ========================================================================== */
+.graphics-section-title {
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	color: #64748b;
+	padding-top: 6px;
+	border-top: 1px solid #1e2230;
+	margin-top: 2px;
+}
+
+.graphics-pills-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.graphics-pill-btn {
+	padding: 4px 8px;
+	border-radius: 5px;
+	border: 1px solid #23232e;
+	background: #111118;
+	color: #94a3b8;
+	font-size: 11px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.graphics-pill-btn:hover {
+	color: #f1f5f9;
+	border-color: #475569;
+	background: #1a1a24;
+}
+
+.graphics-pill-btn.is-active {
+	background: #182234;
+	color: #38bdf8;
+	border-color: #38bdf8;
+	font-weight: 600;
+}
+
+.graphics-slider-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.graphics-slider {
+	flex: 1;
+	accent-color: #38bdf8;
+	height: 4px;
+	cursor: pointer;
+}
+
+.graphics-slider-val {
+	font-size: 11px;
+	color: #cbd5e1;
+	font-variant-numeric: tabular-nums;
+	min-width: 38px;
+	text-align: right;
+}

@@ -27,6 +27,8 @@ export interface GraphicTemplate {
 	secondaryLine?: string;
 	tertiaryLine?: string;
 	highlightWord?: string;
+	frameStyle?: import('../types').GraphicFrameStyle;
+	badgeText?: string;
 	style: TextStyle;
 	box: TextBox;
 	properties: Record<PropertyId, number | number[]>;
@@ -225,6 +227,592 @@ export const GRAPHIC_ANIMATION_PRESETS: readonly TextAnimationPreset[] = [
  */
 export const GRAPHIC_TEMPLATES: readonly GraphicTemplate[] = [
 	{
+		id: 'trendy-typography-card',
+		name: 'Trendy Typography Card',
+		category: 'badge',
+		description: 'Solid high-contrast white card with tracked header tag and bold year impact text',
+		tags: ['card', 'inverted', 'bold', 'modern', 'clean', 'badge', 'white'],
+		defaultText: 'TRENDY TYPOGRAPHY\n2022 YEAR!',
+		primaryLine: 'TRENDY TYPOGRAPHY',
+		secondaryLine: '2022 YEAR!',
+		frameStyle: 'card',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			paddingX: 36,
+			paddingY: 22,
+			verticalAnchor: 'center',
+			frameStyle: 'card'
+		},
+		properties: {
+			'text.fontSize': 54,
+			'text.fillColor': [0.06, 0.06, 0.08, 1.0],
+			'text.strokeWidth': 0,
+			'text.backgroundBoxColor': [1.0, 1.0, 1.0, 1.0],
+			'text.backgroundBoxRadius': 4,
+			'text.backgroundBoxPadding': 24,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.15,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'kinetic-zoom',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 0.06, g: 0.06, b: 0.08, a: 1.0 },
+		previewColors: {
+			background: '#0a0a0c',
+			primary: '#0a0a0c',
+			accent: '#ffffff',
+			badge: '#ffffff'
+		}
+	},
+	{
+		id: 'modern-title-split',
+		name: 'Modern Title Split',
+		category: 'kinetic',
+		description:
+			'Top badge header over bold uppercase title with sharp cut-through accent underline',
+		tags: ['split', 'badge', 'underline', 'modern', 'kinetic', 'title'],
+		defaultText: 'NEW TREND\nMODERN TITLE;',
+		primaryLine: 'MODERN TITLE;',
+		secondaryLine: 'NEW TREND',
+		frameStyle: 'badge-header',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 3
+		},
+		box: {
+			autoSize: true,
+			paddingX: 32,
+			paddingY: 24,
+			verticalAnchor: 'center',
+			frameStyle: 'badge-header'
+		},
+		properties: {
+			'text.fontSize': 56,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.accentBarColor': [1, 1, 1, 1],
+			'text.accentBarWidth': 3,
+			'text.letterSpacing': 3,
+			'text.lineHeight': 1.25,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'split-slide',
+		inDurationUs: 500_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#08080a',
+			primary: '#ffffff',
+			accent: '#ffffff',
+			badge: '#ffffff'
+		}
+	},
+	{
+		id: 'run-wild-side',
+		name: 'Run Wild Side',
+		category: 'kinetic',
+		description:
+			'Solid bold headline overlaid on stroked outline typography with sharp diagonal cut slash',
+		tags: ['slash', 'stroke', 'outline', 'kinetic', 'cyber', 'impact'],
+		defaultText: 'RUN ON THE\nWILD SIDE.',
+		primaryLine: 'RUN ON THE',
+		secondaryLine: 'WILD SIDE.',
+		frameStyle: 'split-slash',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'left',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			paddingX: 28,
+			paddingY: 20,
+			verticalAnchor: 'center',
+			frameStyle: 'split-slash'
+		},
+		properties: {
+			'text.fontSize': 60,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeColor': [1, 1, 1, 0.9],
+			'text.strokeWidth': 2,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.15,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'glitch-snap',
+		inDurationUs: 400_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#08080a',
+			primary: '#ffffff',
+			accent: '#ffffff'
+		}
+	},
+	{
+		id: 'tutorial-video-badge',
+		name: 'Tutorial Video Badge',
+		category: 'badge',
+		description: 'Extra bold title with an anchored top-right inverted pill badge',
+		tags: ['badge', 'tutorial', 'pill', 'bold', 'youtube', 'clean'],
+		defaultText: 'TUTORIAL\nVIDEO',
+		primaryLine: 'TUTORIAL',
+		secondaryLine: 'VIDEO',
+		badgeText: 'VIDEO',
+		frameStyle: 'title-badge',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 3
+		},
+		box: {
+			autoSize: true,
+			paddingX: 32,
+			paddingY: 20,
+			verticalAnchor: 'center',
+			frameStyle: 'title-badge'
+		},
+		properties: {
+			'text.fontSize': 68,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 3,
+			'text.lineHeight': 1.1,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'pop-in',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#0a0a0d',
+			primary: '#ffffff',
+			accent: '#ffffff',
+			badge: '#ffffff'
+		}
+	},
+	{
+		id: 'new-trend-diagonal-repeat',
+		name: 'Diagonal Repeat Marquee',
+		category: 'kinetic',
+		description:
+			'Full kinetic marquee tilted 25° alternating solid filled and stroked outline typography',
+		tags: ['marquee', 'repeat', 'diagonal', 'kinetic', 'fullscreen', 'hype'],
+		defaultText: 'NEW NEW NEW\nTREND TREND TREND',
+		primaryLine: 'NEW NEW NEW',
+		secondaryLine: 'TREND TREND TREND',
+		frameStyle: 'diagonal-repeat',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 3
+		},
+		box: {
+			autoSize: true,
+			paddingX: 20,
+			paddingY: 20,
+			verticalAnchor: 'center',
+			frameStyle: 'diagonal-repeat'
+		},
+		properties: {
+			'text.fontSize': 72,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeColor': [1, 1, 1, 0.85],
+			'text.strokeWidth': 2,
+			'text.letterSpacing': 3,
+			'text.lineHeight': 1.1,
+			rotation: -18,
+			opacity: 1
+		},
+		animationPresetId: 'kinetic-zoom',
+		inDurationUs: 500_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#090a0f',
+			primary: '#ffffff',
+			accent: '#ffffff'
+		}
+	},
+	{
+		id: 'new-cubed-box',
+		name: 'New Cubed Box',
+		category: 'minimal',
+		description:
+			'Solid white square card containing clean 3-line stacked black bold uppercase typography',
+		tags: ['square', 'box', 'stack', 'minimal', 'bold', 'card', 'white'],
+		defaultText: 'NEW\nNEW\nNEW',
+		primaryLine: 'NEW',
+		secondaryLine: 'NEW',
+		tertiaryLine: 'NEW',
+		frameStyle: 'card',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 3
+		},
+		box: {
+			width: 280,
+			height: 280,
+			autoSize: false,
+			paddingX: 32,
+			paddingY: 32,
+			verticalAnchor: 'center',
+			frameStyle: 'card'
+		},
+		properties: {
+			'text.fontSize': 56,
+			'text.fillColor': [0.06, 0.06, 0.08, 1.0],
+			'text.strokeWidth': 0,
+			'text.backgroundBoxColor': [1.0, 1.0, 1.0, 1.0],
+			'text.backgroundBoxRadius': 2,
+			'text.backgroundBoxPadding': 32,
+			'text.letterSpacing': 3,
+			'text.lineHeight': 1.05,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'bounce-in',
+		inDurationUs: 550_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 0.06, g: 0.06, b: 0.08, a: 1.0 },
+		previewColors: {
+			background: '#09090b',
+			primary: '#0a0a0c',
+			accent: '#ffffff',
+			badge: '#ffffff'
+		}
+	},
+	{
+		id: 'circular-titles-4k',
+		name: 'Circular Titles 4K',
+		category: 'badge',
+		description: 'Double-ring circular emblem badge with centered stacked modern typography',
+		tags: ['circle', 'badge', 'emblem', '4k', 'seal', 'logo'],
+		defaultText: 'TITLES\n4 K',
+		primaryLine: 'TITLES',
+		secondaryLine: '4 K',
+		frameStyle: 'circle',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 4
+		},
+		box: {
+			width: 260,
+			height: 260,
+			autoSize: false,
+			paddingX: 20,
+			paddingY: 20,
+			verticalAnchor: 'center',
+			frameStyle: 'circle'
+		},
+		properties: {
+			'text.fontSize': 44,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.boxBorderColor': [1, 1, 1, 1],
+			'text.boxBorderWidth': 6,
+			'text.letterSpacing': 4,
+			'text.lineHeight': 1.2,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'kinetic-zoom',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#090a0f',
+			primary: '#ffffff',
+			accent: '#ffffff',
+			badge: '#ffffff'
+		}
+	},
+	{
+		id: 'kinetic-typography-bar',
+		name: 'Kinetic Typography Bar',
+		category: 'kinetic',
+		description: 'Vertical solid accent bar on left edge with clean stacked bold modern typography',
+		tags: ['bar', 'accent', 'kinetic', 'bold', 'modern', 'headline'],
+		defaultText: 'KINETIC\nTYPOGRAPHY',
+		primaryLine: 'KINETIC',
+		secondaryLine: 'TYPOGRAPHY',
+		frameStyle: 'accent-bar',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'left',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			paddingX: 30,
+			paddingY: 20,
+			verticalAnchor: 'center',
+			frameStyle: 'accent-bar'
+		},
+		properties: {
+			'text.fontSize': 52,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.accentBarColor': [1, 1, 1, 1],
+			'text.accentBarWidth': 6,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.15,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'split-slide',
+		inDurationUs: 500_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#090a0d',
+			primary: '#ffffff',
+			accent: '#ffffff'
+		}
+	},
+	{
+		id: 'stylish-boxed-frame',
+		name: 'Stylish Boxed Frame',
+		category: 'minimal',
+		description: 'Solid white rectangular border frame enclosing high-impact bold uppercase title',
+		tags: ['frame', 'border', 'box', 'stylish', 'impact', 'minimal'],
+		defaultText: 'STYLISH!',
+		primaryLine: 'STYLISH!',
+		frameStyle: 'frame',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 3
+		},
+		box: {
+			autoSize: true,
+			paddingX: 38,
+			paddingY: 18,
+			verticalAnchor: 'center',
+			frameStyle: 'frame'
+		},
+		properties: {
+			'text.fontSize': 60,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.boxBorderColor': [1, 1, 1, 1],
+			'text.boxBorderWidth': 4,
+			'text.letterSpacing': 3,
+			'text.lineHeight': 1.1,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'pop-in',
+		inDurationUs: 400_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#0a0a0e',
+			primary: '#ffffff',
+			accent: '#ffffff'
+		}
+	},
+	{
+		id: 'trends-af-circle',
+		name: 'Trends AF Circle Seal',
+		category: 'badge',
+		description: 'Concentric bold circular seal badge emblem with stacked centered typography',
+		tags: ['circle', 'seal', 'emblem', 'badge', 'stamp', 'bold'],
+		defaultText: 'TRENDS\nAF',
+		primaryLine: 'TRENDS',
+		secondaryLine: 'AF',
+		frameStyle: 'circle',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 3
+		},
+		box: {
+			width: 240,
+			height: 240,
+			autoSize: false,
+			paddingX: 20,
+			paddingY: 20,
+			verticalAnchor: 'center',
+			frameStyle: 'circle'
+		},
+		properties: {
+			'text.fontSize': 46,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.boxBorderColor': [1, 1, 1, 1],
+			'text.boxBorderWidth': 7,
+			'text.letterSpacing': 3,
+			'text.lineHeight': 1.15,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'bounce-in',
+		inDurationUs: 550_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#0a0a0f',
+			primary: '#ffffff',
+			accent: '#ffffff',
+			badge: '#ffffff'
+		}
+	},
+	{
+		id: 'universal-slanted-box',
+		name: 'Universal Slanted Box',
+		category: 'kinetic',
+		description:
+			'Slanted / rotated -8° rectangular outline border enclosing bold uppercase typography',
+		tags: ['slanted', 'rotated', 'angle', 'frame', 'kinetic', 'box'],
+		defaultText: 'UNIVERSAL',
+		primaryLine: 'UNIVERSAL',
+		frameStyle: 'frame',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 3
+		},
+		box: {
+			autoSize: true,
+			paddingX: 34,
+			paddingY: 16,
+			verticalAnchor: 'center',
+			frameStyle: 'frame'
+		},
+		properties: {
+			'text.fontSize': 54,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.boxBorderColor': [1, 1, 1, 1],
+			'text.boxBorderWidth': 4,
+			'text.letterSpacing': 3,
+			'text.lineHeight': 1.1,
+			rotation: -8,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'split-slide',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#08080b',
+			primary: '#ffffff',
+			accent: '#ffffff'
+		}
+	},
+	{
+		id: 'new-trend-italic-slash',
+		name: 'Italic Kinetic Lockup',
+		category: 'kinetic',
+		description:
+			'Dynamic angled upward italic kinetic lockup with alternating outline and solid typography',
+		tags: ['italic', 'skew', 'kinetic', 'outline', 'bold', 'speed'],
+		defaultText: 'NEW TREND\nTREND NEW',
+		primaryLine: 'NEW TREND',
+		secondaryLine: 'TREND NEW',
+		frameStyle: 'split-slash',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			fontStyle: 'italic',
+			alignment: 'center',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			paddingX: 32,
+			paddingY: 20,
+			verticalAnchor: 'center',
+			frameStyle: 'split-slash'
+		},
+		properties: {
+			'text.fontSize': 56,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeColor': [1, 1, 1, 0.85],
+			'text.strokeWidth': 2,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.15,
+			rotation: -12,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'kinetic-zoom',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#090a0e',
+			primary: '#ffffff',
+			accent: '#ffffff'
+		}
+	},
+	{
+		id: 'typography-titles-multiline',
+		name: 'Framed Multiline Titles',
+		category: 'minimal',
+		description:
+			'Framed rectangular box with top header, horizontal divider line, and multi-tier titles',
+		tags: ['multiline', 'divider', 'frame', 'box', 'editorial', 'clean'],
+		defaultText: 'NEW TREND\nTYPOGRAPHY\nTITLES',
+		primaryLine: 'NEW TREND',
+		secondaryLine: 'TYPOGRAPHY',
+		tertiaryLine: 'TITLES',
+		frameStyle: 'divided-box',
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'left',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			paddingX: 32,
+			paddingY: 22,
+			verticalAnchor: 'center',
+			frameStyle: 'divided-box'
+		},
+		properties: {
+			'text.fontSize': 46,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.boxBorderColor': [1, 1, 1, 1],
+			'text.boxBorderWidth': 3,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.2,
+			'text.reveal': 1,
+			opacity: 1
+		},
+		animationPresetId: 'slide-in-up',
+		inDurationUs: 500_000,
+		outDurationUs: 400_000,
+		accentColor: { r: 1, g: 1, b: 1, a: 1 },
+		previewColors: {
+			background: '#08080a',
+			primary: '#ffffff',
+			accent: '#ffffff'
+		}
+	},
+	{
 		id: 'dream-big',
 		name: 'Dream Big Kinetic',
 		category: 'kinetic',
@@ -260,47 +848,6 @@ export const GRAPHIC_TEMPLATES: readonly GraphicTemplate[] = [
 		outDurationUs: 450_000,
 		previewColors: {
 			background: '#111218',
-			primary: '#ffffff',
-			accent: '#b4ff00'
-		}
-	},
-	{
-		id: 'live-love',
-		name: 'Live What You Love',
-		category: 'minimal',
-		description: 'High-contrast bold headline with vibrant lime subtitle highlight',
-		tags: ['minimal', 'quote', 'clean', 'bold'],
-		defaultText: 'LIVE WHAT\nYOU LOVE',
-		primaryLine: 'LIVE WHAT',
-		secondaryLine: 'YOU LOVE',
-		highlightWord: 'YOU LOVE',
-		accentColor: { r: 0.706, g: 1.0, b: 0.0, a: 1.0 },
-		style: {
-			fontFamily: 'Montserrat',
-			fontWeight: '900',
-			alignment: 'center',
-			letterSpacing: 1
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 74,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeWidth': 0,
-			'text.letterSpacing': 1,
-			'text.lineHeight': 1.05,
-			'text.shadowColor': [0, 0, 0, 0.75],
-			'text.shadowBlur': 8,
-			'text.shadowOffsetY': 4,
-			opacity: 1
-		},
-		animationPresetId: 'pop-in',
-		inDurationUs: 500_000,
-		outDurationUs: 400_000,
-		previewColors: {
-			background: '#13141a',
 			primary: '#ffffff',
 			accent: '#b4ff00'
 		}
@@ -346,410 +893,16 @@ export const GRAPHIC_TEMPLATES: readonly GraphicTemplate[] = [
 		}
 	},
 	{
-		id: 'modern-clean',
-		name: 'Modern & Clean',
-		category: 'minimal',
-		description: 'Two-tone split bold title with giant electric neon ampersand',
-		tags: ['minimal', 'split', 'modern', 'clean', 'social'],
-		defaultText: 'MODERN &\nCLEAN',
-		primaryLine: 'MODERN &',
-		secondaryLine: 'CLEAN',
-		highlightWord: '&',
-		accentColor: { r: 0.706, g: 1.0, b: 0.0, a: 1.0 },
-		style: {
-			fontFamily: 'Montserrat',
-			fontWeight: '900',
-			alignment: 'center',
-			letterSpacing: 2
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 78,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeWidth': 0,
-			'text.letterSpacing': 2,
-			'text.lineHeight': 1.05,
-			opacity: 1
-		},
-		animationPresetId: 'split-slide',
-		inDurationUs: 500_000,
-		outDurationUs: 400_000,
-		previewColors: {
-			background: '#101117',
-			primary: '#ffffff',
-			accent: '#b4ff00'
-		}
-	},
-	{
-		id: 'work-hard',
-		name: 'Work Hard Dream Big',
-		category: 'kinetic',
-		description: 'Stacked left tag and massive impact headline title',
-		tags: ['kinetic', 'tag', 'stacked', 'bold'],
-		defaultText: 'WORK HARD\nDREAM BIG',
-		primaryLine: 'WORK HARD',
-		secondaryLine: 'DREAM BIG',
-		highlightWord: 'WORK HARD',
-		accentColor: { r: 0.706, g: 1.0, b: 0.0, a: 1.0 },
-		style: {
-			fontFamily: 'Montserrat',
-			fontWeight: '900',
-			alignment: 'center',
-			letterSpacing: 2
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 72,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeWidth': 0,
-			'text.letterSpacing': 2,
-			'text.lineHeight': 1.08,
-			opacity: 1
-		},
-		animationPresetId: 'slide-in-left',
-		inDurationUs: 600_000,
-		outDurationUs: 400_000,
-		previewColors: {
-			background: '#121218',
-			primary: '#ffffff',
-			accent: '#b4ff00'
-		}
-	},
-	{
-		id: 'minimal-track',
-		name: 'Modern Minimal Track',
-		category: 'minimal',
-		description: 'Ultra-wide letter spaced clean editorial title',
-		tags: ['minimal', 'spaced', 'clean', 'editorial'],
-		defaultText: 'MODERN\nCLEAN',
-		primaryLine: 'MODERN',
-		secondaryLine: 'CLEAN',
-		accentColor: { r: 0.9, g: 0.9, b: 0.95, a: 1.0 },
-		style: {
-			fontFamily: 'Inter',
-			fontWeight: '700',
-			alignment: 'center',
-			letterSpacing: 8
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 56,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeWidth': 0,
-			'text.letterSpacing': 8,
-			'text.lineHeight': 1.25,
-			opacity: 1
-		},
-		animationPresetId: 'smooth-drift',
-		inDurationUs: 750_000,
-		outDurationUs: 500_000,
-		previewColors: {
-			background: '#0d0d12',
-			primary: '#ffffff',
-			accent: '#a0aab8'
-		}
-	},
-	{
-		id: 'creative-motion',
-		name: 'Creative Script Mix',
-		category: 'social',
-		description: 'Bold display block paired with cursive neon green script subtitle',
-		tags: ['social', 'script', 'creative', 'display', 'playful'],
-		defaultText: 'CREATIVE\nanimation',
-		primaryLine: 'CREATIVE',
-		secondaryLine: 'animation',
-		highlightWord: 'animation',
-		accentColor: { r: 0.706, g: 1.0, b: 0.0, a: 1.0 },
-		style: {
-			fontFamily: 'Montserrat',
-			fontWeight: '900',
-			alignment: 'center',
-			letterSpacing: 2
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 68,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeWidth': 0,
-			'text.letterSpacing': 2,
-			'text.lineHeight': 1.15,
-			opacity: 1
-		},
-		animationPresetId: 'bounce-in',
-		inDurationUs: 600_000,
-		outDurationUs: 400_000,
-		previewColors: {
-			background: '#13131c',
-			primary: '#ffffff',
-			accent: '#b4ff00'
-		}
-	},
-	{
-		id: 'keep-balance',
-		name: 'Keep Your Balance',
-		category: 'badge',
-		description: 'Vertical tag prefix with high-impact neon condensed title',
-		tags: ['badge', 'condensed', 'headline', 'neon', 'urban'],
-		defaultText: 'TO KEEP\nYOUR BALANCE',
-		primaryLine: 'TO KEEP',
-		secondaryLine: 'YOUR BALANCE',
-		highlightWord: 'YOUR BALANCE',
-		accentColor: { r: 0.706, g: 1.0, b: 0.0, a: 1.0 },
-		style: {
-			fontFamily: 'Bebas Neue',
-			fontWeight: 'bold',
-			alignment: 'center',
-			letterSpacing: 3
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 84,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeWidth': 0,
-			'text.letterSpacing': 3,
-			'text.lineHeight': 1.04,
-			opacity: 1
-		},
-		animationPresetId: 'slide-in-up',
-		inDurationUs: 550_000,
-		outDurationUs: 400_000,
-		previewColors: {
-			background: '#11131a',
-			primary: '#ffffff',
-			accent: '#b4ff00'
-		}
-	},
-	{
-		id: 'ae-motion-title',
-		name: 'After Effects Neon Title',
-		category: 'neon',
-		description: 'Cyberpunk motion title with electric cyan glowing centerpiece',
-		tags: ['neon', 'cyber', 'cyberpunk', 'glow', 'tech'],
-		defaultText: 'AFTER EFFECTS\nTEXT\nANIMATION',
-		primaryLine: 'AFTER EFFECTS',
-		secondaryLine: 'TEXT',
-		tertiaryLine: 'ANIMATION',
-		highlightWord: 'TEXT',
-		accentColor: { r: 0.0, g: 0.96, b: 0.83, a: 1.0 }, // #00f5d4 electric teal
-		style: {
-			fontFamily: 'Montserrat',
-			fontWeight: '900',
-			alignment: 'center',
-			letterSpacing: 3
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 66,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeWidth': 0,
-			'text.letterSpacing': 3,
-			'text.lineHeight': 1.1,
-			'text.shadowColor': [0.0, 0.96, 0.83, 0.65],
-			'text.shadowBlur': 12,
-			opacity: 1
-		},
-		animationPresetId: 'glitch-snap',
-		inDurationUs: 400_000,
-		outDurationUs: 350_000,
-		previewColors: {
-			background: '#0d1217',
-			primary: '#ffffff',
-			accent: '#00f5d4'
-		}
-	},
-	{
-		id: 'minimal-badge',
-		name: 'Minimal Design Badge',
-		category: 'badge',
-		description: 'Clean headline paired with dark framed badge pill container',
-		tags: ['badge', 'boxed', 'clean', 'minimal', 'lower-third'],
-		defaultText: 'MINIMAL DESIGN\nNEWEST TITLES',
-		primaryLine: 'MINIMAL DESIGN',
-		secondaryLine: 'NEWEST TITLES',
-		highlightWord: 'NEWEST TITLES',
-		accentColor: { r: 0.0, g: 0.96, b: 0.83, a: 1.0 },
-		style: {
-			fontFamily: 'Montserrat',
-			fontWeight: '800',
-			alignment: 'center',
-			letterSpacing: 2
-		},
-		box: {
-			autoSize: false,
-			width: 780,
-			verticalAnchor: 'center',
-			paddingX: 24,
-			paddingY: 18
-		},
-		properties: {
-			'text.fontSize': 54,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeColor': [0.0, 0.96, 0.83, 0.9],
-			'text.strokeWidth': 2,
-			'text.letterSpacing': 2,
-			'text.lineHeight': 1.25,
-			'text.backgroundBoxColor': [0.05, 0.07, 0.1, 0.85],
-			'text.backgroundBoxRadius': 8,
-			'text.backgroundBoxPadding': 16,
-			opacity: 1
-		},
-		animationPresetId: 'slide-in-up',
-		inDurationUs: 550_000,
-		outDurationUs: 450_000,
-		previewColors: {
-			background: '#0b1016',
-			primary: '#ffffff',
-			accent: '#00f5d4',
-			badge: '#15222e'
-		}
-	},
-	{
-		id: 'music-play',
-		name: 'Music Play Header',
-		category: 'social',
-		description: 'Emerald cyan headline with silver metallic subtitle and divider line',
-		tags: ['social', 'music', 'gradient', 'banner', 'play'],
-		defaultText: 'MUSIC\nPLAY',
-		primaryLine: 'MUSIC',
-		secondaryLine: 'PLAY',
-		highlightWord: 'MUSIC',
-		accentColor: { r: 0.0, g: 0.96, b: 0.83, a: 1.0 },
-		style: {
-			fontFamily: 'Montserrat',
-			fontWeight: '900',
-			alignment: 'center',
-			letterSpacing: 4
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 76,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeWidth': 0,
-			'text.letterSpacing': 4,
-			'text.lineHeight': 1.08,
-			'text.shadowColor': [0.0, 0.96, 0.83, 0.5],
-			'text.shadowBlur': 10,
-			opacity: 1
-		},
-		animationPresetId: 'kinetic-zoom',
-		inDurationUs: 450_000,
-		outDurationUs: 400_000,
-		previewColors: {
-			background: '#0c1318',
-			primary: '#ffffff',
-			accent: '#00f5d4'
-		}
-	},
-	{
-		id: 'remember-this',
-		name: 'Remember This 3D Outline',
-		category: 'kinetic',
-		description: 'Curved top tag, hollow stroked outline middle, and solid block base',
-		tags: ['kinetic', 'outline', 'stroke', '3d', 'urban'],
-		defaultText: 'MOVEMENT LIFE\nREMEMBER\nTHIS',
-		primaryLine: 'MOVEMENT LIFE',
-		secondaryLine: 'REMEMBER',
-		tertiaryLine: 'THIS',
-		highlightWord: 'REMEMBER',
-		accentColor: { r: 0.0, g: 0.96, b: 0.83, a: 1.0 },
-		style: {
-			fontFamily: 'Bebas Neue',
-			fontWeight: 'bold',
-			alignment: 'center',
-			letterSpacing: 3
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 88,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeColor': [0.0, 0.96, 0.83, 1],
-			'text.strokeWidth': 4,
-			'text.letterSpacing': 3,
-			'text.lineHeight': 1.02,
-			opacity: 1
-		},
-		animationPresetId: 'bounce-in',
-		inDurationUs: 600_000,
-		outDurationUs: 450_000,
-		previewColors: {
-			background: '#0e141a',
-			primary: '#ffffff',
-			accent: '#00f5d4'
-		}
-	},
-	{
-		id: 'wake-shine',
-		name: 'Wake Up & Shine',
-		category: 'social',
-		description: 'Staggered dual-tone bold kinetic title with emerald green accent',
-		tags: ['social', 'punchy', 'bold', 'staggered', 'hook'],
-		defaultText: 'WAKE UP &\nSHINE',
-		primaryLine: 'WAKE UP &',
-		secondaryLine: 'SHINE',
-		highlightWord: 'SHINE',
-		accentColor: { r: 0.0, g: 0.96, b: 0.83, a: 1.0 },
-		style: {
-			fontFamily: 'Montserrat',
-			fontWeight: '900',
-			alignment: 'center',
-			letterSpacing: 2
-		},
-		box: {
-			autoSize: true,
-			verticalAnchor: 'center'
-		},
-		properties: {
-			'text.fontSize': 78,
-			'text.fillColor': [1, 1, 1, 1],
-			'text.strokeWidth': 0,
-			'text.letterSpacing': 2,
-			'text.lineHeight': 1.05,
-			opacity: 1
-		},
-		animationPresetId: 'pop-in',
-		inDurationUs: 500_000,
-		outDurationUs: 400_000,
-		previewColors: {
-			background: '#10141a',
-			primary: '#ffffff',
-			accent: '#00f5d4'
-		}
-	},
-	{
 		id: 'cyber-nights',
-		name: 'Cyber Nights Neon Glow',
+		name: 'Cyberpunk Glitch',
 		category: 'neon',
-		description: 'Cyberpunk neon glow with dark outer shadow and electric cyan core',
-		tags: ['neon', 'cyberpunk', 'glow', 'night', 'futuristic'],
-		defaultText: 'CYBER NIGHTS\n2088 EDITION',
-		primaryLine: 'CYBER NIGHTS',
-		secondaryLine: '2088 EDITION',
-		highlightWord: 'CYBER NIGHTS',
-		accentColor: { r: 0.2, g: 0.95, b: 1.0, a: 1.0 }, // #33f3ff
+		description: 'High-energy cyber aesthetic with neon cyan / magenta edge punch',
+		tags: ['neon', 'cyberpunk', 'glitch', 'retro', 'gaming', 'bold'],
+		defaultText: 'CYBER\nNIGHTS',
+		primaryLine: 'CYBER',
+		secondaryLine: 'NIGHTS',
+		highlightWord: 'NIGHTS',
+		accentColor: { r: 0.0, g: 0.94, b: 1.0, a: 1.0 }, // #00f0ff
 		style: {
 			fontFamily: 'Montserrat',
 			fontWeight: '900',
@@ -762,117 +915,104 @@ export const GRAPHIC_TEMPLATES: readonly GraphicTemplate[] = [
 			verticalAnchor: 'center'
 		},
 		properties: {
-			'text.fontSize': 70,
-			'text.fillColor': [0.2, 0.95, 1.0, 1.0],
-			'text.strokeColor': [0.0, 0.4, 0.9, 0.8],
-			'text.strokeWidth': 3,
+			'text.fontSize': 78,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
 			'text.letterSpacing': 4,
-			'text.lineHeight': 1.1,
-			'text.shadowColor': [0.1, 0.8, 1.0, 0.8],
-			'text.shadowBlur': 16,
+			'text.lineHeight': 1.05,
+			'text.shadowColor': [0.0, 0.94, 1.0, 0.85],
+			'text.shadowBlur': 20,
+			'text.shadowOffsetY': 0,
 			opacity: 1
 		},
 		animationPresetId: 'glitch-snap',
-		inDurationUs: 400_000,
+		inDurationUs: 350_000,
 		outDurationUs: 350_000,
 		previewColors: {
-			background: '#0a0d16',
-			primary: '#33f3ff',
-			accent: '#0066ff'
+			background: '#0d0b18',
+			primary: '#ffffff',
+			accent: '#00f0ff',
+			badge: '#ff007f'
 		}
 	},
 	{
-		id: 'breaking-headline',
-		name: 'Breaking News Badge',
-		category: 'badge',
-		description: 'Urgent high-impact yellow headline with dark pill background',
-		tags: ['badge', 'news', 'urgent', 'headline', 'pill'],
-		defaultText: 'BREAKING NEWS\nLive Update',
-		primaryLine: 'BREAKING NEWS',
-		secondaryLine: 'Live Update',
-		highlightWord: 'BREAKING NEWS',
-		accentColor: { r: 1.0, g: 0.88, b: 0.1, a: 1.0 }, // bright yellow
+		id: 'modern-clean',
+		name: 'Modern & Clean',
+		category: 'minimal',
+		description: 'Minimalist editorial lockup with tracked tagline and bold center title',
+		tags: ['minimal', 'clean', 'corporate', 'editorial', 'modern'],
+		defaultText: 'CREATE WITH PASSION\nTHE FREE VIDEO EDITOR',
+		primaryLine: 'CREATE WITH PASSION',
+		secondaryLine: 'THE FREE VIDEO EDITOR',
+		highlightWord: 'THE FREE VIDEO EDITOR',
+		accentColor: { r: 0.22, g: 0.74, b: 0.97, a: 1.0 }, // #38bdf8
 		style: {
-			fontFamily: 'Bebas Neue',
+			fontFamily: 'Montserrat',
 			fontWeight: 'bold',
 			alignment: 'center',
 			letterSpacing: 3
 		},
 		box: {
-			autoSize: false,
-			width: 820,
-			verticalAnchor: 'center',
-			paddingX: 28,
-			paddingY: 18
+			autoSize: true,
+			verticalAnchor: 'center'
 		},
 		properties: {
-			'text.fontSize': 78,
-			'text.fillColor': [1.0, 0.88, 0.1, 1.0],
-			'text.strokeColor': [0, 0, 0, 1],
-			'text.strokeWidth': 4,
+			'text.fontSize': 48,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
 			'text.letterSpacing': 3,
-			'text.lineHeight': 1.1,
-			'text.backgroundBoxColor': [0.08, 0.08, 0.1, 0.9],
-			'text.backgroundBoxRadius': 12,
-			'text.backgroundBoxPadding': 18,
+			'text.lineHeight': 1.3,
 			opacity: 1
 		},
-		animationPresetId: 'slide-in-down',
-		inDurationUs: 550_000,
-		outDurationUs: 400_000,
+		animationPresetId: 'smooth-drift',
+		inDurationUs: 800_000,
+		outDurationUs: 500_000,
 		previewColors: {
-			background: '#151515',
-			primary: '#ffdf1a',
-			accent: '#ff4444',
-			badge: '#222222'
+			background: '#0f141c',
+			primary: '#ffffff',
+			accent: '#38bdf8'
 		}
 	},
 	{
-		id: 'typewriter-tech',
-		name: 'Typewriter Terminal',
+		id: 'ae-motion-title',
+		name: 'AE Motion Title',
 		category: 'social',
-		description: 'Monospaced documentary / coding subtitle with character typewriter reveal',
-		tags: ['typewriter', 'terminal', 'coding', 'minimal', 'mono'],
-		defaultText: 'SYSTEM ONLINE\n> Initiating kinetic sequence...',
-		primaryLine: 'SYSTEM ONLINE',
-		secondaryLine: '> Initiating kinetic sequence...',
-		highlightWord: 'SYSTEM ONLINE',
-		accentColor: { r: 0.3, g: 1.0, b: 0.4, a: 1.0 }, // terminal green
+		description: 'Dynamic YouTuber/Creator title badge with punchy entrance and modern typography',
+		tags: ['social', 'youtube', 'creator', 'motion', 'aftereffects', 'impact'],
+		defaultText: 'EPISODE 01\nMOTION GRAPHICS MASTERCLASS',
+		primaryLine: 'EPISODE 01',
+		secondaryLine: 'MOTION GRAPHICS MASTERCLASS',
+		highlightWord: 'EPISODE 01',
+		accentColor: { r: 1.0, g: 0.35, b: 0.2, a: 1.0 },
 		style: {
-			fontFamily: 'Roboto Mono',
-			fontWeight: 'normal',
-			alignment: 'left',
-			letterSpacing: 0
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 2
 		},
 		box: {
-			autoSize: false,
-			width: 760,
-			verticalAnchor: 'center',
-			paddingX: 24,
-			paddingY: 16
+			autoSize: true,
+			verticalAnchor: 'center'
 		},
 		properties: {
-			'text.fontSize': 34,
-			'text.fillColor': [0.3, 1.0, 0.4, 1.0],
+			'text.fontSize': 52,
+			'text.fillColor': [1, 1, 1, 1],
 			'text.strokeWidth': 0,
-			'text.lineHeight': 1.4,
-			'text.backgroundBoxColor': [0.06, 0.08, 0.06, 0.8],
-			'text.backgroundBoxRadius': 6,
-			'text.backgroundBoxPadding': 14,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.15,
 			opacity: 1
 		},
-		animationPresetId: 'typewriter',
-		inDurationUs: 1_200_000,
+		animationPresetId: 'split-slide',
+		inDurationUs: 500_000,
 		outDurationUs: 400_000,
 		previewColors: {
-			background: '#090e09',
-			primary: '#4ef564',
-			accent: '#267a33',
-			badge: '#111a11'
+			background: '#140f0f',
+			primary: '#ffffff',
+			accent: '#ff5a33',
+			badge: '#2d1410'
 		}
 	}
 ];
-
 export function getGraphicTemplate(id: string): GraphicTemplate | undefined {
 	return GRAPHIC_TEMPLATES.find((t) => t.id === id);
 }
@@ -984,7 +1124,11 @@ export function createGraphicClip(
 			type: 'text',
 			text,
 			style: { ...template.style },
-			box: { ...template.box },
+			box: {
+				...template.box,
+				frameStyle: template.frameStyle,
+				badgeText: template.secondaryLine
+			},
 			colorRuns,
 			graphicTemplateId: template.id,
 			animationPresetId: template.animationPresetId
@@ -1037,7 +1181,12 @@ export function applyGraphicTemplateToClip(
 			...clip.source,
 			text,
 			style: { ...template.style },
-			box: { ...template.box },
+			box: {
+				...(clip.source.box ?? {}),
+				...template.box,
+				frameStyle: template.frameStyle,
+				badgeText: template.secondaryLine
+			},
 			colorRuns,
 			graphicTemplateId: template.id,
 			animationPresetId: template.animationPresetId

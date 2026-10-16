@@ -9,7 +9,7 @@ import {
 } from '../../core/text/graphicsTemplates';
 import { readProperty } from '../../core/properties';
 import { ColorPickerField } from '../inspector/ColorPickerField';
-import type { Clip } from '../../core/types';
+import type { Clip, GraphicFrameStyle } from '../../core/types';
 import './graphics.css';
 
 const CATEGORIES: Array<{ id: GraphicCategory; label: string }> = [
@@ -20,6 +20,193 @@ const CATEGORIES: Array<{ id: GraphicCategory; label: string }> = [
 	{ id: 'neon', label: 'Neon' },
 	{ id: 'social', label: 'Social' }
 ];
+
+const FRAME_STYLES: Array<{ id: GraphicFrameStyle; label: string }> = [
+	{ id: 'none', label: 'Standard' },
+	{ id: 'card', label: 'White Card' },
+	{ id: 'frame', label: 'Outline Frame' },
+	{ id: 'circle', label: 'Circle Seal' },
+	{ id: 'accent-bar', label: 'Accent Bar' },
+	{ id: 'badge-header', label: 'Badge Split' },
+	{ id: 'title-badge', label: 'Title Badge' },
+	{ id: 'split-slash', label: 'Diagonal Slash' },
+	{ id: 'divided-box', label: 'Divided Box' },
+	{ id: 'diagonal-repeat', label: 'Marquee Repeat' }
+];
+
+/**
+ * Visual Preview renderer matching the 12 kinetic typography graphics
+ * depicted in the reference image.
+ */
+function GraphicCardPreview({ template }: { template: GraphicTemplate }) {
+	const lines = template.defaultText.split('\n');
+	const id = template.id;
+
+	if (id === 'trendy-typography-card') {
+		return (
+			<div className="preview-card-trendy">
+				<div className="preview-trendy-box">
+					<span className="preview-trendy-sub">{template.primaryLine}</span>
+					<span className="preview-trendy-main">{template.secondaryLine}</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'modern-title-split') {
+		return (
+			<div className="preview-split-title">
+				<div className="preview-split-badge">{template.secondaryLine ?? 'NEW TREND'}</div>
+				<div className="preview-split-main">
+					<span>{template.primaryLine}</span>
+					<div className="preview-split-cut-line" />
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'run-wild-side') {
+		return (
+			<div className="preview-run-wild">
+				<div className="preview-wild-slash" />
+				<div className="preview-wild-solid">{template.primaryLine}</div>
+				<div className="preview-wild-outline">{template.secondaryLine ?? 'WILD SIDE.'}</div>
+			</div>
+		);
+	}
+
+	if (id === 'tutorial-video-badge') {
+		return (
+			<div className="preview-tutorial-lockup">
+				<div className="preview-tutorial-header">
+					<span className="preview-tutorial-title">{template.primaryLine}</span>
+					<span className="preview-tutorial-badge">
+						{template.badgeText ?? template.secondaryLine ?? 'VIDEO'}
+					</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'new-trend-diagonal-repeat') {
+		return (
+			<div className="preview-diagonal-marquee">
+				<div className="preview-marquee-scroller">
+					<span className="preview-marquee-solid">NEW NEW NEW</span>
+					<span className="preview-marquee-outline">TREND TREND TREND</span>
+					<span className="preview-marquee-solid">NEW NEW NEW</span>
+					<span className="preview-marquee-outline">TREND TREND TREND</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'new-cubed-box') {
+		return (
+			<div className="preview-cubed-box">
+				<div className="preview-cubed-inner">
+					<span>NEW</span>
+					<span>NEW</span>
+					<span>NEW</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'circular-titles-4k' || id === 'trends-af-circle') {
+		return (
+			<div className="preview-circle-emblem">
+				<div className="preview-circle-outer">
+					<div className="preview-circle-inner">
+						<span>{lines[0]}</span>
+						<span style={{ fontSize: '13px', fontWeight: 900 }}>{lines[1]}</span>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'kinetic-typography-bar') {
+		return (
+			<div className="preview-kinetic-bar">
+				<div className="preview-bar-pipe" />
+				<div className="preview-bar-text">
+					<span>{lines[0]}</span>
+					<span>{lines[1]}</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'stylish-boxed-frame') {
+		return (
+			<div className="preview-stylish-frame">
+				<span>{template.primaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'universal-slanted-box') {
+		return (
+			<div className="preview-slanted-box">
+				<span>{template.primaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'new-trend-italic-slash') {
+		return (
+			<div className="preview-italic-slash">
+				<span className="preview-italic-outline">{lines[0]}</span>
+				<span className="preview-italic-solid">{lines[1]}</span>
+			</div>
+		);
+	}
+
+	if (id === 'typography-titles-multiline') {
+		return (
+			<div className="preview-multiline-frame">
+				<div className="preview-multiline-top">{lines[0]}</div>
+				<div className="preview-multiline-divider" />
+				<div className="preview-multiline-bottom">
+					<span>{lines[1]}</span>
+					<span style={{ fontSize: '11px', letterSpacing: '3px' }}>{lines[2]}</span>
+				</div>
+			</div>
+		);
+	}
+
+	// Default fallback with highlight and neon support
+	return (
+		<div className="graphic-preview-text">
+			{lines.map((line, idx) => {
+				const isHighlight =
+					template.highlightWord &&
+					line.toLowerCase().includes(template.highlightWord.toLowerCase());
+				const color = isHighlight ? template.previewColors.accent : template.previewColors.primary;
+				return (
+					<span
+						key={idx}
+						style={{
+							fontFamily: template.style.fontFamily,
+							fontWeight: template.style.fontWeight ?? 'bold',
+							fontStyle: template.style.fontStyle ?? 'normal',
+							letterSpacing: `${Math.min(template.style.letterSpacing ?? 2, 4)}px`,
+							color,
+							fontSize: idx === 0 && lines.length > 1 ? '14px' : '16px',
+							textShadow:
+								template.category === 'neon'
+									? `0 0 10px ${template.previewColors.accent}`
+									: undefined
+						}}
+					>
+						{line}
+					</span>
+				);
+			})}
+		</div>
+	);
+}
 
 export default function GraphicsPanel() {
 	const store = useEditorStoreApi();
@@ -143,9 +330,45 @@ export default function GraphicsPanel() {
 		store.getState().setTextContent(selectedClip.id, updatedText);
 	};
 
+	const handleTertiaryTextChange = (newVal: string) => {
+		if (!selectedClip || !textSource) return;
+		const currentText = textSource.text || '';
+		const lines = currentText.split('\n');
+		const line0 = lines[0] ?? '';
+		const line1 = lines[1] ?? '';
+		const rest = lines.slice(3);
+		const updatedText = [line0, line1, newVal, ...rest].join('\n');
+		store.getState().setTextContent(selectedClip.id, updatedText);
+	};
+
 	const handleFullTextChange = (newVal: string) => {
 		if (!selectedClip || !isTextClipSelected) return;
 		store.getState().setTextContent(selectedClip.id, newVal);
+	};
+
+	// Frame Style switcher
+	const handleFrameStyleChange = (style: GraphicFrameStyle) => {
+		if (!selectedClip || !isTextClipSelected) return;
+		store.getState().setTextBox(selectedClip.id, { frameStyle: style });
+		if (style === 'card') {
+			store
+				.getState()
+				.setProperty(selectedClip.id, 'text.backgroundBoxColor', [1, 1, 1, 1], { autoKey: true });
+			store
+				.getState()
+				.setProperty(selectedClip.id, 'text.fillColor', [0.06, 0.06, 0.08, 1], { autoKey: true });
+		} else if (style === 'frame') {
+			store.getState().setProperty(selectedClip.id, 'text.boxBorderWidth', 4, { autoKey: true });
+			store
+				.getState()
+				.setProperty(selectedClip.id, 'text.boxBorderColor', [1, 1, 1, 1], { autoKey: true });
+		} else if (style === 'circle') {
+			store.getState().setProperty(selectedClip.id, 'text.boxBorderWidth', 6, { autoKey: true });
+			store
+				.getState()
+				.setProperty(selectedClip.id, 'text.boxBorderColor', [1, 1, 1, 1], { autoKey: true });
+		}
+		setAnnouncement(`Changed frame style to ${style}.`);
 	};
 
 	// Color adjustments in Quick Editor
@@ -161,6 +384,72 @@ export default function GraphicsPanel() {
 		store
 			.getState()
 			.setGraphicAccentColor(selectedClip.id, { r: rgba[0], g: rgba[1], b: rgba[2], a: rgba[3] });
+	};
+
+	const handleBackgroundBoxColorChange = (rgba: [number, number, number, number]) => {
+		if (!selectedClip || !isTextClipSelected) return;
+		store.getState().setProperty(selectedClip.id, 'text.backgroundBoxColor', rgba, {
+			autoKey: true,
+			coalesce: true
+		});
+	};
+
+	const handleBorderColorChange = (rgba: [number, number, number, number]) => {
+		if (!selectedClip || !isTextClipSelected) return;
+		store
+			.getState()
+			.setProperty(selectedClip.id, 'text.boxBorderColor', rgba, { autoKey: true, coalesce: true });
+	};
+
+	// Sliders adjustments
+	const handleFontSizeChange = (size: number) => {
+		if (!selectedClip || !isTextClipSelected) return;
+		store
+			.getState()
+			.setProperty(selectedClip.id, 'text.fontSize', size, { autoKey: true, coalesce: true });
+	};
+
+	const handleLetterSpacingChange = (spacing: number) => {
+		if (!selectedClip || !isTextClipSelected) return;
+		store
+			.getState()
+			.setProperty(selectedClip.id, 'text.letterSpacing', spacing, {
+				autoKey: true,
+				coalesce: true
+			});
+	};
+
+	const handleBorderWidthChange = (bw: number) => {
+		if (!selectedClip || !isTextClipSelected) return;
+		store
+			.getState()
+			.setProperty(selectedClip.id, 'text.boxBorderWidth', bw, { autoKey: true, coalesce: true });
+	};
+
+	const handleCornerRadiusChange = (radius: number) => {
+		if (!selectedClip || !isTextClipSelected) return;
+		store.getState().setProperty(selectedClip.id, 'text.backgroundBoxRadius', radius, {
+			autoKey: true,
+			coalesce: true
+		});
+	};
+
+	const handleBoxPaddingChange = (padding: number) => {
+		if (!selectedClip || !isTextClipSelected) return;
+		store.getState().setProperty(selectedClip.id, 'text.backgroundBoxPadding', padding, {
+			autoKey: true,
+			coalesce: true
+		});
+		store
+			.getState()
+			.setTextBox(selectedClip.id, { paddingX: padding, paddingY: Math.round(padding * 0.7) });
+	};
+
+	const handleRotationChange = (rot: number) => {
+		if (!selectedClip || !isTextClipSelected) return;
+		store
+			.getState()
+			.setProperty(selectedClip.id, 'rotation', rot, { autoKey: true, coalesce: true });
 	};
 
 	const handleAnimationChange = (animPresetId: string) => {
@@ -180,6 +469,7 @@ export default function GraphicsPanel() {
 	const textLines = currentText.split('\n');
 	const primaryLine = textLines[0] ?? '';
 	const secondaryLine = textLines[1] ?? '';
+	const tertiaryLine = textLines[2] ?? '';
 
 	// Active template for selected clip
 	const selectedTemplateId =
@@ -196,8 +486,15 @@ export default function GraphicsPanel() {
 	const currentAlignment =
 		(selectedClip?.source?.type === 'text' && selectedClip.source.style?.alignment) || 'center';
 
-	// Live primary fill color evaluated at playhead
+	// Active frame style
+	const currentFrameStyle: GraphicFrameStyle =
+		(selectedClip?.source?.type === 'text' && selectedClip.source.box?.frameStyle) ||
+		selectedTemplate?.frameStyle ||
+		'none';
+
+	// Live evaluated properties at playhead
 	const localTime = selectedClip ? Math.max(0, playhead - selectedClip.start) : 0;
+
 	const fillColorValue: [number, number, number, number] = useMemo(() => {
 		if (!selectedClip) return [1, 1, 1, 1];
 		try {
@@ -209,7 +506,6 @@ export default function GraphicsPanel() {
 		return [1, 1, 1, 1];
 	}, [selectedClip, localTime]);
 
-	// Live neon accent color evaluated from colorRuns or template default
 	const accentColorValue: [number, number, number, number] = useMemo(() => {
 		if (
 			textSource?.colorRuns &&
@@ -225,6 +521,78 @@ export default function GraphicsPanel() {
 		}
 		return [0.706, 1.0, 0.0, 1.0];
 	}, [textSource, selectedTemplate]);
+
+	const backgroundBoxColorValue: [number, number, number, number] = useMemo(() => {
+		if (!selectedClip) return [0, 0, 0, 0];
+		try {
+			const val = readProperty(selectedClip, 'text.backgroundBoxColor', localTime);
+			if (Array.isArray(val) && val.length === 4) return val as [number, number, number, number];
+		} catch {}
+		return [0, 0, 0, 0];
+	}, [selectedClip, localTime]);
+
+	const borderColorValue: [number, number, number, number] = useMemo(() => {
+		if (!selectedClip) return [1, 1, 1, 1];
+		try {
+			const val = readProperty(selectedClip, 'text.boxBorderColor', localTime);
+			if (Array.isArray(val) && val.length === 4) return val as [number, number, number, number];
+		} catch {}
+		return [1, 1, 1, 1];
+	}, [selectedClip, localTime]);
+
+	const fontSizeValue = useMemo(() => {
+		if (!selectedClip) return 56;
+		try {
+			const val = readProperty(selectedClip, 'text.fontSize', localTime);
+			if (typeof val === 'number') return val;
+		} catch {}
+		return 56;
+	}, [selectedClip, localTime]);
+
+	const letterSpacingValue = useMemo(() => {
+		if (!selectedClip) return 2;
+		try {
+			const val = readProperty(selectedClip, 'text.letterSpacing', localTime);
+			if (typeof val === 'number') return val;
+		} catch {}
+		return 2;
+	}, [selectedClip, localTime]);
+
+	const borderWidthValue = useMemo(() => {
+		if (!selectedClip) return 0;
+		try {
+			const val = readProperty(selectedClip, 'text.boxBorderWidth', localTime);
+			if (typeof val === 'number') return val;
+		} catch {}
+		return selectedClip.source?.type === 'text' ? (selectedClip.source.box?.borderWidth ?? 0) : 0;
+	}, [selectedClip, localTime]);
+
+	const backgroundBoxRadiusValue = useMemo(() => {
+		if (!selectedClip) return 0;
+		try {
+			const val = readProperty(selectedClip, 'text.backgroundBoxRadius', localTime);
+			if (typeof val === 'number') return val;
+		} catch {}
+		return 0;
+	}, [selectedClip, localTime]);
+
+	const backgroundBoxPaddingValue = useMemo(() => {
+		if (!selectedClip) return 0;
+		try {
+			const val = readProperty(selectedClip, 'text.backgroundBoxPadding', localTime);
+			if (typeof val === 'number') return val;
+		} catch {}
+		return selectedClip.source?.type === 'text' ? (selectedClip.source.box?.paddingX ?? 0) : 0;
+	}, [selectedClip, localTime]);
+
+	const rotationValue = useMemo(() => {
+		if (!selectedClip) return 0;
+		try {
+			const val = readProperty(selectedClip, 'rotation', localTime);
+			if (typeof val === 'number') return val;
+		} catch {}
+		return 0;
+	}, [selectedClip, localTime]);
 
 	return (
 		<div className="graphics-panel" aria-label="Graphics Library" onKeyDown={handlePanelKeyDown}>
@@ -325,7 +693,6 @@ export default function GraphicsPanel() {
 							</div>
 						) : (
 							filteredTemplates.map((template) => {
-								const lines = template.defaultText.split('\n');
 								return (
 									<div
 										key={template.id}
@@ -347,46 +714,7 @@ export default function GraphicsPanel() {
 												<span>{template.animationPresetId}</span>
 											</div>
 
-											<div className="graphic-preview-text">
-												{lines.map((line, idx) => {
-													const isHighlight =
-														template.highlightWord &&
-														line.toLowerCase().includes(template.highlightWord.toLowerCase());
-													const color = isHighlight
-														? template.previewColors.accent
-														: template.previewColors.primary;
-													const isFramed =
-														template.category === 'badge' && idx === lines.length - 1;
-
-													return (
-														<span
-															key={idx}
-															style={{
-																fontFamily: template.style.fontFamily,
-																fontWeight: template.style.fontWeight ?? 'bold',
-																fontStyle: template.style.fontStyle ?? 'normal',
-																letterSpacing: `${Math.min(template.style.letterSpacing ?? 2, 4)}px`,
-																color,
-																fontSize: idx === 0 && lines.length > 1 ? '15px' : '17px',
-																padding: isFramed ? '2px 8px' : undefined,
-																border: isFramed
-																	? `1px solid ${template.previewColors.accent}`
-																	: undefined,
-																borderRadius: isFramed ? '4px' : undefined,
-																background: isFramed
-																	? (template.previewColors.badge ?? 'rgba(0,0,0,0.5)')
-																	: undefined,
-																textShadow:
-																	template.category === 'neon'
-																		? `0 0 10px ${template.previewColors.accent}`
-																		: undefined
-															}}
-														>
-															{line}
-														</span>
-													);
-												})}
-											</div>
+											<GraphicCardPreview template={template} />
 										</div>
 
 										{/* Card Footer */}
@@ -462,7 +790,7 @@ export default function GraphicsPanel() {
 											type="button"
 											className="graphic-apply-btn"
 											onClick={() => {
-												const created = store.getState().addGraphicClip('dream-big');
+												const created = store.getState().addGraphicClip('trendy-typography-card');
 												if (created) setActiveTab('editor');
 											}}
 										>
@@ -471,9 +799,26 @@ export default function GraphicsPanel() {
 									</div>
 								</div>
 
-								{/* Primary Line */}
+								{/* Frame & Badge Style Selector */}
 								<div className="graphics-field-group">
-									<label className="graphics-field-label">Headline / Primary Text</label>
+									<label className="graphics-field-label">Frame & Badge Style</label>
+									<div className="graphics-pills-row">
+										{FRAME_STYLES.map((f) => (
+											<button
+												key={f.id}
+												type="button"
+												className={`graphics-pill-btn ${currentFrameStyle === f.id ? 'is-active' : ''}`}
+												onClick={() => handleFrameStyleChange(f.id)}
+											>
+												{f.label}
+											</button>
+										))}
+									</div>
+								</div>
+
+								{/* Text Lines */}
+								<div className="graphics-field-group">
+									<label className="graphics-field-label">Line 1 (Headline / Tag)</label>
 									<input
 										type="text"
 										className="graphics-text-input"
@@ -483,15 +828,25 @@ export default function GraphicsPanel() {
 									/>
 								</div>
 
-								{/* Secondary Line */}
 								<div className="graphics-field-group">
-									<label className="graphics-field-label">Subtitle / Accent Line</label>
+									<label className="graphics-field-label">Line 2 (Title / Subtitle)</label>
 									<input
 										type="text"
 										className="graphics-text-input"
 										value={secondaryLine}
 										onChange={(e) => handleSecondaryTextChange(e.target.value)}
 										placeholder="Secondary or accent text…"
+									/>
+								</div>
+
+								<div className="graphics-field-group">
+									<label className="graphics-field-label">Line 3 (Badge / Year / Tag)</label>
+									<input
+										type="text"
+										className="graphics-text-input"
+										value={tertiaryLine}
+										onChange={(e) => handleTertiaryTextChange(e.target.value)}
+										placeholder="Extra tag or badge text…"
 									/>
 								</div>
 
@@ -560,10 +915,11 @@ export default function GraphicsPanel() {
 									</select>
 								</div>
 
-								{/* Color Customization */}
+								{/* Colors & Luminescence */}
+								<div className="graphics-section-title">Colors & Luminescence</div>
 								<div className="graphics-row-2">
 									<div className="graphics-field-group" style={{ flex: 1 }}>
-										<label className="graphics-field-label">Primary Color</label>
+										<label className="graphics-field-label">Text Fill Color</label>
 										<ColorPickerField
 											value={fillColorValue}
 											onChange={handleFillColorChange}
@@ -571,11 +927,139 @@ export default function GraphicsPanel() {
 										/>
 									</div>
 									<div className="graphics-field-group" style={{ flex: 1 }}>
-										<label className="graphics-field-label">Neon Accent Color</label>
+										<label className="graphics-field-label">Accent / Badge</label>
 										<ColorPickerField
 											value={accentColorValue}
 											onChange={handleAccentColorChange}
 											label="Accent Color"
+										/>
+									</div>
+								</div>
+
+								<div className="graphics-row-2">
+									<div className="graphics-field-group" style={{ flex: 1 }}>
+										<label className="graphics-field-label">Card / Box Background</label>
+										<ColorPickerField
+											value={backgroundBoxColorValue}
+											onChange={handleBackgroundBoxColorChange}
+											label="Background Box"
+										/>
+									</div>
+									<div className="graphics-field-group" style={{ flex: 1 }}>
+										<label className="graphics-field-label">Border / Frame Color</label>
+										<ColorPickerField
+											value={borderColorValue}
+											onChange={handleBorderColorChange}
+											label="Border Color"
+										/>
+									</div>
+								</div>
+
+								{/* Geometry & Typography Controls */}
+								<div className="graphics-section-title">Geometry & Typography Controls</div>
+
+								<div className="graphics-field-group">
+									<div className="graphics-field-label">
+										<span>Font Size</span>
+										<span className="graphics-slider-val">{Math.round(fontSizeValue)}px</span>
+									</div>
+									<div className="graphics-slider-row">
+										<input
+											type="range"
+											className="graphics-slider"
+											min={24}
+											max={140}
+											value={Math.round(fontSizeValue)}
+											onChange={(e) => handleFontSizeChange(Number(e.target.value))}
+										/>
+									</div>
+								</div>
+
+								<div className="graphics-field-group">
+									<div className="graphics-field-label">
+										<span>Letter Spacing</span>
+										<span className="graphics-slider-val">{Math.round(letterSpacingValue)}px</span>
+									</div>
+									<div className="graphics-slider-row">
+										<input
+											type="range"
+											className="graphics-slider"
+											min={-4}
+											max={20}
+											value={Math.round(letterSpacingValue)}
+											onChange={(e) => handleLetterSpacingChange(Number(e.target.value))}
+										/>
+									</div>
+								</div>
+
+								<div className="graphics-field-group">
+									<div className="graphics-field-label">
+										<span>Border / Outline Width</span>
+										<span className="graphics-slider-val">{Math.round(borderWidthValue)}px</span>
+									</div>
+									<div className="graphics-slider-row">
+										<input
+											type="range"
+											className="graphics-slider"
+											min={0}
+											max={16}
+											value={Math.round(borderWidthValue)}
+											onChange={(e) => handleBorderWidthChange(Number(e.target.value))}
+										/>
+									</div>
+								</div>
+
+								<div className="graphics-field-group">
+									<div className="graphics-field-label">
+										<span>Corner Radius</span>
+										<span className="graphics-slider-val">
+											{Math.round(backgroundBoxRadiusValue)}px
+										</span>
+									</div>
+									<div className="graphics-slider-row">
+										<input
+											type="range"
+											className="graphics-slider"
+											min={0}
+											max={40}
+											value={Math.round(backgroundBoxRadiusValue)}
+											onChange={(e) => handleCornerRadiusChange(Number(e.target.value))}
+										/>
+									</div>
+								</div>
+
+								<div className="graphics-field-group">
+									<div className="graphics-field-label">
+										<span>Box Padding</span>
+										<span className="graphics-slider-val">
+											{Math.round(backgroundBoxPaddingValue)}px
+										</span>
+									</div>
+									<div className="graphics-slider-row">
+										<input
+											type="range"
+											className="graphics-slider"
+											min={0}
+											max={50}
+											value={Math.round(backgroundBoxPaddingValue)}
+											onChange={(e) => handleBoxPaddingChange(Number(e.target.value))}
+										/>
+									</div>
+								</div>
+
+								<div className="graphics-field-group">
+									<div className="graphics-field-label">
+										<span>Rotation / Tilt</span>
+										<span className="graphics-slider-val">{Math.round(rotationValue)}°</span>
+									</div>
+									<div className="graphics-slider-row">
+										<input
+											type="range"
+											className="graphics-slider"
+											min={-45}
+											max={45}
+											value={Math.round(rotationValue)}
+											onChange={(e) => handleRotationChange(Number(e.target.value))}
 										/>
 									</div>
 								</div>
@@ -625,7 +1109,7 @@ export default function GraphicsPanel() {
 										type="button"
 										className="graphics-create-btn"
 										onClick={() => {
-											const created = store.getState().addGraphicClip('dream-big');
+											const created = store.getState().addGraphicClip('trendy-typography-card');
 											if (created) setActiveTab('editor');
 										}}
 									>

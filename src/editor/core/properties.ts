@@ -207,6 +207,138 @@ export const PROPERTY_DESCRIPTORS: Readonly<Record<string, PropertyDescriptor>> 
 		unit: '%',
 		displayFactor: 100,
 		step: 1
+	},
+	'text.boxBorderColor': {
+		id: 'text.boxBorderColor',
+		label: 'Border Color',
+		shape: 'vec4',
+		channels: ['R', 'G', 'B', 'A'],
+		defaultValue: [1, 1, 1, 1],
+		min: 0,
+		max: 1,
+		unit: '',
+		displayFactor: 1,
+		step: 0.01
+	},
+	'text.boxBorderWidth': {
+		id: 'text.boxBorderWidth',
+		label: 'Border Width',
+		shape: 'number',
+		channels: ['Width'],
+		defaultValue: 0,
+		min: 0,
+		max: 50,
+		unit: 'px',
+		displayFactor: 1,
+		step: 1
+	},
+	'text.backgroundBoxColor': {
+		id: 'text.backgroundBoxColor',
+		label: 'Background Box Color',
+		shape: 'vec4',
+		channels: ['R', 'G', 'B', 'A'],
+		defaultValue: [0, 0, 0, 0],
+		min: 0,
+		max: 1,
+		unit: '',
+		displayFactor: 1,
+		step: 0.01
+	},
+	'text.backgroundBoxRadius': {
+		id: 'text.backgroundBoxRadius',
+		label: 'Box Radius',
+		shape: 'number',
+		channels: ['Radius'],
+		defaultValue: 0,
+		min: 0,
+		max: 200,
+		unit: 'px',
+		displayFactor: 1,
+		step: 1
+	},
+	'text.backgroundBoxPadding': {
+		id: 'text.backgroundBoxPadding',
+		label: 'Box Padding',
+		shape: 'number',
+		channels: ['Padding'],
+		defaultValue: 0,
+		min: 0,
+		max: 200,
+		unit: 'px',
+		displayFactor: 1,
+		step: 1
+	},
+	'text.accentBarColor': {
+		id: 'text.accentBarColor',
+		label: 'Accent Bar Color',
+		shape: 'vec4',
+		channels: ['R', 'G', 'B', 'A'],
+		defaultValue: [1, 1, 1, 1],
+		min: 0,
+		max: 1,
+		unit: '',
+		displayFactor: 1,
+		step: 0.01
+	},
+	'text.accentBarWidth': {
+		id: 'text.accentBarWidth',
+		label: 'Accent Bar Width',
+		shape: 'number',
+		channels: ['Width'],
+		defaultValue: 0,
+		min: 0,
+		max: 50,
+		unit: 'px',
+		displayFactor: 1,
+		step: 1
+	},
+	'text.shadowColor': {
+		id: 'text.shadowColor',
+		label: 'Shadow Color',
+		shape: 'vec4',
+		channels: ['R', 'G', 'B', 'A'],
+		defaultValue: [0, 0, 0, 0],
+		min: 0,
+		max: 1,
+		unit: '',
+		displayFactor: 1,
+		step: 0.01
+	},
+	'text.shadowBlur': {
+		id: 'text.shadowBlur',
+		label: 'Shadow Blur',
+		shape: 'number',
+		channels: ['Blur'],
+		defaultValue: 0,
+		min: 0,
+		max: 100,
+		unit: 'px',
+		displayFactor: 1,
+		step: 1
+	},
+	'text.shadowOffsetX': {
+		id: 'text.shadowOffsetX',
+		label: 'Shadow Offset X',
+		shape: 'number',
+		channels: ['X'],
+		defaultValue: 0,
+		min: -100,
+		max: 100,
+		unit: 'px',
+		displayFactor: 1,
+		step: 1
+	},
+	'text.shadowOffsetY': {
+		id: 'text.shadowOffsetY',
+		label: 'Shadow Offset Y',
+		shape: 'number',
+		channels: ['Y'],
+		defaultValue: 0,
+		min: -100,
+		max: 100,
+		unit: 'px',
+		displayFactor: 1,
+		step: 1
 	}
 };
 

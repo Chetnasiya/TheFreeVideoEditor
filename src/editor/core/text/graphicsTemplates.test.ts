@@ -12,8 +12,8 @@ import { createEditorStore } from '../../state/store';
 import { createEmptyProject } from '../factory';
 
 describe('Graphic Motion Templates & Kinetic Typography', () => {
-	it('defines 16 curated graphic templates with valid metadata and colors', () => {
-		expect(GRAPHIC_TEMPLATES.length).toBe(16);
+	it('defines 18 curated graphic templates with valid metadata, colors, and frame styles', () => {
+		expect(GRAPHIC_TEMPLATES.length).toBe(18);
 
 		const categories = new Set(GRAPHIC_TEMPLATES.map((t) => t.category));
 		expect(categories.has('kinetic')).toBe(true);
@@ -21,6 +21,22 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 		expect(categories.has('badge')).toBe(true);
 		expect(categories.has('neon')).toBe(true);
 		expect(categories.has('social')).toBe(true);
+
+		// Verify image-exact template IDs
+		const ids = new Set(GRAPHIC_TEMPLATES.map((t) => t.id));
+		expect(ids.has('trendy-typography-card')).toBe(true);
+		expect(ids.has('modern-title-split')).toBe(true);
+		expect(ids.has('run-wild-side')).toBe(true);
+		expect(ids.has('tutorial-video-badge')).toBe(true);
+		expect(ids.has('new-trend-diagonal-repeat')).toBe(true);
+		expect(ids.has('new-cubed-box')).toBe(true);
+		expect(ids.has('circular-titles-4k')).toBe(true);
+		expect(ids.has('kinetic-typography-bar')).toBe(true);
+		expect(ids.has('stylish-boxed-frame')).toBe(true);
+		expect(ids.has('trends-af-circle')).toBe(true);
+		expect(ids.has('universal-slanted-box')).toBe(true);
+		expect(ids.has('new-trend-italic-slash')).toBe(true);
+		expect(ids.has('typography-titles-multiline')).toBe(true);
 
 		for (const tpl of GRAPHIC_TEMPLATES) {
 			expect(tpl.id).toBeTruthy();

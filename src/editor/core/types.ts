@@ -128,6 +128,18 @@ export interface TextStyle {
 	letterSpacing?: number;
 }
 
+export type GraphicFrameStyle =
+	| 'none'
+	| 'card'
+	| 'frame'
+	| 'circle'
+	| 'accent-bar'
+	| 'badge-header'
+	| 'title-badge'
+	| 'split-slash'
+	| 'divided-box'
+	| 'diagonal-repeat';
+
 export interface TextBox {
 	width?: number;
 	height?: number;
@@ -135,6 +147,13 @@ export interface TextBox {
 	verticalAnchor?: 'top' | 'center' | 'bottom';
 	paddingX?: number;
 	paddingY?: number;
+	frameStyle?: GraphicFrameStyle;
+	badgeText?: string;
+	borderColor?: { r: number; g: number; b: number; a: number };
+	borderWidth?: number;
+	borderRadius?: number;
+	accentBarColor?: { r: number; g: number; b: number; a: number };
+	accentBarWidth?: number;
 }
 
 export interface TextColorRun {

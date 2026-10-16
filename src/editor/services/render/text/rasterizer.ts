@@ -27,6 +27,22 @@ export interface TextRasterConfig {
 	backgroundBoxColor?: { r: number; g: number; b: number; a: number };
 	backgroundBoxPadding?: number;
 	backgroundBoxRadius?: number;
+	boxBorderColor?: { r: number; g: number; b: number; a: number };
+	boxBorderWidth?: number;
+	accentBarColor?: { r: number; g: number; b: number; a: number };
+	accentBarWidth?: number;
+	frameStyle?:
+		| 'none'
+		| 'card'
+		| 'frame'
+		| 'circle'
+		| 'accent-bar'
+		| 'badge-header'
+		| 'title-badge'
+		| 'split-slash'
+		| 'divided-box'
+		| 'diagonal-repeat';
+	badgeText?: string;
 	colorRuns?: TextColorRun[];
 	scale?: number;
 }
@@ -205,17 +221,83 @@ export function rasterizeText(
 
 	ctx.clearRect(0, 0, boxW, boxH);
 
-	// 2. Draw background box if configured
-	if (config.backgroundBoxColor && config.backgroundBoxColor.a > 0) {
-		const bg = config.backgroundBoxColor;
-		ctx.fillStyle = `rgba(${Math.round(bg.r * 255)}, ${Math.round(bg.g * 255)}, ${Math.round(bg.b * 255)}, ${bg.a})`;
-		const radius = (config.backgroundBoxRadius ?? 0) * scale;
-		if (radius > 0 && typeof ctx.roundRect === 'function') {
+	// 2. Draw background box & frame style decorations
+	const frameStyle = config.frameStyle ?? 'none';
+
+	// Circular seal
+	if (frameStyle === 'circle') {
+		const cx = boxW / 2;
+		const cy = boxH / 2;
+		const R = Math.max(10, Math.min(boxW, boxH) / 2 - 4 * scale);
+		if (config.backgroundBoxColor && config.backgroundBoxColor.a > 0) {
+			const bg = config.backgroundBoxColor;
+			ctx.fillStyle = `rgba(${Math.round(bg.r * 255)}, ${Math.round(bg.g * 255)}, ${Math.round(bg.b * 255)}, ${bg.a})`;
 			ctx.beginPath();
-			ctx.roundRect(0, 0, boxW, boxH, radius);
+			ctx.arc(cx, cy, R, 0, Math.PI * 2);
 			ctx.fill();
-		} else {
-			ctx.fillRect(0, 0, boxW, boxH);
+		}
+		const bWidth = Math.max(2, (config.boxBorderWidth ?? 6) * scale);
+		const bColor = config.boxBorderColor ?? config.fillColor;
+		const bColorStr = `rgba(${Math.round(bColor.r * 255)}, ${Math.round(bColor.g * 255)}, ${Math.round(bColor.b * 255)}, ${bColor.a})`;
+		// Outer thick ring
+		ctx.strokeStyle = bColorStr;
+		ctx.lineWidth = bWidth;
+		ctx.beginPath();
+		ctx.arc(cx, cy, Math.max(2, R - bWidth / 2), 0, Math.PI * 2);
+		ctx.stroke();
+		// Inner fine ring
+		const innerR = R - bWidth - 6 * scale;
+		if (innerR > 4) {
+			ctx.lineWidth = Math.max(1, bWidth * 0.25);
+			ctx.beginPath();
+			ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+			ctx.stroke();
+		}
+	} else {
+		// Standard box / card / frame background
+		if (config.backgroundBoxColor && config.backgroundBoxColor.a > 0) {
+			const bg = config.backgroundBoxColor;
+			ctx.fillStyle = `rgba(${Math.round(bg.r * 255)}, ${Math.round(bg.g * 255)}, ${Math.round(bg.b * 255)}, ${bg.a})`;
+			const radius = (config.backgroundBoxRadius ?? 0) * scale;
+			if (radius > 0 && typeof ctx.roundRect === 'function') {
+				ctx.beginPath();
+				ctx.roundRect(0, 0, boxW, boxH, radius);
+				ctx.fill();
+			} else {
+				ctx.fillRect(0, 0, boxW, boxH);
+			}
+		}
+
+		// Border frame if frameStyle is 'frame' or boxBorderWidth > 0 or frameStyle is 'divided-box'
+		const hasBorder =
+			(config.boxBorderWidth && config.boxBorderWidth > 0) ||
+			frameStyle === 'frame' ||
+			frameStyle === 'divided-box';
+		if (hasBorder) {
+			const bWidth = Math.max(
+				1,
+				(config.boxBorderWidth || (frameStyle === 'frame' ? 4 : 3)) * scale
+			);
+			const bColor = config.boxBorderColor ?? config.fillColor;
+			ctx.strokeStyle = `rgba(${Math.round(bColor.r * 255)}, ${Math.round(bColor.g * 255)}, ${Math.round(bColor.b * 255)}, ${bColor.a})`;
+			ctx.lineWidth = bWidth;
+			const half = bWidth / 2;
+			const radius = Math.max(0, (config.backgroundBoxRadius ?? 0) * scale);
+			if (radius > 0 && typeof ctx.roundRect === 'function') {
+				ctx.beginPath();
+				ctx.roundRect(half, half, boxW - bWidth, boxH - bWidth, radius);
+				ctx.stroke();
+			} else {
+				ctx.strokeRect(half, half, boxW - bWidth, boxH - bWidth);
+			}
+		}
+
+		// Accent bar on left edge
+		if (frameStyle === 'accent-bar' || (config.accentBarWidth && config.accentBarWidth > 0)) {
+			const barW = Math.max(2, (config.accentBarWidth ?? 6) * scale);
+			const barCol = config.accentBarColor ?? config.fillColor;
+			ctx.fillStyle = `rgba(${Math.round(barCol.r * 255)}, ${Math.round(barCol.g * 255)}, ${Math.round(barCol.b * 255)}, ${barCol.a})`;
+			ctx.fillRect(0, 0, barW, boxH);
 		}
 	}
 
@@ -269,7 +351,8 @@ export function rasterizeText(
 	// Walk lines and draw text characters up to visibleCharCount
 	let charsDrawn = 0;
 
-	for (const line of fullLayout.lines) {
+	for (let lineIdx = 0; lineIdx < fullLayout.lines.length; lineIdx++) {
+		const line = fullLayout.lines[lineIdx]!;
 		if (charsDrawn >= visibleCharCount) break;
 
 		const lineChars = Array.from(line.text);
@@ -278,6 +361,53 @@ export function rasterizeText(
 		charsDrawn += lineChars.length;
 
 		if (lineSubstring.length === 0) continue;
+
+		// Frame style decorations per line
+		if (frameStyle === 'badge-header' && lineIdx === 0) {
+			const padX = 14 * scale;
+			const padY = 4 * scale;
+			const bColor = config.accentBarColor ?? config.fillColor;
+			ctx.fillStyle = `rgba(${Math.round(bColor.r * 255)}, ${Math.round(bColor.g * 255)}, ${Math.round(bColor.b * 255)}, ${bColor.a})`;
+			const r = 3 * scale;
+			const bgW = line.width + padX * 2;
+			const bgH = effectiveFontSize * 1.05 + padY * 2;
+			const bgX = line.x - padX;
+			const bgY = line.y - padY;
+			if (typeof ctx.roundRect === 'function') {
+				ctx.beginPath();
+				ctx.roundRect(bgX, bgY, bgW, bgH, r);
+				ctx.fill();
+			} else {
+				ctx.fillRect(bgX, bgY, bgW, bgH);
+			}
+		}
+
+		if (frameStyle === 'badge-header' && lineIdx === 1) {
+			const bColor = config.accentBarColor ?? config.fillColor;
+			ctx.fillStyle = `rgba(${Math.round(bColor.r * 255)}, ${Math.round(bColor.g * 255)}, ${Math.round(bColor.b * 255)}, ${bColor.a})`;
+			ctx.fillRect(line.x, line.y + effectiveFontSize * 1.15, line.width, 3 * scale);
+		}
+
+		if (frameStyle === 'divided-box' && lineIdx === 0) {
+			const bColor = config.boxBorderColor ?? config.fillColor;
+			ctx.strokeStyle = `rgba(${Math.round(bColor.r * 255)}, ${Math.round(bColor.g * 255)}, ${Math.round(bColor.b * 255)}, ${bColor.a})`;
+			ctx.lineWidth = 2 * scale;
+			const divY = line.y + effectiveFontSize * 1.25;
+			ctx.beginPath();
+			ctx.moveTo(12 * scale, divY);
+			ctx.lineTo(boxW - 12 * scale, divY);
+			ctx.stroke();
+		}
+
+		// Line styling override for special kinetic frame styles
+		const isSplitStroke = frameStyle === 'split-slash' && lineIdx > 0;
+		const isBadgeHeaderText = frameStyle === 'badge-header' && lineIdx === 0;
+
+		const currentFillStyle = isBadgeHeaderText
+			? 'rgba(15, 15, 20, 1)'
+			: isSplitStroke
+				? 'transparent'
+				: fillStyleStr;
 
 		// If color runs are specified (e.g. caption word highlighting), draw each word run individually
 		if (config.colorRuns && config.colorRuns.length > 0 && line.words && line.words.length > 0) {
@@ -296,16 +426,22 @@ export function rasterizeText(
 				);
 
 				const curFill = run?.fillColor ?? fillColor;
-				const curFillStr = `rgba(${Math.round(curFill.r * 255)}, ${Math.round(curFill.g * 255)}, ${Math.round(curFill.b * 255)}, ${curFill.a})`;
+				const curFillStr = isBadgeHeaderText
+					? 'rgba(15, 15, 20, 1)'
+					: isSplitStroke
+						? 'transparent'
+						: `rgba(${Math.round(curFill.r * 255)}, ${Math.round(curFill.g * 255)}, ${Math.round(curFill.b * 255)}, ${curFill.a})`;
 				const curStroke = run?.strokeColor ?? strokeColor;
-				const curHasStroke = Boolean(curStroke && strokeWidth > 0 && curStroke.a > 0);
+				const curHasStroke =
+					isSplitStroke || Boolean(curStroke && strokeWidth > 0 && curStroke.a > 0);
 
 				const wordX = line.x + word.x;
 
 				// Shadow
 				if (
 					config.shadowColor &&
-					(config.shadowBlur || config.shadowOffsetX || config.shadowOffsetY)
+					(config.shadowBlur || config.shadowOffsetX || config.shadowOffsetY) &&
+					!isSplitStroke
 				) {
 					ctx.save();
 					const sColor = config.shadowColor;
@@ -319,10 +455,12 @@ export function rasterizeText(
 				}
 
 				// Stroke
-				if (curHasStroke && curStroke) {
+				if (curHasStroke) {
 					ctx.save();
-					ctx.strokeStyle = `rgba(${Math.round(curStroke.r * 255)}, ${Math.round(curStroke.g * 255)}, ${Math.round(curStroke.b * 255)}, ${curStroke.a})`;
-					ctx.lineWidth = strokeWidth * 2;
+					const effectiveStrokeColor =
+						isSplitStroke && !curStroke ? fillColor : (curStroke ?? { r: 1, g: 1, b: 1, a: 0.9 });
+					ctx.strokeStyle = `rgba(${Math.round(effectiveStrokeColor.r * 255)}, ${Math.round(effectiveStrokeColor.g * 255)}, ${Math.round(effectiveStrokeColor.b * 255)}, ${effectiveStrokeColor.a})`;
+					ctx.lineWidth = Math.max(1, (isSplitStroke ? 2 : strokeWidth * 2) * scale);
 					ctx.lineJoin = 'round';
 					ctx.lineCap = 'round';
 					renderString(wordText, wordX, line.y, true);
@@ -330,30 +468,38 @@ export function rasterizeText(
 				}
 
 				// Fill
-				ctx.fillStyle = curFillStr;
-				renderString(wordText, wordX, line.y, false);
+				if (!isSplitStroke) {
+					ctx.fillStyle = curFillStr;
+					renderString(wordText, wordX, line.y, false);
+				}
 			}
 			continue;
 		}
 
 		// 4. Shadow
-		if (config.shadowColor && (config.shadowBlur || config.shadowOffsetX || config.shadowOffsetY)) {
+		if (
+			config.shadowColor &&
+			(config.shadowBlur || config.shadowOffsetX || config.shadowOffsetY) &&
+			!isSplitStroke
+		) {
 			ctx.save();
 			const sColor = config.shadowColor;
 			ctx.shadowColor = `rgba(${Math.round(sColor.r * 255)}, ${Math.round(sColor.g * 255)}, ${Math.round(sColor.b * 255)}, ${sColor.a})`;
 			ctx.shadowBlur = (config.shadowBlur ?? 4) * scale;
 			ctx.shadowOffsetX = (config.shadowOffsetX ?? 2) * scale;
 			ctx.shadowOffsetY = (config.shadowOffsetY ?? 2) * scale;
-			ctx.fillStyle = fillStyleStr;
+			ctx.fillStyle = currentFillStyle;
 			renderString(lineSubstring, line.x, line.y, false);
 			ctx.restore();
 		}
 
-		// 5. Stroke (behind fill)
-		if (hasStroke && strokeColor) {
+		// 5. Stroke
+		if (hasStroke || isSplitStroke) {
 			ctx.save();
-			ctx.strokeStyle = `rgba(${Math.round(strokeColor.r * 255)}, ${Math.round(strokeColor.g * 255)}, ${Math.round(strokeColor.b * 255)}, ${strokeColor.a})`;
-			ctx.lineWidth = strokeWidth * 2; // doubled since half is covered by fill
+			const effectiveStrokeColor =
+				isSplitStroke && !strokeColor ? fillColor : (strokeColor ?? { r: 1, g: 1, b: 1, a: 0.9 });
+			ctx.strokeStyle = `rgba(${Math.round(effectiveStrokeColor.r * 255)}, ${Math.round(effectiveStrokeColor.g * 255)}, ${Math.round(effectiveStrokeColor.b * 255)}, ${effectiveStrokeColor.a})`;
+			ctx.lineWidth = Math.max(1, (isSplitStroke ? 2 : strokeWidth * 2) * scale);
 			ctx.lineJoin = 'round';
 			ctx.lineCap = 'round';
 			renderString(lineSubstring, line.x, line.y, true);
@@ -361,8 +507,23 @@ export function rasterizeText(
 		}
 
 		// 6. Fill
-		ctx.fillStyle = fillStyleStr;
-		renderString(lineSubstring, line.x, line.y, false);
+		if (!isSplitStroke) {
+			ctx.fillStyle = currentFillStyle;
+			renderString(lineSubstring, line.x, line.y, false);
+		}
+	}
+
+	// Diagonal slash overlay for split-slash
+	if (frameStyle === 'split-slash') {
+		ctx.save();
+		const slashCol = config.fillColor ?? { r: 1, g: 1, b: 1, a: 1 };
+		ctx.strokeStyle = `rgba(${Math.round(slashCol.r * 255)}, ${Math.round(slashCol.g * 255)}, ${Math.round(slashCol.b * 255)}, ${slashCol.a})`;
+		ctx.lineWidth = 2 * scale;
+		ctx.beginPath();
+		ctx.moveTo(boxW * 0.15, 0);
+		ctx.lineTo(boxW * 0.85, boxH);
+		ctx.stroke();
+		ctx.restore();
 	}
 
 	return canvas;
@@ -394,11 +555,19 @@ export function hashTextConfig(config: TextRasterConfig): string {
 	const bg = config.backgroundBoxColor
 		? `${Math.round(config.backgroundBoxColor.r * 255)},${Math.round(config.backgroundBoxColor.g * 255)},${Math.round(config.backgroundBoxColor.b * 255)},${Math.round(config.backgroundBoxColor.a * 255)},${config.backgroundBoxRadius || 0}`
 		: '0';
+	const borderKey = config.boxBorderColor
+		? `${Math.round(config.boxBorderColor.r * 255)},${Math.round(config.boxBorderColor.g * 255)},${Math.round(config.boxBorderColor.b * 255)},${config.boxBorderWidth || 0}`
+		: '0';
+	const barKey = config.accentBarColor
+		? `${Math.round(config.accentBarColor.r * 255)},${Math.round(config.accentBarColor.g * 255)},${Math.round(config.accentBarColor.b * 255)},${config.accentBarWidth || 0}`
+		: '0';
+	const frameKey = config.frameStyle || 'none';
+	const badgeKey = config.badgeText || '';
 	const runsKey = (config.colorRuns ?? [])
 		.map(
 			(r) =>
 				`${r.startIndex}-${r.endIndex}:${r.fillColor ? `${Math.round(r.fillColor.r * 255)},${Math.round(r.fillColor.g * 255)},${Math.round(r.fillColor.b * 255)},${r.fillColor.a}` : ''}`
 		)
 		.join(';');
-	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${revealUnit}#${shadow}#${bg}#${runsKey}#${text}`;
+	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${revealUnit}#${shadow}#${bg}#${borderKey}#${barKey}#${frameKey}#${badgeKey}#${runsKey}#${text}`;
 }
