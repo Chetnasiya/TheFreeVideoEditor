@@ -1,0 +1,896 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import ToolIcon from '../../components/ToolIcon.astro';
+import { TOOL_GUIDES, GUIDE_CATEGORIES } from '../../data/guides';
+
+const seoTitle = 'Tool Guides & Tutorials — The Free Video Editor';
+const seoDescription =
+	'Master every tool in The Free Video Editor with in-depth step-by-step guides, keyboard shortcuts, pro editing tips, and upcoming video tutorials. 100% free and on-device.';
+
+const categories = [
+	{ id: 'all', label: 'All Tools' },
+	...Object.values(GUIDE_CATEGORIES).map((c) => ({ id: c.id, label: c.label }))
+];
+---
+
+<Layout
+	title={seoTitle}
+	description={seoDescription}
+	canonicalUrl="https://thefreevideoeditor.com/guides"
+>
+	<Header />
+
+	<main class="guides-main">
+		<!-- Hero Section -->
+		<section class="guides-hero">
+			<div class="hero-ambient-glow" aria-hidden="true"></div>
+			<div class="guides-container">
+				<div class="eyebrow-badge">
+					<span class="pulsing-dot" aria-hidden="true"></span>
+					<span>COMPREHENSIVE TOOL REFERENCE & TUTORIALS</span>
+				</div>
+				<h1 class="hero-title">
+					Master Every Tool in <span class="gradient-text">The Free Video Editor</span>
+				</h1>
+				<p class="hero-lead">
+					Detailed step-by-step instructions, keyboard shortcuts, professional workflow tips,
+					and dedicated video tutorial walkthroughs for each editing tool.
+				</p>
+
+				<!-- Search and Filter Bar -->
+				<div class="search-filter-wrapper">
+					<div class="search-box">
+						<svg
+							class="search-icon"
+							width="18"
+							height="18"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<circle cx="11" cy="11" r="8"></circle>
+							<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+						</svg>
+						<input
+							type="search"
+							id="guide-search-input"
+							placeholder="Search by tool name, shortcut (e.g. 'V', 'C', 'B'), or feature..."
+							aria-label="Search tools"
+							autocomplete="off"
+						/>
+						<span id="search-count" class="search-count-badge" aria-live="polite">
+							{TOOL_GUIDES.length} tools
+						</span>
+					</div>
+
+					<!-- Category Tabs -->
+					<div class="category-tabs" role="tablist" aria-label="Tool categories">
+						{categories.map((cat, idx) => (
+							<button
+								type="button"
+								class={`cat-tab ${idx === 0 ? 'is-active' : ''}`}
+								data-category={cat.id}
+								role="tab"
+								aria-selected={idx === 0 ? 'true' : 'false'}
+							>
+								{cat.label}
+							</button>
+						))}
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Tool Guides Grid -->
+		<section class="guides-grid-section">
+			<div class="guides-container">
+				<div class="guides-grid" id="guides-grid">
+					{TOOL_GUIDES.map((guide) => (
+						<article
+							class="guide-card"
+							data-category={guide.category}
+							data-title={guide.title.toLowerCase()}
+							data-shortcut={guide.shortcut?.toLowerCase() || ''}
+							data-subtitle={guide.subtitle.toLowerCase()}
+						>
+							<div class="card-top">
+								<div class="tool-icon-box">
+									<ToolIcon name={guide.icon} size={24} />
+								</div>
+								<div class="badge-group">
+									<span class="cat-badge">{guide.categoryLabel}</span>
+									{guide.shortcut && (
+										<span class="shortcut-badge" title={`Keyboard Shortcut: ${guide.shortcut}`}>
+											<kbd>{guide.shortcut}</kbd>
+										</span>
+									)}
+								</div>
+							</div>
+
+							<div class="card-body">
+								<h2 class="card-title">
+									<a href={`/guides/${guide.id}`} class="card-link">
+										{guide.title}
+									</a>
+								</h2>
+								<p class="card-subtitle">{guide.subtitle}</p>
+							</div>
+
+							<div class="card-meta">
+								<div class="meta-item">
+									<span class="meta-label">Workspace:</span>
+									<span class="meta-val">{guide.workspace}</span>
+								</div>
+								<div class="meta-item">
+									<span class="meta-label">Level:</span>
+									<span class="meta-val">{guide.difficulty}</span>
+								</div>
+							</div>
+
+							<div class="card-footer">
+								<div class="video-indicator">
+									<span class="video-icon" aria-hidden="true">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+											<path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+										</svg>
+									</span>
+									<span class="video-text">
+										{guide.youtubeVideoId ? 'Video Available' : 'Video Tutorial Planned'}
+									</span>
+								</div>
+
+								<a href={`/guides/${guide.id}`} class="read-guide-btn" aria-label={`Read guide for ${guide.title}`}>
+									<span>Read Guide</span>
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+										<polyline points="9 18 15 12 9 6"></polyline>
+									</svg>
+								</a>
+							</div>
+						</article>
+					))}
+				</div>
+
+				<!-- Empty State for Search -->
+				<div id="no-results-box" class="no-results-box" style="display: none;">
+					<div class="no-results-icon" aria-hidden="true">
+						<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="11" cy="11" r="8"></circle>
+							<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+						</svg>
+					</div>
+					<h3>No matching tools found</h3>
+					<p>Try searching for a different keyword or browse all tool categories above.</p>
+					<button type="button" id="reset-search-btn" class="reset-btn">Reset Filter</button>
+				</div>
+			</div>
+		</section>
+
+		<!-- Quick Shortcut Cheat Sheet -->
+		<section class="shortcuts-strip-section">
+			<div class="guides-container">
+				<div class="cheat-sheet-card">
+					<div class="cheat-header">
+						<div class="cheat-title-group">
+							<span class="cheat-badge">SPEED WORKFLOW</span>
+							<h2>Core Editing Keyboard Shortcuts</h2>
+						</div>
+						<a href="/editor" class="launch-editor-btn">
+							<span>Launch Video Editor</span>
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+								<polyline points="9 18 15 12 9 6"></polyline>
+							</svg>
+						</a>
+					</div>
+
+					<div class="shortcuts-grid">
+						<div class="shortcut-col">
+							<div class="shortcut-item">
+								<kbd class="key-pill">V</kbd>
+								<div class="shortcut-desc">
+									<strong>Selection Tool</strong>
+									<span>Select, move, and trim clips</span>
+								</div>
+							</div>
+							<div class="shortcut-item">
+								<kbd class="key-pill">C</kbd>
+								<div class="shortcut-desc">
+									<strong>Razor Cut Tool</strong>
+									<span>Split clips at playhead / cursor</span>
+								</div>
+							</div>
+							<div class="shortcut-item">
+								<kbd class="key-pill">B</kbd>
+								<div class="shortcut-desc">
+									<strong>Ripple Edit Tool</strong>
+									<span>Trim clips while closing gaps</span>
+								</div>
+							</div>
+							<div class="shortcut-item">
+								<kbd class="key-pill">A</kbd>
+								<div class="shortcut-desc">
+									<strong>Track Select Forward</strong>
+									<span>Select all downstream media</span>
+								</div>
+							</div>
+						</div>
+
+						<div class="shortcut-col">
+							<div class="shortcut-item">
+								<kbd class="key-pill">Y</kbd>
+								<div class="shortcut-desc">
+									<strong>Slip Tool</strong>
+									<span>Adjust internal clip in/out points</span>
+								</div>
+							</div>
+							<div class="shortcut-item">
+								<kbd class="key-pill">T</kbd>
+								<div class="shortcut-desc">
+									<strong>Type Tool</strong>
+									<span>Create on-screen text and titles</span>
+								</div>
+							</div>
+							<div class="shortcut-item">
+								<kbd class="key-pill">M</kbd>
+								<div class="shortcut-desc">
+									<strong>Marker Tool</strong>
+									<span>Add color-coded cue marker</span>
+								</div>
+							</div>
+							<div class="shortcut-item">
+								<kbd class="key-pill">⌘/Ctrl+K</kbd>
+								<div class="shortcut-desc">
+									<strong>Split at Playhead</strong>
+									<span>Instant razor cut without switching</span>
+								</div>
+							</div>
+						</div>
+
+						<div class="shortcut-col">
+							<div class="shortcut-item">
+								<kbd class="key-pill">Q / W</kbd>
+								<div class="shortcut-desc">
+									<strong>Top & Tail Ripple</strong>
+									<span>Ripple-trim head or tail to playhead</span>
+								</div>
+							</div>
+							<div class="shortcut-item">
+								<kbd class="key-pill">⌘/Ctrl+D</kbd>
+								<div class="shortcut-desc">
+									<strong>Default Transition</strong>
+									<span>Apply Cross Dissolve to selected cut</span>
+								</div>
+							</div>
+							<div class="shortcut-item">
+								<kbd class="key-pill">Space</kbd>
+								<div class="shortcut-desc">
+									<strong>Play / Pause</strong>
+									<span>Toggle timeline playback</span>
+								</div>
+							</div>
+							<div class="shortcut-item">
+								<kbd class="key-pill">Alt+Shift+1..7</kbd>
+								<div class="shortcut-desc">
+									<strong>Switch Workspaces</strong>
+									<span>Assembly, AI, Edit, Color, FX, Audio, Graphics</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<Footer />
+</Layout>
+
+<script>
+	// Interactive filter & search script for Guides hub
+	const searchInput = document.getElementById('guide-search-input') as HTMLInputElement | null;
+	const countBadge = document.getElementById('search-count');
+	const catTabs = document.querySelectorAll<HTMLButtonElement>('.cat-tab');
+	const guideCards = document.querySelectorAll<HTMLElement>('.guide-card');
+	const noResultsBox = document.getElementById('no-results-box');
+	const resetBtn = document.getElementById('reset-search-btn');
+
+	let activeCategory = 'all';
+	let searchQuery = '';
+
+	function updateFilter() {
+		let visibleCount = 0;
+
+		guideCards.forEach((card) => {
+			const cat = card.dataset.category || '';
+			const title = card.dataset.title || '';
+			const subtitle = card.dataset.subtitle || '';
+			const shortcut = card.dataset.shortcut || '';
+
+			const matchesCat = activeCategory === 'all' || cat === activeCategory;
+			const query = searchQuery.trim().toLowerCase();
+			const matchesQuery =
+				!query ||
+				title.includes(query) ||
+				subtitle.includes(query) ||
+				shortcut === query ||
+				shortcut.includes(query);
+
+			if (matchesCat && matchesQuery) {
+				card.style.display = '';
+				visibleCount++;
+			} else {
+				card.style.display = 'none';
+			}
+		});
+
+		if (countBadge) {
+			countBadge.textContent = `${visibleCount} ${visibleCount === 1 ? 'tool' : 'tools'}`;
+		}
+
+		if (noResultsBox) {
+			noResultsBox.style.display = visibleCount === 0 ? 'block' : 'none';
+		}
+	}
+
+	searchInput?.addEventListener('input', (e) => {
+		searchQuery = (e.target as HTMLInputElement).value;
+		updateFilter();
+	});
+
+	catTabs.forEach((tab) => {
+		tab.addEventListener('click', () => {
+			catTabs.forEach((t) => {
+				t.classList.remove('is-active');
+				t.setAttribute('aria-selected', 'false');
+			});
+			tab.classList.add('is-active');
+			tab.setAttribute('aria-selected', 'true');
+			activeCategory = tab.dataset.category || 'all';
+			updateFilter();
+		});
+	});
+
+	resetBtn?.addEventListener('click', () => {
+		if (searchInput) searchInput.value = '';
+		searchQuery = '';
+		activeCategory = 'all';
+		catTabs.forEach((t) => {
+			const isFirst = t.dataset.category === 'all';
+			t.classList.toggle('is-active', isFirst);
+			t.setAttribute('aria-selected', isFirst ? 'true' : 'false');
+		});
+		updateFilter();
+	});
+</script>
+
+<style>
+	.guides-main {
+		min-height: 100vh;
+		background: #090909;
+		color: #ffffff;
+		padding-bottom: 5rem;
+	}
+
+	.guides-container {
+		max-width: 1240px;
+		margin: 0 auto;
+		padding: 3rem 1.5rem 0rem 1.5rem;
+	}
+
+	/* Hero */
+	.guides-hero {
+		position: relative;
+		padding: 4.5rem 0 2.5rem 0;
+		text-align: center;
+		overflow: hidden;
+	}
+
+	.hero-ambient-glow {
+		position: absolute;
+		top: -100px;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 700px;
+		height: 380px;
+		background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(168, 85, 247, 0.06) 50%, transparent 75%);
+		pointer-events: none;
+		filter: blur(60px);
+	}
+
+	.eyebrow-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 14px;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: #a1a1aa;
+		font-family: var(--font-mono, monospace);
+		font-size: 0.76rem;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		margin-bottom: 1.5rem;
+	}
+
+	.pulsing-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #38bdf8;
+		box-shadow: 0 0 8px #38bdf8;
+		animation: pulse-glow 2s infinite ease-in-out;
+	}
+
+	@keyframes pulse-glow {
+		0%, 100% { opacity: 1; transform: scale(1); }
+		50% { opacity: 0.4; transform: scale(0.85); }
+	}
+
+	.hero-title {
+		font-size: 2.75rem;
+		font-weight: 700;
+		line-height: 1.15;
+		letter-spacing: -0.04em;
+		margin: 0 0 1.25rem 0;
+		color: #ffffff;
+	}
+
+	.gradient-text {
+		background: linear-gradient(135deg, #ffffff 30%, #38bdf8 80%, #a855f7 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+	}
+
+	.hero-lead {
+		max-width: 720px;
+		margin: 0 auto 2.5rem auto;
+		font-size: 1.125rem;
+		line-height: 1.6;
+		color: #a1a1aa;
+	}
+
+	/* Search and Category Filter */
+	.search-filter-wrapper {
+		max-width: 900px;
+		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+
+	.search-box {
+		position: relative;
+		width: 100%;
+	}
+
+	.search-icon {
+		position: absolute;
+		left: 1.1rem;
+		top: 50%;
+		transform: translateY(-50%);
+		color: #71717a;
+		pointer-events: none;
+	}
+
+	.search-box input {
+		width: 100%;
+		padding: 0.9rem 1rem 0.9rem 3rem;
+		border-radius: 12px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		color: #ffffff;
+		font-size: 0.94rem;
+		transition: all 0.2s ease;
+		box-sizing: border-box;
+	}
+
+	.search-box input:focus {
+		outline: none;
+		border-color: #38bdf8;
+		background: rgba(255, 255, 255, 0.07);
+		box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+	}
+
+	.search-box input::placeholder {
+		color: #71717a;
+	}
+
+	.search-count-badge {
+		position: absolute;
+		right: 1rem;
+		top: 50%;
+		transform: translateY(-50%);
+		font-family: var(--font-mono, monospace);
+		font-size: 0.75rem;
+		color: #71717a;
+		background: rgba(255, 255, 255, 0.06);
+		padding: 3px 8px;
+		border-radius: 6px;
+	}
+
+	.category-tabs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		justify-content: center;
+	}
+
+	.cat-tab {
+		padding: 0.45rem 0.9rem;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #a1a1aa;
+		font-size: 0.82rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.cat-tab:hover {
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.08);
+		border-color: rgba(255, 255, 255, 0.18);
+	}
+
+	.cat-tab.is-active {
+		color: #090909;
+		background: #ffffff;
+		border-color: #ffffff;
+		font-weight: 600;
+	}
+
+	/* Guides Grid */
+	.guides-grid-section {
+		padding: 2.5rem 0 4rem 0;
+	}
+
+	.guides-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+		gap: 1.5rem;
+	}
+
+	.guide-card {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 16px;
+		padding: 1.5rem;
+		transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.guide-card:hover {
+		transform: translateY(-3px);
+		border-color: rgba(56, 189, 248, 0.3);
+		background: rgba(255, 255, 255, 0.035);
+		box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.06);
+	}
+
+	.card-top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 1.25rem;
+	}
+
+	.tool-icon-box {
+		width: 44px;
+		height: 44px;
+		border-radius: 10px;
+		background: rgba(56, 189, 248, 0.1);
+		border: 1px solid rgba(56, 189, 248, 0.2);
+		color: #38bdf8;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: background 0.2s ease, color 0.2s ease;
+	}
+
+	.guide-card:hover .tool-icon-box {
+		background: #38bdf8;
+		color: #090909;
+	}
+
+	.badge-group {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.cat-badge {
+		font-size: 0.72rem;
+		color: #a1a1aa;
+		background: rgba(255, 255, 255, 0.05);
+		padding: 3px 8px;
+		border-radius: 6px;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.shortcut-badge kbd {
+		display: inline-block;
+		font-family: var(--font-mono, monospace);
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: #f4f4f5;
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		padding: 2px 7px;
+		border-radius: 5px;
+		box-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+	}
+
+	.card-body {
+		flex: 1;
+		margin-bottom: 1.25rem;
+	}
+
+	.card-title {
+		font-size: 1.25rem;
+		font-weight: 600;
+		letter-spacing: -0.02em;
+		margin: 0 0 0.5rem 0;
+	}
+
+	.card-link {
+		color: #ffffff;
+		text-decoration: none;
+		transition: color 0.15s ease;
+	}
+
+	.card-link:hover {
+		color: #38bdf8;
+	}
+
+	.card-subtitle {
+		font-size: 0.88rem;
+		line-height: 1.55;
+		color: #94a3b8;
+		margin: 0;
+	}
+
+	.card-meta {
+		display: flex;
+		gap: 1.25rem;
+		padding: 0.75rem 0;
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		margin-bottom: 1rem;
+		font-size: 0.78rem;
+	}
+
+	.meta-item {
+		display: flex;
+		gap: 5px;
+	}
+
+	.meta-label {
+		color: #71717a;
+	}
+
+	.meta-val {
+		color: #e4e4e7;
+		font-weight: 500;
+	}
+
+	.card-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.video-indicator {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 0.76rem;
+		color: #71717a;
+	}
+
+	.video-icon {
+		color: #ff4d4d;
+		display: inline-flex;
+	}
+
+	.read-guide-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 0.84rem;
+		font-weight: 600;
+		color: #ffffff;
+		text-decoration: none;
+		padding: 5px 12px;
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		transition: all 0.15s ease;
+	}
+
+	.read-guide-btn:hover {
+		background: #ffffff;
+		color: #090909;
+		border-color: #ffffff;
+	}
+
+	/* Empty state */
+	.no-results-box {
+		text-align: center;
+		padding: 4rem 1rem;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px dashed rgba(255, 255, 255, 0.12);
+		border-radius: 16px;
+		margin-top: 1rem;
+	}
+
+	.no-results-icon {
+		color: #71717a;
+		margin-bottom: 1rem;
+	}
+
+	.no-results-box h3 {
+		font-size: 1.25rem;
+		margin: 0 0 0.5rem 0;
+	}
+
+	.no-results-box p {
+		color: #a1a1aa;
+		font-size: 0.9rem;
+		margin: 0 0 1.25rem 0;
+	}
+
+	.reset-btn {
+		padding: 0.55rem 1.25rem;
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: #ffffff;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background 0.15s ease;
+	}
+
+	.reset-btn:hover {
+		background: rgba(255, 255, 255, 0.2);
+	}
+
+	/* Shortcuts Cheat Sheet */
+	.shortcuts-strip-section {
+		padding: 2rem 0;
+	}
+
+	.cheat-sheet-card {
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%), #0d0d0d;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 20px;
+		padding: 2.5rem;
+	}
+
+	.cheat-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 1.5rem;
+		margin-bottom: 2rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		padding-bottom: 1.5rem;
+	}
+
+	.cheat-badge {
+		font-family: var(--font-mono, monospace);
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: #38bdf8;
+		letter-spacing: 0.06em;
+		display: block;
+		margin-bottom: 0.25rem;
+	}
+
+	.cheat-header h2 {
+		font-size: 1.6rem;
+		font-weight: 600;
+		margin: 0;
+		letter-spacing: -0.02em;
+	}
+
+	.launch-editor-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0.7rem 1.5rem;
+		border-radius: 9999px;
+		background: #ffffff;
+		color: #090909;
+		font-weight: 600;
+		font-size: 0.88rem;
+		text-decoration: none;
+		transition: all 0.2s ease;
+		box-shadow: 0 0 20px rgba(255, 255, 255, 0.12);
+	}
+
+	.launch-editor-btn:hover {
+		background: #ededed;
+		transform: scale(1.02);
+	}
+
+	.shortcuts-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 2rem;
+	}
+
+	.shortcut-col {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+
+	.shortcut-item {
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
+	}
+
+	.key-pill {
+		min-width: 48px;
+		padding: 4px 8px;
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.18);
+		font-family: var(--font-mono, monospace);
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: #ffffff;
+		text-align: center;
+		box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+		flex-shrink: 0;
+	}
+
+	.shortcut-desc {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.shortcut-desc strong {
+		font-size: 0.9rem;
+		color: #f4f4f5;
+	}
+
+	.shortcut-desc span {
+		font-size: 0.78rem;
+		color: #71717a;
+		line-height: 1.4;
+	}
+
+	@media (max-width: 1024px) {
+		.shortcuts-grid {
+			grid-template-columns: 1fr;
+			gap: 1.25rem;
+		}
+
+		.guides-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.hero-title {
+			font-size: 2rem;
+		}
+
+		.cheat-sheet-card {
+			padding: 1.5rem;
+		}
+	}
+</style>
+

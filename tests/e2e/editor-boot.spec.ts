@@ -24,6 +24,10 @@ test('editor hydrates, creates and renames a project, and changes theme without 
 	await expect(page.getByRole('main', { name: 'Video editing workspace' })).toBeVisible();
 	await expect(page.getByRole('region', { name: 'Timeline' })).toBeVisible();
 	await expect(page.getByRole('dialog', { name: 'Your Projects' })).toBeVisible();
+	const managerTitle = page.locator('#project-manager-title');
+	await expect(managerTitle).toBeVisible();
+	const titleOutline = await managerTitle.evaluate((el) => window.getComputedStyle(el).outlineStyle);
+	expect(titleOutline).toBe('none');
 	await page.getByRole('button', { name: 'New project' }).click();
 	await page
 		.getByRole('dialog', { name: 'Create a Project' })

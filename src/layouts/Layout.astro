@@ -49,7 +49,8 @@ const currentCanonical = canonicalUrl || siteUrl;
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="shortcut icon" href="/favicon.ico" />
 		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-		<meta name="apple-mobile-web-app-title" content="Video Editor" />
+		<meta name="application-name" content="The Free Video Editor" />
+		<meta name="apple-mobile-web-app-title" content="The Free Video Editor" />
 		<link rel="manifest" href="/site.webmanifest" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
@@ -99,7 +100,8 @@ const currentCanonical = canonicalUrl || siteUrl;
 					'@context': 'https://schema.org',
 					'@type': 'WebSite',
 					name: 'The Free Video Editor',
-					url: 'https://thefreevideoeditor.com',
+					alternateName: ['Free Video Editor', 'Online Video Editor', 'TFVE'],
+					url: 'https://thefreevideoeditor.com/',
 					description: description,
 					potentialAction: {
 						'@type': 'SearchAction',

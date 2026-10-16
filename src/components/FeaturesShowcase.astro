@@ -345,6 +345,32 @@ const features: Feature[] = [
 		icon: 'shield'
 	}
 ];
+
+const featureToGuideMap: Record<string, string> = {
+	'multi-track': 'selection-tool',
+	'advanced-trimming': 'razor-tool',
+	'j-l-cuts': 'ripple-edit-tool',
+	'keyframing': 'keyframes-graph-editor',
+	'canvas-gizmo': 'transform-gizmo-crop',
+	'speed-ramping': 'speed-ramping',
+	'auto-captions': 'auto-captions',
+	'silence-removal': 'smart-cut-silence-removal',
+	'motion-tracking': 'motion-tracking',
+	'color-wheels': 'color-grading',
+	'primary-color': 'color-grading',
+	'video-scopes': 'color-grading',
+	'lut-support': 'color-grading',
+	'audio-mixer': 'audio-mixer-eq',
+	'parametric-eq': 'audio-mixer-eq',
+	'dynamics-compressor': 'audio-mixer-eq',
+	'transitions': 'transitions-vfx',
+	'webgl-vfx': 'transitions-vfx',
+	'typography': 'type-tool',
+	'kinetic-titles': 'type-tool',
+	'smart-proxies': 'export-proxies',
+	'gpu-export': 'export-proxies',
+	'nle-interchange': 'export-proxies'
+};
 ---
 
 <section class="features-section" id="features">
@@ -919,6 +945,17 @@ const features: Feature[] = [
 							</span>
 						))}
 					</div>
+
+					{featureToGuideMap[feature.id] && (
+						<div class="feature-guide-link-wrap">
+							<a href={`/guides/${featureToGuideMap[feature.id]}`} class="feature-guide-link">
+								<span>Read Tool Guide & Video</span>
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<polyline points="9 18 15 12 9 6"></polyline>
+								</svg>
+							</a>
+						</div>
+					)}
 				</div>
 			))}
 		</div>
@@ -928,25 +965,30 @@ const features: Feature[] = [
 			<div class="banner-content">
 				<h3 class="banner-title">Ready to Experience Modern In-Browser Editing?</h3>
 				<p class="banner-desc">
-					No signup, no subscription, no watermark. Open the editor and start creating in seconds.
+					No signup, no subscription, no watermark. Open the editor and start creating in seconds, or master each tool with our in-depth guides.
 				</p>
 			</div>
-			<a href="/editor" class="banner-cta">
-				<span>Launch Free Video Editor</span>
-				<svg
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<line x1="5" y1="12" x2="19" y2="12"></line>
-					<polyline points="12 5 19 12 12 19"></polyline>
-				</svg>
-			</a>
+			<div class="banner-actions">
+				<a href="/guides" class="banner-secondary-cta">
+					<span>Browse All Tool Guides</span>
+				</a>
+				<a href="/editor" class="banner-cta">
+					<span>Launch Free Video Editor</span>
+					<svg
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<line x1="5" y1="12" x2="19" y2="12"></line>
+						<polyline points="12 5 19 12 12 19"></polyline>
+					</svg>
+				</a>
+			</div>
 		</div>
 	</div>
 </section>
@@ -1324,6 +1366,28 @@ const features: Feature[] = [
 		color: #10b981;
 	}
 
+	.feature-guide-link-wrap {
+		margin-top: 1rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
+	}
+
+	.feature-guide-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 0.78rem;
+		font-weight: 500;
+		color: #38bdf8;
+		text-decoration: none;
+		transition: all 0.15s ease;
+	}
+
+	.feature-guide-link:hover {
+		color: #ffffff;
+		transform: translateX(2px);
+	}
+
 	/* Launch Banner */
 	.features-launch-banner {
 		background: linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
@@ -1356,6 +1420,33 @@ const features: Feature[] = [
 		line-height: 1.5;
 		color: #94a3b8;
 		margin: 0;
+	}
+
+	.banner-actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.85rem;
+	}
+
+	.banner-secondary-cta {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.85rem 1.4rem;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		color: #ffffff;
+		font-weight: 500;
+		font-size: 0.95rem;
+		text-decoration: none;
+		transition: all 0.2s ease;
+		white-space: nowrap;
+	}
+
+	.banner-secondary-cta:hover {
+		background: rgba(255, 255, 255, 0.15);
+		border-color: rgba(255, 255, 255, 0.25);
 	}
 
 	.banner-cta {

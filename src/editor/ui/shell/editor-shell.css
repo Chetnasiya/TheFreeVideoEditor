@@ -1767,6 +1767,18 @@
 	color: #f1f5f9;
 	letter-spacing: -0.01em;
 	text-wrap: balance;
+	outline: none;
+}
+
+.dialog-heading h2:focus,
+.dialog-heading h2:focus-visible,
+.dialog-header h2:focus,
+.dialog-header h2:focus-visible,
+.dialog-content > h2:focus,
+.dialog-content > h2:focus-visible,
+#project-manager-title:focus,
+#project-manager-title:focus-visible {
+	outline: none;
 }
 
 .dialog-eyebrow {

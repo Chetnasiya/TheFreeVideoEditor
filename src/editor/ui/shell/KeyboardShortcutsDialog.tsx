@@ -95,7 +95,18 @@ export default function KeyboardShortcutsDialog({
 						</section>
 					))}
 				</div>
-				<div className="dialog-actions">
+				<div
+					className="dialog-actions"
+					style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+				>
+					<a
+						href="/guides"
+						target="_blank"
+						rel="noopener noreferrer"
+						style={{ color: 'var(--color-link)', fontSize: '0.85rem', textDecoration: 'none' }}
+					>
+						📖 View Detailed Tool Guides & Tutorials &rarr;
+					</a>
 					<button className="secondary-button" type="button" onClick={onClose}>
 						Close
 					</button>

@@ -144,6 +144,15 @@ function EditorShell() {
 		return () => document.removeEventListener('fullscreenchange', handleFsChange);
 	}, []);
 
+	useEffect(() => {
+		if (typeof document === 'undefined') return;
+		if (project?.name) {
+			document.title = `${project.name} — The Free Video Editor`;
+		} else {
+			document.title = 'Online Video Editor — The Free Video Editor';
+		}
+	}, [project?.name]);
+
 	const toggleAppFullscreen = useCallback(() => {
 		if (!document.fullscreenElement) {
 			void document.documentElement.requestFullscreen?.().catch(() => {});
@@ -1330,7 +1339,7 @@ function EditorShell() {
 								</span>
 							</>
 						) : (
-							<h1 id="project-title">No project open</h1>
+							<h1 id="project-title">Online Video Editor</h1>
 						)}
 					</div>
 					<div className="topbar-actions">

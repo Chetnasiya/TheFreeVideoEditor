@@ -210,7 +210,7 @@ export default function ProjectManagerDialog() {
 		if (!dialog) return;
 		if (open && !dialog.open) {
 			dialog.showModal();
-			managerTitleRef.current?.focus();
+			managerTitleRef.current?.focus({ preventScroll: true });
 		}
 		if (!open && dialog.open) dialog.close();
 	}, [open]);
@@ -260,7 +260,12 @@ export default function ProjectManagerDialog() {
 					<div className="dialog-heading">
 						<div>
 							<p className="dialog-eyebrow">THE FREE VIDEO EDITOR</p>
-							<h2 id="project-manager-title" ref={managerTitleRef} tabIndex={-1}>
+							<h2
+								id="project-manager-title"
+								ref={managerTitleRef}
+								tabIndex={-1}
+								style={{ outline: 'none' }}
+							>
 								Your Projects
 							</h2>
 						</div>

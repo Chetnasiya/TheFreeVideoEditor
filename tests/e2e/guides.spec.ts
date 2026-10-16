@@ -1,0 +1,166 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('Tool Guides & Tutorials', () => {
+	test('navigates to /guides hub, filters by category, and searches tools', async ({ page }) => {
+		await page.goto('/guides');
+
+		// Header & Eyebrow
+		await expect(
+			page.getByRole('heading', { name: /Master Every Tool in The Free Video Editor/i })
+		).toBeVisible();
+
+		// Check all 18 tool cards are rendered
+		const cards = page.locator('.guide-card');
+		await expect(cards).toHaveCount(18);
+
+		// Category filtering: click 'AI Magic Tools'
+		const aiTab = page.getByRole('tab', { name: 'AI Magic Tools' });
+		await aiTab.click();
+		await expect(aiTab).toHaveAttribute('aria-selected', 'true');
+
+		// Check visible cards are only AI category
+		const aiCards = page.locator('.guide-card[data-category="ai"]');
+		await expect(aiCards.first()).toBeVisible();
+		for (let i = 0; i < (await aiCards.count()); i++) {
+			await expect(aiCards.nth(i)).toBeVisible();
+		}
+
+		// Reset to 'All Tools'
+		const allTab = page.getByRole('tab', { name: 'All Tools' });
+		await allTab.click();
+		await expect(allTab).toHaveAttribute('aria-selected', 'true');
+
+		// Search filtering: search for 'razor'
+		const searchInput = page.locator('#guide-search-input');
+		await searchInput.fill('razor');
+
+		const razorCard = page.locator('.guide-card[data-title*="razor"]');
+		await expect(razorCard).toBeVisible();
+
+		const selectionCard = page.locator('.guide-card[data-title*="selection"]');
+		await expect(selectionCard).toBeHidden();
+
+		// Search count badge
+		await expect(page.locator('#search-count')).toHaveText('1 tool');
+
+		// Clear search
+		await searchInput.fill('');
+		await expect(cards).toHaveCount(18);
+	});
+
+	test('navigates to individual tool guide page and verifies video embed and detailed sections', async ({
+		page
+	}) => {
+		await page.goto('/guides/razor-tool');
+
+		// Hero elements
+		await expect(page.getByRole('heading', { level: 1, name: 'Razor Tool' })).toBeVisible();
+		await expect(page.locator('.shortcut-pill')).toContainText('C');
+		await expect(page.locator('.workspace-value')).toHaveText('Editing');
+
+		// Breadcrumbs
+		const breadcrumb = page.locator('.guide-breadcrumb-nav');
+		await expect(breadcrumb).toContainText('Home');
+		await expect(breadcrumb).toContainText('Guides');
+		await expect(breadcrumb).toContainText('Razor Tool');
+
+		// Video Walkthrough Section & Placeholder
+		const videoSection = page.locator('#video-tutorial');
+		await expect(videoSection).toBeVisible();
+		await expect(page.locator('.video-placeholder-card')).toBeVisible();
+		await expect(page.locator('.placeholder-title')).toContainText('Master the Razor Tool');
+		await expect(page.locator('.jump-to-steps-btn')).toBeVisible();
+
+		// Overview Section & Checklist
+		const overviewSection = page.locator('#overview');
+		await expect(overviewSection).toBeVisible();
+		await expect(overviewSection.locator('.checklist li')).toHaveCount(5);
+
+		// Visual Anatomy Section
+		const anatomySection = page.locator('#anatomy');
+		await expect(anatomySection).toBeVisible();
+		await expect(anatomySection.locator('.anatomy-card')).toHaveCount(4);
+
+		// How to Use Section with sequential steps
+		const stepsSection = page.locator('#how-to-use');
+		await expect(stepsSection).toBeVisible();
+		const stepNumbers = stepsSection.locator('.step-number');
+		await expect(stepNumbers).toHaveCount(5);
+		await expect(stepNumbers.nth(0)).toHaveText('1');
+		await expect(stepNumbers.nth(1)).toHaveText('2');
+
+		// Pro Tips Section
+		const proTipsSection = page.locator('#pro-tips');
+		await expect(proTipsSection).toBeVisible();
+		await expect(proTipsSection.locator('.tip-card')).toHaveCount(4);
+
+		// Keyboard Shortcuts Table
+		const shortcutsSection = page.locator('#shortcuts');
+		await expect(shortcutsSection).toBeVisible();
+		const tableRows = shortcutsSection.locator('.shortcuts-table tbody tr');
+		await expect(tableRows).toHaveCount(4);
+		await expect(tableRows.first()).toContainText('Activate Razor Tool');
+
+		// FAQ Section
+		const faqSection = page.locator('#faq');
+		await expect(faqSection).toBeVisible();
+		const faqItems = faqSection.locator('.faq-item');
+		await expect(faqItems).toHaveCount(3);
+
+		// Next / Prev Navigation
+		const nextCard = page.locator('.next-card');
+		await expect(nextCard).toBeVisible();
+	});
+
+	test('navigates to Guides from main site header navigation and features banner', async ({
+		page
+	}) => {
+		await page.goto('/');
+
+		// Click 'Guides' in the top header
+		const guidesNavLink = page.locator('.site-nav').getByRole('link', { name: 'Guides' });
+		await expect(guidesNavLink).toBeVisible();
+		await guidesNavLink.click();
+
+		await expect(page).toHaveURL(/\/guides/);
+		await expect(
+			page.getByRole('heading', { name: /Master Every Tool in The Free Video Editor/i })
+		).toBeVisible();
+	});
+
+	test('header is responsive without horizontal scrollbar across desktop, laptop, tablet, and mobile', async ({
+		page
+	}) => {
+		for (const pageUrl of ['/', '/guides', '/about']) {
+			for (const viewport of [
+				{ width: 1440, height: 900, name: 'desktop' },
+				{ width: 1100, height: 800, name: 'laptop-devtools' },
+				{ width: 850, height: 800, name: 'tablet-split' },
+				{ width: 375, height: 667, name: 'mobile' }
+			]) {
+				await page.setViewportSize({ width: viewport.width, height: viewport.height });
+				await page.goto(pageUrl);
+
+				// Verify zero horizontal overflow on the document
+				const isHorizontallyScrollable = await page.evaluate(() => {
+					return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+				});
+				expect(isHorizontallyScrollable).toBe(false);
+
+				if (viewport.width <= 1024) {
+					// Tablet & mobile: hamburger menu exists and opens drawer
+					const hamburger = page.locator('#mobile-menu-toggle');
+					await expect(hamburger).toBeVisible();
+					await hamburger.click();
+					const drawer = page.locator('#mobile-nav-drawer');
+					await expect(drawer).toBeVisible();
+					await hamburger.click();
+				} else {
+					// Desktop & laptop: site-nav links are visible
+					await expect(page.locator('.site-nav')).toBeVisible();
+				}
+			}
+		}
+	});
+});
+

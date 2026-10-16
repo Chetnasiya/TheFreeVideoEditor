@@ -1,0 +1,1461 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import ToolIcon from '../../components/ToolIcon.astro';
+import YouTubeEmbed from '../../components/YouTubeEmbed.astro';
+import { TOOL_GUIDES, getRelatedGuides, type ToolGuide } from '../../data/guides';
+
+export async function getStaticPaths() {
+	return TOOL_GUIDES.map((guide, idx) => {
+		const prevGuide = idx > 0 ? TOOL_GUIDES[idx - 1] : TOOL_GUIDES[TOOL_GUIDES.length - 1];
+		const nextGuide = idx < TOOL_GUIDES.length - 1 ? TOOL_GUIDES[idx + 1] : TOOL_GUIDES[0];
+		return {
+			params: { slug: guide.id },
+			props: { guide, prevGuide, nextGuide }
+		};
+	});
+}
+
+interface Props {
+	guide: ToolGuide;
+	prevGuide: ToolGuide;
+	nextGuide: ToolGuide;
+}
+
+const { guide, prevGuide, nextGuide } = Astro.props;
+const relatedGuides = getRelatedGuides(guide);
+
+const seoTitle = `${guide.title} Guide & Tutorial — The Free Video Editor`;
+const seoDescription = `${guide.subtitle} Complete step-by-step instructions, keyboard shortcuts, pro tips, and video walkthrough for The Free Video Editor.`;
+const canonical = `https://thefreevideoeditor.com/guides/${guide.id}`;
+---
+
+<Layout
+	title={seoTitle}
+	description={seoDescription}
+	canonicalUrl={canonical}
+>
+	<Header />
+
+	<main class="guide-detail-main">
+		<!-- Breadcrumbs -->
+		<nav class="guide-breadcrumb-nav" aria-label="Breadcrumb">
+			<div class="guide-container">
+				<ol class="breadcrumb-list">
+					<li>
+						<a href="/" class="breadcrumb-link">Home</a>
+					</li>
+					<li class="breadcrumb-sep" aria-hidden="true">/</li>
+					<li>
+						<a href="/guides" class="breadcrumb-link">Guides</a>
+					</li>
+					<li class="breadcrumb-sep" aria-hidden="true">/</li>
+					<li>
+						<span class="breadcrumb-cat">{guide.categoryLabel}</span>
+					</li>
+					<li class="breadcrumb-sep" aria-hidden="true">/</li>
+					<li aria-current="page" class="breadcrumb-current">
+						{guide.title}
+					</li>
+				</ol>
+			</div>
+		</nav>
+
+		<!-- Tool Hero Section -->
+		<header class="guide-hero">
+			<div class="hero-ambient-glow" aria-hidden="true"></div>
+			<div class="guide-container">
+				<div class="hero-header-row">
+					<div class="tool-hero-icon-box">
+						<ToolIcon name={guide.icon} size={36} />
+					</div>
+					<div class="hero-badge-group">
+						<span class="category-pill">{guide.categoryLabel}</span>
+						{guide.shortcut && (
+							<span class="shortcut-pill">
+								Shortcut: <kbd>{guide.shortcut}</kbd>
+							</span>
+						)}
+						<span class="difficulty-pill">{guide.difficulty}</span>
+						<span class="reading-time-pill">{guide.readingTimeMinutes} min read</span>
+					</div>
+				</div>
+
+				<h1 class="guide-title">{guide.title}</h1>
+				<p class="guide-lead">{guide.subtitle}</p>
+
+				<!-- Hero Meta & Quick Actions -->
+				<div class="hero-actions-bar">
+					<div class="action-buttons-group">
+						<a href="/editor" class="hero-cta-btn">
+							<span>Try in Editor</span>
+							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+								<polyline points="9 18 15 12 9 6"></polyline>
+							</svg>
+						</a>
+						<a href="#how-to-use" class="hero-secondary-btn">
+							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+								<line x1="12" y1="5" x2="12" y2="19"></line>
+								<polyline points="19 12 12 19 5 12"></polyline>
+							</svg>
+							<span>Step-by-Step Instructions</span>
+						</a>
+						<a href="#video-tutorial" class="hero-secondary-btn">
+							<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+								<path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+							</svg>
+							<span>Video Tutorial</span>
+						</a>
+					</div>
+
+					<div class="workspace-hint">
+						<span class="workspace-label">Primary Workspace:</span>
+						<span class="workspace-value">{guide.workspace}</span>
+					</div>
+				</div>
+			</div>
+		</header>
+
+		<!-- Jump Links Navigation Strip -->
+		<nav class="guide-toc-strip" aria-label="Table of contents">
+			<div class="guide-container">
+				<div class="toc-pills">
+					<a href="#video-tutorial" class="toc-pill">Video Tutorial</a>
+					<a href="#overview" class="toc-pill">Overview</a>
+					<a href="#anatomy" class="toc-pill">Tool Anatomy</a>
+					<a href="#how-to-use" class="toc-pill">How to Use</a>
+					<a href="#pro-tips" class="toc-pill">Pro Tips</a>
+					<a href="#shortcuts" class="toc-pill">Shortcuts</a>
+					<a href="#faq" class="toc-pill">FAQ</a>
+					{relatedGuides.length > 0 && <a href="#related" class="toc-pill">Related Tools</a>}
+				</div>
+			</div>
+		</nav>
+
+		<!-- Content Layout -->
+		<div class="guide-container">
+			<div class="guide-layout">
+				<!-- Main Content Body -->
+				<article class="guide-content">
+					<!-- Video Tutorial Section -->
+					<section id="video-tutorial" class="content-block">
+						<div class="section-heading">
+							<div class="section-eyebrow">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="red-icon" aria-hidden="true">
+									<path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+								</svg>
+								<span>VIDEO WALKTHROUGH & TUTORIAL</span>
+							</div>
+							<h2>Watch How to Use the {guide.title}</h2>
+							<p>
+								Watch the visual demonstration of the {guide.title} in action, or follow the complete
+								step-by-step instructions below.
+							</p>
+						</div>
+
+						<!-- Responsive YouTube Player or Placeholder -->
+						<YouTubeEmbed
+							videoId={guide.youtubeVideoId}
+							videoUrl={guide.youtubeUrl}
+							title={guide.title}
+							toolId={guide.id}
+						/>
+					</section>
+
+					<!-- Overview Section -->
+					<section id="overview" class="content-block">
+						<div class="section-heading">
+							<span class="section-tag">OVERVIEW</span>
+							<h2>What is the {guide.title}?</h2>
+						</div>
+						<div class="narrative-text">
+							<p>{guide.overview}</p>
+						</div>
+
+						<!-- When to Use Checklist -->
+						<div class="when-to-use-box">
+							<h3 class="when-to-use-title">When and Why to Use This Tool</h3>
+							<ul class="checklist">
+								{guide.whenToUse.map((item) => (
+									<li>
+										<span class="check-icon" aria-hidden="true">
+											<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+												<polyline points="20 6 9 17 4 12"></polyline>
+											</svg>
+										</span>
+										<span>{item}</span>
+									</li>
+								))}
+							</ul>
+						</div>
+					</section>
+
+					<!-- Tool Anatomy & UI Features -->
+					<section id="anatomy" class="content-block">
+						<div class="section-heading">
+							<span class="section-tag">UI BREAKDOWN</span>
+							<h2>Visual Anatomy & Interface Controls</h2>
+							<p>Understanding the cursor feedback, indicators, and controls of the {guide.title}.</p>
+						</div>
+
+						<div class="anatomy-grid">
+							{guide.anatomy.map((item) => (
+								<div class="anatomy-card">
+									<div class="anatomy-card-top">
+										<span class="anatomy-dot" aria-hidden="true"></span>
+										<h3 class="anatomy-title">{item.feature}</h3>
+									</div>
+									<p class="anatomy-desc">{item.explanation}</p>
+								</div>
+							))}
+						</div>
+					</section>
+
+					<!-- Step-by-Step Instructions -->
+					<section id="how-to-use" class="content-block">
+						<div class="section-heading">
+							<span class="section-tag">STEP-BY-STEP WORKFLOW</span>
+							<h2>How to Use the {guide.title}</h2>
+							<p>Follow these numbered steps to master the tool quickly and avoid common pitfalls.</p>
+						</div>
+
+						<div class="steps-timeline">
+							{guide.steps.map((step) => (
+								<div class="step-card">
+									<div class="step-number-col">
+										<span class="step-number">{step.stepNumber}</span>
+										<div class="step-line" aria-hidden="true"></div>
+									</div>
+
+									<div class="step-body">
+										<div class="step-title-row">
+											<h3 class="step-title">{step.title}</h3>
+											{step.shortcutBadge && (
+												<span class="step-badge">
+													<kbd>{step.shortcutBadge}</kbd>
+												</span>
+											)}
+										</div>
+										<p class="step-desc">{step.description}</p>
+										{step.tip && (
+											<div class="step-tip-callout">
+												<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tip-icon" aria-hidden="true">
+													<circle cx="12" cy="12" r="10"></circle>
+													<line x1="12" y1="16" x2="12" y2="12"></line>
+													<line x1="12" y1="8" x2="12.01" y2="8"></line>
+												</svg>
+												<span><strong>Pro Tip:</strong> {step.tip}</span>
+											</div>
+										)}
+									</div>
+								</div>
+							))}
+						</div>
+					</section>
+
+					<!-- Power-User Pro Tips -->
+					<section id="pro-tips" class="content-block">
+						<div class="section-heading">
+							<span class="section-tag">PRO EDITING TIPS</span>
+							<h2>Power-User Workflow Secrets</h2>
+							<p>Expert techniques to boost editing speed and maintain clean, professional timelines.</p>
+						</div>
+
+						<div class="tips-grid">
+							{guide.quickTips.map((tip) => (
+								<div class="tip-card">
+									<div class="tip-icon-box" aria-hidden="true">
+										<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+											<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+										</svg>
+									</div>
+									<p class="tip-text">{tip}</p>
+								</div>
+							))}
+						</div>
+					</section>
+
+					<!-- Keyboard Shortcuts Reference -->
+					<section id="shortcuts" class="content-block">
+						<div class="section-heading">
+							<span class="section-tag">KEYBOARD REFERENCE</span>
+							<h2>Keyboard Shortcuts</h2>
+							<p>Speed up your edits without reaching for the mouse.</p>
+						</div>
+
+						<div class="shortcuts-table-wrapper">
+							<table class="shortcuts-table">
+								<thead>
+									<tr>
+										<th>Action</th>
+										<th>Key / Shortcut</th>
+										<th>Platform Modifier</th>
+									</tr>
+								</thead>
+								<tbody>
+									{guide.keyboardShortcuts.map((sc) => (
+										<tr>
+											<td class="action-cell">
+												<strong>{sc.action}</strong>
+											</td>
+											<td class="key-cell">
+												<kbd>{sc.modifier ? `${sc.modifier} + ` : ''}{sc.key}</kbd>
+											</td>
+											<td class="note-cell">
+												{sc.modifier ? (
+													<span>Mac: <code>{sc.modifier.replace('Cmd/Ctrl', '⌘').replace('Alt/Option', '⌥')}</code> &bull; Win: <code>{sc.modifier.replace('Cmd/Ctrl', 'Ctrl').replace('Alt/Option', 'Alt')}</code></span>
+												) : (
+													<span>Single Keypress</span>
+												)}
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					</section>
+
+					<!-- Frequently Asked Questions -->
+					<section id="faq" class="content-block">
+						<div class="section-heading">
+							<span class="section-tag">TROUBLESHOOTING & FAQ</span>
+							<h2>Frequently Asked Questions</h2>
+							<p>Common questions about using the {guide.title}.</p>
+						</div>
+
+						<div class="faq-list">
+							{guide.faq.map((item) => (
+								<div class="faq-item">
+									<h3 class="faq-question">{item.question}</h3>
+									<p class="faq-answer">{item.answer}</p>
+								</div>
+							))}
+						</div>
+					</section>
+
+					<!-- Next / Prev Guide Navigation -->
+					<div class="prev-next-nav">
+						<a href={`/guides/${prevGuide.id}`} class="nav-card prev-card">
+							<span class="nav-direction">&larr; Previous Tool Guide</span>
+							<span class="nav-title">{prevGuide.title}</span>
+						</a>
+						<a href={`/guides/${nextGuide.id}`} class="nav-card next-card">
+							<span class="nav-direction">Next Tool Guide &rarr;</span>
+							<span class="nav-title">{nextGuide.title}</span>
+						</a>
+					</div>
+
+					<!-- Related Guides -->
+					{relatedGuides.length > 0 && (
+						<section id="related" class="content-block related-section">
+							<div class="section-heading">
+								<span class="section-tag">COMPLEMENTARY TOOLS</span>
+								<h2>Related Editing Tools</h2>
+							</div>
+
+							<div class="related-grid">
+								{relatedGuides.map((rel) => (
+									<a href={`/guides/${rel.id}`} class="related-card">
+										<div class="related-icon-box">
+											<ToolIcon name={rel.icon} size={20} />
+										</div>
+										<div class="related-body">
+											<div class="related-title-row">
+												<span class="related-title">{rel.title}</span>
+												{rel.shortcut && <kbd class="related-key">{rel.shortcut}</kbd>}
+											</div>
+											<p class="related-desc">{rel.subtitle}</p>
+										</div>
+									</a>
+								))}
+							</div>
+						</section>
+					)}
+				</article>
+
+				<!-- Floating Sticky Sidebar -->
+				<aside class="guide-sidebar">
+					<div class="sidebar-sticky-wrapper">
+						<!-- Quick Tool Info Box -->
+						<div class="sidebar-card">
+							<h4 class="sidebar-card-title">Tool Specifications</h4>
+							<div class="spec-row">
+								<span class="spec-label">Tool:</span>
+								<span class="spec-value">{guide.title}</span>
+							</div>
+							{guide.shortcut && (
+								<div class="spec-row">
+									<span class="spec-label">Shortcut:</span>
+									<span class="spec-value"><kbd>{guide.shortcut}</kbd></span>
+								</div>
+							)}
+							<div class="spec-row">
+								<span class="spec-label">Workspace:</span>
+								<span class="spec-value">{guide.workspace}</span>
+							</div>
+							<div class="spec-row">
+								<span class="spec-label">Category:</span>
+								<span class="spec-value">{guide.categoryLabel}</span>
+							</div>
+							<div class="spec-row">
+								<span class="spec-label">Difficulty:</span>
+								<span class="spec-value">{guide.difficulty}</span>
+							</div>
+							<div class="spec-row">
+								<span class="spec-label">Privacy:</span>
+								<span class="spec-value text-green">100% On-Device</span>
+							</div>
+
+							<div class="sidebar-cta-wrapper">
+								<a href="/editor" class="sidebar-launch-btn">
+									<span>Open Editor</span>
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+										<polyline points="9 18 15 12 9 6"></polyline>
+									</svg>
+								</a>
+							</div>
+						</div>
+
+						<!-- All Tools Quick Links -->
+						<div class="sidebar-card">
+							<h4 class="sidebar-card-title">All Tool Guides</h4>
+							<ul class="sidebar-tool-list">
+								{TOOL_GUIDES.map((t) => (
+									<li>
+										<a
+											href={`/guides/${t.id}`}
+											class={`sidebar-tool-link ${t.id === guide.id ? 'is-active' : ''}`}
+										>
+											<span class="sidebar-tool-icon">
+												<ToolIcon name={t.icon} size={15} />
+											</span>
+											<span class="sidebar-tool-name">{t.title}</span>
+											{t.shortcut && <kbd class="sidebar-shortcut-badge">{t.shortcut}</kbd>}
+										</a>
+									</li>
+								))}
+							</ul>
+							<div class="sidebar-back-box">
+								<a href="/guides" class="sidebar-all-guides-link">&larr; View All Guides Directory</a>
+							</div>
+						</div>
+					</div>
+				</aside>
+			</div>
+		</div>
+
+		<!-- Bottom Launch CTA Section -->
+		<section class="guide-cta-section">
+			<div class="guide-container">
+				<div class="cta-banner">
+					<div class="cta-content">
+						<h2>Ready to Try the {guide.title}?</h2>
+						<p>Open The Free Video Editor right in your browser. No downloads, no registration, and zero cloud uploads.</p>
+					</div>
+					<a href="/editor" class="cta-launch-btn">
+						<span>Launch Editor Now</span>
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<polyline points="9 18 15 12 9 6"></polyline>
+						</svg>
+					</a>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<Footer />
+</Layout>
+
+<style>
+	.guide-detail-main {
+		min-height: 100vh;
+		background: #090909;
+		color: #ffffff;
+		padding-bottom: 5rem;
+	}
+
+	.guide-container {
+		max-width: 1240px;
+		margin: 0 auto;
+		padding: 0 1.5rem;
+	}
+
+	/* Breadcrumb */
+	.guide-breadcrumb-nav {
+		padding: 1rem 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		font-size: 0.82rem;
+	}
+
+	.breadcrumb-list {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		color: #71717a;
+	}
+
+	.breadcrumb-link {
+		color: #a1a1aa;
+		text-decoration: none;
+		transition: color 0.15s ease;
+	}
+
+	.breadcrumb-link:hover {
+		color: #38bdf8;
+	}
+
+	.breadcrumb-sep {
+		color: #52525b;
+	}
+
+	.breadcrumb-cat {
+		color: #a1a1aa;
+	}
+
+	.breadcrumb-current {
+		color: #ffffff;
+		font-weight: 500;
+	}
+
+	/* Hero */
+	.guide-hero {
+		position: relative;
+		padding: 3.5rem 0 2.5rem 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		overflow: hidden;
+	}
+
+	.hero-ambient-glow {
+		position: absolute;
+		top: -80px;
+		left: 20%;
+		width: 500px;
+		height: 300px;
+		background: radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, rgba(168, 85, 247, 0.05) 50%, transparent 75%);
+		pointer-events: none;
+		filter: blur(50px);
+	}
+
+	.hero-header-row {
+		display: flex;
+		align-items: center;
+		gap: 1.25rem;
+		margin-bottom: 1.25rem;
+	}
+
+	.tool-hero-icon-box {
+		width: 60px;
+		height: 60px;
+		border-radius: 14px;
+		background: rgba(56, 189, 248, 0.12);
+		border: 1px solid rgba(56, 189, 248, 0.25);
+		color: #38bdf8;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 0 24px rgba(56, 189, 248, 0.15);
+	}
+
+	.hero-badge-group {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.category-pill {
+		padding: 4px 10px;
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.06);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: #d4d4d8;
+		font-size: 0.75rem;
+		font-weight: 500;
+	}
+
+	.shortcut-pill {
+		padding: 4px 10px;
+		border-radius: 6px;
+		background: rgba(56, 189, 248, 0.1);
+		border: 1px solid rgba(56, 189, 248, 0.25);
+		color: #38bdf8;
+		font-size: 0.75rem;
+		font-weight: 500;
+	}
+
+	.shortcut-pill kbd, .step-badge kbd, .spec-value kbd {
+		font-family: var(--font-mono, monospace);
+		font-weight: 700;
+		color: #ffffff;
+		padding: 1px 4px;
+		border-radius: 4px;
+		background: rgba(255, 255, 255, 0.15);
+	}
+
+	.difficulty-pill, .reading-time-pill {
+		padding: 4px 10px;
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #a1a1aa;
+		font-size: 0.75rem;
+	}
+
+	.guide-title {
+		font-size: 2.75rem;
+		font-weight: 700;
+		letter-spacing: -0.04em;
+		line-height: 1.15;
+		margin: 0 0 1rem 0;
+		color: #ffffff;
+	}
+
+	.guide-lead {
+		font-size: 1.2rem;
+		line-height: 1.6;
+		color: #a1a1aa;
+		max-width: 820px;
+		margin: 0 0 2rem 0;
+	}
+
+	.hero-actions-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 1.25rem;
+	}
+
+	.action-buttons-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+	}
+
+	.hero-cta-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0.65rem 1.4rem;
+		border-radius: 9999px;
+		background: #ffffff;
+		color: #090909;
+		font-size: 0.88rem;
+		font-weight: 600;
+		text-decoration: none;
+		transition: all 0.15s ease;
+		box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+	}
+
+	.hero-cta-btn:hover {
+		background: #ededed;
+		transform: scale(1.02);
+	}
+
+	.hero-secondary-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0.65rem 1.2rem;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.06);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		color: #e4e4e7;
+		font-size: 0.88rem;
+		font-weight: 500;
+		text-decoration: none;
+		transition: all 0.15s ease;
+	}
+
+	.hero-secondary-btn:hover {
+		background: rgba(255, 255, 255, 0.12);
+		color: #ffffff;
+	}
+
+	.workspace-hint {
+		font-size: 0.84rem;
+		color: #71717a;
+	}
+
+	.workspace-value {
+		color: #38bdf8;
+		font-weight: 500;
+		margin-left: 4px;
+	}
+
+	/* TOC Strip */
+	.guide-toc-strip {
+		position: sticky;
+		top: 60px;
+		z-index: 20;
+		background: rgba(9, 9, 9, 0.88);
+		backdrop-filter: blur(12px);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		padding: 0.75rem 0;
+	}
+
+	.toc-pills {
+		display: flex;
+		gap: 0.5rem;
+		overflow-x: auto;
+		scrollbar-width: none;
+		padding-bottom: 2px;
+	}
+
+	.toc-pills::-webkit-scrollbar {
+		display: none;
+	}
+
+	.toc-pill {
+		padding: 0.35rem 0.85rem;
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #a1a1aa;
+		font-size: 0.8rem;
+		font-weight: 500;
+		text-decoration: none;
+		white-space: nowrap;
+		transition: all 0.15s ease;
+	}
+
+	.toc-pill:hover {
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	/* Content Layout */
+	.guide-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 320px;
+		gap: 3.5rem;
+		padding-top: 3rem;
+	}
+
+	.guide-content {
+		min-width: 0;
+	}
+
+	.content-block {
+		margin-bottom: 4rem;
+		scroll-margin-top: 120px;
+	}
+
+	.section-heading {
+		margin-bottom: 1.75rem;
+	}
+
+	.section-tag {
+		display: inline-block;
+		font-family: var(--font-mono, monospace);
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: #38bdf8;
+		letter-spacing: 0.06em;
+		margin-bottom: 0.4rem;
+	}
+
+	.section-eyebrow {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-family: var(--font-mono, monospace);
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: #ff4d4d;
+		letter-spacing: 0.06em;
+		margin-bottom: 0.4rem;
+	}
+
+	.red-icon {
+		color: #ff0000;
+	}
+
+	.section-heading h2 {
+		font-size: 1.85rem;
+		font-weight: 600;
+		letter-spacing: -0.03em;
+		margin: 0 0 0.5rem 0;
+		color: #ffffff;
+	}
+
+	.section-heading p {
+		font-size: 0.96rem;
+		color: #94a3b8;
+		margin: 0;
+		line-height: 1.6;
+	}
+
+	.narrative-text p {
+		font-size: 1.05rem;
+		line-height: 1.75;
+		color: #d4d4d8;
+		margin: 0 0 1.5rem 0;
+	}
+
+	/* When to Use Box */
+	.when-to-use-box {
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 14px;
+		padding: 1.75rem;
+		margin-top: 1.5rem;
+	}
+
+	.when-to-use-title {
+		font-size: 1.05rem;
+		font-weight: 600;
+		margin: 0 0 1rem 0;
+		color: #ffffff;
+	}
+
+	.checklist {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+	}
+
+	.checklist li {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		font-size: 0.94rem;
+		color: #cbd5e1;
+		line-height: 1.5;
+	}
+
+	.check-icon {
+		color: #38bdf8;
+		margin-top: 2px;
+		flex-shrink: 0;
+	}
+
+	/* Anatomy Grid */
+	.anatomy-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		gap: 1.25rem;
+	}
+
+	.anatomy-card {
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
+		padding: 1.25rem;
+		transition: border-color 0.15s ease;
+	}
+
+	.anatomy-card:hover {
+		border-color: rgba(56, 189, 248, 0.3);
+	}
+
+	.anatomy-card-top {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 0.5rem;
+	}
+
+	.anatomy-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #38bdf8;
+	}
+
+	.anatomy-title {
+		font-size: 0.95rem;
+		font-weight: 600;
+		margin: 0;
+		color: #ffffff;
+	}
+
+	.anatomy-desc {
+		font-size: 0.85rem;
+		color: #94a3b8;
+		margin: 0;
+		line-height: 1.5;
+	}
+
+	/* Steps Timeline */
+	.steps-timeline {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+	}
+
+	.step-card {
+		display: flex;
+		gap: 1.5rem;
+		position: relative;
+	}
+
+	.step-number-col {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		flex-shrink: 0;
+	}
+
+	.step-number {
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: #38bdf8;
+		color: #090909;
+		font-weight: 700;
+		font-size: 0.94rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 0 16px rgba(56, 189, 248, 0.3);
+	}
+
+	.step-line {
+		flex: 1;
+		width: 2px;
+		background: rgba(255, 255, 255, 0.08);
+		margin-top: 8px;
+	}
+
+	.step-body {
+		flex: 1;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 14px;
+		padding: 1.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.step-title-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.step-title {
+		font-size: 1.15rem;
+		font-weight: 600;
+		margin: 0;
+		color: #ffffff;
+	}
+
+	.step-badge kbd {
+		font-family: var(--font-mono, monospace);
+		font-size: 0.75rem;
+		padding: 3px 8px;
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		color: #38bdf8;
+	}
+
+	.step-desc {
+		font-size: 0.94rem;
+		line-height: 1.65;
+		color: #94a3b8;
+		margin: 0 0 1rem 0;
+	}
+
+	.step-tip-callout {
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+		padding: 0.75rem 1rem;
+		border-radius: 8px;
+		background: rgba(56, 189, 248, 0.06);
+		border: 1px solid rgba(56, 189, 248, 0.2);
+		font-size: 0.85rem;
+		color: #7dd3fc;
+		line-height: 1.5;
+	}
+
+	.tip-icon {
+		color: #38bdf8;
+		margin-top: 2px;
+		flex-shrink: 0;
+	}
+
+	/* Tips Grid */
+	.tips-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		gap: 1.25rem;
+	}
+
+	.tip-card {
+		display: flex;
+		gap: 12px;
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
+		padding: 1.25rem;
+	}
+
+	.tip-icon-box {
+		color: #facc15;
+		flex-shrink: 0;
+		margin-top: 2px;
+	}
+
+	.tip-text {
+		font-size: 0.88rem;
+		color: #cbd5e1;
+		line-height: 1.55;
+		margin: 0;
+	}
+
+	/* Shortcuts Table */
+	.shortcuts-table-wrapper {
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 14px;
+		overflow-x: auto;
+	}
+
+	.shortcuts-table {
+		width: 100%;
+		border-collapse: collapse;
+		text-align: left;
+		font-size: 0.88rem;
+	}
+
+	.shortcuts-table th {
+		padding: 1rem 1.25rem;
+		background: rgba(255, 255, 255, 0.04);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		font-weight: 600;
+		color: #a1a1aa;
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.shortcuts-table td {
+		padding: 1rem 1.25rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+		color: #d4d4d8;
+	}
+
+	.action-cell strong {
+		color: #ffffff;
+	}
+
+	.key-cell kbd {
+		display: inline-block;
+		font-family: var(--font-mono, monospace);
+		font-size: 0.78rem;
+		font-weight: 600;
+		padding: 3px 8px;
+		border-radius: 5px;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.18);
+		color: #38bdf8;
+	}
+
+	.note-cell {
+		font-size: 0.8rem;
+		color: #94a3b8;
+	}
+
+	.note-cell code {
+		font-family: var(--font-mono, monospace);
+		background: rgba(255, 255, 255, 0.06);
+		padding: 1px 5px;
+		border-radius: 4px;
+		color: #f4f4f5;
+	}
+
+	/* FAQ */
+	.faq-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+
+	.faq-item {
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
+		padding: 1.5rem;
+	}
+
+	.faq-question {
+		font-size: 1.05rem;
+		font-weight: 600;
+		color: #ffffff;
+		margin: 0 0 0.5rem 0;
+	}
+
+	.faq-answer {
+		font-size: 0.92rem;
+		line-height: 1.6;
+		color: #94a3b8;
+		margin: 0;
+	}
+
+	/* Prev / Next Navigation */
+	.prev-next-nav {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.25rem;
+		margin-top: 3rem;
+		padding-top: 2rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.nav-card {
+		display: flex;
+		flex-direction: column;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
+		padding: 1.25rem;
+		text-decoration: none;
+		transition: all 0.15s ease;
+	}
+
+	.next-card {
+		text-align: right;
+	}
+
+	.nav-card:hover {
+		border-color: rgba(56, 189, 248, 0.3);
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.nav-direction {
+		font-size: 0.75rem;
+		font-family: var(--font-mono, monospace);
+		color: #71717a;
+		margin-bottom: 0.25rem;
+	}
+
+	.nav-title {
+		font-size: 1rem;
+		font-weight: 600;
+		color: #ffffff;
+	}
+
+	/* Related Grid */
+	.related-section {
+		margin-top: 3rem;
+	}
+
+	.related-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		gap: 1rem;
+	}
+
+	.related-card {
+		display: flex;
+		gap: 12px;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
+		padding: 1rem;
+		text-decoration: none;
+		transition: all 0.15s ease;
+	}
+
+	.related-card:hover {
+		border-color: rgba(56, 189, 248, 0.3);
+		transform: translateY(-2px);
+	}
+
+	.related-icon-box {
+		width: 36px;
+		height: 36px;
+		border-radius: 8px;
+		background: rgba(56, 189, 248, 0.1);
+		color: #38bdf8;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.related-body {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.related-title-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 0.25rem;
+	}
+
+	.related-title {
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: #ffffff;
+	}
+
+	.related-key {
+		font-family: var(--font-mono, monospace);
+		font-size: 0.7rem;
+		color: #71717a;
+		background: rgba(255, 255, 255, 0.06);
+		padding: 1px 5px;
+		border-radius: 4px;
+	}
+
+	.related-desc {
+		font-size: 0.78rem;
+		color: #94a3b8;
+		margin: 0;
+		line-height: 1.4;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* Sidebar */
+	.guide-sidebar {
+		min-width: 0;
+	}
+
+	.sidebar-sticky-wrapper {
+		position: sticky;
+		top: 120px;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+	}
+
+	.sidebar-card {
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 14px;
+		padding: 1.25rem;
+	}
+
+	.sidebar-card-title {
+		font-size: 0.82rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #a1a1aa;
+		margin: 0 0 1rem 0;
+		padding-bottom: 0.75rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	}
+
+	.spec-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-size: 0.84rem;
+		padding: 0.4rem 0;
+	}
+
+	.spec-label {
+		color: #71717a;
+	}
+
+	.spec-value {
+		color: #f4f4f5;
+		font-weight: 500;
+	}
+
+	.text-green {
+		color: #22c55e;
+	}
+
+	.sidebar-cta-wrapper {
+		margin-top: 1.25rem;
+		padding-top: 1rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
+	}
+
+	.sidebar-launch-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		width: 100%;
+		padding: 0.65rem;
+		border-radius: 8px;
+		background: #ffffff;
+		color: #090909;
+		font-size: 0.84rem;
+		font-weight: 600;
+		text-decoration: none;
+		transition: background 0.15s ease;
+		box-sizing: border-box;
+	}
+
+	.sidebar-launch-btn:hover {
+		background: #ededed;
+	}
+
+	.sidebar-tool-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		max-height: 380px;
+		overflow-y: auto;
+	}
+
+	.sidebar-tool-link {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0.45rem 0.65rem;
+		border-radius: 6px;
+		color: #a1a1aa;
+		font-size: 0.82rem;
+		text-decoration: none;
+		transition: all 0.15s ease;
+	}
+
+	.sidebar-tool-link:hover {
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.sidebar-tool-link.is-active {
+		color: #38bdf8;
+		background: rgba(56, 189, 248, 0.1);
+		font-weight: 600;
+	}
+
+	.sidebar-tool-icon {
+		display: inline-flex;
+		opacity: 0.8;
+	}
+
+	.sidebar-tool-name {
+		flex: 1;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.sidebar-shortcut-badge {
+		font-family: var(--font-mono, monospace);
+		font-size: 0.68rem;
+		padding: 1px 4px;
+		border-radius: 3px;
+		background: rgba(255, 255, 255, 0.06);
+		color: #71717a;
+	}
+
+	.sidebar-back-box {
+		margin-top: 0.75rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
+	}
+
+	.sidebar-all-guides-link {
+		font-size: 0.78rem;
+		color: #38bdf8;
+		text-decoration: none;
+	}
+
+	.sidebar-all-guides-link:hover {
+		text-decoration: underline;
+	}
+
+	/* Bottom CTA */
+	.guide-cta-section {
+		padding: 4rem 0 1rem 0;
+	}
+
+	.cta-banner {
+		background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(168, 85, 247, 0.06) 100%), #0c0c0c;
+		border: 1px solid rgba(56, 189, 248, 0.2);
+		border-radius: 20px;
+		padding: 3rem 2.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 2rem;
+	}
+
+	.cta-content h2 {
+		font-size: 1.75rem;
+		font-weight: 700;
+		color: #ffffff;
+		margin: 0 0 0.5rem 0;
+		letter-spacing: -0.02em;
+	}
+
+	.cta-content p {
+		font-size: 0.95rem;
+		color: #94a3b8;
+		margin: 0;
+		max-width: 600px;
+	}
+
+	.cta-launch-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0.85rem 2rem;
+		border-radius: 9999px;
+		background: #ffffff;
+		color: #090909;
+		font-weight: 600;
+		font-size: 0.94rem;
+		text-decoration: none;
+		transition: all 0.2s ease;
+		box-shadow: 0 0 24px rgba(255, 255, 255, 0.2);
+	}
+
+	.cta-launch-btn:hover {
+		background: #ededed;
+		transform: scale(1.02);
+	}
+
+	@media (max-width: 1024px) {
+		.guide-layout {
+			grid-template-columns: 1fr;
+			gap: 2rem;
+		}
+
+		.guide-sidebar {
+			display: none;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.guide-title {
+			font-size: 2rem;
+		}
+
+		.guide-lead {
+			font-size: 1rem;
+		}
+
+		.step-card {
+			gap: 1rem;
+		}
+
+		.prev-next-nav {
+			grid-template-columns: 1fr;
+		}
+
+		.cta-banner {
+			padding: 2rem 1.5rem;
+		}
+	}
+</style>
+

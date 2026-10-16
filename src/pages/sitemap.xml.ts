@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { TOOL_GUIDES } from '../data/guides';
 
 export const GET: APIRoute = () => {
 	const siteUrl = 'https://thefreevideoeditor.com';
@@ -19,6 +20,18 @@ export const GET: APIRoute = () => {
 			changefreq: 'daily',
 			priority: '0.9'
 		},
+		{
+			url: `${siteUrl}/guides`,
+			lastmod: lastMod,
+			changefreq: 'weekly',
+			priority: '0.85'
+		},
+		...TOOL_GUIDES.map((guide) => ({
+			url: `${siteUrl}/guides/${guide.id}`,
+			lastmod: lastMod,
+			changefreq: 'weekly',
+			priority: '0.75'
+		})),
 		{
 			url: `${siteUrl}/about`,
 			lastmod: lastMod,
