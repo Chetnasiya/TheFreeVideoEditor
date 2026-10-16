@@ -131,7 +131,7 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
 	},
 	'ai-assistant': {
 		id: 'ai-assistant',
-		title: 'AI Assistant',
+		title: 'Smart Cut',
 		component: AIAssistantPanel as ComponentType<{ [key: string]: unknown }>,
 		singleInstance: true,
 		keepAlive: false,

@@ -156,4 +156,41 @@ describe('keyboard shortcut registry', () => {
 		preview.dispatchEvent(keyEvent('arrowleft', { altKey: true }));
 		expect(nudge).toHaveBeenCalledOnce();
 	});
+
+	it('dispatches all registered shortcuts to their wired handlers without errors', () => {
+		const handledActions = new Set<string>();
+		const mockHandlers: Record<string, () => void> = {};
+		const proxyHandlers = new Proxy(mockHandlers, {
+			get: (_target, prop: string) => () => {
+				handledActions.add(prop);
+			}
+		});
+
+		const registry = createEditorShortcutRegistry(proxyHandlers);
+		expect(registry.length).toBeGreaterThan(50);
+
+		for (const item of registry) {
+			const evt = keyEvent('a');
+			item.handler({ event: evt, platform: 'mac' });
+		}
+
+		// Ensure key action types are registered and wired
+		expect(handledActions.has('play-pause')).toBe(true);
+		expect(handledActions.has('split')).toBe(true);
+		expect(handledActions.has('delete')).toBe(true);
+		expect(handledActions.has('undo')).toBe(true);
+		expect(handledActions.has('redo')).toBe(true);
+		expect(handledActions.has('workspace-1')).toBe(true);
+		expect(handledActions.has('workspace-2')).toBe(true);
+		expect(handledActions.has('workspace-3')).toBe(true);
+		expect(handledActions.has('workspace-4')).toBe(true);
+		expect(handledActions.has('workspace-5')).toBe(true);
+		expect(handledActions.has('workspace-6')).toBe(true);
+		expect(handledActions.has('workspace-7')).toBe(true);
+		expect(handledActions.has('add-marker')).toBe(true);
+		expect(handledActions.has('toggle-snap')).toBe(true);
+		expect(handledActions.has('tool-select')).toBe(true);
+		expect(handledActions.has('tool-razor')).toBe(true);
+		expect(handledActions.has('tool-ripple')).toBe(true);
+	});
 });

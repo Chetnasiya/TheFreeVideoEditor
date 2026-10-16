@@ -627,11 +627,30 @@
 .strip-trim-slider::-webkit-slider-thumb {
 	-webkit-appearance: none;
 	appearance: none;
-	width: 8px;
-	height: 8px;
+	width: 10px;
+	height: 10px;
 	border-radius: 50%;
-	background: #cbd5e1;
-	border: 1px solid #0f172a;
+	background: #38bdf8;
+	border: 1.5px solid #0f172a;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+	cursor: ew-resize;
+	transition:
+		transform 0.1s ease,
+		background 0.1s ease;
+}
+
+.strip-trim-slider::-webkit-slider-thumb:hover {
+	transform: scale(1.2);
+	background: #7dd3fc;
+}
+
+.strip-trim-slider::-moz-range-thumb {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: #38bdf8;
+	border: 1.5px solid #0f172a;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 	cursor: ew-resize;
 }
 

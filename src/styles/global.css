@@ -56,3 +56,60 @@ button {
 		transition-duration: 0.01ms !important;
 	}
 }
+
+/* Universal Slider Styling (matching timeline zoom slider) */
+input[type='range'] {
+	-webkit-appearance: none;
+	appearance: none;
+	height: 4px;
+	background: #2a2a36;
+	border-radius: 2px;
+	outline: none;
+	cursor: pointer;
+	padding: 0;
+}
+
+input[type='range']::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: #38bdf8;
+	border: 2px solid #0f172a;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+	cursor: ew-resize;
+	transition:
+		transform 0.1s ease,
+		background 0.1s ease;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+	transform: scale(1.15);
+	background: #7dd3fc;
+}
+
+input[type='range']::-moz-range-track {
+	height: 4px;
+	background: #2a2a36;
+	border-radius: 2px;
+	border: none;
+}
+
+input[type='range']::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: #38bdf8;
+	border: 2px solid #0f172a;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+	cursor: ew-resize;
+	transition:
+		transform 0.1s ease,
+		background 0.1s ease;
+}
+
+input[type='range']::-moz-range-thumb:hover {
+	transform: scale(1.15);
+	background: #7dd3fc;
+}

@@ -84,6 +84,15 @@ export const SilenceTrimPanel: React.FC = () => {
 
 	return (
 		<div className="silence-trim-panel" data-testid="silence-trim-panel">
+			{/* Tool Header & Description */}
+			<div className="ai-intro-card">
+				<div className="ai-intro-title">Silence & Pause Removal</div>
+				<p className="ai-intro-desc">
+					Automatically scan dialogue and voice tracks for dead air and pauses, and ripple-trim them
+					across the timeline while keeping audio and video in sync.
+				</p>
+			</div>
+
 			{/* Tracks Selection */}
 			<div className="ai-section">
 				<div className="ai-section-title">
