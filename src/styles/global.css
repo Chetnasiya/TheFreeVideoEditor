@@ -66,18 +66,19 @@ button {
 	}
 }
 
-/* Universal Minimal Scrollbar (clean dark/light theme, thin, rounded) */
+/* Universal Minimal Scrollbar (matching dark/light theme, only visible on hover of specific window) */
 html,
 body,
 * {
 	scrollbar-width: thin;
-	scrollbar-color: var(--scrollbar-thumb, rgba(255, 255, 255, 0.2))
-		var(--scrollbar-track, transparent);
+	scrollbar-color: transparent transparent;
 	transition: scrollbar-color 0.2s ease;
 }
 
+html:hover,
+body:hover,
 *:hover {
-	scrollbar-color: var(--scrollbar-thumb-hover, rgba(255, 255, 255, 0.35))
+	scrollbar-color: var(--scrollbar-thumb, rgba(255, 255, 255, 0.2))
 		var(--scrollbar-track, transparent);
 }
 
@@ -91,17 +92,23 @@ body,
 }
 
 *::-webkit-scrollbar-thumb {
-	background: var(--scrollbar-thumb, rgba(255, 255, 255, 0.2));
+	background: transparent;
 	border-radius: 9999px;
 	transition: background 0.15s ease;
 }
 
+html:hover::-webkit-scrollbar-thumb,
+body:hover::-webkit-scrollbar-thumb,
+*:hover::-webkit-scrollbar-thumb {
+	background: var(--scrollbar-thumb, rgba(255, 255, 255, 0.2));
+}
+
 *::-webkit-scrollbar-thumb:hover {
-	background: var(--scrollbar-thumb-hover, rgba(255, 255, 255, 0.38));
+	background: var(--scrollbar-thumb-hover, rgba(255, 255, 255, 0.35));
 }
 
 *::-webkit-scrollbar-thumb:active {
-	background: var(--scrollbar-thumb-active, rgba(255, 255, 255, 0.55));
+	background: var(--scrollbar-thumb-active, rgba(255, 255, 255, 0.5));
 }
 
 *::-webkit-scrollbar-corner {

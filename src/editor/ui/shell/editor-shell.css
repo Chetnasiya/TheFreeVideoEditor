@@ -158,7 +158,8 @@
 		0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
-.file-menu-items button {
+.file-menu-items button,
+.file-menu-items a {
 	width: 100%;
 	min-height: 1.875rem;
 	border: 0;
@@ -172,15 +173,21 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	gap: 16px;
+	white-space: nowrap;
+	text-decoration: none;
+	box-sizing: border-box;
 	transition: all 0.1s ease;
 }
 
-.file-menu-items button:hover {
+.file-menu-items button:hover,
+.file-menu-items a:hover {
 	background: #1e293b;
 	color: #38bdf8;
 }
 
-.file-menu-items button:focus-visible {
+.file-menu-items button:focus-visible,
+.file-menu-items a:focus-visible {
 	outline: 2px solid #38bdf8;
 	outline-offset: -2px;
 }
@@ -198,15 +205,24 @@
 	margin: 4px 0;
 }
 
-.file-menu-items button span {
+.file-menu-items button span,
+.file-menu-items a span {
 	float: right;
 	color: #64748b;
 	font-family: var(--font-mono);
 	font-size: 11px;
+	flex-shrink: 0;
+}
+
+.file-menu-items button:hover span,
+.file-menu-items a:hover span {
+	color: #94a3b8;
 }
 
 .application-menu-items {
-	min-width: 14rem;
+	min-width: 15rem;
+	width: max-content;
+	max-width: min(24rem, calc(100vw - 2rem));
 }
 
 .panel-tab:hover:not(:disabled),

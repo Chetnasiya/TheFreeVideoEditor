@@ -26,37 +26,181 @@ interface Props {
 const { guide, prevGuide, nextGuide } = Astro.props;
 const relatedGuides = getRelatedGuides(guide);
 
-const seoTitle = `${guide.title} Guide & Tutorial — The Free Video Editor`;
-const seoDescription = `${guide.subtitle} Complete step-by-step instructions, keyboard shortcuts, pro tips, and video walkthrough for The Free Video Editor.`;
+const seoTitle = `${guide.title} Tutorial & Complete Workflow Guide — The Free Video Editor`;
+const seoDescription = `${guide.subtitle} Follow step-by-step instructions, keyboard shortcuts, pro tips, and video walkthroughs for ${guide.title} in The Free Video Editor.`;
 const canonical = `https://thefreevideoeditor.com/guides/${guide.id}`;
+
+const toolKeywords = [
+	guide.title,
+	`${guide.title.toLowerCase()} guide`,
+	`${guide.title.toLowerCase()} tutorial`,
+	`how to use ${guide.title.toLowerCase()}`,
+	guide.shortcut ? `${guide.title.toLowerCase()} shortcut ${guide.shortcut}` : '',
+	guide.categoryLabel,
+	'video editing guide',
+	'free video editor tutorial',
+	'the free video editor',
+	...guide.whenToUse.slice(0, 3).map((w) => w.toLowerCase())
+]
+	.filter(Boolean)
+	.join(', ');
+
+const guideJsonLd: Array<Record<string, unknown>> = [
+	{
+		'@context': 'https://schema.org',
+		'@type': 'TechArticle',
+		headline: `${guide.title} Tutorial & Step-by-Step Workflow Guide`,
+		alternativeHeadline: guide.subtitle,
+		description: seoDescription,
+		url: canonical,
+		inLanguage: 'en-US',
+		proficiencyLevel: guide.difficulty,
+		articleSection: guide.categoryLabel,
+		timeRequired: `PT${guide.readingTimeMinutes}M`,
+		author: {
+			'@type': 'Organization',
+			name: 'The Free Video Editor Editorial Team',
+			url: 'https://thefreevideoeditor.com'
+		},
+		publisher: {
+			'@type': 'Organization',
+			name: 'The Free Video Editor',
+			url: 'https://thefreevideoeditor.com',
+			logo: {
+				'@type': 'ImageObject',
+				url: 'https://thefreevideoeditor.com/favicon.svg'
+			}
+		},
+		mainEntityOfPage: {
+			'@type': 'WebPage',
+			'@id': canonical
+		},
+		datePublished: '2026-01-01T00:00:00Z',
+		dateModified: new Date().toISOString()
+	},
+	{
+		'@context': 'https://schema.org',
+		'@type': 'HowTo',
+		name: `How to Use ${guide.title} in The Free Video Editor`,
+		description: guide.subtitle,
+		totalTime: `PT${guide.readingTimeMinutes}M`,
+		tool: [
+			{
+				'@type': 'HowToTool',
+				name: 'The Free Video Editor'
+			}
+		],
+		step: guide.steps.map((step) => ({
+			'@type': 'HowToStep',
+			position: step.stepNumber,
+			name: step.title,
+			text: step.description,
+			url: `${canonical}#step-${step.stepNumber}`
+		}))
+	},
+	{
+		'@context': 'https://schema.org',
+		'@type': 'BreadcrumbList',
+		itemListElement: [
+			{
+				'@type': 'ListItem',
+				position: 1,
+				name: 'Home',
+				item: 'https://thefreevideoeditor.com/'
+			},
+			{
+				'@type': 'ListItem',
+				position: 2,
+				name: 'Guides',
+				item: 'https://thefreevideoeditor.com/guides'
+			},
+			{
+				'@type': 'ListItem',
+				position: 3,
+				name: guide.categoryLabel,
+				item: `https://thefreevideoeditor.com/guides?category=${guide.category}`
+			},
+			{
+				'@type': 'ListItem',
+				position: 4,
+				name: guide.title,
+				item: canonical
+			}
+		]
+	}
+];
+
+if (guide.faq && guide.faq.length > 0) {
+	guideJsonLd.push({
+		'@context': 'https://schema.org',
+		'@type': 'FAQPage',
+		mainEntity: guide.faq.map((item) => ({
+			'@type': 'Question',
+			name: item.question,
+			acceptedAnswer: {
+				'@type': 'Answer',
+				text: item.answer
+			}
+		}))
+	});
+}
+
+if (guide.youtubeVideoId) {
+	guideJsonLd.push({
+		'@context': 'https://schema.org',
+		'@type': 'VideoObject',
+		name: `${guide.title} Video Tutorial — The Free Video Editor`,
+		description: guide.subtitle,
+		thumbnailUrl: [
+			`https://img.youtube.com/vi/${guide.youtubeVideoId}/maxresdefault.jpg`,
+			`https://img.youtube.com/vi/${guide.youtubeVideoId}/hqdefault.jpg`
+		],
+		uploadDate: '2026-01-01T00:00:00Z',
+		contentUrl: `https://www.youtube.com/watch?v=${guide.youtubeVideoId}`,
+		embedUrl: `https://www.youtube-nocookie.com/embed/${guide.youtubeVideoId}`
+	});
+}
 ---
 
 <Layout
 	title={seoTitle}
 	description={seoDescription}
 	canonicalUrl={canonical}
+	keywords={toolKeywords}
+	ogType="article"
+	articleSection={guide.categoryLabel}
+	articleTags={[guide.title, guide.categoryLabel, 'Video Editing', 'Tutorial', 'The Free Video Editor']}
+	publishedTime="2026-01-01T00:00:00Z"
+	modifiedTime={new Date().toISOString()}
 >
+	<Fragment slot="head">
+		<script type="application/ld+json" set:html={JSON.stringify(guideJsonLd)} />
+	</Fragment>
 	<Header />
 
 	<main class="guide-detail-main">
 		<!-- Breadcrumbs -->
 		<nav class="guide-breadcrumb-nav" aria-label="Breadcrumb">
 			<div class="guide-container">
-				<ol class="breadcrumb-list">
-					<li>
-						<a href="/" class="breadcrumb-link">Home</a>
+				<ol class="breadcrumb-list" itemscope itemtype="https://schema.org/BreadcrumbList">
+					<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+						<a href="/" class="breadcrumb-link" itemprop="item"><span itemprop="name">Home</span></a>
+						<meta itemprop="position" content="1" />
 					</li>
 					<li class="breadcrumb-sep" aria-hidden="true">/</li>
-					<li>
-						<a href="/guides" class="breadcrumb-link">Guides</a>
+					<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+						<a href="/guides" class="breadcrumb-link" itemprop="item"><span itemprop="name">Guides</span></a>
+						<meta itemprop="position" content="2" />
 					</li>
 					<li class="breadcrumb-sep" aria-hidden="true">/</li>
-					<li>
-						<span class="breadcrumb-cat">{guide.categoryLabel}</span>
+					<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+						<a href={`/guides?category=${guide.category}`} class="breadcrumb-link" itemprop="item"><span class="breadcrumb-cat" itemprop="name">{guide.categoryLabel}</span></a>
+						<meta itemprop="position" content="3" />
 					</li>
 					<li class="breadcrumb-sep" aria-hidden="true">/</li>
-					<li aria-current="page" class="breadcrumb-current">
-						{guide.title}
+					<li aria-current="page" class="breadcrumb-current" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+						<span itemprop="name">{guide.title}</span>
+						<meta itemprop="position" content="4" />
 					</li>
 				</ol>
 			</div>
@@ -222,7 +366,7 @@ const canonical = `https://thefreevideoeditor.com/guides/${guide.id}`;
 
 						<div class="steps-timeline">
 							{guide.steps.map((step) => (
-								<div class="step-card">
+								<div class="step-card" id={`step-${step.stepNumber}`}>
 									<div class="step-number-col">
 										<span class="step-number">{step.stepNumber}</span>
 										<div class="step-line" aria-hidden="true"></div>

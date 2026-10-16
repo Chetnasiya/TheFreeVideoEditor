@@ -72,7 +72,7 @@ test('editor hydrates, creates and renames a project, and changes theme without 
 	expect(browserProblems).toEqual([]);
 });
 
-test('top application menus (File, Edit, Help) close on outside click and close each other when opened', async ({
+test('top application menus (File, Edit, Help, Guide) close on outside click and close each other when opened', async ({
 	page
 }) => {
 	await page.addInitScript(() => {
@@ -91,32 +91,60 @@ test('top application menus (File, Edit, Help) close on outside click and close 
 	const fileBtn = page.getByRole('button', { name: 'File', exact: true });
 	const editBtn = page.getByRole('button', { name: 'Edit', exact: true });
 	const helpBtn = page.getByRole('button', { name: 'Help', exact: true });
+	const guideBtn = page.getByRole('button', { name: 'Guide', exact: true });
 
 	const fileMenu = page.getByRole('menu', { name: 'File actions' });
 	const editMenu = page.getByRole('menu', { name: 'Edit actions' });
 	const helpMenu = page.getByRole('menu', { name: 'Help actions' });
+	const guideMenu = page.getByRole('menu', { name: 'Guide actions' });
 
 	// Open File menu
 	await fileBtn.click();
 	await expect(fileMenu).toBeVisible();
 	await expect(editMenu).not.toBeVisible();
 	await expect(helpMenu).not.toBeVisible();
+	await expect(guideMenu).not.toBeVisible();
 
 	// Clicking Edit closes File and opens Edit
 	await editBtn.click();
 	await expect(fileMenu).not.toBeVisible();
 	await expect(editMenu).toBeVisible();
 	await expect(helpMenu).not.toBeVisible();
+	await expect(guideMenu).not.toBeVisible();
 
 	// Clicking Help closes Edit and opens Help
 	await helpBtn.click();
 	await expect(fileMenu).not.toBeVisible();
 	await expect(editMenu).not.toBeVisible();
 	await expect(helpMenu).toBeVisible();
+	await expect(guideMenu).not.toBeVisible();
+
+	// Clicking Guide closes Help and opens Guide
+	await guideBtn.click();
+	await expect(fileMenu).not.toBeVisible();
+	await expect(editMenu).not.toBeVisible();
+	await expect(helpMenu).not.toBeVisible();
+	await expect(guideMenu).toBeVisible();
 
 	// Clicking outside (on the main workspace or viewport) dismisses open menus
 	await page.mouse.click(500, 300);
 	await expect(fileMenu).not.toBeVisible();
 	await expect(editMenu).not.toBeVisible();
 	await expect(helpMenu).not.toBeVisible();
+	await expect(guideMenu).not.toBeVisible();
 });
+
+test('scrollbars are hidden by default and only visible when hovering over a scrollable container', async ({
+	page
+}) => {
+	await page.goto('/editor');
+	const defaultScrollbarColor = await page.evaluate(() => {
+		return window.getComputedStyle(document.documentElement).scrollbarColor;
+	});
+	expect(
+		defaultScrollbarColor.includes('transparent') ||
+			defaultScrollbarColor.includes('rgba(0, 0, 0, 0)')
+	).toBe(true);
+});
+
+

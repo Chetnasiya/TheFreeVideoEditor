@@ -110,6 +110,7 @@ function EditorShell() {
 	const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
 	const [isWindowMenuOpen, setIsWindowMenuOpen] = useState(false);
 	const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
+	const [isGuideMenuOpen, setIsGuideMenuOpen] = useState(false);
 	const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 	const [isCodecSupportOpen, setIsCodecSupportOpen] = useState(false);
 	const [isCodecPackOpen, setIsCodecPackOpen] = useState(false);
@@ -123,6 +124,7 @@ function EditorShell() {
 	const editMenuButtonRef = useRef<HTMLButtonElement>(null);
 	const windowMenuButtonRef = useRef<HTMLButtonElement>(null);
 	const helpMenuButtonRef = useRef<HTMLButtonElement>(null);
+	const guideMenuButtonRef = useRef<HTMLButtonElement>(null);
 	const menuBarRef = useRef<HTMLElement>(null);
 	const workspaceOverflowRef = useRef<HTMLDivElement>(null);
 	const projectNameButtonRef = useRef<HTMLButtonElement>(null);
@@ -166,6 +168,7 @@ function EditorShell() {
 		setIsEditMenuOpen(false);
 		setIsWindowMenuOpen(false);
 		setIsHelpMenuOpen(false);
+		setIsGuideMenuOpen(false);
 		setIsWorkspaceOverflowOpen(false);
 	}, [closeFileMenu]);
 
@@ -175,6 +178,7 @@ function EditorShell() {
 			!isEditMenuOpen &&
 			!isWindowMenuOpen &&
 			!isHelpMenuOpen &&
+			!isGuideMenuOpen &&
 			!isWorkspaceOverflowOpen
 		)
 			return;
@@ -199,6 +203,7 @@ function EditorShell() {
 		isEditMenuOpen,
 		isWindowMenuOpen,
 		isHelpMenuOpen,
+		isGuideMenuOpen,
 		isWorkspaceOverflowOpen,
 		closeAllMenus
 	]);
@@ -624,6 +629,7 @@ function EditorShell() {
 									setIsEditMenuOpen(false);
 									setIsWindowMenuOpen(false);
 									setIsHelpMenuOpen(false);
+									setIsGuideMenuOpen(false);
 									toggleFileMenu();
 								}}
 								onKeyDown={(event) => {
@@ -738,6 +744,7 @@ function EditorShell() {
 									closeFileMenu();
 									setIsWindowMenuOpen(false);
 									setIsHelpMenuOpen(false);
+									setIsGuideMenuOpen(false);
 									setIsEditMenuOpen((open) => !open);
 								}}
 							>
@@ -1087,6 +1094,7 @@ function EditorShell() {
 									closeFileMenu();
 									setIsEditMenuOpen(false);
 									setIsHelpMenuOpen(false);
+									setIsGuideMenuOpen(false);
 									setIsWindowMenuOpen((open) => !open);
 								}}
 							>
@@ -1204,6 +1212,7 @@ function EditorShell() {
 									closeFileMenu();
 									setIsEditMenuOpen(false);
 									setIsWindowMenuOpen(false);
+									setIsGuideMenuOpen(false);
 									setIsHelpMenuOpen((open) => !open);
 								}}
 							>
@@ -1222,6 +1231,15 @@ function EditorShell() {
 										}
 									}}
 								>
+									<a
+										href="/guides"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsHelpMenuOpen(false)}
+									>
+										Tool Guides & Tutorials… <span>↗</span>
+									</a>
 									<button
 										type="button"
 										role="menuitem"
@@ -1232,6 +1250,7 @@ function EditorShell() {
 									>
 										Keyboard Shortcuts… <span>?</span>
 									</button>
+									<hr />
 									<button
 										type="button"
 										role="menuitem"
@@ -1252,22 +1271,151 @@ function EditorShell() {
 									>
 										Advanced Codec Pack (Deferred / Build Guide)…
 									</button>
+									<hr />
 									<a
 										href="https://buymeacoffee.com/beestack"
 										target="_blank"
 										rel="noopener noreferrer"
 										role="menuitem"
-										style={{
-											textDecoration: 'none',
-											display: 'flex',
-											alignItems: 'center',
-											justifyContent: 'space-between',
-											color: '#ffdd00',
-											fontWeight: 600
-										}}
 										onClick={() => setIsHelpMenuOpen(false)}
 									>
-										<span>Buy Me a Coffee…</span> <span>☕</span>
+										Buy Me a Coffee… <span>☕</span>
+									</a>
+								</div>
+							)}
+						</div>
+						<div className="application-menu">
+							<button
+								ref={guideMenuButtonRef}
+								className="menu-button"
+								type="button"
+								aria-haspopup="menu"
+								aria-expanded={isGuideMenuOpen}
+								onClick={() => {
+									closeFileMenu();
+									setIsEditMenuOpen(false);
+									setIsWindowMenuOpen(false);
+									setIsHelpMenuOpen(false);
+									setIsGuideMenuOpen((open) => !open);
+								}}
+							>
+								Guide
+							</button>
+							{isGuideMenuOpen && (
+								<div
+									className="file-menu-items application-menu-items"
+									role="menu"
+									aria-label="Guide actions"
+									onKeyDown={(event) => {
+										if (event.key === 'Escape') {
+											setIsGuideMenuOpen(false);
+											guideMenuButtonRef.current?.focus();
+											event.preventDefault();
+										}
+									}}
+								>
+									<a
+										href="/guides"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										All Tool Guides & Tutorials… <span>↗</span>
+									</a>
+									<hr />
+									<a
+										href="/guides/smart-cut-silence-removal"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Smart Cut (Silence Removal)… <span>AI</span>
+									</a>
+									<a
+										href="/guides/auto-captions"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Auto Captions & Subtitles… <span>AI</span>
+									</a>
+									<hr />
+									<a
+										href="/guides/selection-tool"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Selection Tool… <span>V</span>
+									</a>
+									<a
+										href="/guides/razor-tool"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Razor Tool… <span>C</span>
+									</a>
+									<a
+										href="/guides/ripple-edit-tool"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Ripple Edit Tool… <span>B</span>
+									</a>
+									<hr />
+									<a
+										href="/guides/motion-tracking"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Motion Tracking… <span>2D</span>
+									</a>
+									<a
+										href="/guides/keyframes-graph-editor"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Keyframes & Graph Editor… <span>Curve</span>
+									</a>
+									<hr />
+									<a
+										href="/guides/color-grading"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Color Grading & LUTs… <span>Color</span>
+									</a>
+									<a
+										href="/guides/audio-mixer-eq"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Audio Mixer & EQ… <span>Audio</span>
+									</a>
+									<a
+										href="/guides/export-proxies"
+										target="_blank"
+										rel="noopener noreferrer"
+										role="menuitem"
+										onClick={() => setIsGuideMenuOpen(false)}
+									>
+										Export & 4K Proxies… <span>4K</span>
 									</a>
 								</div>
 							)}

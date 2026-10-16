@@ -162,5 +162,57 @@ test.describe('Tool Guides & Tutorials', () => {
 			}
 		}
 	});
+
+	test('renders comprehensive SEO tags and valid Schema.org JSON-LD structured data on guides hub and individual guide', async ({
+		page
+	}) => {
+		// 1. Check Guides Hub (/guides)
+		await page.goto('/guides');
+		await expect(page).toHaveTitle(/Tool Guides & Tutorials — The Free Video Editor/);
+		const hubCanonical = page.locator('link[rel="canonical"]');
+		await expect(hubCanonical).toHaveAttribute('href', 'https://thefreevideoeditor.com/guides');
+
+		// Parse JSON-LD on /guides
+		const hubSchemas = await page.evaluate(() => {
+			const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+			return scripts.flatMap((s) => JSON.parse(s.textContent || '[]'));
+		});
+
+		const collectionSchema = hubSchemas.find((s) => s['@type'] === 'CollectionPage');
+		expect(collectionSchema).toBeDefined();
+		expect(collectionSchema.mainEntity?.['@type']).toBe('ItemList');
+		expect(collectionSchema.mainEntity?.itemListElement?.length).toBe(18);
+
+		// 2. Check Individual Tool Guide (/guides/razor-tool)
+		await page.goto('/guides/razor-tool');
+		await expect(page).toHaveTitle(/Razor Tool Tutorial & Complete Workflow Guide/);
+		const guideCanonical = page.locator('link[rel="canonical"]');
+		await expect(guideCanonical).toHaveAttribute('href', 'https://thefreevideoeditor.com/guides/razor-tool');
+
+		const ogType = page.locator('meta[property="og:type"]');
+		await expect(ogType).toHaveAttribute('content', 'article');
+
+		const articleSection = page.locator('meta[property="article:section"]');
+		await expect(articleSection).toHaveAttribute('content', 'Timeline & Cuts');
+
+		// Parse JSON-LD on /guides/razor-tool
+		const guideSchemas = await page.evaluate(() => {
+			const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+			return scripts.flatMap((s) => JSON.parse(s.textContent || '[]'));
+		});
+
+		const techArticleSchema = guideSchemas.find((s) => s['@type'] === 'TechArticle');
+		expect(techArticleSchema).toBeDefined();
+		expect(techArticleSchema.headline).toContain('Razor Tool');
+
+		const howToSchema = guideSchemas.find((s) => s['@type'] === 'HowTo');
+		expect(howToSchema).toBeDefined();
+		expect(howToSchema.step?.length).toBeGreaterThan(0);
+
+		const faqSchema = guideSchemas.find((s) => s['@type'] === 'FAQPage');
+		expect(faqSchema).toBeDefined();
+		expect(faqSchema.mainEntity?.length).toBe(3);
+	});
 });
+
 

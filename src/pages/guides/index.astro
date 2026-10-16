@@ -7,19 +7,74 @@ import { TOOL_GUIDES, GUIDE_CATEGORIES } from '../../data/guides';
 
 const seoTitle = 'Tool Guides & Tutorials — The Free Video Editor';
 const seoDescription =
-	'Master every tool in The Free Video Editor with in-depth step-by-step guides, keyboard shortcuts, pro editing tips, and upcoming video tutorials. 100% free and on-device.';
+	'Master video editing with in-depth tool guides and tutorials. Step-by-step instructions for Smart Cut AI silence removal, Whisper auto captions, 4K timeline cuts, color grading, motion tracking, audio mixing, and export.';
+const canonicalUrl = 'https://thefreevideoeditor.com/guides';
+const seoKeywords =
+	'video editor guides, video editing tutorials, free video editor tutorial, how to use video editor, smart cut tutorial, auto captions guide, silence removal guide, razor tool tutorial, ripple edit guide, motion tracking tutorial, color grading tutorial, audio mixer eq tutorial, keyframes graph editor guide, browser video editor docs';
 
 const categories = [
 	{ id: 'all', label: 'All Tools' },
 	...Object.values(GUIDE_CATEGORIES).map((c) => ({ id: c.id, label: c.label }))
+];
+
+const guidesHubJsonLd = [
+	{
+		'@context': 'https://schema.org',
+		'@type': 'CollectionPage',
+		name: 'The Free Video Editor Tool Guides & Tutorials',
+		description: seoDescription,
+		url: canonicalUrl,
+		inLanguage: 'en-US',
+		publisher: {
+			'@type': 'Organization',
+			name: 'The Free Video Editor',
+			url: 'https://thefreevideoeditor.com',
+			logo: {
+				'@type': 'ImageObject',
+				url: 'https://thefreevideoeditor.com/favicon.svg'
+			}
+		},
+		mainEntity: {
+			'@type': 'ItemList',
+			itemListElement: TOOL_GUIDES.map((tool, index) => ({
+				'@type': 'ListItem',
+				position: index + 1,
+				name: tool.title,
+				description: tool.subtitle,
+				url: `https://thefreevideoeditor.com/guides/${tool.id}`
+			}))
+		}
+	},
+	{
+		'@context': 'https://schema.org',
+		'@type': 'BreadcrumbList',
+		itemListElement: [
+			{
+				'@type': 'ListItem',
+				position: 1,
+				name: 'Home',
+				item: 'https://thefreevideoeditor.com/'
+			},
+			{
+				'@type': 'ListItem',
+				position: 2,
+				name: 'Tool Guides & Tutorials',
+				item: canonicalUrl
+			}
+		]
+	}
 ];
 ---
 
 <Layout
 	title={seoTitle}
 	description={seoDescription}
-	canonicalUrl="https://thefreevideoeditor.com/guides"
+	canonicalUrl={canonicalUrl}
+	keywords={seoKeywords}
 >
+	<Fragment slot="head">
+		<script type="application/ld+json" set:html={JSON.stringify(guidesHubJsonLd)} />
+	</Fragment>
 	<Header />
 
 	<main class="guides-main">
