@@ -8,7 +8,13 @@
 	min-width: 0;
 	min-height: 0;
 	overflow: hidden;
-	background: var(--color-canvas, #000);
+	background: var(--color-canvas, #090909);
+	padding: 4px;
+	box-sizing: border-box;
+}
+
+.workspace-shell-container.workspace-root--maximized {
+	padding: 0;
 }
 
 .layout-split {
@@ -40,8 +46,8 @@
 
 /* Splitter bars */
 .layout-splitter {
-	flex: 0 0 6px;
-	background: var(--color-hairline, #222);
+	flex: 0 0 5px;
+	background: transparent;
 	position: relative;
 	z-index: 10;
 	cursor: col-resize;
@@ -76,7 +82,8 @@
 .layout-splitter:hover,
 .layout-splitter:focus-visible,
 .layout-splitter.is-active {
-	background: var(--color-link, #0070f3);
+	background: color-mix(in srgb, var(--color-link, #0070f3) 25%, transparent);
+	border-radius: 3px;
 	outline: none;
 }
 
@@ -124,7 +131,7 @@
 .layout-splitter:hover .layout-splitter-dot,
 .layout-splitter:focus-visible .layout-splitter-dot,
 .layout-splitter.is-active .layout-splitter-dot {
-	background: #ffffff;
+	background: #38bdf8;
 	transform: scale(1.15);
 }
 
@@ -137,8 +144,16 @@
 	min-width: 0;
 	min-height: 0;
 	background: var(--color-canvas-elevated, #111);
-	border: 1px solid var(--color-hairline, #222);
+	border: 1px solid var(--color-hairline, #262626);
+	border-radius: 8px;
 	overflow: hidden;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.layout-stack.is-maximized {
+	border-radius: 0;
+	border: none;
+	box-shadow: none;
 }
 
 .layout-stack-header {
@@ -438,7 +453,13 @@
 }
 
 :root[data-theme='light'] .layout-splitter {
-	background: #e2e8f0;
+	background: transparent;
+}
+
+:root[data-theme='light'] .layout-splitter:hover,
+:root[data-theme='light'] .layout-splitter:focus-visible,
+:root[data-theme='light'] .layout-splitter.is-active {
+	background: color-mix(in srgb, var(--color-link, #0070f3) 15%, transparent);
 }
 
 :root[data-theme='light'] .layout-splitter-dot {
@@ -448,5 +469,5 @@
 :root[data-theme='light'] .layout-splitter:hover .layout-splitter-dot,
 :root[data-theme='light'] .layout-splitter:focus-visible .layout-splitter-dot,
 :root[data-theme='light'] .layout-splitter.is-active .layout-splitter-dot {
-	background: #ffffff;
+	background: #0284c7;
 }

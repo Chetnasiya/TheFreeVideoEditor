@@ -57,6 +57,51 @@ button {
 	}
 }
 
+/* Universal Minimal Scrollbar (matching dark/light theme, only visible on hover) */
+html,
+body,
+* {
+	scrollbar-width: thin;
+	scrollbar-color: transparent transparent;
+	transition: scrollbar-color 0.2s ease;
+}
+
+*:hover {
+	scrollbar-color: var(--scrollbar-thumb, rgba(255, 255, 255, 0.2))
+		var(--scrollbar-track, transparent);
+}
+
+*::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+	background: var(--scrollbar-track, transparent);
+}
+
+*::-webkit-scrollbar-thumb {
+	background: transparent;
+	border-radius: 9999px;
+	transition: background 0.15s ease;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+	background: var(--scrollbar-thumb, rgba(255, 255, 255, 0.2));
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background: var(--scrollbar-thumb-hover, rgba(255, 255, 255, 0.35));
+}
+
+*::-webkit-scrollbar-thumb:active {
+	background: var(--scrollbar-thumb-active, rgba(255, 255, 255, 0.5));
+}
+
+*::-webkit-scrollbar-corner {
+	background: transparent;
+}
+
 /* Universal Slider Styling (matching timeline zoom slider) */
 input[type='range'] {
 	-webkit-appearance: none;

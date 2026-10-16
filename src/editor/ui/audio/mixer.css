@@ -101,16 +101,21 @@
 }
 
 .mixer-viewport::-webkit-scrollbar-track {
-	background: #0e0e13;
+	background: var(--scrollbar-track, transparent);
 }
 
 .mixer-viewport::-webkit-scrollbar-thumb {
-	background: #242432;
-	border-radius: 3px;
+	background: transparent;
+	border-radius: 9999px;
+	transition: background 0.15s ease;
+}
+
+.mixer-viewport:hover::-webkit-scrollbar-thumb {
+	background: var(--scrollbar-thumb, rgba(255, 255, 255, 0.2));
 }
 
 .mixer-viewport::-webkit-scrollbar-thumb:hover {
-	background: #38bdf8;
+	background: var(--scrollbar-thumb-hover, rgba(255, 255, 255, 0.35));
 }
 
 /* Individual Channel Strip */

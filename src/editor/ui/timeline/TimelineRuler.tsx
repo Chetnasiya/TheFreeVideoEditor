@@ -63,9 +63,19 @@ export default function TimelineRuler({
 	onRulerKeyDown
 }: TimelineRulerProps) {
 	const step = rulerTickStep(pixelsPerSecond, project.settings.fps);
+	const stepPixels = timeToPixels(step, pixelsPerSecond);
 	const count = Math.ceil(duration / step);
 	const timecodeStr = ticksToTimecode(playhead, project.settings.fps);
 	const fps = project.settings.fps;
+
+	let subdivisions = 1;
+	if (stepPixels >= 160) {
+		subdivisions = 10;
+	} else if (stepPixels >= 70) {
+		subdivisions = 5;
+	} else if (stepPixels >= 36) {
+		subdivisions = 2;
+	}
 
 	const selectedMarkerId = useEditorStore((state) => state.selectedMarkerId);
 	const selectedMarkerIds = useEditorStore((state) => state.selectedMarkerIds);
@@ -431,19 +441,66 @@ export default function TimelineRuler({
 				onKeyDown={onRulerKeyDown}
 				style={{ width: Math.max(1, timeToPixels(duration, pixelsPerSecond)) }}
 			>
-				{/* Ruler ticks */}
-				{tickIndices.map((index) => {
+				{/* Premiere Pro yellow render status baseline bar */}
+				<div className="timeline-ruler-render-bar" aria-hidden="true" />
+
+				{/* Ruler ticks and frame sub-ticks */}
+				{tickIndices.flatMap((index) => {
 					const time = index * step;
-					return (
+					const mainX = timeToPixels(time, pixelsPerSecond);
+					const items = [
 						<span
-							className="timeline-ruler-tick"
-							key={time}
-							style={{ left: timeToPixels(time, pixelsPerSecond) }}
+							className="timeline-ruler-tick is-major"
+							key={`major-${time}`}
+							style={{ left: `${mainX}px` }}
 						>
-							<span>{rulerLabel(time, project.settings.fps)}</span>
+							<span className="timeline-ruler-tick-line" />
+							<span
+								className="timeline-ruler-label"
+								style={index === 0 ? { transform: 'translateX(2px)' } : undefined}
+							>
+								{rulerLabel(time, project.settings.fps)}
+							</span>
 						</span>
-					);
+					];
+
+					if (subdivisions > 1 && index < count) {
+						for (let s = 1; s < subdivisions; s++) {
+							const subTime = time + Math.round((s * step) / subdivisions);
+							if (subTime > duration) break;
+							const subX = timeToPixels(subTime, pixelsPerSecond);
+							const isMid = subdivisions > 2 && s === Math.round(subdivisions / 2);
+							items.push(
+								<span
+									className={`timeline-ruler-tick ${isMid ? 'is-mid' : 'is-sub'}`}
+									key={`sub-${time}-${s}`}
+									style={{ left: `${subX}px` }}
+								>
+									<span className="timeline-ruler-tick-line" />
+								</span>
+							);
+						}
+					}
+
+					return items;
 				})}
+
+				{/* Premiere Pro playhead head badge on ruler */}
+				<div
+					className="timeline-ruler-playhead"
+					style={{ left: `${timeToPixels(playhead, pixelsPerSecond)}px` }}
+					aria-hidden="true"
+				>
+					<svg viewBox="0 0 13 16" width="13" height="16" className="timeline-playhead-badge">
+						<path
+							d="M 0.5 0.5 H 12.5 V 9.5 L 6.5 15.5 L 0.5 9.5 Z"
+							fill="#2563eb"
+							stroke="#1d4ed8"
+							strokeWidth="1"
+							strokeLinejoin="round"
+						/>
+					</svg>
+				</div>
 
 				{/* Marker track row rendered directly above or at top of ruler */}
 				<div className="timeline-marker-track" aria-label="Sequence Markers">

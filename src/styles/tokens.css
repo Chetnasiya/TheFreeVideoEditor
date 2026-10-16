@@ -159,6 +159,11 @@
 	--theme-marker-blue-fg: #ffffff;
 	--theme-marker-cyan: #06b6d4;
 	--theme-marker-cyan-fg: #083344;
+
+	--scrollbar-track: transparent;
+	--scrollbar-thumb: rgba(255, 255, 255, 0.2);
+	--scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
+	--scrollbar-thumb-active: rgba(255, 255, 255, 0.5);
 }
 
 :root[data-theme='light'] {
@@ -212,4 +217,9 @@
 	--theme-marker-blue-fg: #ffffff;
 	--theme-marker-cyan: #0891b2;
 	--theme-marker-cyan-fg: #ffffff;
+
+	--scrollbar-track: transparent;
+	--scrollbar-thumb: rgba(0, 0, 0, 0.2);
+	--scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
+	--scrollbar-thumb-active: rgba(0, 0, 0, 0.5);
 }
