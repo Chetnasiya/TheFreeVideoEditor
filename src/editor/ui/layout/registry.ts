@@ -15,9 +15,6 @@ import { EffectControlsAudio } from '../audio/EffectControlsAudio';
 import Timeline from '../timeline/Timeline';
 import GraphEditor from '../graph/GraphEditor';
 import AIAssistantPanel from '../ai/AIAssistantPanel';
-import TakesPanel from '../ai/TakesPanel';
-import ScriptPanel from '../ai/ScriptPanel';
-import TranscriptView from '../ai/TranscriptView';
 
 export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
 	media: {
@@ -136,30 +133,6 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
 		id: 'ai-assistant',
 		title: 'AI Assistant',
 		component: AIAssistantPanel as ComponentType<{ [key: string]: unknown }>,
-		singleInstance: true,
-		keepAlive: false,
-		minSize: { width: 220, height: 180 }
-	},
-	takes: {
-		id: 'takes',
-		title: 'Takes',
-		component: TakesPanel as ComponentType<{ [key: string]: unknown }>,
-		singleInstance: true,
-		keepAlive: false,
-		minSize: { width: 220, height: 180 }
-	},
-	script: {
-		id: 'script',
-		title: 'Script',
-		component: ScriptPanel as ComponentType<{ [key: string]: unknown }>,
-		singleInstance: true,
-		keepAlive: false,
-		minSize: { width: 220, height: 180 }
-	},
-	transcript: {
-		id: 'transcript',
-		title: 'Transcript',
-		component: TranscriptView as ComponentType<{ [key: string]: unknown }>,
 		singleInstance: true,
 		keepAlive: false,
 		minSize: { width: 220, height: 180 }

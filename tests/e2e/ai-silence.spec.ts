@@ -43,9 +43,8 @@ test.describe('AI Workspace & Silence Trimming', () => {
 		const panel = page.getByTestId('ai-assistant-panel');
 		await expect(panel).toBeVisible();
 
-		// Tabs switcher
-		await expect(panel.locator('.ai-tab-btn:has-text("Silence Trim")')).toHaveClass(/is-active/);
-		await expect(panel.locator('.ai-tab-btn:has-text("Script & Takes")')).toBeVisible();
+		// Parameters
+		await expect(panel.locator('.silence-trim-panel')).toBeVisible();
 
 		// Parameters
 		await expect(panel.getByText('Max silence between voices')).toBeVisible();

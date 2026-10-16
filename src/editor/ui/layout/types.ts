@@ -15,10 +15,7 @@ export type PanelId =
 	| 'effect-controls-audio'
 	| 'timeline'
 	| 'graph'
-	| 'ai-assistant'
-	| 'takes'
-	| 'script'
-	| 'transcript';
+	| 'ai-assistant';
 
 export type SplitDirection = 'horizontal' | 'vertical';
 

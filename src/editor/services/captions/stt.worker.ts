@@ -159,7 +159,7 @@ async function getOrLoadRealPipeline(modelKey = 'whisper-tiny.en', useWebGpu = t
 
 	// Point ONNX Runtime WebAssembly files to official jsDelivr CDN
 	// This prevents bundling 25MB+ local wasm files into the static assets bundle
-	const onnxWebVersion = '1.21.0';
+	const onnxWebVersion = env.backends?.onnx?.versions?.web || '1.31.0-dev.20260914-8d85527a0';
 	const wasmCdn = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${onnxWebVersion}/dist/`;
 	if (env.backends?.onnx?.wasm) {
 		env.backends.onnx.wasm.wasmPaths = {

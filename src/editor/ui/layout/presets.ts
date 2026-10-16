@@ -392,7 +392,7 @@ export const PRESET_AI: Workspace = {
 			{
 				type: 'split',
 				direction: 'horizontal',
-				sizes: [18, 30, 28, 24],
+				sizes: [18, 28, 32, 22],
 				children: [
 					{
 						type: 'stack',
@@ -401,7 +401,7 @@ export const PRESET_AI: Workspace = {
 					},
 					{
 						type: 'stack',
-						panelIds: ['ai-assistant', 'script', 'transcript'],
+						panelIds: ['ai-assistant'],
 						activeId: 'ai-assistant'
 					},
 					{
@@ -411,8 +411,8 @@ export const PRESET_AI: Workspace = {
 					},
 					{
 						type: 'stack',
-						panelIds: ['takes', 'inspector'],
-						activeId: 'takes'
+						panelIds: ['inspector'],
+						activeId: 'inspector'
 					}
 				]
 			},

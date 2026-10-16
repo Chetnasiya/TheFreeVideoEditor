@@ -19,10 +19,7 @@ export const KNOWN_PANEL_IDS: ReadonlySet<PanelId> = new Set<PanelId>([
 	'effect-controls-audio',
 	'timeline',
 	'graph',
-	'ai-assistant',
-	'takes',
-	'script',
-	'transcript'
+	'ai-assistant'
 ]);
 
 export const REQUIRED_PANELS: readonly PanelId[] = ['program', 'timeline'];

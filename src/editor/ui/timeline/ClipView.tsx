@@ -703,29 +703,6 @@ export default function ClipView({
 					⚠️
 				</span>
 			)}
-			{clip.takeGroupId && (
-				<span
-					className="clip-take-badge"
-					data-testid="clip-take-badge"
-					style={{
-						position: 'relative',
-						zIndex: 1,
-						marginLeft: 'var(--spacing-xxs)',
-						padding: '1px 5px',
-						borderRadius: 'var(--radius-sm, 2px)',
-						background: 'rgba(56, 189, 248, 0.25)',
-						color: '#38bdf8',
-						fontFamily: 'var(--font-mono)',
-						fontSize: '0.625rem',
-						lineHeight: 1,
-						fontWeight: 600,
-						border: '1px solid rgba(56, 189, 248, 0.4)'
-					}}
-					title="Take clip. Right-click to choose alternate take."
-				>
-					◆ Take
-				</span>
-			)}
 			<span className="timeline-clip-duration">{durationLabel}</span>
 
 			{/* Keyframe summary lane */}

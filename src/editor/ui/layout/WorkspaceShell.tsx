@@ -379,7 +379,9 @@ function StackRenderer({
 	onClosePanel?: (panelId: PanelId) => void;
 }) {
 	const activePanel = node.activeId;
-	const activeDef = PANEL_REGISTRY[activePanel];
+	const activeDef =
+		PANEL_REGISTRY[activePanel] ||
+		PANEL_REGISTRY[node.panelIds.find((id) => !!PANEL_REGISTRY[id]) ?? 'media'];
 
 	const handleSelectTab = (panelId: PanelId) => {
 		onNodeChange({ ...node, activeId: panelId });
@@ -415,6 +417,7 @@ function StackRenderer({
 				<div className="layout-tablist" role="tablist" aria-label="Panel tabs">
 					{node.panelIds.map((panelId, idx) => {
 						const def = PANEL_REGISTRY[panelId];
+						if (!def) return null;
 						const isActive = panelId === activePanel;
 						const tabId =
 							panelId === 'media'
@@ -501,10 +504,7 @@ function StackRenderer({
 						'effect-controls-audio': 'effect-controls-audio-panel',
 						timeline: 'timeline-panel',
 						graph: 'graph-panel',
-						'ai-assistant': 'ai-assistant-panel',
-						takes: 'takes-panel',
-						script: 'script-panel',
-						transcript: 'transcript-panel'
+						'ai-assistant': 'ai-assistant-panel'
 					};
 
 					const Tag =

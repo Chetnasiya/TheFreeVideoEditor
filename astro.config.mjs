@@ -21,7 +21,7 @@ function externalizeOnnxWasmPlugin() {
 				return {
 					code: code.replace(
 						/new URL\(["']ort-wasm-simd-threaded[^\s"']*?\.wasm["'],\s*import\.meta\.url\)/gs,
-						'new URL("https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort-wasm-simd-threaded.asyncify.wasm")'
+						'new URL("https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/ort-wasm-simd-threaded.asyncify.wasm")'
 					),
 					map: null
 				};

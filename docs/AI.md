@@ -84,36 +84,9 @@ Persisted per project in UI state:
 
 ---
 
-## 4. Feature B: Script-Based Best-Take Selection
+## 4. Script & Takes Feature Status
 
-### 4.1 Multi-Format Script Import (`core/ai/script/parser.ts`)
-
-- **Formats Supported**:
-  - Plain text (`.txt`)
-  - Markdown (`.md`): automatically cleans headings, lists, and formatting markers.
-  - Word Document (`.docx`): parsed 100% in-browser by unzipping the XML container with `fflate.unzipSync` and extracting text paragraphs `<w:p>` and `<w:t>`. Requires 0 external binaries or cloud APIs.
-  - Subtitle scripts (`.srt`, `.vtt`): extracts cleaned dialog lines.
-  - Direct paste via text modal.
-- **Speaker Detection**: Detects inline speakers (`HOST: ...`, `[NARRATOR] ...`) and standalone speaker headers.
-- **Speaker Track Mapping**: Maps individual characters or speakers to specific audio tracks (e.g. Host → Audio 1, Guest → Audio 2).
-- **Line Editing**: Supports split, merge, delete, and marking lines as optional.
-
-### 4.2 Word-Level Alignment & Utterance Segmentation (`core/ai/script/alignment.ts`)
-
-- **Utterance Segmentation**: Audio word streams are split into take candidates using inter-take pauses (>1.0s) and restart cue phrases ("Wait", "Sorry", "Let me restart", "Again").
-- **Dynamic Programming Sequence Alignment**: Smith-Waterman local alignment compares spoken words with script lines using normalized Levenshtein token distance.
-- **Defect Detection**:
-  - Stumbles: immediately repeated words or syllables.
-  - False starts / restarts: false starts followed by restart cues.
-  - Filler words: detects configurable filler tokens ("um", "uh", "er", "ah", "like").
-  - Awkward pauses: internal speech gaps exceeding 800 ms.
-  - Incomplete delivery: utterance terminates before script line completion.
-
-### 4.3 Sequence Assembly & Timeline Take Alternates (`core/ai/script/assembly.ts`)
-
-- **Assemble Rough Cut**: Creates a new rough-cut sequence placing the chosen take for each script line consecutively, preserving linked A/V sync.
-- **Take Badges**: Assembled clips display a `◆ Take` badge (`clip-take-badge`) on the timeline.
-- **Context Menu Take Swapper**: Right-clicking a clip on the timeline displays "Choose Alternate Take:" with all candidate takes, scores, and defect tags. Swapping takes updates `sourceIn`, `sourceOut`, and `duration`, and automatically ripples downstream clips while preserving linked tracks.
+Per project direction, the experimental Script-Based Take Selection feature has been removed from the application UI and codebase to maintain reliability and focus the AI workspace purely on the robust **Automatic Silence Trimming** pipeline.
 
 ---
 

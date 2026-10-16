@@ -2421,52 +2421,6 @@ function ActiveTimeline({ project }: { project: Project }) {
 							</button>
 						</>
 					)}
-					{context.clip.takeGroupId &&
-						(() => {
-							const takeGroups = store.getState().ai.takeGroups;
-							const group = takeGroups.find((g) => g.id === context.clip.takeGroupId);
-							if (!group || group.candidates.length <= 1) return null;
-							return (
-								<>
-									<hr />
-									<div
-										style={{
-											padding: '4px 10px',
-											fontSize: '10px',
-											color: '#94a3b8',
-											fontWeight: 600
-										}}
-									>
-										Choose Alternate Take:
-									</div>
-									{group.candidates.map((take, tIdx) => {
-										const isCurrent = take.id === context.clip.takeCandidateId;
-										return (
-											<button
-												key={take.id}
-												type="button"
-												onClick={() => {
-													store.getState().swapTimelineClipTake(context.clip.id, take);
-													closeContextMenu();
-												}}
-												style={{
-													display: 'flex',
-													justifyContent: 'space-between',
-													alignItems: 'center',
-													fontWeight: isCurrent ? 600 : 400,
-													color: isCurrent ? '#38bdf8' : undefined
-												}}
-											>
-												<span>
-													Take {tIdx + 1} {isCurrent ? '(Active)' : ''}
-												</span>
-												<span style={{ fontSize: '10px', opacity: 0.8 }}>Score: {take.score}</span>
-											</button>
-										);
-									})}
-								</>
-							);
-						})()}
 				</div>
 			)}
 			{message && <span className="sr-only">{message}</span>}

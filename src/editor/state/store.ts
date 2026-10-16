@@ -235,28 +235,13 @@ import {
 	DEFAULT_SILENCE_OPTIONS,
 	type AudioFeatures,
 	type DetectedSilence,
-	type ParsedScript,
-	type ScriptLine,
-	type SilenceTrimOptions,
-	type TakeCandidate,
-	type TakeGroup
+	type SilenceTrimOptions
 } from '../core/ai/types';
 import { extractAudioFeatures } from '../core/ai/silence/features';
 import { detectSpeechIntervals } from '../core/ai/silence/vad';
 import { computeSilenceRegions } from '../core/ai/silence/detector';
 import { applySilenceTrimToProject } from '../core/ai/silence/operations';
 import { prepareProjectAudioForStt } from '../services/captions/audioPreparation';
-import {
-	assembleSequenceFromScriptTakes,
-	swapTakeInProject,
-	type AssembleSequenceOptions
-} from '../core/ai/script/assembly';
-import type { TranscribedAudioWord } from '../core/ai/script/alignment';
-import {
-	extractFootageAudioSources,
-	alignFootageWithScript,
-	type AlignmentOptions
-} from '../core/ai/script/footageAlignment';
 
 enablePatches();
 
@@ -980,7 +965,6 @@ export interface EditorState {
 	closeMarkerDialog: () => void;
 	// AI Assistant State & Actions
 	ai: {
-		activeTab: 'silence' | 'script';
 		silenceOptions: SilenceTrimOptions;
 		detectedSilences: DetectedSilence[];
 		cachedFeatures: AudioFeatures | null;
@@ -988,16 +972,7 @@ export interface EditorState {
 		isAnalyzingSilence: boolean;
 		analysisProgress: number;
 		virtualPreview: boolean;
-		script: ParsedScript | null;
-		takeGroups: TakeGroup[];
-		selectedTakeGroupId: string | null;
-		isTranscribingScript: boolean;
-		transcriptWords: TranscribedAudioWord[];
-		alignmentProgress: { phase: string; percent: number } | null;
-		sourceMode: 'auto' | 'timeline' | 'bin_media';
 	};
-	setAiActiveTab: (tab: 'silence' | 'script') => void;
-	setAiSourceMode: (mode: 'auto' | 'timeline' | 'bin_media') => void;
 	setSilenceOptions: (opts: Partial<SilenceTrimOptions>) => void;
 	setDetectedSilences: (silences: DetectedSilence[]) => void;
 	toggleSilenceIncluded: (id: string) => void;
@@ -1006,14 +981,6 @@ export interface EditorState {
 	analyzeSilence: () => Promise<void>;
 	recomputeSilencesFromCache: () => void;
 	applySilenceTrimAction: (mode: 'new-sequence' | 'in-place') => void;
-	setParsedScript: (script: ParsedScript | null) => void;
-	updateScriptLine: (lineId: string, patch: Partial<ScriptLine>) => void;
-	setTakeGroups: (groups: TakeGroup[]) => void;
-	selectTakeGroup: (id: string | null) => void;
-	chooseTake: (takeGroupId: string, takeCandidateId: string) => void;
-	alignTakesWithScript: (options?: AlignmentOptions) => Promise<void>;
-	assembleRoughCut: (options?: AssembleSequenceOptions) => void;
-	swapTimelineClipTake: (clipId: ClipId, newTakeCandidate: TakeCandidate) => void;
 }
 
 function errorMessage(error: unknown): string {
@@ -1431,21 +1398,13 @@ export function createEditorStore() {
 				maximizedPanelId: null,
 				workspaceMessage: '',
 				ai: {
-					activeTab: 'silence',
 					silenceOptions: structuredClone(DEFAULT_SILENCE_OPTIONS),
 					detectedSilences: [],
 					cachedFeatures: null,
 					cachedTrackKey: null,
 					isAnalyzingSilence: false,
 					analysisProgress: 0,
-					virtualPreview: false,
-					script: null,
-					takeGroups: [],
-					selectedTakeGroupId: null,
-					isTranscribingScript: false,
-					transcriptWords: [],
-					alignmentProgress: null,
-					sourceMode: 'auto'
+					virtualPreview: false
 				},
 				async initialize() {
 					if (get().isInitialized) return;
@@ -7946,11 +7905,6 @@ export function createEditorStore() {
 						state.editingMarkerId = null;
 					});
 				},
-				setAiActiveTab(tab) {
-					set((state) => {
-						state.ai.activeTab = tab;
-					});
-				},
 				setSilenceOptions(opts) {
 					set((state) => {
 						state.ai.silenceOptions = {
@@ -8095,157 +8049,6 @@ export function createEditorStore() {
 					set((state) => {
 						state.ai.virtualPreview = false;
 						state.ai.detectedSilences = [];
-					});
-				},
-				setAiSourceMode(mode) {
-					set((state) => {
-						state.ai.sourceMode = mode;
-					});
-				},
-				setParsedScript(script) {
-					set((state) => {
-						state.ai.script = script;
-						if (!script) {
-							state.ai.takeGroups = [];
-							state.ai.selectedTakeGroupId = null;
-							state.ai.transcriptWords = [];
-						}
-					});
-				},
-				updateScriptLine(lineId, patch) {
-					set((state) => {
-						if (!state.ai.script) return;
-						const line = state.ai.script.lines.find((l) => l.id === lineId);
-						if (line) {
-							Object.assign(line, patch);
-						}
-					});
-				},
-				setTakeGroups(groups) {
-					set((state) => {
-						state.ai.takeGroups = groups;
-						if (
-							groups.length > 0 &&
-							(!state.ai.selectedTakeGroupId ||
-								!groups.some((g) => g.id === state.ai.selectedTakeGroupId))
-						) {
-							state.ai.selectedTakeGroupId = groups[0]!.id;
-						}
-					});
-				},
-				selectTakeGroup(id) {
-					set((state) => {
-						state.ai.selectedTakeGroupId = id;
-					});
-				},
-				chooseTake(takeGroupId, takeCandidateId) {
-					set((state) => {
-						const group = state.ai.takeGroups.find((g) => g.id === takeGroupId);
-						if (group) {
-							group.selectedTakeId = takeCandidateId;
-							for (const c of group.candidates) {
-								c.isChosen = c.id === takeCandidateId;
-							}
-						}
-					});
-				},
-				async alignTakesWithScript(options?: AlignmentOptions) {
-					const script = get().ai.script;
-					if (!script || script.lines.length === 0) return;
-
-					const project = get().project;
-					if (!project) return;
-					const activeSequenceId = get().activeSequenceId;
-					const sourceMode = options?.sourceMode ?? get().ai.sourceMode ?? 'auto';
-
-					set((state) => {
-						state.ai.isTranscribingScript = true;
-						state.ai.alignmentProgress = { phase: 'Starting footage analysis…', percent: 0.05 };
-					});
-
-					try {
-						// 1. Extract audio sources from timeline or media library
-						const sources = await extractFootageAudioSources(
-							project,
-							activeSequenceId,
-							sourceMode,
-							(msg, pct) => {
-								set((state) => {
-									state.ai.alignmentProgress = { phase: msg, percent: pct };
-								});
-							}
-						);
-
-						// 2. Align footage audio with script lines
-						const { words, groups } = await alignFootageWithScript(project, script, sources, {
-							...options,
-							onProgress: (msg, pct) => {
-								set((state) => {
-									state.ai.alignmentProgress = { phase: msg, percent: pct };
-								});
-							}
-						});
-
-						set((state) => {
-							state.ai.transcriptWords = words;
-							state.ai.takeGroups = groups;
-							if (groups.length > 0) {
-								state.ai.selectedTakeGroupId = groups[0]!.id;
-							}
-						});
-					} catch (err) {
-						console.error('Failed to align footage with script:', err);
-					} finally {
-						set((state) => {
-							state.ai.isTranscribingScript = false;
-							state.ai.alignmentProgress = null;
-						});
-					}
-				},
-				assembleRoughCut(options) {
-					const script = get().ai.script;
-					const takeGroups = get().ai.takeGroups;
-					if (!script || takeGroups.length === 0) return;
-
-					let newSeqId: SequenceId | null = null;
-					mutateProject(
-						'Assemble Rough Cut',
-						(curr) => {
-							const { project: updated, sequenceId } = assembleSequenceFromScriptTakes(
-								curr,
-								script,
-								takeGroups,
-								options
-							);
-							newSeqId = sequenceId;
-							return updated;
-						},
-						{ history: 'record' }
-					);
-
-					if (newSeqId) {
-						get().openSequence(newSeqId);
-					}
-				},
-				swapTimelineClipTake(clipId, newTakeCandidate) {
-					const activeSequenceId = get().activeSequenceId;
-					mutateProject(
-						'Swap Take',
-						(curr) => {
-							return swapTakeInProject(curr, activeSequenceId, clipId, newTakeCandidate);
-						},
-						{ history: 'record' }
-					);
-
-					set((state) => {
-						for (const group of state.ai.takeGroups) {
-							if (group.candidates.some((c) => c.id === newTakeCandidate.id)) {
-								group.selectedTakeId = newTakeCandidate.id;
-								for (const c of group.candidates) {
-									c.isChosen = c.id === newTakeCandidate.id;
-								}
-							}
-						}
 					});
 				}
 			};
