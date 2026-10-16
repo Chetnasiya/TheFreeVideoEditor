@@ -25,7 +25,7 @@ test.describe('AI Workspace & Silence Trimming', () => {
 
 		// 1. Switch via click
 		await page.click('.workspace-tab:has-text("AI")');
-		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI (Beta)');
+		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI');
 		await expect(page.getByTestId('ai-assistant-panel')).toBeVisible();
 
 		// Switch to Assembly
@@ -34,7 +34,7 @@ test.describe('AI Workspace & Silence Trimming', () => {
 
 		// 2. Switch back to AI via shortcut Alt+Shift+2
 		await page.keyboard.press('Alt+Shift+Digit2');
-		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI (Beta)');
+		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI');
 		await expect(page.getByTestId('ai-assistant-panel')).toBeVisible();
 	});
 
@@ -156,7 +156,9 @@ test.describe('AI Workspace & Silence Trimming', () => {
 
 		// Ensure top of panel is scrolled to 0
 		await page.evaluate(() => {
-			const container = document.querySelector('.ai-panel-content');
+			const container =
+				document.querySelector('.silence-trim-panel') ||
+				document.querySelector('.ai-panel-content');
 			if (container) container.scrollTop = 0;
 		});
 
@@ -168,5 +170,45 @@ test.describe('AI Workspace & Silence Trimming', () => {
 		const reviewSection = page.getByTestId('silence-review-section');
 		await expect(reviewSection).toBeVisible();
 		await expect(reviewSection).toBeInViewport();
+	});
+
+	test('switches to Auto Caption tab in AI panel and displays speech-to-text controls', async ({
+		page
+	}) => {
+		await page.click('.workspace-tab:has-text("AI")');
+		const panel = page.getByTestId('ai-assistant-panel');
+		await expect(panel).toBeVisible();
+
+		// Initially Smart Cut tab is active
+		await expect(panel.locator('.silence-trim-panel')).toBeVisible();
+
+		// Click Auto Caption tab in stack header
+		const autoCaptionTab = page.getByRole('tab', { name: 'Auto Caption' });
+		await expect(autoCaptionTab).toBeVisible();
+		await autoCaptionTab.click();
+
+		// Verify Auto Caption view is visible
+		const autoCaptionView = page.getByTestId('auto-caption-ai-view');
+		await expect(autoCaptionView).toBeVisible();
+		await expect(autoCaptionView.getByText('Auto Caption (Speech-to-Text)')).toBeVisible();
+		await expect(autoCaptionView.getByText(/100% On-Device/)).toBeVisible();
+
+		// Click consent button
+		const consentBtn = autoCaptionView.getByRole('button', {
+			name: 'Enable Local AI & Continue'
+		});
+		await expect(consentBtn).toBeVisible();
+		await consentBtn.click();
+
+		// Verify model select and controls
+		await expect(autoCaptionView.getByText('Whisper Model')).toBeVisible();
+		await expect(autoCaptionView.getByText('Audio Source')).toBeVisible();
+
+		// Switch back to Smart Cut tab
+		const smartCutTab = page.getByRole('tab', { name: 'Smart Cut' });
+		await smartCutTab.click();
+		await expect(page.getByTestId('ai-assistant-panel')).toBeVisible();
+		await expect(page.locator('.silence-trim-panel')).toBeVisible();
+		await expect(page.getByTestId('auto-caption-ai-view')).toHaveCount(0);
 	});
 });

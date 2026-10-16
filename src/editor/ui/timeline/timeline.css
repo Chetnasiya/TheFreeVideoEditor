@@ -711,6 +711,22 @@
 	cursor: grabbing;
 }
 
+.timeline-track-header.is-track-drag-over {
+	outline: 2px solid #0284c7;
+	outline-offset: -2px;
+	background: #1e293b !important;
+}
+
+.timeline-track-header.track-caption.is-track-drag-over {
+	outline-color: #fbbf24;
+	background: #272015 !important;
+}
+
+.timeline-track-header.track-audio.is-track-drag-over {
+	outline-color: #c084fc;
+	background: #231633 !important;
+}
+
 .timeline-track-header .track-kind {
 	display: grid;
 	width: 18px;

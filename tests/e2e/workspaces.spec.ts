@@ -30,7 +30,7 @@ test.describe('Workspaces & Layouts', () => {
 		const tabs = page.locator('.workspace-tab');
 		await expect(tabs).toHaveCount(7);
 
-		const names = ['Assembly', 'AI (Beta)', 'Editing', 'Color', 'Effects', 'Audio', 'Graphics'];
+		const names = ['Assembly', 'AI', 'Editing', 'Color', 'Effects', 'Audio', 'Graphics'];
 		for (let i = 0; i < names.length; i++) {
 			await expect(tabs.nth(i)).toHaveText(names[i]);
 		}
@@ -44,7 +44,7 @@ test.describe('Workspaces & Layouts', () => {
 	test('switches workspaces by clicking tabs', async ({ page }) => {
 		// Switch to AI workspace
 		await page.click('.workspace-tab:has-text("AI")');
-		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI (Beta)');
+		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI');
 
 		// Switch to Color workspace
 		await page.click('.workspace-tab:has-text("Color")');
@@ -84,7 +84,7 @@ test.describe('Workspaces & Layouts', () => {
 
 		// Alt+Shift+2 -> AI
 		await page.keyboard.press('Alt+Shift+2');
-		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI (Beta)');
+		await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText('AI');
 
 		// Alt+Shift+3 -> Editing
 		await page.keyboard.press('Alt+Shift+3');
@@ -108,7 +108,7 @@ test.describe('Workspaces & Layouts', () => {
 		});
 
 		// Switch between workspaces
-		const workspaces = ['Assembly', 'AI (Beta)', 'Color', 'Effects', 'Audio', 'Graphics', 'Editing'];
+		const workspaces = ['Assembly', 'AI', 'Color', 'Effects', 'Audio', 'Graphics', 'Editing'];
 		for (const ws of workspaces) {
 			await page.click(`.workspace-tab:has-text("${ws}")`);
 			await expect(page.locator('.workspace-tab[data-active="true"]')).toHaveText(ws);

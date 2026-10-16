@@ -167,7 +167,7 @@ export const EffectControlsAudio: React.FC = () => {
 					<button
 						type="button"
 						onClick={() => setShowAddMenu(!showAddMenu)}
-						className="flex cursor-pointer items-center gap-1 rounded-md border border-[rgba(56,189,248,0.45)] bg-[#1a2234] px-2.5 py-1 text-[11px] font-semibold text-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.2)] transition-all hover:border-[#38bdf8] hover:bg-[#202b42] hover:text-white hover:shadow-[0_0_12px_rgba(56,189,248,0.35)]"
+						className="flex cursor-pointer items-center gap-1 rounded-md border border-[#0369a1] bg-[#0284c7] px-2.5 py-1 text-[11px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-all hover:border-[#0284c7] hover:bg-[#0369a1] active:bg-[#075985]"
 						title="Add an audio effect to this clip"
 					>
 						<span>+ Add Effect</span>

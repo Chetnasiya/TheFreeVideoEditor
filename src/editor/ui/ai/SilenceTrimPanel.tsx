@@ -366,9 +366,29 @@ export const SilenceTrimPanel: React.FC = () => {
 					onClick={() => void handleDetectSilences()}
 				>
 					{isAnalyzing ? (
-						<span>Analyzing Audio ({aiState.analysisProgress}%)...</span>
+						<>
+							<span className="ai-spinner" aria-hidden="true" />
+							<span>Analyzing Audio ({aiState.analysisProgress}%)...</span>
+						</>
 					) : (
-						<span>Detect Silences</span>
+						<>
+							<svg
+								className="ai-btn-icon"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.6"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<circle cx="5" cy="4" r="2.5" />
+								<circle cx="5" cy="12" r="2.5" />
+								<line x1="7.5" y1="5.5" x2="14" y2="12" />
+								<line x1="7.5" y1="10.5" x2="14" y2="4" />
+							</svg>
+							<span>Detect Silences</span>
+						</>
 					)}
 				</button>
 			</div>
@@ -455,14 +475,26 @@ export const SilenceTrimPanel: React.FC = () => {
 							className="ai-btn-primary"
 							onClick={() => applySilenceTrimAction('new-sequence')}
 						>
-							Apply to New Sequence
+							<svg
+								className="ai-btn-icon"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.8"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<polyline points="3.5 8.5 6.5 11.5 12.5 4.5" />
+							</svg>
+							<span>Apply to New Sequence</span>
 						</button>
 						<button
 							type="button"
 							className="ai-btn-secondary"
 							onClick={() => applySilenceTrimAction('in-place')}
 						>
-							Apply in Place
+							<span>Apply in Place</span>
 						</button>
 					</div>
 				</div>

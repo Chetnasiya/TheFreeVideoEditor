@@ -190,8 +190,9 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 						aria-selected={activeTab === 'cues'}
 						className={`captions-view-tab ${activeTab === 'cues' ? 'is-active' : ''}`}
 						onClick={() => setActiveTab('cues')}
+						title="Transcript & Cues"
 					>
-						Transcript & Cues
+						Transcript
 					</button>
 					<button
 						type="button"
@@ -199,6 +200,7 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 						aria-selected={activeTab === 'style'}
 						className={`captions-view-tab ${activeTab === 'style' ? 'is-active' : ''}`}
 						onClick={() => setActiveTab('style')}
+						title="Track Style"
 					>
 						Track Style
 					</button>
@@ -229,8 +231,8 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 
 			{/* Track Selector Bar */}
 			<div className="captions-track-bar">
-				<div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-					<span>Track:</span>
+				<div className="captions-track-bar-left">
+					<span className="captions-track-label">Track:</span>
 					{captionTracks.length > 0 ? (
 						<select
 							className="captions-track-select"
@@ -250,8 +252,7 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 					)}
 					<button
 						type="button"
-						className="captions-btn-icon"
-						style={{ height: '22px', padding: '2px 6px', fontSize: '11px' }}
+						className="captions-btn-pill"
 						onClick={handleCreateTrack}
 						title="Create new caption track"
 					>
@@ -259,11 +260,10 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 					</button>
 				</div>
 
-				<div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+				<div className="captions-track-bar-right">
 					<button
 						type="button"
-						className="captions-btn-icon"
-						style={{ height: '22px', padding: '2px 6px', fontSize: '11px' }}
+						className="captions-btn-pill"
 						onClick={handleImportClick}
 						disabled={!activeTrackId}
 						title="Import SRT or VTT file"
@@ -272,8 +272,7 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 					</button>
 					<button
 						type="button"
-						className="captions-btn-icon"
-						style={{ height: '22px', padding: '2px 6px', fontSize: '11px' }}
+						className="captions-btn-pill"
 						onClick={() => void handleExport('srt')}
 						disabled={!activeTrackId || captions.length === 0}
 						title="Export SRT subtitle file"
@@ -282,8 +281,7 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 					</button>
 					<button
 						type="button"
-						className="captions-btn-icon"
-						style={{ height: '22px', padding: '2px 6px', fontSize: '11px' }}
+						className="captions-btn-pill"
 						onClick={() => void handleExport('vtt')}
 						disabled={!activeTrackId || captions.length === 0}
 						title="Export WebVTT subtitle file"
@@ -302,65 +300,53 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 
 			{/* Search & Replace Bar */}
 			{activeTab === 'cues' && captions.length > 0 && (
-				<div
-					style={{
-						padding: '4px 8px',
-						borderBottom: '1px solid var(--color-hairline)',
-						display: 'flex',
-						gap: '4px',
-						alignItems: 'center',
-						background: 'var(--color-canvas-subtle)'
-					}}
-				>
-					<input
-						type="text"
-						placeholder="Search cues…"
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						style={{
-							flex: 1,
-							height: '22px',
-							fontSize: '11px',
-							padding: '0 6px',
-							border: '1px solid var(--color-hairline)',
-							borderRadius: '4px',
-							background: 'var(--color-canvas)'
-						}}
-					/>
-					<input
-						type="text"
-						placeholder="Replace…"
-						value={replaceQuery}
-						onChange={(e) => setReplaceQuery(e.target.value)}
-						style={{
-							flex: 1,
-							height: '22px',
-							fontSize: '11px',
-							padding: '0 6px',
-							border: '1px solid var(--color-hairline)',
-							borderRadius: '4px',
-							background: 'var(--color-canvas)'
-						}}
-					/>
-					<button
-						type="button"
-						className="captions-btn-icon"
-						style={{ height: '22px', padding: '0 6px', fontSize: '11px' }}
-						disabled={!searchQuery}
-						onClick={() => {
-							if (!activeTrackId || !searchQuery) return;
-							for (const cue of captions) {
-								if (cue.text.includes(searchQuery)) {
-									const newText = cue.text.replaceAll(searchQuery, replaceQuery);
-									store.getState().updateCaptionSegment(activeTrackId, cue.id, { text: newText });
+				<div className="captions-search-bar">
+					<div className="captions-search-input-wrap">
+						<input
+							type="text"
+							className="captions-search-field"
+							placeholder="Search cues…"
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+						/>
+						{searchQuery && (
+							<button
+								type="button"
+								className="captions-clear-btn"
+								onClick={() => setSearchQuery('')}
+								title="Clear search"
+							>
+								✕
+							</button>
+						)}
+					</div>
+					<div className="captions-replace-input-wrap">
+						<input
+							type="text"
+							className="captions-search-field"
+							placeholder="Replace…"
+							value={replaceQuery}
+							onChange={(e) => setReplaceQuery(e.target.value)}
+						/>
+						<button
+							type="button"
+							className="captions-btn-pill"
+							disabled={!searchQuery}
+							onClick={() => {
+								if (!activeTrackId || !searchQuery) return;
+								for (const cue of captions) {
+									if (cue.text.includes(searchQuery)) {
+										const newText = cue.text.replaceAll(searchQuery, replaceQuery);
+										store.getState().updateCaptionSegment(activeTrackId, cue.id, { text: newText });
+									}
 								}
-							}
-							setSearchQuery('');
-						}}
-						title="Replace all matches across cues"
-					>
-						Replace All
-					</button>
+								setSearchQuery('');
+							}}
+							title="Replace all matches across cues"
+						>
+							Replace All
+						</button>
+					</div>
 				</div>
 			)}
 

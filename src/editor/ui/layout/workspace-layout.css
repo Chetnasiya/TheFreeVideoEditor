@@ -48,6 +48,29 @@
 	transition: background 0.15s ease;
 	user-select: none;
 	touch-action: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.layout-splitter::before {
+	content: '';
+	position: absolute;
+	z-index: 1;
+}
+
+.layout-splitter.is-horizontal::before {
+	top: 0;
+	bottom: 0;
+	left: -3px;
+	right: -3px;
+}
+
+.layout-splitter.is-vertical::before {
+	left: 0;
+	right: 0;
+	top: -3px;
+	bottom: -3px;
 }
 
 .layout-splitter:hover,
@@ -67,6 +90,42 @@
 	cursor: col-resize;
 	width: 6px;
 	height: 100%;
+}
+
+/* VS Code style 3-dots handle */
+.layout-splitter-dots {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	pointer-events: none;
+	z-index: 2;
+}
+
+.layout-splitter.is-horizontal .layout-splitter-dots {
+	flex-direction: column;
+}
+
+.layout-splitter.is-vertical .layout-splitter-dots {
+	flex-direction: row;
+}
+
+.layout-splitter-dot {
+	width: 2.5px;
+	height: 2.5px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.35);
+	transition:
+		background 0.15s ease,
+		transform 0.15s ease;
+	flex-shrink: 0;
+}
+
+.layout-splitter:hover .layout-splitter-dot,
+.layout-splitter:focus-visible .layout-splitter-dot,
+.layout-splitter.is-active .layout-splitter-dot {
+	background: #ffffff;
+	transform: scale(1.15);
 }
 
 /* Tab Stacks */
@@ -376,4 +435,18 @@
 :root[data-theme='light'] .workspace-overflow-item:focus-visible {
 	background: #f1f5f9;
 	color: #0284c7;
+}
+
+:root[data-theme='light'] .layout-splitter {
+	background: #e2e8f0;
+}
+
+:root[data-theme='light'] .layout-splitter-dot {
+	background: rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme='light'] .layout-splitter:hover .layout-splitter-dot,
+:root[data-theme='light'] .layout-splitter:focus-visible .layout-splitter-dot,
+:root[data-theme='light'] .layout-splitter.is-active .layout-splitter-dot {
+	background: #ffffff;
 }

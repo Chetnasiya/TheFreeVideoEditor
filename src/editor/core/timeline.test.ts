@@ -411,6 +411,48 @@ describe('timeline queries and clip operations', () => {
 		expect(reordered.tracks.at(-1)?.id).toBe(audioTrack.id);
 	});
 
+	it('rearranges caption tracks among themselves without dropping to the bottom', () => {
+		const project = videoProject();
+		// Add two caption tracks
+		const withCap1 = addTrack(project, 'caption');
+		const withCap2 = addTrack(withCap1, 'caption');
+		const capTracks = withCap2.tracks.filter((t) => t.kind === 'caption');
+		expect(capTracks).toHaveLength(2);
+		const [firstCap, secondCap] = capTracks;
+
+		// Initial tracks order should have captions at top
+		expect(withCap2.tracks.map((t) => t.kind)).toEqual(['caption', 'caption', 'video', 'audio']);
+
+		// Reorder second caption track to index 0 (swap positions)
+		const reordered = reorderTrack(withCap2, secondCap!.id, 0);
+		expect(reordered.tracks[0]?.id).toBe(secondCap!.id);
+		expect(reordered.tracks[1]?.id).toBe(firstCap!.id);
+		expect(reordered.tracks[2]?.kind).toBe('video');
+		expect(reordered.tracks[3]?.kind).toBe('audio');
+
+		// Reorder first caption track downwards towards bottom (e.g. target index 99)
+		// Should clamp strictly within the caption zone (index 1), NEVER dropping below video or into audio
+		const clamped = reorderTrack(reordered, secondCap!.id, 99);
+		expect(clamped.tracks[0]?.id).toBe(firstCap!.id);
+		expect(clamped.tracks[1]?.id).toBe(secondCap!.id);
+		expect(clamped.tracks[2]?.kind).toBe('video');
+		expect(clamped.tracks[3]?.kind).toBe('audio');
+	});
+
+	it('keeps a single caption track at the top and prevents dragging it to the bottom', () => {
+		const project = videoProject();
+		const withCap = addTrack(project, 'caption');
+		const capTrack = withCap.tracks.find((t) => t.kind === 'caption')!;
+
+		expect(withCap.tracks[0]?.id).toBe(capTrack.id);
+
+		// Attempting to reorder single caption track anywhere (e.g. index 5, 2, or 1)
+		// should remain safely at index 0 and never drop to the bottom
+		const reorderedBottom = reorderTrack(withCap, capTrack.id, 99);
+		expect(reorderedBottom.tracks[0]?.id).toBe(capTrack.id);
+		expect(reorderedBottom.tracks.map((t) => t.kind)).toEqual(['caption', 'video', 'audio']);
+	});
+
 	it('preserves the no-overlap invariant over 500 generated placements and edits', () => {
 		let project = videoProject();
 		const assetId = Object.keys(project.assets)[0] as AssetId;

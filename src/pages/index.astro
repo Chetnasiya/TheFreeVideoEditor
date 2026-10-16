@@ -8,9 +8,19 @@ import BuyMeACoffee from '../components/BuyMeACoffee.astro';
 const seoTitle =
 	'The Free Video Editor — Free Online Video Editor & AI Video Editor in Your Browser';
 const seoDescription =
-	'The Free Video Editor is a fast, free online video editor and AI video editor in your browser. Edit 4K multi-track video, generate AI captions, and export without watermarks or cloud uploads.';
+	'The Free Video Editor is a fast, free online video editor and AI video editor in your browser. Trim silences with Smart Cut, generate on-device Whisper captions, edit 4K multi-track video, and export without watermarks or cloud uploads.';
 
 const faqItems = [
+	{
+		question: 'How does Smart Cut silence removal work?',
+		answer:
+			'Smart Cut uses on-device Voice Activity Detection (VAD) and spectral energy analysis to automatically scan audio tracks for pauses, dead air, and breaths. It then automatically ripple-trims those silent sections from both video and audio tracks simultaneously, keeping media in frame-accurate sync with customizable speech padding and non-destructive sequence export.'
+	},
+	{
+		question: 'Can I transcribe subtitles and trim silences with AI for free and offline?',
+		answer:
+			'Yes. Both the Whisper AI speech-to-text engine and the Smart Cut silence trimmer execute 100% locally in your browser using WebGPU and WebAssembly. Your media files are never uploaded to remote servers or cloud queues, and once cached, the editor functions completely offline with zero subscriptions, paywalls, or watermarks.'
+	},
 	{
 		question: 'How to become a video editor?',
 		answer:
@@ -286,22 +296,29 @@ const faqJsonLd = {
 				<!-- Section 4 -->
 				<section class="seo-block">
 					<h2 class="seo-heading">
-						Next-Generation AI Video Editor Capabilities Directly on Your Device
+						Next-Generation AI Video Editor: Smart Cut Silence Trimming & Whisper Subtitles
 					</h2>
 					<p class="seo-paragraph">
-						Artificial intelligence is revolutionizing content production, but typical cloud AI
-						tools introduce privacy risks and subscription limits. The Free Video Editor is an
-						intelligent <strong>ai video editor</strong> that processes neural workloads directly in
-						your browser.
+						Artificial intelligence is revolutionizing video production, but typical cloud AI tools
+						introduce privacy risks, slow render queues, and recurring credit subscriptions. The
+						Free Video Editor is an intelligent, privacy-first <strong>ai video editor</strong> that
+						processes neural workloads directly in your browser using WebGPU and WebAssembly.
 					</p>
 					<p class="seo-paragraph">
-						With our integrated <strong>free ai video editor</strong> suite, you can generate
-						speech-to-text subtitles, automatic captions, and silence removal cuts without uploading
-						audio or video to third-party servers. Using browser-native machine learning models, our{' '}
-						<strong>ai video editor free</strong> workflow delivers accurate transcription and
-						subtitle styling on-device. If you need a private <strong>ai video editor</strong> for
-						confidential corporate footage, client projects, or personal clips, our platform
-						delivers modern automation with airtight data privacy.
+						With our dedicated <strong>AI workspace</strong> and{' '}
+						<strong>Smart Cut silence removal</strong> engine, you can automatically scan dialogue
+						tracks, detect dead air, and ripple-trim pauses across your timeline with frame-accurate
+						audio and video synchronization. Whether editing podcasts, talking-head interviews,
+						tutorials, or YouTube jump cuts, Smart Cut eliminates hours of tedious manual cutting in
+						seconds with zero cloud latency.
+					</p>
+					<p class="seo-paragraph">
+						Alongside Smart Cut, our integrated <strong>free ai video editor</strong> suite features
+						on-device Whisper AI speech-to-text transcription. Generate animated, word-synced
+						subtitles and export SRT or WebVTT files without uploading audio or video to third-party
+						servers. If you need a private <strong>ai video editor free</strong> of tracking for
+						confidential corporate footage, client deliverables, or personal vlogs, our platform
+						delivers desktop-grade automation with airtight data privacy.
 					</p>
 				</section>
 
@@ -397,6 +414,14 @@ const faqJsonLd = {
 									<td>Multi-Track, OTIO, FCPXML, EDL</td>
 									<td>Proprietary Cloud Project Files</td>
 									<td>Proprietary / Pro Interchange</td>
+								</tr>
+								<tr>
+									<td>
+										<strong>AI Silence Trimming & Captions</strong>
+									</td>
+									<td>Smart Cut & Whisper (100% Free & Local)</td>
+									<td>Paid Cloud Credits & Queue Delays</td>
+									<td>Expensive Plugins or Cloud Add-ons</td>
 								</tr>
 							</tbody>
 						</table>

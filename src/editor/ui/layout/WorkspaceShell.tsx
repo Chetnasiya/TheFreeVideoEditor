@@ -1,6 +1,7 @@
 import {
 	useEffect,
 	useRef,
+	useState,
 	type CSSProperties,
 	type KeyboardEvent as ReactKeyboardEvent,
 	type PointerEvent,
@@ -305,9 +306,11 @@ function SplitterHandle({
 }) {
 	const draggingRef = useRef(false);
 	const startPosRef = useRef(0);
+	const [isDragging, setIsDragging] = useState(false);
 
 	const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
 		draggingRef.current = true;
+		setIsDragging(true);
 		startPosRef.current = direction === 'horizontal' ? e.clientX : e.clientY;
 		e.currentTarget.setPointerCapture(e.pointerId);
 	};
@@ -322,6 +325,7 @@ function SplitterHandle({
 
 	const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
 		draggingRef.current = false;
+		setIsDragging(false);
 		try {
 			e.currentTarget.releasePointerCapture(e.pointerId);
 		} catch {}
@@ -350,7 +354,7 @@ function SplitterHandle({
 
 	return (
 		<div
-			className={`layout-splitter is-${direction}`}
+			className={`layout-splitter is-${direction} ${isDragging ? 'is-active' : ''}`}
 			role="separator"
 			tabIndex={0}
 			aria-orientation={direction}
@@ -361,7 +365,13 @@ function SplitterHandle({
 			onPointerUp={onPointerUp}
 			onPointerCancel={onPointerUp}
 			onKeyDown={onKeyDown}
-		/>
+		>
+			<span className="layout-splitter-dots" aria-hidden="true">
+				<span className="layout-splitter-dot" />
+				<span className="layout-splitter-dot" />
+				<span className="layout-splitter-dot" />
+			</span>
+		</div>
 	);
 }
 
@@ -432,7 +442,11 @@ function StackRenderer({
 												? 'inspector-title'
 												: panelId === 'color'
 													? 'color-panel-title'
-													: undefined;
+													: panelId === 'ai-assistant'
+														? 'ai-assistant-panel-title'
+														: panelId === 'auto-caption'
+															? 'auto-caption-panel-title'
+															: undefined;
 
 						return (
 							<button
@@ -504,7 +518,8 @@ function StackRenderer({
 						'effect-controls-audio': 'effect-controls-audio-panel',
 						timeline: 'timeline-panel',
 						graph: 'graph-panel',
-						'ai-assistant': 'ai-assistant-panel'
+						'ai-assistant': 'ai-assistant-panel',
+						'auto-caption': 'auto-caption-panel'
 					};
 
 					const Tag =

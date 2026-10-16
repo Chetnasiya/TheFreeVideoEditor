@@ -19,7 +19,8 @@ export const KNOWN_PANEL_IDS: ReadonlySet<PanelId> = new Set<PanelId>([
 	'effect-controls-audio',
 	'timeline',
 	'graph',
-	'ai-assistant'
+	'ai-assistant',
+	'auto-caption'
 ]);
 
 export const REQUIRED_PANELS: readonly PanelId[] = ['program', 'timeline'];
@@ -382,7 +383,26 @@ export function loadUserWorkspaceState(): UserWorkspaceState {
 		if (parsed.overrides && typeof parsed.overrides === 'object') {
 			for (const [id, node] of Object.entries(parsed.overrides)) {
 				try {
-					state.overrides[id] = validateAndNormalizeLayout(node as LayoutNode);
+					let normalized = validateAndNormalizeLayout(node as LayoutNode);
+					if (id === 'ai') {
+						const ensureAutoCaption = (n: LayoutNode): LayoutNode => {
+							if (n.type === 'stack') {
+								if (n.panelIds.includes('ai-assistant') && !n.panelIds.includes('auto-caption')) {
+									const idx = n.panelIds.indexOf('ai-assistant');
+									const newPanelIds = [...n.panelIds];
+									newPanelIds.splice(idx + 1, 0, 'auto-caption');
+									return { ...n, panelIds: newPanelIds };
+								}
+								return n;
+							}
+							return {
+								...n,
+								children: n.children.map(ensureAutoCaption)
+							};
+						};
+						normalized = ensureAutoCaption(normalized);
+					}
+					state.overrides[id] = normalized;
 				} catch {}
 			}
 		}

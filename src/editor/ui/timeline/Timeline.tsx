@@ -147,6 +147,7 @@ function TrackHeader({
 }) {
 	const [editing, setEditing] = useState(false);
 	const [name, setName] = useState(track.name);
+	const [isDragOver, setIsDragOver] = useState(false);
 	const nameInputRef = useRef<HTMLInputElement>(null);
 	useEffect(() => setName(track.name), [track.name]);
 	useEffect(() => {
@@ -154,7 +155,7 @@ function TrackHeader({
 	}, [editing]);
 	return (
 		<div
-			className={`timeline-track-header track-${track.kind}`}
+			className={`timeline-track-header track-${track.kind}${isDragOver ? 'is-track-drag-over' : ''}`}
 			draggable
 			role="group"
 			tabIndex={0}
@@ -164,10 +165,23 @@ function TrackHeader({
 				event.dataTransfer.setData('application/x-tfve-track', track.id);
 				event.dataTransfer.effectAllowed = 'move';
 			}}
+			onDragEnter={(event) => {
+				if (event.dataTransfer.types.includes('application/x-tfve-track')) {
+					setIsDragOver(true);
+				}
+			}}
 			onDragOver={(event) => {
-				if (event.dataTransfer.types.includes('application/x-tfve-track')) event.preventDefault();
+				if (event.dataTransfer.types.includes('application/x-tfve-track')) {
+					event.preventDefault();
+					event.dataTransfer.dropEffect = 'move';
+				}
+			}}
+			onDragLeave={(event) => {
+				if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+				setIsDragOver(false);
 			}}
 			onDrop={(event) => {
+				setIsDragOver(false);
 				const draggedId = event.dataTransfer.getData('application/x-tfve-track') as TrackId;
 				if (!draggedId) return;
 				event.preventDefault();
@@ -964,6 +978,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTrackDragOver(event: DragEvent<HTMLDivElement>, track: Track): void {
+		if (event.dataTransfer.types.includes('application/x-tfve-track')) {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'move';
+			return;
+		}
 		if (
 			event.dataTransfer.types.includes('application/x-tfve-transition') ||
 			event.dataTransfer.types.includes('application/x-tfve-graphic-template')
@@ -1073,6 +1092,15 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTrackDrop(event: DragEvent<HTMLDivElement>, track: Track): void {
+		const draggedTrackId = event.dataTransfer.getData('application/x-tfve-track') as TrackId;
+		if (draggedTrackId) {
+			event.preventDefault();
+			const trackIndex = activeProject.tracks.findIndex((t) => t.id === track.id);
+			if (trackIndex >= 0) {
+				reorderTimelineTrack(draggedTrackId, trackIndex);
+			}
+			return;
+		}
 		const transitionType = event.dataTransfer.getData('application/x-tfve-transition') as
 			TransitionType | '';
 		if (transitionType) {

@@ -5,9 +5,7 @@ import './ai.css';
 export const AIAssistantPanel: React.FC = () => {
 	return (
 		<div className="ai-assistant-panel" data-testid="ai-assistant-panel">
-			<div className="ai-panel-content">
-				<SilenceTrimPanel />
-			</div>
+			<SilenceTrimPanel />
 		</div>
 	);
 };

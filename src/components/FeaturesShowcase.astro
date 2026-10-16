@@ -31,7 +31,8 @@ const features: Feature[] = [
 		category: 'timeline',
 		categoryLabel: 'Timeline & Cuts',
 		badge: 'Core NLE',
-		description: 'Frame-accurate magnetic timeline with multi-track video, audio, text, and adjustment layers. Snapping, track locking, solo, mute, and customizable vertical track sizing.',
+		description:
+			'Frame-accurate magnetic timeline with multi-track video, audio, text, and adjustment layers. Snapping, track locking, solo, mute, and customizable vertical track sizing.',
 		highlights: ['Magnetic Snapping', '4K 60fps Tracks', 'Track Solo & Lock'],
 		icon: 'timeline'
 	},
@@ -41,7 +42,8 @@ const features: Feature[] = [
 		category: 'timeline',
 		categoryLabel: 'Timeline & Cuts',
 		badge: 'Precision',
-		description: 'Execute instant razor cuts (C), ripple delete (Shift+Del), roll edits, and slip & slide trimming without introducing sync drift or breaking downstream edits.',
+		description:
+			'Execute instant razor cuts (C), ripple delete (Shift+Del), roll edits, and slip & slide trimming without introducing sync drift or breaking downstream edits.',
 		highlights: ['Razor (C)', 'Ripple Delete', 'Slip & Slide Edits'],
 		icon: 'scissors'
 	},
@@ -51,7 +53,8 @@ const features: Feature[] = [
 		category: 'timeline',
 		categoryLabel: 'Timeline & Cuts',
 		badge: 'Storytelling',
-		description: 'Lead visual scenes with audio or let dialogue linger over incoming shots for broadcast-standard narrative flow and cinematic dialogue pacing.',
+		description:
+			'Lead visual scenes with audio or let dialogue linger over incoming shots for broadcast-standard narrative flow and cinematic dialogue pacing.',
 		highlights: ['Independent Audio Head/Tail', 'Dialogue Continuity', 'Split Cuts'],
 		icon: 'split-cuts'
 	},
@@ -61,7 +64,8 @@ const features: Feature[] = [
 		category: 'timeline',
 		categoryLabel: 'Timeline & Cuts',
 		badge: 'Animation',
-		description: 'Animate any property over time with smooth Bezier easing handles. Fine-tune position, scale, rotation, opacity, and audio gain with visual interpolation.',
+		description:
+			'Animate any property over time with smooth Bezier easing handles. Fine-tune position, scale, rotation, opacity, and audio gain with visual interpolation.',
 		highlights: ['Bezier Handles', 'Ease In / Ease Out', 'Multi-Param Keyframes'],
 		icon: 'keyframes'
 	},
@@ -71,7 +75,8 @@ const features: Feature[] = [
 		category: 'timeline',
 		categoryLabel: 'Timeline & Cuts',
 		badge: 'Direct Control',
-		description: 'Transform clips directly on the program monitor with interactive corner drag handles, anchor point positioning, 4-sided cropping, and smooth edge feathering.',
+		description:
+			'Transform clips directly on the program monitor with interactive corner drag handles, anchor point positioning, 4-sided cropping, and smooth edge feathering.',
 		highlights: ['Direct Gizmo Drag', '4-Sided Crop', 'Edge Feathering'],
 		icon: 'gizmo'
 	},
@@ -81,7 +86,8 @@ const features: Feature[] = [
 		category: 'timeline',
 		categoryLabel: 'Timeline & Cuts',
 		badge: 'Time Control',
-		description: 'Create dramatic slow-motion shots (down to 0.1x) or rapid time-lapses (up to 16x) with pitch-preserved audio processing and instant reverse playback.',
+		description:
+			'Create dramatic slow-motion shots (down to 0.1x) or rapid time-lapses (up to 16x) with pitch-preserved audio processing and instant reverse playback.',
 		highlights: ['0.1x to 16x Speed', 'Pitch Correction', 'Reverse Playback'],
 		icon: 'speed'
 	},
@@ -91,19 +97,32 @@ const features: Feature[] = [
 		category: 'ai',
 		categoryLabel: 'AI Magic Tools',
 		badge: 'Neural AI',
-		description: 'Transcribe speech to text in seconds using browser-native AI models. Word-level timing precision, animated caption styles, and instant SRT/VTT export with zero cloud uploads.',
+		description:
+			'Transcribe speech to text in seconds using browser-native AI models. Word-level timing precision, animated caption styles, and instant SRT/VTT export with zero cloud uploads.',
 		highlights: ['100% On-Device', 'Word-Level Sync', 'SRT & VTT Export'],
 		icon: 'captions'
 	},
 	{
 		id: 'silence-removal',
-		title: 'Smart Silence & Dead Air Removal',
+		title: 'Smart Cut: AI Silence & Pause Removal',
 		category: 'ai',
 		categoryLabel: 'AI Magic Tools',
-		badge: 'Automation',
-		description: 'Automatically scan dialogue, interviews, and voiceovers for pauses and silence. Ripple-trim dead air with a single click using configurable threshold and padding sliders.',
-		highlights: ['One-Click Ripple Cuts', 'Configurable Threshold', 'Speech Trimming'],
+		badge: 'Smart Cut',
+		description:
+			'Automatically scan dialogue, interviews, and voiceovers for pauses and silence using Voice Activity Detection (VAD). Ripple-trim dead air with a single click while preserving frame-accurate A/V sync.',
+		highlights: ['Voice Activity Detection', 'Sync-Safe Ripple Cuts', 'Speech Padding Controls'],
 		icon: 'silence'
+	},
+	{
+		id: 'ai-workspaces',
+		title: 'Dedicated AI & 7 Pro Workspaces',
+		category: 'ai',
+		categoryLabel: 'AI Magic Tools',
+		badge: 'Workspaces',
+		description:
+			'Seamlessly switch between dedicated editing environments: Assembly, AI, Editing, Color, Effects, Audio, and Graphics with Premiere-style keyboard shortcuts (Alt+Shift+1..7).',
+		highlights: ['AI Workspace', 'Alt+Shift+1..7 Shortcuts', 'Custom Layout Presets'],
+		icon: 'layout'
 	},
 	{
 		id: 'audio-ducking',
@@ -111,7 +130,8 @@ const features: Feature[] = [
 		category: 'ai',
 		categoryLabel: 'AI Magic Tools',
 		badge: 'Audio AI',
-		description: 'Automatically attenuate background music whenever voiceover or speech is detected. Features smooth sidechain attack, release, and sensitivity adjustments.',
+		description:
+			'Automatically attenuate background music whenever voiceover or speech is detected. Features smooth sidechain attack, release, and sensitivity adjustments.',
 		highlights: ['Auto Sidechain', 'Speech Isolation', 'Smooth Attenuation'],
 		icon: 'ducking'
 	},
@@ -121,7 +141,8 @@ const features: Feature[] = [
 		category: 'ai',
 		categoryLabel: 'AI Magic Tools',
 		badge: 'Computer Vision',
-		description: 'Smooth shaky handheld camera motion directly in your browser. Advanced translation and warp motion analysis without sending video frames to external servers.',
+		description:
+			'Smooth shaky handheld camera motion directly in your browser. Advanced translation and warp motion analysis without sending video frames to external servers.',
 		highlights: ['Camera Shake Smoothing', 'Optical Analysis', 'GPU Accelerated'],
 		icon: 'stabilize'
 	},
@@ -131,7 +152,8 @@ const features: Feature[] = [
 		category: 'tracking',
 		categoryLabel: 'Motion Tracking',
 		badge: 'Tracking',
-		description: 'Track moving subjects with subpixel point and template matching. Pin floating text titles, callouts, emojis, or blur privacy masks to moving objects across scene cuts.',
+		description:
+			'Track moving subjects with subpixel point and template matching. Pin floating text titles, callouts, emojis, or blur privacy masks to moving objects across scene cuts.',
 		highlights: ['Point & Region Tracking', 'Bidirectional Pass', 'Pin Text & Masks'],
 		icon: 'crosshair'
 	},
@@ -141,7 +163,8 @@ const features: Feature[] = [
 		category: 'color',
 		categoryLabel: 'Color & Scopes',
 		badge: 'Cinematic',
-		description: 'Industry-standard 3-way color grading wheels for shadows (Lift), midtones (Gamma), highlights (Gain), and Master Offset for nuanced chromatic grading.',
+		description:
+			'Industry-standard 3-way color grading wheels for shadows (Lift), midtones (Gamma), highlights (Gain), and Master Offset for nuanced chromatic grading.',
 		highlights: ['Lift / Gamma / Gain', 'Master Pedestal', 'Hollywood Grade'],
 		icon: 'color-wheels'
 	},
@@ -151,7 +174,8 @@ const features: Feature[] = [
 		category: 'color',
 		categoryLabel: 'Color & Scopes',
 		badge: 'Color Science',
-		description: 'Calibrate white balance with dedicated Kelvin Temperature and Magenta/Green Tint sliders, plus Exposure, Contrast, Highlights, Shadows, Whites, Blacks, and Vibrance.',
+		description:
+			'Calibrate white balance with dedicated Kelvin Temperature and Magenta/Green Tint sliders, plus Exposure, Contrast, Highlights, Shadows, Whites, Blacks, and Vibrance.',
 		highlights: ['Temp & Tint', 'Tone Curve Sliders', 'Vibrance & Saturation'],
 		icon: 'sliders'
 	},
@@ -161,7 +185,8 @@ const features: Feature[] = [
 		category: 'color',
 		categoryLabel: 'Color & Scopes',
 		badge: 'Broadcast QC',
-		description: 'Monitor signal fidelity with 60fps real-time scopes: Luma Waveform, RGB Parade, Histogram, and Vectorscope with dedicated skin-tone reference line.',
+		description:
+			'Monitor signal fidelity with 60fps real-time scopes: Luma Waveform, RGB Parade, Histogram, and Vectorscope with dedicated skin-tone reference line.',
 		highlights: ['Luma Waveform', 'RGB Parade', 'Vectorscope & Skin Tone'],
 		icon: 'scopes'
 	},
@@ -171,7 +196,8 @@ const features: Feature[] = [
 		category: 'color',
 		categoryLabel: 'Color & Scopes',
 		badge: 'LUTs',
-		description: 'Import standard 3D `.cube` LUTs for creative film-stock emulations, camera profiles, and brand aesthetics with adjustable blend opacity.',
+		description:
+			'Import standard 3D `.cube` LUTs for creative film-stock emulations, camera profiles, and brand aesthetics with adjustable blend opacity.',
 		highlights: ['.cube Compatibility', 'Opacity Blend', 'Instant Preview'],
 		icon: 'lut'
 	},
@@ -181,7 +207,8 @@ const features: Feature[] = [
 		category: 'audio',
 		categoryLabel: 'Audio Mixer & EQ',
 		badge: 'Console Mix',
-		description: 'Tactile console-style audio mixer with vertical faders calibrated up to +12 dB, stereo peak level LED meters with clip detection, track pan, and submix routing.',
+		description:
+			'Tactile console-style audio mixer with vertical faders calibrated up to +12 dB, stereo peak level LED meters with clip detection, track pan, and submix routing.',
 		highlights: ['+12 dB Headroom', 'Peak LED Meters', 'Track Pan & Submix'],
 		icon: 'mixer'
 	},
@@ -191,7 +218,8 @@ const features: Feature[] = [
 		category: 'audio',
 		categoryLabel: 'Audio Mixer & EQ',
 		badge: 'Audio FX',
-		description: 'Sculpt audio frequencies with an interactive visual EQ graph. Cut mud, tame harsh sibilance, and add warm presence with real-time parametric bell and shelf filters.',
+		description:
+			'Sculpt audio frequencies with an interactive visual EQ graph. Cut mud, tame harsh sibilance, and add warm presence with real-time parametric bell and shelf filters.',
 		highlights: ['Interactive EQ Curve', 'Low/High Shelf & Bell', 'Frequency Shaping'],
 		icon: 'eq'
 	},
@@ -201,7 +229,8 @@ const features: Feature[] = [
 		category: 'audio',
 		categoryLabel: 'Audio Mixer & EQ',
 		badge: 'Mastering',
-		description: 'Control dynamic range with visual compression curves. Tame loud spikes, boost quiet dialogue, and eliminate background room hum with threshold, ratio, attack, and release.',
+		description:
+			'Control dynamic range with visual compression curves. Tame loud spikes, boost quiet dialogue, and eliminate background room hum with threshold, ratio, attack, and release.',
 		highlights: ['Visual Dynamics Curve', 'Hard Limiting', 'Makeup Gain'],
 		icon: 'compressor'
 	},
@@ -211,7 +240,8 @@ const features: Feature[] = [
 		category: 'vfx',
 		categoryLabel: 'VFX & Transitions',
 		badge: 'GPU FX',
-		description: 'Real-time GPU shader effects: Gaussian Blur, Directional Motion Blur, Bloom Glow, Chromatic Aberration, Vignette, Film Grain, Sharpen, and Invert.',
+		description:
+			'Real-time GPU shader effects: Gaussian Blur, Directional Motion Blur, Bloom Glow, Chromatic Aberration, Vignette, Film Grain, Sharpen, and Invert.',
 		highlights: ['Real-Time Shaders', 'Zero Render Wait', 'Stackable Effects'],
 		icon: 'sparkles'
 	},
@@ -221,7 +251,8 @@ const features: Feature[] = [
 		category: 'vfx',
 		categoryLabel: 'VFX & Transitions',
 		badge: 'Transitions',
-		description: 'Seamless cut transitions including Cross Dissolve, Dip to Black/White, Directional Slides, Pushes, Radial Wipes, and Dynamic Whip Pans with custom duration.',
+		description:
+			'Seamless cut transitions including Cross Dissolve, Dip to Black/White, Directional Slides, Pushes, Radial Wipes, and Dynamic Whip Pans with custom duration.',
 		highlights: ['Cross Dissolve', 'Whip Pan & Zoom', 'Custom Durations'],
 		icon: 'transitions'
 	},
@@ -231,7 +262,8 @@ const features: Feature[] = [
 		category: 'vfx',
 		categoryLabel: 'VFX & Transitions',
 		badge: 'Workflow',
-		description: 'Apply global color grades, LUTs, blurs, and styling filters across dozens of underlying clips simultaneously using stacked adjustment layers.',
+		description:
+			'Apply global color grades, LUTs, blurs, and styling filters across dozens of underlying clips simultaneously using stacked adjustment layers.',
 		highlights: ['Global Color Passes', 'Non-Destructive', 'Multi-Track Scope'],
 		icon: 'layers'
 	},
@@ -241,7 +273,8 @@ const features: Feature[] = [
 		category: 'text',
 		categoryLabel: 'Titles & Typography',
 		badge: 'Typography',
-		description: 'Full typographic control: custom web fonts, font weights, letter spacing, line height, text alignment (Left, Center, Right, Justify), stroke outlines, and glowing shadows.',
+		description:
+			'Full typographic control: custom web fonts, font weights, letter spacing, line height, text alignment (Left, Center, Right, Justify), stroke outlines, and glowing shadows.',
 		highlights: ['Full Text Align', 'Stroke Outlines', 'Background Pills'],
 		icon: 'text'
 	},
@@ -251,7 +284,8 @@ const features: Feature[] = [
 		category: 'text',
 		categoryLabel: 'Titles & Typography',
 		badge: 'Motion Titles',
-		description: 'Create animated lower-thirds, YouTube title cards, and social media lyric reels with kinetic text animation presets and customized subtitle bounding pills.',
+		description:
+			'Create animated lower-thirds, YouTube title cards, and social media lyric reels with kinetic text animation presets and customized subtitle bounding pills.',
 		highlights: ['Lower Thirds', 'Kinetic Animation', 'Social Reel Presets'],
 		icon: 'motion-text'
 	},
@@ -261,7 +295,8 @@ const features: Feature[] = [
 		category: 'export',
 		categoryLabel: 'Export & Interchange',
 		badge: 'Long-Form',
-		description: 'Build complex episodic projects with multiple sequences per project. Nest sub-timelines inside master timelines for clean, modular organization.',
+		description:
+			'Build complex episodic projects with multiple sequences per project. Nest sub-timelines inside master timelines for clean, modular organization.',
 		highlights: ['Multi-Sequence Tabs', 'Compound Nesting', 'Modular Edits'],
 		icon: 'sequences'
 	},
@@ -271,7 +306,8 @@ const features: Feature[] = [
 		category: 'export',
 		categoryLabel: 'Export & Interchange',
 		badge: 'Performance',
-		description: 'Generate 720p/1080p proxy media on-the-fly inside your browser. Enjoy silky smooth timeline playback on low-spec laptops, then export at full native 4K resolution.',
+		description:
+			'Generate 720p/1080p proxy media on-the-fly inside your browser. Enjoy silky smooth timeline playback on low-spec laptops, then export at full native 4K resolution.',
 		highlights: ['Instant 720p Proxies', 'Smooth on Any Laptop', 'Lossless 4K Export'],
 		icon: 'proxy'
 	},
@@ -281,7 +317,8 @@ const features: Feature[] = [
 		category: 'export',
 		categoryLabel: 'Export & Interchange',
 		badge: 'Rendering',
-		description: 'Render MP4 (H.264 / AV1) and WebM (VP9) at 60fps utilizing your hardware GPU. 100% free with no watermarks, no cloud queues, and no compression paywalls.',
+		description:
+			'Render MP4 (H.264 / AV1) and WebM (VP9) at 60fps utilizing your hardware GPU. 100% free with no watermarks, no cloud queues, and no compression paywalls.',
 		highlights: ['4K 60fps MP4 & WebM', 'Zero Watermarks', 'No Cloud Queues'],
 		icon: 'export'
 	},
@@ -291,7 +328,8 @@ const features: Feature[] = [
 		category: 'export',
 		categoryLabel: 'Export & Interchange',
 		badge: 'Studio Pipeline',
-		description: 'Export timeline metadata to OpenTimelineIO (OTIO), Final Cut Pro XML (FCPXML), and EDL. Seamlessly roundtrip cuts into DaVinci Resolve or Adobe Premiere Pro.',
+		description:
+			'Export timeline metadata to OpenTimelineIO (OTIO), Final Cut Pro XML (FCPXML), and EDL. Seamlessly roundtrip cuts into DaVinci Resolve or Adobe Premiere Pro.',
 		highlights: ['OpenTimelineIO (OTIO)', 'Final Cut XML', 'DaVinci Resolve Roundtrip'],
 		icon: 'interchange'
 	},
@@ -301,7 +339,8 @@ const features: Feature[] = [
 		category: 'export',
 		categoryLabel: 'Export & Interchange',
 		badge: 'Zero Trust',
-		description: 'Zero bytes uploaded to the cloud. Process sensitive commercial footage with complete peace of mind, backed by instant local IndexedDB autosave and crash recovery.',
+		description:
+			'Zero bytes uploaded to the cloud. Process sensitive commercial footage with complete peace of mind, backed by instant local IndexedDB autosave and crash recovery.',
 		highlights: ['Zero Cloud Upload', 'Encrypted Autosaves', 'Crash Recovery'],
 		icon: 'shield'
 	}
@@ -323,8 +362,8 @@ const features: Feature[] = [
 				Every Feature You Need to Create <span class="gradient-text">World-Class Edits</span>
 			</h2>
 			<p class="features-subtitle">
-				A complete non-linear editing studio engineered with WebCodecs and WebGL2. 
-				No downloads, no subscriptions, and zero cloud uploads — your footage stays completely on your device.
+				A complete non-linear editing studio engineered with WebCodecs and WebGL2. No downloads, no
+				subscriptions, and zero cloud uploads — your footage stays completely on your device.
 			</p>
 
 			<!-- At a glance stats strip -->
@@ -373,15 +412,40 @@ const features: Feature[] = [
 					<div class="card-top">
 						<div class="feature-icon-wrapper" aria-hidden="true">
 							{feature.icon === 'timeline' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<rect x="2" y="4" width="20" height="4" rx="1" />
 									<rect x="2" y="10" width="12" height="4" rx="1" />
 									<rect x="2" y="16" width="16" height="4" rx="1" />
-									<line x1="10" y1="2" x2="10" y2="22" stroke-dasharray="2 2" stroke="currentColor" />
+									<line
+										x1="10"
+										y1="2"
+										x2="10"
+										y2="22"
+										stroke-dasharray="2 2"
+										stroke="currentColor"
+									/>
 								</svg>
 							)}
 							{feature.icon === 'scissors' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<circle cx="6" cy="6" r="3" />
 									<circle cx="6" cy="18" r="3" />
 									<line x1="20" y1="4" x2="8.12" y2="15.88" />
@@ -390,19 +454,46 @@ const features: Feature[] = [
 								</svg>
 							)}
 							{feature.icon === 'split-cuts' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M4 6h16M4 12h10M18 12h2M4 18h16" />
 									<polyline points="14 9 17 12 14 15" />
 								</svg>
 							)}
 							{feature.icon === 'keyframes' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M12 2L2 12l10 10 10-10L12 2z" />
 									<path d="M12 7l-5 5 5 5 5-5-5-5z" />
 								</svg>
 							)}
 							{feature.icon === 'gizmo' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M21 3H3v18h18V3z" stroke-dasharray="3 3" />
 									<rect x="2" y="2" width="3" height="3" fill="currentColor" />
 									<rect x="19" y="2" width="3" height="3" fill="currentColor" />
@@ -412,32 +503,93 @@ const features: Feature[] = [
 								</svg>
 							)}
 							{feature.icon === 'speed' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<circle cx="12" cy="12" r="10" />
 									<polyline points="12 6 12 12 16 14" />
 									<path d="M16 2l4 4" />
 								</svg>
 							)}
 							{feature.icon === 'captions' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<rect x="2" y="4" width="20" height="16" rx="3" />
 									<path d="M7 15h4M7 9h2M15 15h2M13 9h4" />
 								</svg>
 							)}
 							{feature.icon === 'silence' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M11 5L6 9H2v6h4l5 4V5z" />
 									<line x1="23" y1="9" x2="17" y2="15" />
 									<line x1="17" y1="9" x2="23" y2="15" />
 								</svg>
 							)}
+							{feature.icon === 'layout' && (
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<rect x="3" y="3" width="18" height="18" rx="2" />
+									<line x1="3" y1="9" x2="21" y2="9" />
+									<line x1="9" y1="21" x2="9" y2="9" />
+								</svg>
+							)}
 							{feature.icon === 'ducking' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M2 12h3l2-6 4 12 3-8 2 5 2-3h4" />
 								</svg>
 							)}
 							{feature.icon === 'stabilize' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<circle cx="12" cy="12" r="10" />
 									<circle cx="12" cy="12" r="4" />
 									<line x1="4.93" y1="4.93" x2="9.17" y2="9.17" />
@@ -445,7 +597,16 @@ const features: Feature[] = [
 								</svg>
 							)}
 							{feature.icon === 'crosshair' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<circle cx="12" cy="12" r="8" />
 									<line x1="12" y1="2" x2="12" y2="6" />
 									<line x1="12" y1="18" x2="12" y2="22" />
@@ -455,7 +616,16 @@ const features: Feature[] = [
 								</svg>
 							)}
 							{feature.icon === 'color-wheels' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<circle cx="12" cy="12" r="10" />
 									<circle cx="12" cy="8" r="4" />
 									<circle cx="8" cy="14" r="4" />
@@ -463,7 +633,16 @@ const features: Feature[] = [
 								</svg>
 							)}
 							{feature.icon === 'sliders' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<line x1="4" y1="21" x2="4" y2="14" />
 									<line x1="4" y1="10" x2="4" y2="3" />
 									<line x1="12" y1="21" x2="12" y2="12" />
@@ -476,20 +655,47 @@ const features: Feature[] = [
 								</svg>
 							)}
 							{feature.icon === 'scopes' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<rect x="2" y="3" width="20" height="18" rx="2" />
 									<path d="M6 15l3-6 4 9 3-5 2 2" />
 								</svg>
 							)}
 							{feature.icon === 'lut' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
 									<polyline points="3.27 6.96 12 12.01 20.73 6.96" />
 									<line x1="12" y1="22.08" x2="12" y2="12" />
 								</svg>
 							)}
 							{feature.icon === 'mixer' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<rect x="3" y="3" width="6" height="18" rx="1" />
 									<rect x="15" y="3" width="6" height="18" rx="1" />
 									<line x1="6" y1="10" x2="6" y2="10.01" stroke-width="3" />
@@ -497,14 +703,32 @@ const features: Feature[] = [
 								</svg>
 							)}
 							{feature.icon === 'eq' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M2 12c4-8 8-8 10 0s6 8 10 0" />
 									<circle cx="7" cy="8" r="2" fill="currentColor" />
 									<circle cx="17" cy="16" r="2" fill="currentColor" />
 								</svg>
 							)}
 							{feature.icon === 'compressor' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<circle cx="12" cy="12" r="10" />
 									<path d="M12 16v-4" />
 									<path d="M12 8h.01" />
@@ -512,58 +736,139 @@ const features: Feature[] = [
 								</svg>
 							)}
 							{feature.icon === 'sparkles' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="m12 3 1.912 5.885L20 10.8l-4.712 3.915L16.8 21 12 17.515 7.2 21l1.512-6.285L4 10.8l6.088-1.915L12 3z" />
 								</svg>
 							)}
 							{feature.icon === 'transitions' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<rect x="2" y="5" width="8" height="14" rx="1" />
 									<rect x="14" y="5" width="8" height="14" rx="1" />
 									<path d="M10 12h4m-2-2 2 2-2 2" />
 								</svg>
 							)}
 							{feature.icon === 'layers' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<polygon points="12 2 2 7 12 12 22 7 12 2" />
 									<polyline points="2 17 12 22 22 17" />
 									<polyline points="2 12 12 17 22 12" />
 								</svg>
 							)}
 							{feature.icon === 'text' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<polyline points="4 7 4 4 20 4 20 7" />
 									<line x1="9" y1="20" x2="15" y2="20" />
 									<line x1="12" y1="4" x2="12" y2="20" />
 								</svg>
 							)}
 							{feature.icon === 'motion-text' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M4 14h16M4 18h10" />
 									<path d="M4 6h16l-8 5-8-5z" />
 								</svg>
 							)}
 							{feature.icon === 'sequences' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<rect x="2" y="3" width="20" height="14" rx="2" />
 									<line x1="8" y1="21" x2="16" y2="21" />
 									<line x1="12" y1="17" x2="12" y2="21" />
 								</svg>
 							)}
 							{feature.icon === 'proxy' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
 								</svg>
 							)}
 							{feature.icon === 'export' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
 									<polyline points="7 10 12 15 17 10" />
 									<line x1="12" y1="15" x2="12" y2="3" />
 								</svg>
 							)}
 							{feature.icon === 'interchange' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<polyline points="17 1 21 5 17 9" />
 									<path d="M3 11V9a4 4 0 0 1 4-4h14" />
 									<polyline points="7 23 3 19 7 15" />
@@ -571,7 +876,16 @@ const features: Feature[] = [
 								</svg>
 							)}
 							{feature.icon === 'shield' && (
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
 									<path d="m9 12 2 2 4-4" />
 								</svg>
@@ -589,7 +903,16 @@ const features: Feature[] = [
 					<div class="feature-highlights">
 						{feature.highlights.map((highlight) => (
 							<span class="highlight-chip">
-								<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+								<svg
+									width="11"
+									height="11"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="3"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
 									<polyline points="20 6 9 17 4 12" />
 								</svg>
 								{highlight}
@@ -604,11 +927,22 @@ const features: Feature[] = [
 		<div class="features-launch-banner">
 			<div class="banner-content">
 				<h3 class="banner-title">Ready to Experience Modern In-Browser Editing?</h3>
-				<p class="banner-desc">No signup, no subscription, no watermark. Open the editor and start creating in seconds.</p>
+				<p class="banner-desc">
+					No signup, no subscription, no watermark. Open the editor and start creating in seconds.
+				</p>
 			</div>
 			<a href="/editor" class="banner-cta">
 				<span>Launch Free Video Editor</span>
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+				<svg
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
 					<line x1="5" y1="12" x2="19" y2="12"></line>
 					<polyline points="12 5 19 12 12 19"></polyline>
 				</svg>
@@ -865,7 +1199,12 @@ const features: Feature[] = [
 		left: 0;
 		right: 0;
 		height: 1px;
-		background: linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.3) 50%, transparent 100%);
+		background: linear-gradient(
+			90deg,
+			transparent 0%,
+			rgba(56, 189, 248, 0.3) 50%,
+			transparent 100%
+		);
 		opacity: 0;
 		transition: opacity 0.25s ease;
 	}
@@ -1062,4 +1401,3 @@ const features: Feature[] = [
 		}
 	}
 </style>
-

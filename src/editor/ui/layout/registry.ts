@@ -15,6 +15,7 @@ import { EffectControlsAudio } from '../audio/EffectControlsAudio';
 import Timeline from '../timeline/Timeline';
 import GraphEditor from '../graph/GraphEditor';
 import AIAssistantPanel from '../ai/AIAssistantPanel';
+import { AutoCaptionAiView } from '../ai/AutoCaptionAiView';
 
 export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
 	media: {
@@ -133,6 +134,14 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
 		id: 'ai-assistant',
 		title: 'Smart Cut',
 		component: AIAssistantPanel as ComponentType<{ [key: string]: unknown }>,
+		singleInstance: true,
+		keepAlive: false,
+		minSize: { width: 220, height: 180 }
+	},
+	'auto-caption': {
+		id: 'auto-caption',
+		title: 'Auto Caption',
+		component: AutoCaptionAiView as ComponentType<{ [key: string]: unknown }>,
 		singleInstance: true,
 		keepAlive: false,
 		minSize: { width: 220, height: 180 }

@@ -7,6 +7,7 @@ import {
 	type SttProgressEvent,
 	type SttModelMetadata
 } from '../../services/captions/sttProtocol';
+import './captions.css';
 
 export interface AutoCaptionModalProps {
 	open: boolean;
@@ -176,29 +177,27 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 		>
 			<div className="dialog-content">
 				{/* Header */}
-				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+				<div className="dialog-header auto-caption-header">
 					<div>
-						<h2
-							style={{ fontSize: '1.2rem', fontWeight: 600, margin: 0, color: 'var(--color-ink)' }}
-						>
-							Local AI Speech-to-Text
-						</h2>
-						<p style={{ fontSize: '0.82rem', color: 'var(--color-mute)', marginTop: '4px' }}>
+						<h2 className="auto-caption-title">Local AI Speech-to-Text</h2>
+						<p className="auto-caption-subtitle">
 							Client-side speech recognition running directly on your CPU/GPU.
 						</p>
 					</div>
 
-					<div style={{ display: 'flex', gap: '6px' }}>
+					<div className="modal-tab-group">
 						<button
 							type="button"
-							className={`caption-cue-tool-btn ${activeTab === 'transcribe' ? 'is-active' : ''}`}
+							aria-pressed={activeTab === 'transcribe'}
+							className={`modal-tab-btn ${activeTab === 'transcribe' ? 'is-active' : ''}`}
 							onClick={() => setActiveTab('transcribe')}
 						>
 							Transcribe
 						</button>
 						<button
 							type="button"
-							className={`caption-cue-tool-btn ${activeTab === 'models' ? 'is-active' : ''}`}
+							aria-pressed={activeTab === 'models'}
+							className={`modal-tab-btn ${activeTab === 'models' ? 'is-active' : ''}`}
 							onClick={() => setActiveTab('models')}
 						>
 							Models Manager
@@ -207,53 +206,30 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 				</div>
 
 				{/* Privacy guarantee banner */}
-				<div
-					style={{
-						padding: '10px 14px',
-						background: 'var(--color-canvas)',
-						border: '1px solid var(--color-hairline)',
-						borderRadius: '6px',
-						fontSize: '0.8rem',
-						color: 'var(--color-body)'
-					}}
-				>
-					<span style={{ fontWeight: 600, color: 'var(--color-ink)' }}>🔒 100% Private:</span> All
-					audio processing and speech-to-text inference run locally in your browser. Audio never
-					leaves your device. Only the one-time model weight download touches the network.
+				<div className="auto-caption-privacy-banner">
+					<span className="auto-caption-privacy-badge">🔒 100% Private:</span>
+					<span>
+						All audio processing and speech-to-text inference run locally in your browser. Audio
+						never leaves your device. Only the one-time model weight download touches the network.
+					</span>
 				</div>
 
 				{/* TAB 1: MODELS MANAGER */}
 				{activeTab === 'models' && (
-					<div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-						<h3
-							style={{ fontSize: '0.9rem', fontWeight: 600, margin: 0, color: 'var(--color-ink)' }}
-						>
-							Available AI Models & Local Storage Cache
-						</h3>
+					<div className="auto-caption-models-list">
+						<h3 className="auto-caption-models-title">Available AI Models & Local Storage Cache</h3>
 
 						{Object.values(STT_MODELS).map((model) => (
-							<div
-								key={model.id}
-								style={{
-									display: 'flex',
-									justifyContent: 'space-between',
-									alignItems: 'center',
-									padding: '10px 12px',
-									border: '1px solid var(--color-hairline)',
-									borderRadius: '6px',
-									background: 'var(--color-canvas-elevated)'
-								}}
-							>
+							<div key={model.id} className="auto-caption-model-item">
 								<div>
-									<div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-ink)' }}>
+									<div className="auto-caption-model-name">
 										{model.name}{' '}
 										<span
-											style={{
-												fontSize: '0.72rem',
-												color: installedModels.some((m) => m.includes(model.id))
-													? 'var(--color-success, #22c55e)'
-													: 'var(--color-mute)'
-											}}
+											className={`auto-caption-cache-status ${
+												installedModels.some((m) => m.includes(model.id))
+													? 'is-cached'
+													: 'is-uncached'
+											}`}
 										>
 											(
 											{installedModels.some((m) => m.includes(model.id))
@@ -262,7 +238,7 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 											)
 										</span>
 									</div>
-									<div style={{ fontSize: '0.78rem', color: 'var(--color-mute)' }}>
+									<div className="auto-caption-model-meta">
 										Size: {model.sizeLabel} · License: {model.license}
 									</div>
 								</div>
@@ -270,9 +246,16 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 								<div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
 									<button
 										type="button"
-										className="caption-cue-tool-btn btn-delete"
+										className="secondary-button"
+										style={{
+											height: '28px',
+											minHeight: '28px',
+											fontSize: '11.5px',
+											padding: '0 10px'
+										}}
 										onClick={() => void handleDeleteModel(model.id)}
 										title="Delete downloaded model from browser cache"
+										disabled={!installedModels.some((m) => m.includes(model.id))}
 									>
 										Clear Cache
 									</button>
@@ -293,9 +276,9 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 									flexDirection: 'column',
 									gap: '12px',
 									padding: '14px',
-									border: '1px solid var(--color-link)',
+									border: '1px solid #0284c7',
 									borderRadius: '8px',
-									background: 'var(--color-canvas-elevated)'
+									background: '#14141c'
 								}}
 							>
 								<h3
@@ -303,16 +286,16 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 										margin: 0,
 										fontSize: '0.95rem',
 										fontWeight: 600,
-										color: 'var(--color-ink)'
+										color: '#f1f5f9'
 									}}
 								>
 									Model Download Consent
 								</h3>
-								<p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-body)' }}>
+								<p style={{ margin: 0, fontSize: '0.82rem', color: '#94a3b8' }}>
 									Speech recognition requires downloading the on-device AI model weights (
 									{selectedModel.sizeLabel}) from Hugging Face (ONNX Community / MIT License).
 								</p>
-								<div style={{ fontSize: '0.78rem', color: 'var(--color-mute)' }}>
+								<div style={{ fontSize: '0.78rem', color: '#64748b' }}>
 									• Source: {selectedModel.hfModelId}
 									<br />
 									• Execution: Client-side WebGPU / WASM
@@ -326,12 +309,12 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 										marginTop: '6px'
 									}}
 								>
-									<button type="button" className="captions-btn-icon" onClick={onClose}>
+									<button type="button" className="secondary-button" onClick={onClose}>
 										Cancel
 									</button>
 									<button
 										type="button"
-										className="captions-btn-icon captions-btn-primary"
+										className="primary-button"
 										onClick={handleGrantConsentAndDownload}
 									>
 										Download & Enable Local AI
@@ -340,17 +323,12 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 							</div>
 						) : (
 							/* Standard Transcription Setup */
-							<div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+							<div className="auto-caption-form">
 								{/* Model Selector */}
-								<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-									<label
-										style={{ fontSize: '0.82rem', color: 'var(--color-ink)', fontWeight: 500 }}
-									>
-										Model
-									</label>
+								<div className="auto-caption-field">
+									<label className="auto-caption-label">Model</label>
 									<select
-										className="captions-select"
-										style={{ width: '100%', maxWidth: 'none' }}
+										className="auto-caption-select"
 										disabled={isRunning}
 										value={selectedModelId}
 										onChange={(e) => setSelectedModelId(e.target.value)}
@@ -361,22 +339,18 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 											</option>
 										))}
 									</select>
-									<span style={{ fontSize: '0.75rem', color: 'var(--color-mute)' }}>
+									<span className="auto-caption-hint">
 										{selectedModel.description} (License: {selectedModel.license})
 									</span>
 								</div>
 
 								{/* Audio Source */}
-								<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-									<label
-										style={{ fontSize: '0.82rem', color: 'var(--color-ink)', fontWeight: 500 }}
-									>
-										Audio Source
-									</label>
-									<div style={{ display: 'flex', gap: '8px' }}>
+								<div className="auto-caption-field">
+									<label className="auto-caption-label">Audio Source</label>
+									<div className="auto-caption-row">
 										<select
-											className="captions-select"
-											style={{ flex: 1, maxWidth: 'none' }}
+											className="auto-caption-select"
+											style={{ flex: 1 }}
 											disabled={isRunning}
 											value={audioSource}
 											onChange={(e) =>
@@ -389,8 +363,8 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 
 										{audioSource === 'all' && (
 											<select
-												className="captions-select"
-												style={{ flex: 1, maxWidth: 'none' }}
+												className="auto-caption-select"
+												style={{ flex: 1 }}
 												disabled={isRunning}
 												value={selectedTrackId}
 												onChange={(e) => setSelectedTrackId(e.target.value)}
@@ -407,16 +381,11 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 								</div>
 
 								{/* Language & Task */}
-								<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-									<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-										<label
-											style={{ fontSize: '0.82rem', color: 'var(--color-ink)', fontWeight: 500 }}
-										>
-											Language
-										</label>
+								<div className="auto-caption-grid-2">
+									<div className="auto-caption-field">
+										<label className="auto-caption-label">Language</label>
 										<select
-											className="captions-select"
-											style={{ width: '100%', maxWidth: 'none' }}
+											className="auto-caption-select"
 											disabled={isRunning}
 											value={language}
 											onChange={(e) => setLanguage(e.target.value)}
@@ -431,15 +400,10 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 										</select>
 									</div>
 
-									<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-										<label
-											style={{ fontSize: '0.82rem', color: 'var(--color-ink)', fontWeight: 500 }}
-										>
-											Task
-										</label>
+									<div className="auto-caption-field">
+										<label className="auto-caption-label">Task</label>
 										<select
-											className="captions-select"
-											style={{ width: '100%', maxWidth: 'none' }}
+											className="auto-caption-select"
 											disabled={isRunning}
 											value={task}
 											onChange={(e) => setTask(e.target.value as 'transcribe' | 'translate')}
@@ -451,15 +415,10 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 								</div>
 
 								{/* Hardware Engine Mode */}
-								<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-									<label
-										style={{ fontSize: '0.82rem', color: 'var(--color-ink)', fontWeight: 500 }}
-									>
-										Engine Runtime
-									</label>
+								<div className="auto-caption-field">
+									<label className="auto-caption-label">Engine Runtime</label>
 									<select
-										className="captions-select"
-										style={{ width: '100%', maxWidth: 'none' }}
+										className="auto-caption-select"
 										disabled={isRunning}
 										value={hardwareMode}
 										onChange={(e) => setHardwareMode(e.target.value as 'webgpu' | 'wasm')}
@@ -478,22 +437,16 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 				{/* Progress & Status */}
 				{status.message && (
 					<div
-						style={{
-							display: 'flex',
-							flexDirection: 'column',
-							gap: '6px',
-							padding: '10px 12px',
-							background:
-								status.phase === 'error'
-									? 'rgba(239, 68, 68, 0.1)'
-									: 'var(--color-canvas-elevated)',
-							border: '1px solid var(--color-hairline)',
-							borderRadius: '6px',
-							fontSize: '0.82rem'
-						}}
+						className={`auto-caption-status-box ${
+							status.phase === 'error'
+								? 'is-error'
+								: status.phase === 'completed'
+									? 'is-complete'
+									: ''
+						}`}
 						aria-live="polite"
 					>
-						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+						<div className="auto-caption-status-header">
 							<span>{status.message}</span>
 							<span>{Math.round(status.progress * 100)}%</span>
 						</div>
@@ -501,11 +454,11 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 							<progress
 								max={100}
 								value={Math.round(status.progress * 100)}
-								style={{ width: '100%', height: '6px' }}
+								className="auto-caption-progress-bar"
 							/>
 						)}
 						{status.speedBytesPerSec && status.speedBytesPerSec > 0 && (
-							<span style={{ fontSize: '0.72rem', color: 'var(--color-mute)' }}>
+							<span className="auto-caption-speed">
 								Speed: {(status.speedBytesPerSec / 1_000_000).toFixed(1)} MB/s
 							</span>
 						)}

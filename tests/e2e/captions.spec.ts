@@ -279,4 +279,119 @@ test.describe('Gate P: Captions System E2E', () => {
 		expect(updatedCaptions.length).toBe(2);
 		expect(updatedCaptions[0]!.end).toBeLessThanOrEqual(updatedCaptions[1]!.start);
 	});
+
+	test('rearranging caption tracks in timeline keeps them in top caption zone and never drops them to the bottom', async ({
+		page
+	}) => {
+		await page.waitForFunction(() => Boolean((window as any).__TFVE_STORE__?.getState().project));
+
+		// Add two caption tracks via store
+		await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						getState: () => {
+							addCaptionTrack: (name?: string) => string | null;
+						};
+					};
+				}
+			).__TFVE_STORE__;
+			s?.getState().addCaptionTrack('English Subtitles');
+			s?.getState().addCaptionTrack('Spanish Subtitles');
+		});
+
+		// Verify both caption track headers are present at top
+		const captionHeaders = page.locator('.timeline-track-header.track-caption');
+		await expect(captionHeaders).toHaveCount(2);
+
+		// Get initial track order
+		const initialOrder = await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						getState: () => {
+							project: { tracks: Array<{ id: string; name: string; kind: string }> };
+						};
+					};
+				}
+			).__TFVE_STORE__;
+			return s?.getState().project.tracks.map((t) => ({ name: t.name, kind: t.kind })) ?? [];
+		});
+
+		expect(initialOrder[0]?.kind).toBe('caption');
+		expect(initialOrder[1]?.kind).toBe('caption');
+
+		// Reorder: drag second caption track onto first or use reorderTimelineTrack
+		await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						getState: () => {
+							project: { tracks: Array<{ id: string; kind: string }> };
+							reorderTimelineTrack: (id: string, target: number) => boolean;
+						};
+					};
+				}
+			).__TFVE_STORE__;
+			const capTracks = s?.getState().project.tracks.filter((t) => t.kind === 'caption') ?? [];
+			if (capTracks[1]) {
+				s?.getState().reorderTimelineTrack(capTracks[1].id, 0);
+			}
+		});
+
+		// Verify reordered tracks: captions swapped positions, but both remain at the top
+		const reorderedOrder = await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						getState: () => {
+							project: { tracks: Array<{ id: string; name: string; kind: string }> };
+						};
+					};
+				}
+			).__TFVE_STORE__;
+			return s?.getState().project.tracks.map((t) => ({ name: t.name, kind: t.kind })) ?? [];
+		});
+
+		expect(reorderedOrder[0]?.name).toBe(initialOrder[1]?.name);
+		expect(reorderedOrder[1]?.name).toBe(initialOrder[0]?.name);
+		expect(reorderedOrder[0]?.kind).toBe('caption');
+		expect(reorderedOrder[1]?.kind).toBe('caption');
+		expect(reorderedOrder[2]?.kind).toBe('video');
+		expect(reorderedOrder[3]?.kind).toBe('audio');
+
+		// Attempt to drag/reorder a caption track all the way to the bottom (target index 99)
+		await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						getState: () => {
+							project: { tracks: Array<{ id: string; kind: string }> };
+							reorderTimelineTrack: (id: string, target: number) => boolean;
+						};
+					};
+				}
+			).__TFVE_STORE__;
+			const capTracks = s?.getState().project.tracks.filter((t) => t.kind === 'caption') ?? [];
+			if (capTracks[0]) {
+				s?.getState().reorderTimelineTrack(capTracks[0].id, 99);
+			}
+		});
+
+		// Verify it clamps safely within the caption zone (index 1), NEVER dropping to the bottom
+		const clampedOrder = await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						getState: () => {
+							project: { tracks: Array<{ id: string; name: string; kind: string }> };
+						};
+					};
+				}
+			).__TFVE_STORE__;
+			return s?.getState().project.tracks.map((t) => t.kind) ?? [];
+		});
+
+		expect(clampedOrder).toEqual(['caption', 'caption', 'video', 'audio']);
+	});
 });
