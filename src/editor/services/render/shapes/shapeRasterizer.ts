@@ -14,9 +14,11 @@ const shapeCache = new Map<string, RenderedShape>();
 const MAX_CACHE_SIZE = 64;
 
 function buildCacheKey(c: ShapeConfig, scale: number): string {
-	return `${c.shapeType}_${c.width}_${c.height}_${c.fillColor.r},${c.fillColor.g},${c.fillColor.b},${c.fillColor.a}_` +
+	return (
+		`${c.shapeType}_${c.width}_${c.height}_${c.fillColor.r},${c.fillColor.g},${c.fillColor.b},${c.fillColor.a}_` +
 		`${c.strokeWidth ?? 0}_${c.strokeStyle ?? 'solid'}_${c.strokeColor?.r},${c.strokeColor?.g},${c.strokeColor?.b},${c.strokeColor?.a}_` +
-		`${c.cornerRadius ?? 0}_${c.points ?? 0}_${c.innerRadius ?? 0}_${c.shadowBlur ?? 0}_${c.shadowColor?.a ?? 0}_${scale}`;
+		`${c.cornerRadius ?? 0}_${c.points ?? 0}_${c.innerRadius ?? 0}_${c.shadowBlur ?? 0}_${c.shadowColor?.a ?? 0}_${scale}`
+	);
 }
 
 export function rasterizeShape(config: ShapeConfig, scale = 1): RenderedShape {
@@ -55,9 +57,7 @@ export function rasterizeShape(config: ShapeConfig, scale = 1): RenderedShape {
 	}
 
 	const ctx = canvas.getContext('2d') as
-		| CanvasRenderingContext2D
-		| OffscreenCanvasRenderingContext2D
-		| null;
+		CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
 	if (!ctx) {
 		return { canvas, width: canvasWidth, height: canvasHeight };
 	}
@@ -161,7 +161,6 @@ export function rasterizeShape(config: ShapeConfig, scale = 1): RenderedShape {
 			break;
 		}
 		case 'heart': {
-			const w = baseW;
 			const h = baseH;
 			ctx.moveTo(cx, top + h * 0.3);
 			ctx.bezierCurveTo(cx, top, left, top, left, top + h * 0.35);

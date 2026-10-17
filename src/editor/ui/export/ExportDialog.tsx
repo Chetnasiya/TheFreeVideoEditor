@@ -29,6 +29,11 @@ import { VIDEO_CODEC_REGISTRY } from '../../core/codecs/registry';
 import { isCodecSupportedSync, probeCodecCapabilities } from '../../services/codecs/probe';
 import CodecSupportDialog from '../dialogs/CodecSupportDialog';
 import CodecPackDialog from '../dialogs/CodecPackDialog';
+import {
+	trackExportStart,
+	trackExportComplete,
+	trackExportFailed
+} from '../../../services/activityTracking';
 import './export-dialog.css';
 
 type ExportTab = 'video' | 'project';
@@ -526,6 +531,12 @@ export default function ExportDialog() {
 		setErrorMessage('');
 		setNotice('');
 		setProgress(null);
+		trackExportStart({
+			format: videoFormat,
+			resolution: `${settings.width}x${settings.height}`,
+			fps: settings.fps,
+			mode
+		});
 		try {
 			const audioRepair = await repairAudioMetadata();
 			if (audioRepair.warnings.length > 0) {
@@ -590,6 +601,11 @@ export default function ExportDialog() {
 					dialogRef.current.close();
 				}
 				const durationSec = durationSeconds > 0 ? durationSeconds : undefined;
+				trackExportComplete({
+					format: 'webm',
+					resolution: `${settings.width}x${settings.height}`,
+					duration_sec: durationSec ? Math.round(durationSec) : undefined
+				});
 				editorStore.getState().openExportCompleteDialog({
 					filename: settings.filename.replace(/\.[^.]+$/, '.webm'),
 					format: 'WEBM',
@@ -687,6 +703,11 @@ export default function ExportDialog() {
 				dialogRef.current.close();
 			}
 			const durationSec = durationSeconds > 0 ? durationSeconds : undefined;
+			trackExportComplete({
+				format: videoFormat,
+				resolution: `${settings.width}x${settings.height}`,
+				duration_sec: durationSec ? Math.round(durationSec) : undefined
+			});
 			const fileSizeBytes = result.blob ? result.blob.size : result.bytes;
 			editorStore.getState().openExportCompleteDialog({
 				filename: settings.filename,
@@ -708,6 +729,7 @@ export default function ExportDialog() {
 				setNotice('Export cancelled. No output file was saved.');
 			} else {
 				setErrorMessage(errorText(error));
+				trackExportFailed(error, { format: videoFormat });
 			}
 		} finally {
 			unregister?.();
@@ -735,6 +757,10 @@ export default function ExportDialog() {
 		setErrorMessage('');
 		setNotice('');
 		setPackageProgress(null);
+		trackExportStart({
+			format: interchangeFormat,
+			is_package: packageFile
+		});
 		let finalBlob: Blob | undefined;
 		try {
 			unregister = registerProjectExport(snapshot.id, controller);
@@ -787,20 +813,17 @@ export default function ExportDialog() {
 				const contents = exportRuntime.exportInterchangeFile(snapshot, interchangeFormat);
 				const mimeType = interchangeFormat === 'otio' ? 'application/json' : 'application/xml';
 				finalBlob = new Blob([contents], { type: `${mimeType};charset=utf-8` });
-				await saveFile(
-					finalBlob,
-					suggestedName,
-					interchangeFileTypes(interchangeFormat, false)
-				);
+				await saveFile(finalBlob, suggestedName, interchangeFileTypes(interchangeFormat, false));
 			}
 			const interchangeLabel =
 				INTERCHANGE_FORMATS.find((item) => item.value === interchangeFormat)?.label ?? 'Project';
-			setNotice(
-				`${interchangeLabel} export complete.`
-			);
+			setNotice(`${interchangeLabel} export complete.`);
 			if (dialogRef.current?.open) {
 				dialogRef.current.close();
 			}
+			trackExportComplete({
+				format: interchangeFormat
+			});
 			editorStore.getState().openExportCompleteDialog({
 				filename: suggestedName,
 				format: interchangeFormat.toUpperCase(),
@@ -809,7 +832,10 @@ export default function ExportDialog() {
 			});
 		} catch (error) {
 			if (isAbortError(error)) setNotice('Export cancelled. No output file was saved.');
-			else setErrorMessage(errorText(error));
+			else {
+				setErrorMessage(errorText(error));
+				trackExportFailed(error, { format: interchangeFormat });
+			}
 		} finally {
 			unregister?.();
 			cancelRef.current = null;

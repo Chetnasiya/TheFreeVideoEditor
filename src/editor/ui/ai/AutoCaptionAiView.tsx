@@ -7,6 +7,7 @@ import {
 	type SttProgressEvent,
 	type SttModelMetadata
 } from '../../services/captions/sttProtocol';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 
 export const AutoCaptionAiView: React.FC = () => {
 	const store = useEditorStoreApi();
@@ -71,6 +72,11 @@ export const AutoCaptionAiView: React.FC = () => {
 		setIsRunning(true);
 		const controller = new AbortController();
 		abortControllerRef.current = controller;
+		trackFeatureUsed('auto_caption', {
+			model: selectedModelId,
+			language,
+			hardware: hardwareMode
+		});
 
 		try {
 			const clipIds = audioSource === 'selected' ? selection.clipIds : undefined;

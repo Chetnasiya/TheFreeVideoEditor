@@ -7,6 +7,7 @@ import {
 	type SttProgressEvent,
 	type SttModelMetadata
 } from '../../services/captions/sttProtocol';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 import './captions.css';
 
 export interface AutoCaptionModalProps {
@@ -89,6 +90,11 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 		setIsRunning(true);
 		const controller = new AbortController();
 		abortControllerRef.current = controller;
+		trackFeatureUsed('auto_caption', {
+			model: selectedModelId,
+			language,
+			hardware: hardwareMode
+		});
 
 		try {
 			// Check for selected clips or range

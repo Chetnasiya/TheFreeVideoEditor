@@ -218,6 +218,11 @@ import {
 } from '../services/media/import';
 import { probeMedia } from '../services/media/probe';
 import { repairProjectAudioMetadata } from '../services/media/repairAudio';
+import {
+	trackProjectCreate,
+	trackMediaImport,
+	trackFeatureUsed
+} from '../../services/activityTracking';
 import { projectNameSchema } from '../services/project/projectName';
 import { applyTheme, initializeTheme, type ThemeMode } from '../services/theme/theme';
 import { clampPanelSize } from '../ui/shell/panelSizing';
@@ -1697,6 +1702,12 @@ export function createEditorStore() {
 							state.isNewProjectDialogOpen = false;
 							state.recovery = null;
 						});
+						trackProjectCreate('editor_store', {
+							fps: options.settings?.fps,
+							resolution: options.settings
+								? `${options.settings.width}x${options.settings.height}`
+								: undefined
+						});
 					} catch (error) {
 						set((state) => {
 							state.projectMessage = `Could not create project: ${errorMessage(error)}`;
@@ -2011,6 +2022,10 @@ export function createEditorStore() {
 									});
 								}
 							}
+						}
+						if (result.imported.length > 0) {
+							const kinds = Array.from(new Set(result.imported.map((a) => a.kind)));
+							trackMediaImport(result.imported.length, kinds);
 						}
 						return result;
 					} catch (error) {
@@ -2755,9 +2770,7 @@ export function createEditorStore() {
 							if (
 								targetTrack &&
 								targetTrack.clips.some(
-									(c) =>
-										c.start < clip.start + clip.duration &&
-										c.start + c.duration > clip.start
+									(c) => c.start < clip.start + clip.duration && c.start + c.duration > clip.start
 								)
 							) {
 								const prevIds = new Set(previewBase.tracks.map((t) => t.id));
@@ -2780,9 +2793,7 @@ export function createEditorStore() {
 							if (
 								targetTrack &&
 								targetTrack.clips.some(
-									(c) =>
-										c.start < clip.start + clip.duration &&
-										c.start + c.duration > clip.start
+									(c) => c.start < clip.start + clip.duration && c.start + c.duration > clip.start
 								)
 							) {
 								const prevIds = new Set(previewBase.tracks.map((t) => t.id));
@@ -2975,15 +2986,12 @@ export function createEditorStore() {
 											drag.pointerTime,
 											5_000_000
 										);
-										let trackToUse = currentView.tracks.find(
-											(t) => t.id === actualTargetTrackId
-										);
+										let trackToUse = currentView.tracks.find((t) => t.id === actualTargetTrackId);
 										if (
 											!trackToUse ||
 											trackToUse.clips.some(
 												(c) =>
-													c.start < clip.start + clip.duration &&
-													c.start + c.duration > clip.start
+													c.start < clip.start + clip.duration && c.start + c.duration > clip.start
 											)
 										) {
 											const prevIds = new Set(currentView.tracks.map((t) => t.id));
@@ -2999,20 +3007,13 @@ export function createEditorStore() {
 										drag.shapeConfig &&
 										actualTargetTrackId
 									) {
-										const clip = createShapeClip(
-											drag.pointerTime,
-											5_000_000,
-											drag.shapeConfig
-										);
-										let trackToUse = currentView.tracks.find(
-											(t) => t.id === actualTargetTrackId
-										);
+										const clip = createShapeClip(drag.pointerTime, 5_000_000, drag.shapeConfig);
+										let trackToUse = currentView.tracks.find((t) => t.id === actualTargetTrackId);
 										if (
 											!trackToUse ||
 											trackToUse.clips.some(
 												(c) =>
-													c.start < clip.start + clip.duration &&
-													c.start + c.duration > clip.start
+													c.start < clip.start + clip.duration && c.start + c.duration > clip.start
 											)
 										) {
 											const prevIds = new Set(currentView.tracks.map((t) => t.id));
@@ -4858,9 +4859,13 @@ export function createEditorStore() {
 									t.clips.some((c) => get().timeline.selection.clipIds.includes(c.id))
 								)?.id
 							: undefined);
-					const unlockedVideoTracks = activeView.tracks.filter((t) => t.kind === 'video' && !t.locked);
+					const unlockedVideoTracks = activeView.tracks.filter(
+						(t) => t.kind === 'video' && !t.locked
+					);
 					const hasOverlapAt = (t: Track) =>
-						t.clips.some((c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart);
+						t.clips.some(
+							(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
+						);
 
 					let targetTrackId: TrackId | undefined = undefined;
 					if (selTrackId) {
@@ -4892,9 +4897,7 @@ export function createEditorStore() {
 									if (
 										trackToUse &&
 										trackToUse.clips.some(
-											(c) =>
-												c.start < clipStart + clipDuration &&
-												c.start + c.duration > clipStart
+											(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 										)
 									) {
 										trackToUse = undefined;
@@ -4908,8 +4911,7 @@ export function createEditorStore() {
 											(t) =>
 												!t.clips.some(
 													(c) =>
-														c.start < clipStart + clipDuration &&
-														c.start + c.duration > clipStart
+														c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 												)
 										);
 									}
@@ -4969,9 +4971,13 @@ export function createEditorStore() {
 									t.clips.some((c) => get().timeline.selection.clipIds.includes(c.id))
 								)?.id
 							: undefined);
-					const unlockedVideoTracks = activeView.tracks.filter((t) => t.kind === 'video' && !t.locked);
+					const unlockedVideoTracks = activeView.tracks.filter(
+						(t) => t.kind === 'video' && !t.locked
+					);
 					const hasOverlapAt = (t: Track) =>
-						t.clips.some((c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart);
+						t.clips.some(
+							(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
+						);
 
 					let targetTrackId: TrackId | undefined = undefined;
 					if (selTrackId) {
@@ -5003,9 +5009,7 @@ export function createEditorStore() {
 									if (
 										trackToUse &&
 										trackToUse.clips.some(
-											(c) =>
-												c.start < clipStart + clipDuration &&
-												c.start + c.duration > clipStart
+											(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 										)
 									) {
 										trackToUse = undefined;
@@ -5019,8 +5023,7 @@ export function createEditorStore() {
 											(t) =>
 												!t.clips.some(
 													(c) =>
-														c.start < clipStart + clipDuration &&
-														c.start + c.duration > clipStart
+														c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 												)
 										);
 									}
@@ -6354,9 +6357,13 @@ export function createEditorStore() {
 									t.clips.some((c) => get().timeline.selection.clipIds.includes(c.id))
 								)?.id
 							: undefined);
-					const unlockedVideoTracks = activeView.tracks.filter((t) => t.kind === 'video' && !t.locked);
+					const unlockedVideoTracks = activeView.tracks.filter(
+						(t) => t.kind === 'video' && !t.locked
+					);
 					const hasOverlapAt = (t: Track) =>
-						t.clips.some((c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart);
+						t.clips.some(
+							(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
+						);
 
 					let targetTrackId: TrackId | null = null;
 					if (selTrackId) {
@@ -6388,9 +6395,7 @@ export function createEditorStore() {
 									if (
 										trackToUse &&
 										trackToUse.clips.some(
-											(c) =>
-												c.start < clipStart + clipDuration &&
-												c.start + c.duration > clipStart
+											(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 										)
 									) {
 										trackToUse = undefined;
@@ -6404,8 +6409,7 @@ export function createEditorStore() {
 											(t) =>
 												!t.clips.some(
 													(c) =>
-														c.start < clipStart + clipDuration &&
-														c.start + c.duration > clipStart
+														c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 												)
 										);
 									}
@@ -6462,9 +6466,13 @@ export function createEditorStore() {
 									t.clips.some((c) => get().timeline.selection.clipIds.includes(c.id))
 								)?.id
 							: undefined);
-					const unlockedVideoTracks = activeView.tracks.filter((t) => t.kind === 'video' && !t.locked);
+					const unlockedVideoTracks = activeView.tracks.filter(
+						(t) => t.kind === 'video' && !t.locked
+					);
 					const hasOverlapAt = (t: Track) =>
-						t.clips.some((c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart);
+						t.clips.some(
+							(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
+						);
 
 					let targetTrackId: TrackId | null = null;
 					if (selTrackId) {
@@ -6496,9 +6504,7 @@ export function createEditorStore() {
 									if (
 										trackToUse &&
 										trackToUse.clips.some(
-											(c) =>
-												c.start < clipStart + clipDuration &&
-												c.start + c.duration > clipStart
+											(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 										)
 									) {
 										trackToUse = undefined;
@@ -6512,8 +6518,7 @@ export function createEditorStore() {
 											(t) =>
 												!t.clips.some(
 													(c) =>
-														c.start < clipStart + clipDuration &&
-														c.start + c.duration > clipStart
+														c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 												)
 										);
 									}
@@ -6524,11 +6529,7 @@ export function createEditorStore() {
 											(t) => !prevIds.has(t.id) && t.kind === 'video'
 										);
 									}
-									const clip = createShapeClip(
-										clipStart,
-										clipDuration,
-										options
-									);
+									const clip = createShapeClip(clipStart, clipDuration, options);
 									createdClipId = clip.id;
 									return insertClip(currentView, trackToUse!.id, clip);
 								});
@@ -6827,9 +6828,13 @@ export function createEditorStore() {
 					const activeView = viewProject(project, activeSeqId);
 					if (!activeView) return null;
 
-					const clipStart = snapToFrame(options?.start ?? get().timeline.playhead, activeView.settings.fps);
+					const clipStart = snapToFrame(
+						options?.start ?? get().timeline.playhead,
+						activeView.settings.fps
+					);
 					const clipDuration =
-						options?.duration ?? framesToTicks(5 * activeView.settings.fps, activeView.settings.fps);
+						options?.duration ??
+						framesToTicks(5 * activeView.settings.fps, activeView.settings.fps);
 
 					const selTrackId =
 						options?.trackId ??
@@ -6839,9 +6844,13 @@ export function createEditorStore() {
 									t.clips.some((c) => get().timeline.selection.clipIds.includes(c.id))
 								)?.id
 							: undefined);
-					const unlockedVideoTracks = activeView.tracks.filter((t) => t.kind === 'video' && !t.locked);
+					const unlockedVideoTracks = activeView.tracks.filter(
+						(t) => t.kind === 'video' && !t.locked
+					);
 					const hasOverlapAt = (t: Track) =>
-						t.clips.some((c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart);
+						t.clips.some(
+							(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
+						);
 
 					let targetTrackId: TrackId | null = null;
 					if (selTrackId) {
@@ -6873,9 +6882,7 @@ export function createEditorStore() {
 									if (
 										trackToUse &&
 										trackToUse.clips.some(
-											(c) =>
-												c.start < clipStart + clipDuration &&
-												c.start + c.duration > clipStart
+											(c) => c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 										)
 									) {
 										trackToUse = undefined;
@@ -6889,8 +6896,7 @@ export function createEditorStore() {
 											(t) =>
 												!t.clips.some(
 													(c) =>
-														c.start < clipStart + clipDuration &&
-														c.start + c.duration > clipStart
+														c.start < clipStart + clipDuration && c.start + c.duration > clipStart
 												)
 										);
 									}
@@ -7491,6 +7497,7 @@ export function createEditorStore() {
 				},
 
 				switchWorkspace(workspaceId) {
+					trackFeatureUsed('switch_workspace', { workspace: workspaceId });
 					const currentWorkspaces = get().workspaces;
 					const { workspace, layout } = resolveWorkspaceLayout(workspaceId, currentWorkspaces);
 					const updatedState: UserWorkspaceState = {

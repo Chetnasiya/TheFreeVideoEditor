@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { TimelineTool } from '../../state/store';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 
 interface ToolItem {
 	id: TimelineTool | 'mark';
@@ -160,20 +161,24 @@ export function TimelineTools({
 						title={title}
 						onClick={() => {
 							if (tool.id === 'mark') {
+								trackFeatureUsed('marker');
 								onAddMarker?.();
 							} else if (tool.id === 'type') {
+								trackFeatureUsed('text_layer');
 								if (onAddText) {
 									onAddText();
 								} else {
 									onSelectTool(tool.id);
 								}
 							} else if (tool.id === 'rect') {
+								trackFeatureUsed('shape_layer');
 								if (onAddShape) {
 									onAddShape();
 								} else {
 									onSelectTool(tool.id);
 								}
 							} else {
+								trackFeatureUsed(tool.id);
 								onSelectTool(tool.id);
 							}
 						}}

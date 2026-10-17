@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { Clip, ClipId, Project, TrackerId, TrackerType } from '../../core/types';
 import { viewProject } from '../../core/sequences/access';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 
 interface TrackingSectionProps {
 	clip: Clip;
@@ -58,11 +59,13 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 
 	const handleTrackForward = async () => {
 		if (!selectedTracker) return;
+		trackFeatureUsed('motion_tracking', { type: selectedTracker.type, direction: 'forward' });
 		await store.getState().startTracking(clip.id, selectedTracker.id, 'forward');
 	};
 
 	const handleTrackBackward = async () => {
 		if (!selectedTracker) return;
+		trackFeatureUsed('motion_tracking', { type: selectedTracker.type, direction: 'backward' });
 		await store.getState().startTracking(clip.id, selectedTracker.id, 'backward');
 	};
 

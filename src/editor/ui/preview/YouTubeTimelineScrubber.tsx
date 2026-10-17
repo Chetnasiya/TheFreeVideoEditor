@@ -26,7 +26,6 @@ export default function YouTubeTimelineScrubber({
 	engine,
 	time,
 	duration,
-	fps,
 	isFullscreen = false
 }: YouTubeTimelineScrubberProps) {
 	const store = useEditorStoreApi();
@@ -201,4 +200,3 @@ export default function YouTubeTimelineScrubber({
 		</div>
 	);
 }
-

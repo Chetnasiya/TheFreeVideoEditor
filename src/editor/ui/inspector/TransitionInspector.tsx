@@ -11,6 +11,7 @@ import {
 	type TransitionAlignment
 } from '../../core';
 import { useEditorStoreApi } from '../../state/EditorProvider';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 
 interface TransitionInspectorProps {
 	transition: Transition;
@@ -101,6 +102,7 @@ export function TransitionInspector({ transition, track, project }: TransitionIn
 	const handleTypeChange = useCallback(
 		(e: ChangeEvent<HTMLSelectElement>) => {
 			const newType = e.target.value as TransitionType;
+			trackFeatureUsed('transitions', { type: newType });
 			store.getState().updateTransition(transition.id, { type: newType, params: {} });
 		},
 		[store, transition.id]

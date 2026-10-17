@@ -203,7 +203,7 @@ function TrackHeader({
 	}, [editing]);
 	return (
 		<div
-			className={`timeline-track-header track-${track.kind}${selected ? ' is-selected' : ''}${isDragOver ? ' is-track-drag-over' : ''}`}
+			className={`timeline-track-header track-${track.kind}${selected ? 'is-selected' : ''}${isDragOver ? 'is-track-drag-over' : ''}`}
 			draggable
 			role="group"
 			tabIndex={0}
@@ -464,7 +464,6 @@ function ActiveTimeline({ project }: { project: Project }) {
 	const setTimelineFollowing = useEditorStore((state) => state.setTimelineFollowing);
 	const setPlayhead = useEditorStore((state) => state.setPlayhead);
 	const selectClips = useEditorStore((state) => state.selectClips);
-	const clearSelection = useEditorStore((state) => state.clearSelection);
 	const beginTimelineDrag = useEditorStore((state) => state.beginTimelineDrag);
 	const updateTimelineDrag = useEditorStore((state) => state.updateTimelineDrag);
 	const cancelTimelineDrag = useEditorStore((state) => state.cancelTimelineDrag);
@@ -1105,9 +1104,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 		return templateId;
 	}
 
-	function beginGraphicTemplateNewTrackPreview(
-		event: DragEvent<HTMLElement>
-	): string | null {
+	function beginGraphicTemplateNewTrackPreview(event: DragEvent<HTMLElement>): string | null {
 		const templateId = graphicTemplateFromData(event.dataTransfer);
 		if (!templateId) return null;
 		event.preventDefault();
@@ -1178,9 +1175,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 		return shapeConfig;
 	}
 
-	function beginShapeNewTrackPreview(
-		event: DragEvent<HTMLElement>
-	): ShapeConfig | null {
+	function beginShapeNewTrackPreview(event: DragEvent<HTMLElement>): ShapeConfig | null {
 		const shapeConfig = shapeFromData(event.dataTransfer);
 		if (!shapeConfig) return null;
 		event.preventDefault();
@@ -1309,10 +1304,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 		const lastTrack = activeProject.tracks[activeProject.tracks.length - 1];
 
 		const shapeConfig = shapeFromData(event.dataTransfer);
-		if (
-			shapeConfig ||
-			event.dataTransfer.types.includes('application/x-tfve-shape')
-		) {
+		if (shapeConfig || event.dataTransfer.types.includes('application/x-tfve-shape')) {
 			event.stopPropagation();
 			if (isNearTopEdge && track.id === firstVideoTrack?.id) {
 				beginShapeNewTrackPreview(event);
@@ -1661,10 +1653,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 		if (event.dataTransfer.types.includes('application/x-tfve-sequence')) return;
 
 		const shapeConfig = shapeFromData(event.dataTransfer);
-		if (
-			shapeConfig ||
-			event.dataTransfer.types.includes('application/x-tfve-shape')
-		) {
+		if (shapeConfig || event.dataTransfer.types.includes('application/x-tfve-shape')) {
 			const target = document.elementFromPoint(event.clientX, event.clientY);
 			const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
 
@@ -2668,17 +2657,21 @@ function ActiveTimeline({ project }: { project: Project }) {
 													: drag.shapeConfig
 														? createShapeClip(position.start, position.duration, drag.shapeConfig)
 														: drag.graphicTemplateId
-															? createGraphicClip(drag.graphicTemplateId, position.start, position.duration)
+															? createGraphicClip(
+																	drag.graphicTemplateId,
+																	position.start,
+																	position.duration
+																)
 															: {
-																id: position.clipId,
-																assetId: asset?.id,
-																start: position.start,
-																duration: position.duration,
-																sourceIn: position.sourceIn,
-																sourceOut: position.sourceOut,
-																speed: 1,
-																volume: 1
-															};
+																	id: position.clipId,
+																	assetId: asset?.id,
+																	start: position.start,
+																	duration: position.duration,
+																	sourceIn: position.sourceIn,
+																	sourceOut: position.sourceOut,
+																	speed: 1,
+																	volume: 1
+																};
 												return (
 													<ClipView
 														key={`preview-track-ghost-${position.clipId}`}
@@ -2738,7 +2731,12 @@ function ActiveTimeline({ project }: { project: Project }) {
 													aria-label={`${track.name} track lane`}
 													tabIndex={0}
 													onPointerDown={(event) => {
-														if ((event.target as HTMLElement).closest('.timeline-clip, .caption-segment-view, .transition-block, .timeline-gap')) return;
+														if (
+															(event.target as HTMLElement).closest(
+																'.timeline-clip, .caption-segment-view, .transition-block, .timeline-gap'
+															)
+														)
+															return;
 														store.getState().selectTrack(track.id);
 													}}
 													onKeyDown={(event) => handleLaneKeyDown(event, track)}
@@ -2778,7 +2776,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 															{/* Gaps between clips for 1-click selection and ripple delete */}
 															{(() => {
 																const gaps: { start: Time; end: Time }[] = [];
-																const sortedClips = [...track.clips].sort((a, b) => a.start - b.start);
+																const sortedClips = [...track.clips].sort(
+																	(a, b) => a.start - b.start
+																);
 																if (sortedClips.length > 0) {
 																	if (sortedClips[0]!.start > 0) {
 																		gaps.push({ start: 0, end: sortedClips[0]!.start });
@@ -2798,10 +2798,15 @@ function ActiveTimeline({ project }: { project: Project }) {
 																		selection.gap.end === gap.end;
 
 																	const gapLeft = timeToPixels(gap.start, pixelsPerSecond);
-																	const gapWidth = timeToPixels(gap.end - gap.start, pixelsPerSecond);
+																	const gapWidth = timeToPixels(
+																		gap.end - gap.start,
+																		pixelsPerSecond
+																	);
 																	if (gapWidth < 1) return null;
 
-																	const durationSec = ((gap.end - gap.start) / 1_000_000).toFixed(2);
+																	const durationSec = ((gap.end - gap.start) / 1_000_000).toFixed(
+																		2
+																	);
 
 																	return (
 																		<div
@@ -2828,7 +2833,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 																				if (e.key === 'Delete' || e.key === 'Backspace') {
 																					e.preventDefault();
 																					e.stopPropagation();
-																					store.getState().rippleDeleteGap(track.id, gap.start, gap.end);
+																					store
+																						.getState()
+																						.rippleDeleteGap(track.id, gap.start, gap.end);
 																				} else if (e.key === 'Escape') {
 																					e.preventDefault();
 																					e.stopPropagation();
@@ -2848,10 +2855,17 @@ function ActiveTimeline({ project }: { project: Project }) {
 																							title="Ripple Delete Gap"
 																							onClick={(e) => {
 																								e.stopPropagation();
-																								store.getState().rippleDeleteGap(track.id, gap.start, gap.end);
+																								store
+																									.getState()
+																									.rippleDeleteGap(track.id, gap.start, gap.end);
 																							}}
 																						>
-																							<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+																							<svg
+																								viewBox="0 0 16 16"
+																								width="12"
+																								height="12"
+																								fill="currentColor"
+																							>
 																								<path d="M2.5 1a1 1 0 0 0-1 1v1h11V2a1 1 0 0 0-1-1h-9zm10 3H1.5v8a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V4zm-7 2.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5zm3 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z" />
 																								<path d="M14 6l2 2-2 2V6z" />
 																							</svg>
@@ -2971,15 +2985,15 @@ function ActiveTimeline({ project }: { project: Project }) {
 																			position.duration
 																		)
 																	: {
-																		id: position.clipId,
-																		assetId: asset?.id,
-																		start: position.start,
-																		duration: position.duration,
-																		sourceIn: position.sourceIn,
-																		sourceOut: position.sourceOut,
-																		speed: 1,
-																		volume: 1
-																	};
+																			id: position.clipId,
+																			assetId: asset?.id,
+																			start: position.start,
+																			duration: position.duration,
+																			sourceIn: position.sourceIn,
+																			sourceOut: position.sourceOut,
+																			speed: 1,
+																			volume: 1
+																		};
 														return (
 															<ClipView
 																key={`ghost-${position.clipId}`}
@@ -3155,7 +3169,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 						<button
 							type="button"
 							onClick={() => {
-								store.getState().rippleDeleteGap(context.gap!.trackId, context.gap!.start, context.gap!.end);
+								store
+									.getState()
+									.rippleDeleteGap(context.gap!.trackId, context.gap!.start, context.gap!.end);
 								closeContextMenu();
 							}}
 						>
@@ -3181,265 +3197,267 @@ function ActiveTimeline({ project }: { project: Project }) {
 									closeContextMenu();
 								}}
 							>
-						<svg
-							className="menu-icon"
-							viewBox="0 0 16 16"
-							width="14"
-							height="14"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h4v-1.5H2.5v-11H6V1H2zm8 0v1.5h3.5v11H10V15h4a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1h-4zm-2.5 0v14h1V1h-1z" />
-						</svg>
-						<span>Split at playhead</span>
-					</button>
-					<button
-						type="button"
-						onClick={() => {
-							deleteSelection();
-							closeContextMenu();
-						}}
-					>
-						<svg
-							className="menu-icon"
-							viewBox="0 0 16 16"
-							width="14"
-							height="14"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-							<path
-								fillRule="evenodd"
-								d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
-							/>
-						</svg>
-						<span>Delete</span>
-					</button>
-					<button
-						type="button"
-						onClick={() => {
-							rippleDeleteSelection();
-							closeContextMenu();
-						}}
-					>
-						<svg
-							className="menu-icon"
-							viewBox="0 0 16 16"
-							width="14"
-							height="14"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path d="M2.5 1a1 1 0 0 0-1 1v1h11V2a1 1 0 0 0-1-1h-9zm10 3H1.5v8a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V4zm-7 2.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5zm3 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z" />
-							<path d="M14 6l2 2-2 2V6z" />
-						</svg>
-						<span>Ripple delete</span>
-					</button>
-					<button
-						type="button"
-						onClick={() => {
-							duplicateSelection();
-							closeContextMenu();
-						}}
-					>
-						<svg
-							className="menu-icon"
-							viewBox="0 0 16 16"
-							width="14"
-							height="14"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1H2V6h1V5H2z" />
-						</svg>
-						<span>Duplicate</span>
-					</button>
-					<hr />
-					<button
-						type="button"
-						onClick={() => {
-							store.getState().openSpeedDialog(context.clip!.id);
-							closeContextMenu();
-						}}
-					>
-						<svg
-							className="menu-icon"
-							viewBox="0 0 16 16"
-							width="14"
-							height="14"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z" />
-							<path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z" />
-						</svg>
-						<span>Speed / Duration…</span>
-					</button>
-					<button
-						type="button"
-						onClick={() => {
-							store.getState().addFreezeFrame(context.clip!.id);
-							closeContextMenu();
-						}}
-					>
-						<svg
-							className="menu-icon"
-							viewBox="0 0 16 16"
-							width="14"
-							height="14"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path d="M8 0a.5.5 0 0 1 .5.5v15a.5.5 0 0 1-1 0V.5A.5.5 0 0 1 8 0zm7.5 8a.5.5 0 0 1-.5.5H1a.5.5 0 0 1 0-1h14a.5.5 0 0 1 .5.5zm-2.146-5.354a.5.5 0 0 1 0 .708L2.707 13.999a.5.5 0 0 1-.707-.708L12.646 2.646a.5.5 0 0 1 .708 0zm-10.647 0a.5.5 0 0 1 .708 0l10.646 10.645a.5.5 0 0 1-.708.708L2.707 3.354a.5.5 0 0 1 0-.708z" />
-						</svg>
-						<span>Add freeze frame</span>
-					</button>
-					<button
-						type="button"
-						onClick={() => {
-							store.getState().freezeFrameToEnd(context.clip!.id);
-							closeContextMenu();
-						}}
-					>
-						<svg
-							className="menu-icon"
-							viewBox="0 0 16 16"
-							width="14"
-							height="14"
-							fill="currentColor"
-							aria-hidden="true"
-						>
-							<path d="M8 0a.5.5 0 0 1 .5.5v15a.5.5 0 0 1-1 0V.5A.5.5 0 0 1 8 0zm7.5 8a.5.5 0 0 1-.5.5H1a.5.5 0 0 1 0-1h14a.5.5 0 0 1 .5.5z" />
-							<path d="M12 4l3 4-3 4V4z" />
-						</svg>
-						<span>Freeze frame to end of clip</span>
-					</button>
-					{(selection.clipIds.length >= 2 ||
-						Boolean(context.clip.linkId) ||
-						activeProject.tracks.some((t) =>
-							t.clips.some((c) => selection.clipIds.includes(c.id) && c.linkId)
-						)) && (
-						<>
-							<hr />
-							{selection.clipIds.length >= 2 && (
-								<button
-									type="button"
-									onClick={() => {
-										linkSelection();
-										closeContextMenu();
-									}}
+								<svg
+									className="menu-icon"
+									viewBox="0 0 16 16"
+									width="14"
+									height="14"
+									fill="currentColor"
+									aria-hidden="true"
 								>
-									<svg
-										className="menu-icon"
-										viewBox="0 0 16 16"
-										width="14"
-										height="14"
-										fill="currentColor"
-										aria-hidden="true"
-									>
-										<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
-										<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
-									</svg>
-									<span>Link selected clips</span>
-								</button>
-							)}
-							{(Boolean(context.clip.linkId) ||
+									<path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h4v-1.5H2.5v-11H6V1H2zm8 0v1.5h3.5v11H10V15h4a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1h-4zm-2.5 0v14h1V1h-1z" />
+								</svg>
+								<span>Split at playhead</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									deleteSelection();
+									closeContextMenu();
+								}}
+							>
+								<svg
+									className="menu-icon"
+									viewBox="0 0 16 16"
+									width="14"
+									height="14"
+									fill="currentColor"
+									aria-hidden="true"
+								>
+									<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+									<path
+										fillRule="evenodd"
+										d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
+									/>
+								</svg>
+								<span>Delete</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									rippleDeleteSelection();
+									closeContextMenu();
+								}}
+							>
+								<svg
+									className="menu-icon"
+									viewBox="0 0 16 16"
+									width="14"
+									height="14"
+									fill="currentColor"
+									aria-hidden="true"
+								>
+									<path d="M2.5 1a1 1 0 0 0-1 1v1h11V2a1 1 0 0 0-1-1h-9zm10 3H1.5v8a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V4zm-7 2.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5zm3 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z" />
+									<path d="M14 6l2 2-2 2V6z" />
+								</svg>
+								<span>Ripple delete</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									duplicateSelection();
+									closeContextMenu();
+								}}
+							>
+								<svg
+									className="menu-icon"
+									viewBox="0 0 16 16"
+									width="14"
+									height="14"
+									fill="currentColor"
+									aria-hidden="true"
+								>
+									<path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h-1v1H2V6h1V5H2z" />
+								</svg>
+								<span>Duplicate</span>
+							</button>
+							<hr />
+							<button
+								type="button"
+								onClick={() => {
+									store.getState().openSpeedDialog(context.clip!.id);
+									closeContextMenu();
+								}}
+							>
+								<svg
+									className="menu-icon"
+									viewBox="0 0 16 16"
+									width="14"
+									height="14"
+									fill="currentColor"
+									aria-hidden="true"
+								>
+									<path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z" />
+									<path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z" />
+								</svg>
+								<span>Speed / Duration…</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									store.getState().addFreezeFrame(context.clip!.id);
+									closeContextMenu();
+								}}
+							>
+								<svg
+									className="menu-icon"
+									viewBox="0 0 16 16"
+									width="14"
+									height="14"
+									fill="currentColor"
+									aria-hidden="true"
+								>
+									<path d="M8 0a.5.5 0 0 1 .5.5v15a.5.5 0 0 1-1 0V.5A.5.5 0 0 1 8 0zm7.5 8a.5.5 0 0 1-.5.5H1a.5.5 0 0 1 0-1h14a.5.5 0 0 1 .5.5zm-2.146-5.354a.5.5 0 0 1 0 .708L2.707 13.999a.5.5 0 0 1-.707-.708L12.646 2.646a.5.5 0 0 1 .708 0zm-10.647 0a.5.5 0 0 1 .708 0l10.646 10.645a.5.5 0 0 1-.708.708L2.707 3.354a.5.5 0 0 1 0-.708z" />
+								</svg>
+								<span>Add freeze frame</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									store.getState().freezeFrameToEnd(context.clip!.id);
+									closeContextMenu();
+								}}
+							>
+								<svg
+									className="menu-icon"
+									viewBox="0 0 16 16"
+									width="14"
+									height="14"
+									fill="currentColor"
+									aria-hidden="true"
+								>
+									<path d="M8 0a.5.5 0 0 1 .5.5v15a.5.5 0 0 1-1 0V.5A.5.5 0 0 1 8 0zm7.5 8a.5.5 0 0 1-.5.5H1a.5.5 0 0 1 0-1h14a.5.5 0 0 1 .5.5z" />
+									<path d="M12 4l3 4-3 4V4z" />
+								</svg>
+								<span>Freeze frame to end of clip</span>
+							</button>
+							{(selection.clipIds.length >= 2 ||
+								Boolean(context.clip.linkId) ||
 								activeProject.tracks.some((t) =>
 									t.clips.some((c) => selection.clipIds.includes(c.id) && c.linkId)
 								)) && (
-								<button
-									type="button"
-									onClick={() => {
-										unlinkSelection();
-										closeContextMenu();
-									}}
-								>
-									<svg
-										className="menu-icon"
-										viewBox="0 0 16 16"
-										width="14"
-										height="14"
-										fill="currentColor"
-										aria-hidden="true"
-									>
-										<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
-										<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
-									</svg>
-									<span>Unlink clips</span>
-								</button>
+								<>
+									<hr />
+									{selection.clipIds.length >= 2 && (
+										<button
+											type="button"
+											onClick={() => {
+												linkSelection();
+												closeContextMenu();
+											}}
+										>
+											<svg
+												className="menu-icon"
+												viewBox="0 0 16 16"
+												width="14"
+												height="14"
+												fill="currentColor"
+												aria-hidden="true"
+											>
+												<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
+												<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
+											</svg>
+											<span>Link selected clips</span>
+										</button>
+									)}
+									{(Boolean(context.clip.linkId) ||
+										activeProject.tracks.some((t) =>
+											t.clips.some((c) => selection.clipIds.includes(c.id) && c.linkId)
+										)) && (
+										<button
+											type="button"
+											onClick={() => {
+												unlinkSelection();
+												closeContextMenu();
+											}}
+										>
+											<svg
+												className="menu-icon"
+												viewBox="0 0 16 16"
+												width="14"
+												height="14"
+												fill="currentColor"
+												aria-hidden="true"
+											>
+												<path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
+												<path d="M9 5.5a3 3 0 0 0-2.83 4h.83c.086 0 .17-.01.25-.031A2 2 0 0 1 9 5.5h3a2 2 0 1 1 0 4h-1.535c-.218.376-.495.714-.82 1H12a3 3 0 1 0 0-6H9z" />
+											</svg>
+											<span>Unlink clips</span>
+										</button>
+									)}
+								</>
 							)}
-						</>
-					)}
-					{context.clip.source?.type === 'sequence' && (
-						<>
-							<hr />
-							<button
-								type="button"
-								onClick={() => {
-									if (context.clip!.source?.type === 'sequence') {
-										store.getState().openSequence(context.clip!.source.sequenceId);
-									}
-									closeContextMenu();
-								}}
-							>
-								<span>Open in Timeline</span>
-							</button>
-							<button
-								type="button"
-								disabled={context.clip.speed !== 1 || Boolean(context.clip.timeRemap)}
-								title={
-									context.clip.speed !== 1 || context.clip.timeRemap
-										? 'Cannot expand sequence with remapped speed or speed curve'
-										: 'Un-nest sequence clips into timeline'
-								}
-								onClick={() => {
-									store.getState().expandSequenceInstance(context.clip!.id);
-									closeContextMenu();
-								}}
-							>
-								<span>Expand Sequence</span>
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									store.getState().makeInstanceUnique(context.clip!.id);
-									closeContextMenu();
-								}}
-							>
-								<span>Make Unique</span>
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									if (context.clip!.source?.type === 'sequence') {
-										store.getState().openSequenceSettingsDialog(context.clip!.source.sequenceId);
-									}
-									closeContextMenu();
-								}}
-							>
-								<span>Sequence Settings…</span>
-							</button>
-						</>
-					)}
-					{selection.clipIds.length > 0 && (
-						<>
-							<hr />
-							<button
-								type="button"
-								onClick={() => {
-									const defaultName = `Sequence ${Object.keys(project.sequences ?? {}).length + 1}`;
-									const name = window.prompt('Name for nested sequence:', defaultName);
-									if (name) {
-										store.getState().nestSelection(name);
-									}
-									closeContextMenu();
-								}}
-							>
-								<span>Nest Selection…</span>
-							</button>
-						</>
-					)}
+							{context.clip.source?.type === 'sequence' && (
+								<>
+									<hr />
+									<button
+										type="button"
+										onClick={() => {
+											if (context.clip!.source?.type === 'sequence') {
+												store.getState().openSequence(context.clip!.source.sequenceId);
+											}
+											closeContextMenu();
+										}}
+									>
+										<span>Open in Timeline</span>
+									</button>
+									<button
+										type="button"
+										disabled={context.clip.speed !== 1 || Boolean(context.clip.timeRemap)}
+										title={
+											context.clip.speed !== 1 || context.clip.timeRemap
+												? 'Cannot expand sequence with remapped speed or speed curve'
+												: 'Un-nest sequence clips into timeline'
+										}
+										onClick={() => {
+											store.getState().expandSequenceInstance(context.clip!.id);
+											closeContextMenu();
+										}}
+									>
+										<span>Expand Sequence</span>
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											store.getState().makeInstanceUnique(context.clip!.id);
+											closeContextMenu();
+										}}
+									>
+										<span>Make Unique</span>
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											if (context.clip!.source?.type === 'sequence') {
+												store
+													.getState()
+													.openSequenceSettingsDialog(context.clip!.source.sequenceId);
+											}
+											closeContextMenu();
+										}}
+									>
+										<span>Sequence Settings…</span>
+									</button>
+								</>
+							)}
+							{selection.clipIds.length > 0 && (
+								<>
+									<hr />
+									<button
+										type="button"
+										onClick={() => {
+											const defaultName = `Sequence ${Object.keys(project.sequences ?? {}).length + 1}`;
+											const name = window.prompt('Name for nested sequence:', defaultName);
+											if (name) {
+												store.getState().nestSelection(name);
+											}
+											closeContextMenu();
+										}}
+									>
+										<span>Nest Selection…</span>
+									</button>
+								</>
+							)}
 						</>
 					) : null}
 				</div>

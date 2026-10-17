@@ -629,15 +629,7 @@ export default function ClipView({
 				}
 			}
 		},
-		[
-			ghost,
-			clip.id,
-			clip.audioEffects,
-			clipName,
-			isVideoFxCompatible,
-			isAudioFxCompatible,
-			store
-		]
+		[ghost, clip.id, clip.audioEffects, clipName, isVideoFxCompatible, isAudioFxCompatible, store]
 	);
 
 	return (
@@ -692,7 +684,7 @@ export default function ClipView({
 			}}
 			onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
 				if (ghost) return;
-				if (event.key === 'Enter' || event.key === ' ') {
+				if (event.key === 'Enter') {
 					event.preventDefault();
 					onSelect(clip.id, event);
 				}
@@ -874,7 +866,11 @@ export default function ClipView({
 					⚠️
 				</span>
 			)}
-			{Boolean(!ghost && ((clip.effects && clip.effects.length > 0) || (clip.audioEffects && clip.audioEffects.length > 0))) && (
+			{Boolean(
+				!ghost &&
+				((clip.effects && clip.effects.length > 0) ||
+					(clip.audioEffects && clip.audioEffects.length > 0))
+			) && (
 				<span
 					className="clip-fx-badge"
 					title={`Effects applied: ${[

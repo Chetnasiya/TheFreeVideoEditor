@@ -193,4 +193,79 @@ describe('keyboard shortcut registry', () => {
 		expect(handledActions.has('tool-razor')).toBe(true);
 		expect(handledActions.has('tool-ripple')).toBe(true);
 	});
+
+	it('single space triggers play-pause and prevents default on buttons and option controls', () => {
+		const playPause = vi.fn();
+		const entries = createEditorShortcutRegistry({ 'play-pause': playPause });
+
+		class ButtonElement extends EventTarget {
+			isContentEditable = false;
+			tagName = 'BUTTON';
+			closest(selector: string): Element | null {
+				return selector.includes('button') ? (this as unknown as Element) : null;
+			}
+			matches(selector: string): boolean {
+				return selector.includes('button');
+			}
+		}
+		class CheckboxElement extends EventTarget {
+			isContentEditable = false;
+			tagName = 'INPUT';
+			type = 'checkbox';
+			getAttribute(name: string): string | null {
+				return name === 'type' ? 'checkbox' : null;
+			}
+			closest(selector: string): Element | null {
+				return selector.includes('input') ? (this as unknown as Element) : null;
+			}
+			matches(): boolean {
+				return false;
+			}
+		}
+		class TextInputElement extends EventTarget {
+			isContentEditable = false;
+			tagName = 'INPUT';
+			type = 'text';
+			getAttribute(name: string): string | null {
+				return name === 'type' ? 'text' : null;
+			}
+			closest(selector: string): Element | null {
+				return selector.includes('input') ? (this as unknown as Element) : null;
+			}
+			matches(): boolean {
+				return false;
+			}
+		}
+
+		vi.stubGlobal('HTMLElement', EventTarget);
+
+		const mockWindow = new EventTarget() as unknown as Window;
+		const cleanup = registerShortcutListener(entries, { target: mockWindow, platform: 'mac' });
+
+		// 1. Space on button -> play-pause called, default prevented (doesn't toggle button)
+		const btn = new ButtonElement();
+		const btnEvent = keyEvent(' ', { code: 'Space' });
+		Object.defineProperty(btnEvent, 'target', { value: btn });
+		mockWindow.dispatchEvent(btnEvent);
+		expect(playPause).toHaveBeenCalledTimes(1);
+		expect(btnEvent.defaultPrevented).toBe(true);
+
+		// 2. Space on checkbox -> play-pause called, default prevented (doesn't toggle checkbox)
+		const cb = new CheckboxElement();
+		const cbEvent = keyEvent(' ', { code: 'Space' });
+		Object.defineProperty(cbEvent, 'target', { value: cb });
+		mockWindow.dispatchEvent(cbEvent);
+		expect(playPause).toHaveBeenCalledTimes(2);
+		expect(cbEvent.defaultPrevented).toBe(true);
+
+		// 3. Space in text input -> suppressed (typing spaces allowed in text fields)
+		const textInput = new TextInputElement();
+		const textEvent = keyEvent(' ', { code: 'Space' });
+		Object.defineProperty(textEvent, 'target', { value: textInput });
+		mockWindow.dispatchEvent(textEvent);
+		expect(playPause).toHaveBeenCalledTimes(2); // not called again
+		expect(textEvent.defaultPrevented).toBe(false);
+
+		cleanup();
+	});
 });

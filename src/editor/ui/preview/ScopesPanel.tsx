@@ -11,12 +11,7 @@ interface ScopesPanelProps {
 	activeView?: 'source' | 'scopes';
 }
 
-export default function ScopesPanel({
-	engine,
-	onClose,
-	onSelectView,
-	activeView = 'scopes'
-}: ScopesPanelProps) {
+export default function ScopesPanel({ engine, onClose }: ScopesPanelProps) {
 	const store = useEditorStoreApi();
 	const mode = useEditorStore((state) => state.scopes.mode);
 	const channel = useEditorStore((state) => state.scopes.channel);
@@ -54,32 +49,6 @@ export default function ScopesPanel({
 	return (
 		<div className="scopes-panel" role="region" aria-label="Video Scopes">
 			<div className="scopes-header">
-				{onSelectView && (
-					<div className="scopes-view-nav" role="tablist" aria-label="Source monitor views">
-						<button
-							type="button"
-							role="tab"
-							aria-selected={activeView === 'source'}
-							className={`scopes-view-btn ${activeView === 'source' ? 'is-active' : ''}`}
-							onClick={() => onSelectView('source')}
-						>
-							Source Media
-						</button>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={activeView === 'scopes'}
-							className={`scopes-view-btn ${activeView === 'scopes' ? 'is-active' : ''}`}
-							onClick={() => onSelectView('scopes')}
-						>
-							Scopes
-						</button>
-						<span className="scopes-nav-divider" aria-hidden="true">
-							|
-						</span>
-					</div>
-				)}
-
 				<div className="scopes-mode-tabs" role="tablist">
 					{(['waveform', 'parade', 'histogram', 'vectorscope'] as const).map((m) => (
 						<button

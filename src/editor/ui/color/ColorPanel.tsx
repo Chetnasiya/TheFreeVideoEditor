@@ -4,6 +4,7 @@ import type { CurvePoint } from '../../core/curves';
 import { evaluateSpline } from '../../core/curves';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import { ensureLutLoaded } from '../../services/media/lutCache';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 import './color.css';
 
 function getNumericParam(val: unknown, fallback = 1): number {
@@ -61,6 +62,7 @@ export default function ColorPanel() {
 
 	// Helper to set a param on the active colorCorrection effect
 	const setCcParam = (paramName: string, value: number) => {
+		trackFeatureUsed('color_grading');
 		const eff = ccEffect ?? store.getState().ensureColorCorrection(selectedClip.id);
 		if (!eff) return;
 		store.getState().setEffectParam(selectedClip.id, eff.id, paramName, value, { autoKey: true });

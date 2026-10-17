@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent, type SyntheticEvent } from 'react';
 import { framesToTicks, ticksToFrames, ticksToTimecode, timecodeToTicks } from '../../core/time';
 import { useEditorStore } from '../../state/EditorProvider';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 
 export default function SpeedDurationDialog() {
 	const open = useEditorStore((state) => state.isSpeedDialogOpen);
@@ -87,6 +88,7 @@ export default function SpeedDurationDialog() {
 		event.preventDefault();
 		if (!clip || speedPercent <= 0) return;
 		const finalMultiplier = (speedPercent / 100) * (reverse ? -1 : 1);
+		trackFeatureUsed('speed_duration', { speed: finalMultiplier, reverse, ripple });
 		setClipSpeed([clip.id], finalMultiplier, {
 			ripple,
 			maintainPitch

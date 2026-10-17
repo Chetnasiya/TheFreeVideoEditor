@@ -6,6 +6,7 @@ import { PanControl } from './PanControl';
 import { audioEffectRegistry, BUILTIN_AUDIO_EFFECTS } from '../../core/audio/effects';
 import type { AudioBus, AutomationMode } from '../../core/types';
 import type { PlaybackEngine } from '../../services/playback/engine';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 import './mixer.css';
 
 /**
@@ -224,6 +225,10 @@ export const MixerPanel: React.FC<MixerPanelProps> = ({ engine: propEngine }) =>
 		master: { peakL: number; peakR: number; rmsL: number; rmsR: number };
 	}>({ tracks: {}, buses: {}, master: { peakL: 0, peakR: 0, rmsL: 0, rmsR: 0 } });
 	const [isAudioSuspended, setIsAudioSuspended] = useState(false);
+
+	useEffect(() => {
+		trackFeatureUsed('audio_mixer');
+	}, []);
 
 	useEffect(() => {
 		let rafId: number;

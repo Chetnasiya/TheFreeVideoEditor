@@ -1,11 +1,13 @@
 import {
 	useCallback,
+	useEffect,
 	useMemo,
 	useRef,
 	useState,
 	type PointerEvent as ReactPointerEvent
 } from 'react';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 import {
 	descriptorFor,
 	evaluate,
@@ -66,6 +68,10 @@ export default function GraphEditor() {
 
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [viewSize, setViewSize] = useState({ width: 800, height: 180 });
+
+	useEffect(() => {
+		trackFeatureUsed('keyframe_editor');
+	}, []);
 
 	const selectedClip: Clip | null = useMemo(() => {
 		if (!project || selectedClipIds.length !== 1) return null;

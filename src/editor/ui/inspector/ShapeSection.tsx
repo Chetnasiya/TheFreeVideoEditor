@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import type { Clip, Time } from '../../core';
-import type { ShapeKind, ShapeConfig, RgbaColor } from '../../core/shapes/shapeTypes';
+import type { ShapeConfig } from '../../core/shapes/shapeTypes';
 import { useEditorStoreApi } from '../../state/EditorProvider';
 import { ColorPickerField } from './ColorPickerField';
-import { ShapeIcon, LinkAspectIcon, UnlinkAspectIcon, SHAPE_GEOMETRIES } from '../shapes/ShapeIcons';
+import {
+	ShapeIcon,
+	LinkAspectIcon,
+	UnlinkAspectIcon,
+	SHAPE_GEOMETRIES
+} from '../shapes/ShapeIcons';
 
 interface ShapeSectionProps {
 	clip: Clip;
@@ -39,10 +44,22 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 	const hasShadow = shadowBlur > 0 || (shapeSource.shadowColor && shapeSource.shadowColor.a > 0);
 
 	return (
-		<div className="inspector-section-content shape-section-content" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+		<div
+			className="inspector-section-content shape-section-content"
+			style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+		>
 			{/* Shape Type Selector */}
 			<div className="property-group">
-				<label className="inspector-field-label" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '6px', display: 'block' }}>
+				<label
+					className="inspector-field-label"
+					style={{
+						fontSize: '0.75rem',
+						fontWeight: 600,
+						color: '#94a3b8',
+						marginBottom: '6px',
+						display: 'block'
+					}}
+				>
 					Shape Geometry
 				</label>
 				<div
@@ -77,10 +94,28 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 							title={item.label}
 							onClick={() => handleUpdate({ shapeType: item.type })}
 						>
-							<span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
+							<span
+								style={{
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									width: '20px',
+									height: '20px'
+								}}
+							>
 								<ShapeIcon type={item.type} size={16} />
 							</span>
-							<span style={{ fontSize: '0.58rem', marginTop: '3px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>
+							<span
+								style={{
+									fontSize: '0.58rem',
+									marginTop: '3px',
+									textOverflow: 'ellipsis',
+									overflow: 'hidden',
+									whiteSpace: 'nowrap',
+									width: '100%',
+									textAlign: 'center'
+								}}
+							>
 								{item.label}
 							</span>
 						</button>
@@ -89,9 +124,15 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 			</div>
 
 			{/* Dimensions */}
-			<div className="property-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+			<div
+				className="property-group"
+				style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+			>
 				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-					<label className="inspector-field-label" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8' }}>
+					<label
+						className="inspector-field-label"
+						style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8' }}
+					>
 						Dimensions
 					</label>
 					<button
@@ -134,7 +175,15 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 									handleUpdate({ width: val });
 								}
 							}}
-							style={{ width: '100%', background: '#16161e', border: '1px solid #2e2e3e', color: '#fff', borderRadius: '4px', padding: '4px 6px', fontSize: '0.75rem' }}
+							style={{
+								width: '100%',
+								background: '#16161e',
+								border: '1px solid #2e2e3e',
+								color: '#fff',
+								borderRadius: '4px',
+								padding: '4px 6px',
+								fontSize: '0.75rem'
+							}}
 						/>
 					</div>
 					<div>
@@ -153,7 +202,15 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 									handleUpdate({ height: val });
 								}
 							}}
-							style={{ width: '100%', background: '#16161e', border: '1px solid #2e2e3e', color: '#fff', borderRadius: '4px', padding: '4px 6px', fontSize: '0.75rem' }}
+							style={{
+								width: '100%',
+								background: '#16161e',
+								border: '1px solid #2e2e3e',
+								color: '#fff',
+								borderRadius: '4px',
+								padding: '4px 6px',
+								fontSize: '0.75rem'
+							}}
 						/>
 					</div>
 				</div>
@@ -172,9 +229,20 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 			)}
 
 			{/* Stroke / Border */}
-			<div className="property-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #23232c', paddingTop: '10px' }}>
+			<div
+				className="property-group"
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					gap: '8px',
+					borderTop: '1px solid #23232c',
+					paddingTop: '10px'
+				}}
+			>
 				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-					<span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8' }}>Stroke / Outline</span>
+					<span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8' }}>
+						Stroke / Outline
+					</span>
 					<div style={{ display: 'flex', gap: '4px' }}>
 						{(['solid', 'dashed', 'dotted'] as const).map((style) => (
 							<button
@@ -203,7 +271,9 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 					hasAlpha={true}
 				/>
 				<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-					<span style={{ fontSize: '0.7rem', color: '#94a3b8', width: '80px' }}>Width: {Math.round(strokeWidth)}px</span>
+					<span style={{ fontSize: '0.7rem', color: '#94a3b8', width: '80px' }}>
+						Width: {Math.round(strokeWidth)}px
+					</span>
 					<input
 						type="range"
 						min={0}
@@ -217,8 +287,13 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 
 			{/* Special Parameters: Corner Radius, Points */}
 			{(shapeType === 'rect' || shapeType === 'rounded-rect' || shapeType === 'callout') && (
-				<div className="property-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-					<span style={{ fontSize: '0.7rem', color: '#94a3b8', width: '90px' }}>Corner Radius: {Math.round(cornerRadius)}px</span>
+				<div
+					className="property-group"
+					style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+				>
+					<span style={{ fontSize: '0.7rem', color: '#94a3b8', width: '90px' }}>
+						Corner Radius: {Math.round(cornerRadius)}px
+					</span>
 					<input
 						type="range"
 						min={0}
@@ -231,7 +306,10 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 			)}
 
 			{(shapeType === 'star' || shapeType === 'polygon' || shapeType === 'badge') && (
-				<div className="property-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+				<div
+					className="property-group"
+					style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+				>
 					<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 						<span style={{ fontSize: '0.7rem', color: '#94a3b8', width: '80px' }}>
 							{shapeType === 'polygon' ? 'Sides' : 'Points'}: {points}
@@ -264,9 +342,20 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 			)}
 
 			{/* Drop Shadow / Glow */}
-			<div className="property-group" style={{ borderTop: '1px solid #23232c', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+			<div
+				className="property-group"
+				style={{
+					borderTop: '1px solid #23232c',
+					paddingTop: '10px',
+					display: 'flex',
+					flexDirection: 'column',
+					gap: '8px'
+				}}
+			>
 				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-					<span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8' }}>Drop Shadow & Glow</span>
+					<span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8' }}>
+						Drop Shadow & Glow
+					</span>
 					<input
 						type="checkbox"
 						checked={hasShadow}
@@ -296,7 +385,9 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 							hasAlpha={true}
 						/>
 						<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-							<span style={{ fontSize: '0.7rem', color: '#94a3b8', width: '70px' }}>Blur: {Math.round(shadowBlur)}px</span>
+							<span style={{ fontSize: '0.7rem', color: '#94a3b8', width: '70px' }}>
+								Blur: {Math.round(shadowBlur)}px
+							</span>
 							<input
 								type="range"
 								min={1}
@@ -308,7 +399,9 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 						</div>
 						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
 							<div>
-								<span style={{ fontSize: '0.65rem', color: '#64748b' }}>Offset X ({shadowOffsetX}px)</span>
+								<span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+									Offset X ({shadowOffsetX}px)
+								</span>
 								<input
 									type="range"
 									min={-40}
@@ -319,7 +412,9 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 								/>
 							</div>
 							<div>
-								<span style={{ fontSize: '0.65rem', color: '#64748b' }}>Offset Y ({shadowOffsetY}px)</span>
+								<span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+									Offset Y ({shadowOffsetY}px)
+								</span>
 								<input
 									type="range"
 									min={-40}
@@ -337,4 +432,3 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 	);
 }
 export default ShapeSection;
-

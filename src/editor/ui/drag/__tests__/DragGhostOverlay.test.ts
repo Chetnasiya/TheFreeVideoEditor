@@ -1,5 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startDragGhost, stopDragGhost, subscribeDragGhost } from '../dragOverlayService';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import {
+	startDragGhost,
+	stopDragGhost,
+	subscribeDragGhost,
+	type DragGhostInfo
+} from '../dragOverlayService';
 
 describe('DragGhostOverlay behavior', () => {
 	beforeEach(() => {
@@ -11,7 +16,7 @@ describe('DragGhostOverlay behavior', () => {
 	});
 
 	it('manages lifecycle correctly', () => {
-		let activeGhost: any = null;
+		let activeGhost: DragGhostInfo | null = null;
 		const unsub = subscribeDragGhost((g) => {
 			activeGhost = g;
 		});
@@ -23,11 +28,10 @@ describe('DragGhostOverlay behavior', () => {
 			kind: 'graphic',
 			badge: 'Badge'
 		});
-		expect(activeGhost?.title).toBe('Tutorial Video Badge');
+		expect((activeGhost as DragGhostInfo | null)?.title).toBe('Tutorial Video Badge');
 
 		stopDragGhost();
 		expect(activeGhost).toBeNull();
 		unsub();
 	});
 });
-

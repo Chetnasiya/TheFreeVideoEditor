@@ -1,4 +1,5 @@
 import {
+	Fragment,
 	useEffect,
 	useRef,
 	useState,
@@ -10,6 +11,7 @@ import {
 import type { LayoutNode, LayoutSplitNode, LayoutStackNode, PanelId } from './types';
 import { collectPanels, resizeSplit } from './operations';
 import { PANEL_REGISTRY } from './registry';
+import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import './workspace-layout.css';
 
 interface WorkspaceShellProps {
@@ -35,6 +37,8 @@ export default function WorkspaceShell({
 	onToggleMaximize,
 	onClosePanel
 }: WorkspaceShellProps) {
+	const store = useEditorStoreApi();
+	const scopesOpen = useEditorStore((state) => state.scopes.open);
 	const visiblePanels = collectPanels(layout);
 	const isProgramInLayout = visiblePanels.includes('program');
 	const isTimelineInLayout = visiblePanels.includes('timeline');
@@ -88,9 +92,34 @@ export default function WorkspaceShell({
 				<div className={`layout-stack is-maximized ${isMaxTimeline ? 'is-single-timeline' : ''}`}>
 					<div className="layout-stack-header">
 						<div className="layout-tablist" role="tablist">
-							<span className="layout-tab is-active" role="tab" aria-selected="true">
-								{def?.title ?? maximizedPanelId}
-							</span>
+							{maximizedPanelId === 'source' ? (
+								<>
+									<button
+										type="button"
+										role="tab"
+										aria-selected={!scopesOpen}
+										className={`layout-tab ${!scopesOpen ? 'is-active' : ''}`}
+										onClick={() => store.getState().setScopesOpen(false)}
+										data-testid="tab-source"
+									>
+										Source Media
+									</button>
+									<button
+										type="button"
+										role="tab"
+										aria-selected={scopesOpen}
+										className={`layout-tab ${scopesOpen ? 'is-active' : ''}`}
+										onClick={() => store.getState().setScopesOpen(true)}
+										data-testid="tab-scopes"
+									>
+										Scopes
+									</button>
+								</>
+							) : (
+								<span className="layout-tab is-active" role="tab" aria-selected="true">
+									{def?.title ?? maximizedPanelId}
+								</span>
+							)}
 						</div>
 						<div className="layout-stack-actions">
 							<button
@@ -395,6 +424,8 @@ function StackRenderer({
 	onToggleMaximize?: (panelId: PanelId) => void;
 	onClosePanel?: (panelId: PanelId) => void;
 }) {
+	const store = useEditorStoreApi();
+	const scopesOpen = useEditorStore((state) => state.scopes.open);
 	const activePanel = node.activeId;
 	const activeDef =
 		PANEL_REGISTRY[activePanel] ||
@@ -436,6 +467,73 @@ function StackRenderer({
 						const def = PANEL_REGISTRY[panelId];
 						if (!def) return null;
 						const isActive = panelId === activePanel;
+
+						if (panelId === 'source') {
+							const isSourceMediaActive = isActive && !scopesOpen;
+							const isScopesActive = isActive && scopesOpen;
+
+							return (
+								<Fragment key={panelId}>
+									<button
+										id="source-panel-title"
+										type="button"
+										role="tab"
+										aria-selected={isSourceMediaActive}
+										className={`layout-tab ${isSourceMediaActive ? 'is-active' : ''}`}
+										tabIndex={isSourceMediaActive ? 0 : -1}
+										onClick={() => {
+											handleSelectTab('source');
+											store.getState().setScopesOpen(false);
+										}}
+										onKeyDown={(e) => {
+											if (e.key === 'ArrowRight') {
+												e.preventDefault();
+												handleSelectTab('source');
+												store.getState().setScopesOpen(true);
+											} else if (e.key === 'ArrowLeft') {
+												e.preventDefault();
+												const prev = (idx - 1 + node.panelIds.length) % node.panelIds.length;
+												handleSelectTab(node.panelIds[prev]!);
+											} else {
+												onTabKeyDown(e, idx);
+											}
+										}}
+										data-testid="tab-source"
+									>
+										Source Media
+									</button>
+									<button
+										id="scopes-panel-title"
+										type="button"
+										role="tab"
+										aria-selected={isScopesActive}
+										className={`layout-tab ${isScopesActive ? 'is-active' : ''}`}
+										tabIndex={isScopesActive ? 0 : -1}
+										onClick={() => {
+											handleSelectTab('source');
+											store.getState().setScopesOpen(true);
+										}}
+										onKeyDown={(e) => {
+											if (e.key === 'ArrowLeft') {
+												e.preventDefault();
+												handleSelectTab('source');
+												store.getState().setScopesOpen(false);
+											} else if (e.key === 'ArrowRight') {
+												e.preventDefault();
+												const next = (idx + 1) % node.panelIds.length;
+												handleSelectTab(node.panelIds[next]!);
+											} else {
+												onTabKeyDown(e, idx);
+											}
+										}}
+										data-testid="tab-scopes"
+									>
+										Scopes
+									</button>
+								</Fragment>
+							);
+						}
+
 						const tabId =
 							panelId === 'media'
 								? 'project-panel-title'
@@ -447,15 +545,15 @@ function StackRenderer({
 											? 'graphics-panel-title'
 											: panelId === 'shapes'
 												? 'shapes-panel-title'
-											: panelId === 'inspector'
-												? 'inspector-title'
-												: panelId === 'color'
-													? 'color-panel-title'
-													: panelId === 'ai-assistant'
-														? 'ai-assistant-panel-title'
-														: panelId === 'auto-caption'
-															? 'auto-caption-panel-title'
-															: undefined;
+												: panelId === 'inspector'
+													? 'inspector-title'
+													: panelId === 'color'
+														? 'color-panel-title'
+														: panelId === 'ai-assistant'
+															? 'ai-assistant-panel-title'
+															: panelId === 'auto-caption'
+																? 'auto-caption-panel-title'
+																: undefined;
 
 						return (
 							<button

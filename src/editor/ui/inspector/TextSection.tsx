@@ -3,6 +3,7 @@ import type { Clip, Time } from '../../core';
 import { readProperty } from '../../core';
 import { TEXT_TEMPLATE_PRESETS, TEXT_ANIMATION_PRESETS } from '../../core/text/presets';
 import { useEditorStoreApi } from '../../state/EditorProvider';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 import { PropertyRow, type ConfirmDisableState } from './Inspector';
 import {
 	getCustomFonts,
@@ -130,14 +131,17 @@ export function TextSection({
 	};
 
 	const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+		trackFeatureUsed('text_layer');
 		store.getState().setTextContent(clip.id, e.target.value);
 	};
 
 	const handleTemplateSelect = (templateId: string) => {
+		trackFeatureUsed('text_layer', { template: templateId });
 		store.getState().applyTextTemplate(clip.id, templateId);
 	};
 
 	const handleAnimationSelect = (presetId: string) => {
+		trackFeatureUsed('text_layer', { animation: presetId });
 		store.getState().applyTextAnimation(clip.id, presetId);
 	};
 

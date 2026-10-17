@@ -11,6 +11,7 @@ import { PRESET_EDITING } from '../../../ui/layout/presets';
 import type { LayoutNode } from '../../../ui/layout/types';
 import { ExportFrameProvider } from '../../../services/export/frameProvider';
 import { CompatibilityFrameProvider } from '../../../services/export/compatibilityFrameProvider';
+import type { ClipId, TrackId } from '../../types';
 
 describe('Shapes Core Feature & Library', () => {
 	it('SHAPE_PRESETS has valid presets across categories with unique IDs', () => {
@@ -172,7 +173,7 @@ describe('Shapes Core Feature & Library', () => {
 		};
 
 		const normalized = validateAndNormalizeLayout(oldLayoutWithoutShapes);
-		const topStack = (normalized as any).children[0];
+		const topStack = (normalized as { children: Array<{ panelIds: string[] }> }).children[0]!;
 		expect(topStack.panelIds).toEqual(['captions', 'graphics', 'shapes', 'media']);
 		// 'shapes' is immediately after 'graphics' and immediately before 'media'
 		const shapesIdx = topStack.panelIds.indexOf('shapes');
@@ -282,7 +283,7 @@ describe('Shapes Core Feature & Library', () => {
 				};
 			}
 		}
-		globalThis.OffscreenCanvas = FakeOffscreenCanvas as any;
+		globalThis.OffscreenCanvas = FakeOffscreenCanvas as unknown as typeof OffscreenCanvas;
 
 		try {
 			const project = createEmptyProject({ name: 'Export Shape Parity Test' });
@@ -302,8 +303,8 @@ describe('Shapes Core Feature & Library', () => {
 			const previewRendered = rasterizeShape(shapeConfig);
 
 			const layer = {
-				clipId: 'shape-clip-1' as any,
-				trackId: 'track-1' as any,
+				clipId: 'shape-clip-1' as ClipId,
+				trackId: 'track-1' as TrackId,
 				trackOrder: 0,
 				sourceTime: 0,
 				kind: 'shape' as const,

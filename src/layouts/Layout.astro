@@ -162,5 +162,9 @@ const currentCanonical = canonicalUrl || siteUrl;
 	</head>
 	<body>
 		<slot />
+		<script>
+			import { initActivityTracking } from '../services/activityTracking';
+			initActivityTracking();
+		</script>
 	</body>
 </html>

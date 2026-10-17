@@ -39,7 +39,7 @@ describe('dragOverlayService', () => {
 
 	it('safely handles setTransparentDragImage on dataTransfer with mock DOM', () => {
 		const originalDoc = globalThis.document;
-		const originalImg = (globalThis as any).Image;
+		const originalImg = (globalThis as unknown as { Image?: unknown }).Image;
 		const setDragImageMock = vi.fn();
 		const mockDataTransfer = {
 			setDragImage: setDragImageMock
@@ -49,8 +49,8 @@ describe('dragOverlayService', () => {
 			class MockImage {
 				src = '';
 			}
-			(globalThis as any).Image = MockImage;
-			(globalThis as any).document = {
+			(globalThis as unknown as { Image?: unknown }).Image = MockImage;
+			(globalThis as unknown as { document?: unknown }).document = {
 				createElement: vi.fn().mockReturnValue({ width: 0, height: 0 })
 			};
 
@@ -59,8 +59,7 @@ describe('dragOverlayService', () => {
 			expect(setDragImageMock).toHaveBeenCalledWith(expect.anything(), 0, 0);
 		} finally {
 			globalThis.document = originalDoc;
-			(globalThis as any).Image = originalImg;
+			(globalThis as unknown as { Image?: unknown }).Image = originalImg;
 		}
 	});
 });
-

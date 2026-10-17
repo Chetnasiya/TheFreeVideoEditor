@@ -86,6 +86,9 @@ export function matchesShortcut(event: KeyboardEvent, combo: ShortcutKey): boole
 	if (!matchesKey && event.code && event.code.toLowerCase() === `key${key}`) {
 		matchesKey = true;
 	}
+	if (!matchesKey && event.code && event.code.toLowerCase() === 'space' && key === ' ') {
+		matchesKey = true;
+	}
 
 	if (!matchesKey) return false;
 	if (
@@ -186,10 +189,46 @@ export function detectShortcutPlatform(
 
 function isTypingTarget(target: EventTarget | null): boolean {
 	if (typeof HTMLElement === 'undefined' || !(target instanceof HTMLElement)) return false;
-	return (
+	if (
 		target.isContentEditable ||
-		target.closest('input, textarea, select, [contenteditable], [role="menu"]') !== null
-	);
+		target.closest('[contenteditable="true"], [contenteditable=""]') !== null
+	) {
+		return true;
+	}
+	const el = target.closest('input, textarea, [contenteditable], [role="menu"]');
+	if (!el) return false;
+	const tag = (el.tagName || '').toLowerCase();
+	if (
+		(typeof HTMLTextAreaElement !== 'undefined' && el instanceof HTMLTextAreaElement) ||
+		tag === 'textarea'
+	) {
+		return true;
+	}
+	if (
+		(typeof HTMLInputElement !== 'undefined' && el instanceof HTMLInputElement) ||
+		tag === 'input' ||
+		!tag
+	) {
+		const inputEl = el as HTMLInputElement;
+		const type = (inputEl.type || inputEl.getAttribute?.('type') || 'text').toLowerCase();
+		const nonTypingTypes = new Set([
+			'checkbox',
+			'radio',
+			'range',
+			'button',
+			'submit',
+			'reset',
+			'color',
+			'file',
+			'image'
+		]);
+		if (nonTypingTypes.has(type)) {
+			return false;
+		}
+		return true;
+	}
+	if (typeof el.matches === 'function' && el.matches('[role="menu"]')) return true;
+	return false;
 }
 
 function hasOpenDialog(): boolean {
@@ -221,12 +260,15 @@ export function registerShortcutListener(
 			if (entry.when && !entry.when({ event, platform })) continue;
 			if (!shortcutKeysFor(entry, platform).some((key) => matchesShortcut(event, key))) continue;
 			entry.handler({ event, platform });
-			if (entry.preventDefault) event.preventDefault();
+			if (entry.preventDefault) {
+				event.preventDefault();
+				event.stopPropagation();
+			}
 			return;
 		}
 	};
-	target.addEventListener('keydown', onKeyDown);
-	return () => target.removeEventListener('keydown', onKeyDown);
+	target.addEventListener('keydown', onKeyDown, true);
+	return () => target.removeEventListener('keydown', onKeyDown, true);
 }
 
 export function createEditorShortcutRegistry(handlers: ShortcutHandlers): ShortcutEntry[] {
@@ -238,8 +280,6 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 			label: 'Play / Pause',
 			group: 'Playback',
 			scope: 'preview',
-			when: ({ event }) =>
-				!(event.target instanceof HTMLElement && event.target.closest('button, [role="button"]')),
 			handler: action('play-pause'),
 			preventDefault: true
 		},

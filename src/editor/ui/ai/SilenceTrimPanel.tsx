@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useEffect } from 'react';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import { ticksToTimecode } from '../../core/time';
 import type { SilenceTrimMode, SilenceApplyTarget } from '../../core/ai/types';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 
 export const SilenceTrimPanel: React.FC = () => {
 	const storeApi = useEditorStoreApi();
@@ -63,6 +64,7 @@ export const SilenceTrimPanel: React.FC = () => {
 	};
 
 	const handleDetectSilences = async () => {
+		trackFeatureUsed('smart_cut', { action: 'detect' });
 		shouldScrollRef.current = true;
 		try {
 			scrollToNextOptions();
@@ -473,7 +475,10 @@ export const SilenceTrimPanel: React.FC = () => {
 						<button
 							type="button"
 							className="ai-btn-primary"
-							onClick={() => applySilenceTrimAction('new-sequence')}
+							onClick={() => {
+								trackFeatureUsed('smart_cut', { action: 'apply', target: 'new-sequence' });
+								applySilenceTrimAction('new-sequence');
+							}}
 						>
 							<svg
 								className="ai-btn-icon"
@@ -492,7 +497,10 @@ export const SilenceTrimPanel: React.FC = () => {
 						<button
 							type="button"
 							className="ai-btn-secondary"
-							onClick={() => applySilenceTrimAction('in-place')}
+							onClick={() => {
+								trackFeatureUsed('smart_cut', { action: 'apply', target: 'in-place' });
+								applySilenceTrimAction('in-place');
+							}}
 						>
 							<span>Apply in Place</span>
 						</button>

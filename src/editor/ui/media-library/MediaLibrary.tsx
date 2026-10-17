@@ -391,12 +391,6 @@ export default function MediaLibrary() {
 		if (event.key === 'F2') {
 			event.preventDefault();
 			startRename(asset);
-		} else if (event.key === ' ' || event.key === 'Spacebar') {
-			event.preventDefault();
-			selectAsset(asset.id, {
-				toggle: event.ctrlKey || event.metaKey,
-				extend: event.shiftKey
-			});
 		} else if (event.key === 'Delete' || event.key === 'Backspace') {
 			event.preventDefault();
 			setDeleteId(asset.id);
@@ -956,7 +950,7 @@ export default function MediaLibrary() {
 													height="11"
 													viewBox="0 0 24 24"
 													fill="none"
- 													stroke="currentColor"
+													stroke="currentColor"
 													strokeWidth="2"
 													strokeLinecap="round"
 													strokeLinejoin="round"

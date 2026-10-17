@@ -1,11 +1,7 @@
 import { useState, useMemo, type DragEvent } from 'react';
 import { useEditorStoreApi } from '../../state/EditorProvider';
-import {
-	SHAPE_PRESETS,
-	type ShapeConfig,
-	type ShapeKind,
-	type RgbaColor
-} from '../../core/shapes/shapeTypes';
+import { SHAPE_PRESETS, type ShapeConfig, type RgbaColor } from '../../core/shapes/shapeTypes';
+import { trackFeatureUsed } from '../../../services/activityTracking';
 import { ColorPickerField } from '../inspector/ColorPickerField';
 import { ShapeIcon, SHAPE_GEOMETRIES } from './ShapeIcons';
 import { setTransparentDragImage, startDragGhost, stopDragGhost } from '../drag/dragOverlayService';
@@ -241,6 +237,7 @@ export function ShapesPanel() {
 	}, [category, searchQuery]);
 
 	const handleAddShape = (config: ShapeConfig) => {
+		trackFeatureUsed('shape_layer', { shapeType: config.shapeType });
 		store.getState().addShapeClip(config);
 	};
 
@@ -371,7 +368,15 @@ export function ShapesPanel() {
 
 						{/* Shape Geometry Selector */}
 						<div>
-							<span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
+							<span
+								style={{
+									fontSize: '0.72rem',
+									fontWeight: 600,
+									color: '#94a3b8',
+									display: 'block',
+									marginBottom: '6px'
+								}}
+							>
 								Select Shape
 							</span>
 							<div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
@@ -384,8 +389,14 @@ export function ShapesPanel() {
 											flexDirection: 'column',
 											alignItems: 'center',
 											padding: '6px 2px',
-											background: customConfig.shapeType === item.type ? 'rgba(56, 189, 248, 0.2)' : '#161622',
-											border: customConfig.shapeType === item.type ? '1px solid #38bdf8' : '1px solid #232332',
+											background:
+												customConfig.shapeType === item.type
+													? 'rgba(56, 189, 248, 0.2)'
+													: '#161622',
+											border:
+												customConfig.shapeType === item.type
+													? '1px solid #38bdf8'
+													: '1px solid #232332',
 											borderRadius: '4px',
 											color: customConfig.shapeType === item.type ? '#38bdf8' : '#94a3b8',
 											cursor: 'pointer'
@@ -399,10 +410,28 @@ export function ShapesPanel() {
 										}
 										title={item.label}
 									>
-										<span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
+										<span
+											style={{
+												display: 'flex',
+												alignItems: 'center',
+												justifyContent: 'center',
+												width: '20px',
+												height: '20px'
+											}}
+										>
 											<ShapeIcon type={item.type} size={16} />
 										</span>
-										<span style={{ fontSize: '0.58rem', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', textAlign: 'center' }}>
+										<span
+											style={{
+												fontSize: '0.58rem',
+												marginTop: '2px',
+												overflow: 'hidden',
+												textOverflow: 'ellipsis',
+												whiteSpace: 'nowrap',
+												width: '100%',
+												textAlign: 'center'
+											}}
+										>
 											{item.label}
 										</span>
 									</button>
@@ -415,7 +444,9 @@ export function ShapesPanel() {
 							<ColorPickerField
 								label="Fill Color"
 								value={customConfig.fillColor}
-								onChange={([r, g, b, a]) => setCustomConfig((prev) => ({ ...prev, fillColor: { r, g, b, a } }))}
+								onChange={([r, g, b, a]) =>
+									setCustomConfig((prev) => ({ ...prev, fillColor: { r, g, b, a } }))
+								}
 								hasAlpha={true}
 							/>
 						)}
@@ -424,7 +455,9 @@ export function ShapesPanel() {
 						<ColorPickerField
 							label="Stroke Color"
 							value={customConfig.strokeColor ?? { r: 1, g: 1, b: 1, a: 1 }}
-							onChange={([r, g, b, a]) => setCustomConfig((prev) => ({ ...prev, strokeColor: { r, g, b, a } }))}
+							onChange={([r, g, b, a]) =>
+								setCustomConfig((prev) => ({ ...prev, strokeColor: { r, g, b, a } }))
+							}
 							hasAlpha={true}
 						/>
 
@@ -437,7 +470,9 @@ export function ShapesPanel() {
 								min={0}
 								max={40}
 								value={customConfig.strokeWidth ?? 2}
-								onChange={(e) => setCustomConfig((prev) => ({ ...prev, strokeWidth: Number(e.target.value) }))}
+								onChange={(e) =>
+									setCustomConfig((prev) => ({ ...prev, strokeWidth: Number(e.target.value) }))
+								}
 								style={{ flex: 1 }}
 							/>
 						</div>
@@ -445,24 +480,32 @@ export function ShapesPanel() {
 						{/* Dimensions */}
 						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
 							<div>
-								<span style={{ fontSize: '0.65rem', color: '#64748b' }}>Width: {customConfig.width}px</span>
+								<span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+									Width: {customConfig.width}px
+								</span>
 								<input
 									type="range"
 									min={40}
 									max={800}
 									value={customConfig.width}
-									onChange={(e) => setCustomConfig((prev) => ({ ...prev, width: Number(e.target.value) }))}
+									onChange={(e) =>
+										setCustomConfig((prev) => ({ ...prev, width: Number(e.target.value) }))
+									}
 									style={{ width: '100%' }}
 								/>
 							</div>
 							<div>
-								<span style={{ fontSize: '0.65rem', color: '#64748b' }}>Height: {customConfig.height}px</span>
+								<span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+									Height: {customConfig.height}px
+								</span>
 								<input
 									type="range"
 									min={40}
 									max={800}
 									value={customConfig.height}
-									onChange={(e) => setCustomConfig((prev) => ({ ...prev, height: Number(e.target.value) }))}
+									onChange={(e) =>
+										setCustomConfig((prev) => ({ ...prev, height: Number(e.target.value) }))
+									}
 									style={{ width: '100%' }}
 								/>
 							</div>
