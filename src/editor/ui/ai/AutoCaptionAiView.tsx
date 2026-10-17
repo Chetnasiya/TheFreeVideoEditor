@@ -227,7 +227,10 @@ export const AutoCaptionAiView: React.FC = () => {
 									✓ Cached locally
 								</span>
 							) : (
-								<span style={{ fontSize: '10.5px', color: '#94a3b8', textTransform: 'none' }}>
+								<span
+									className="ai-helper-text"
+									style={{ fontSize: '10.5px', textTransform: 'none' }}
+								>
 									Requires {selectedModel.sizeLabel} download
 								</span>
 							)}
@@ -244,7 +247,7 @@ export const AutoCaptionAiView: React.FC = () => {
 								</option>
 							))}
 						</select>
-						<span style={{ fontSize: '11px', color: '#64748b' }}>
+						<span className="ai-helper-text">
 							{selectedModel.description} (License: {selectedModel.license})
 						</span>
 					</div>

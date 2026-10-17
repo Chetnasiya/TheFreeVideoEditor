@@ -110,7 +110,7 @@ export const SilenceTrimPanel: React.FC = () => {
 				</div>
 				<div className="ai-checkbox-group">
 					{audioTracks.length === 0 ? (
-						<span style={{ fontSize: '11px', color: '#64748b' }}>No audio tracks found.</span>
+						<span className="ai-helper-text">No audio tracks found.</span>
 					) : (
 						audioTracks.map((track) => {
 							const isChecked =
@@ -202,9 +202,7 @@ export const SilenceTrimPanel: React.FC = () => {
 					{options.thresholdMode === 'auto' ? (
 						<div style={{ marginTop: '4px' }}>
 							<div className="ai-field-row">
-								<span className="ai-field-label" style={{ fontSize: '11px', color: '#94a3b8' }}>
-									Sensitivity
-								</span>
+								<span className="ai-field-label ai-field-sublabel">Sensitivity</span>
 								<span className="ai-field-val">{(options.sensitivity * 100).toFixed(0)}%</span>
 							</div>
 							<input
@@ -220,9 +218,7 @@ export const SilenceTrimPanel: React.FC = () => {
 					) : (
 						<div style={{ marginTop: '4px' }}>
 							<div className="ai-field-row">
-								<span className="ai-field-label" style={{ fontSize: '11px', color: '#94a3b8' }}>
-									Threshold (dB)
-								</span>
+								<span className="ai-field-label ai-field-sublabel">Threshold (dB)</span>
 								<span className="ai-field-val">{options.manualThresholdDb} dB</span>
 							</div>
 							<input

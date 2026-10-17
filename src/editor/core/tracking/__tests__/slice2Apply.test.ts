@@ -18,6 +18,7 @@ import {
 	thinPositionKeyframes,
 	trackedPointToComposition
 } from '../apply';
+import { evaluateLayerProperties, resolveFrame, resolveTrackingContext } from '../../playback';
 
 describe('Slice 2: Apply, Follow (Live), Bake, Offsets & Time Mapping', () => {
 	const mockTrackedClip: Clip = {
@@ -387,5 +388,100 @@ describe('Slice 2: Apply, Follow (Live), Bake, Offsets & Time Mapping', () => {
 		expect(thinned.length).toBe(2);
 		expect(thinned[0].time).toBe(linearKfs[0].time);
 		expect(thinned[1].time).toBe(linearKfs[linearKfs.length - 1].time);
+	});
+
+	it('7. No misalignment jump at bind time: evaluateLayerProperties & resolveFrame match original target coordinates with 0 displacement', () => {
+		const shapeClip: Clip = {
+			id: 'clip-shape' as ClipId,
+			start: 1_000_000,
+			duration: 4_000_000,
+			sourceIn: 0,
+			sourceOut: 4_000_000,
+			speed: 1,
+			volume: 1,
+			source: {
+				type: 'shape',
+				shapeType: 'heart',
+				width: 200,
+				height: 200,
+				fillColor: { r: 1, g: 0, b: 0, a: 1 }
+			},
+			properties: {
+				position: {
+					keyframes: [{ time: 0, value: [150, 75], interpolation: 'linear' }]
+				},
+				rotation: {
+					keyframes: [{ time: 0, value: 15, interpolation: 'linear' }]
+				}
+			}
+		};
+
+		const offsets = captureBindingOffsets(
+			mockProject,
+			mockTrackedClip,
+			shapeClip,
+			mockTracker,
+			1_000_000,
+			1920,
+			1080
+		);
+
+		const trackerWithBinding: Tracker = {
+			...mockTracker,
+			binding: {
+				targetClipId: shapeClip.id,
+				applyPosition: true,
+				applyRotation: true,
+				applyScale: false,
+				offsetPosition: offsets.offsetPosition,
+				offsetRotation: offsets.offsetRotation,
+				offsetScale: offsets.offsetScale
+			}
+		};
+
+		const clipWithTracker: Clip = {
+			...mockTrackedClip,
+			trackers: [trackerWithBinding]
+		};
+
+		const projectWithBinding: Project = {
+			...mockProject,
+			tracks: [
+				{
+					...mockProject.tracks[0]!,
+					clips: [clipWithTracker]
+				},
+				{
+					...mockProject.tracks[1]!,
+					clips: [shapeClip]
+				}
+			]
+		};
+
+		// 1. Resolve tracking context at bind time (t = 1_000_000)
+		const trackingCtx = resolveTrackingContext(projectWithBinding, shapeClip.id, 1_000_000);
+		expect(trackingCtx).toBeDefined();
+
+		// 2. Evaluate layer properties with tracking context - must equal [150, 75] and rotation 15, NOT doubled!
+		const layerProps = evaluateLayerProperties(shapeClip, 0, trackingCtx);
+		expect(layerProps.transform).toBeDefined();
+		expect(layerProps.transform!.x).toBeCloseTo(150, 1);
+		expect(layerProps.transform!.y).toBeCloseTo(75, 1);
+		expect(layerProps.transform!.rotation).toBeCloseTo(15, 1);
+
+		// 3. Resolve frame through composition renderer - must match evaluated properties exactly
+		const frameAtBind = resolveFrame(projectWithBinding, 1_000_000);
+		const shapeLayer = frameAtBind.videoLayers.find((l) => l.clipId === shapeClip.id);
+		expect(shapeLayer).toBeDefined();
+		expect(shapeLayer!.transform?.x).toBeCloseTo(150, 1);
+		expect(shapeLayer!.transform?.y).toBeCloseTo(75, 1);
+		expect(shapeLayer!.transform?.rotation).toBeCloseTo(15, 1);
+
+		// 4. At subsequent time t = 2_000_000 (tracker moved by +384, +216 px):
+		const frameAtMoved = resolveFrame(projectWithBinding, 2_000_000);
+		const movedLayer = frameAtMoved.videoLayers.find((l) => l.clipId === shapeClip.id);
+		expect(movedLayer).toBeDefined();
+		expect(movedLayer!.transform?.x).toBeCloseTo(150 + 384, 1);
+		expect(movedLayer!.transform?.y).toBeCloseTo(75 + 216, 1);
 	});
 });

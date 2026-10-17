@@ -135,13 +135,14 @@ export function evaluateLiveTrackingBinding(
 	const offScale = binding.offsetScale ?? [1, 1];
 
 	// Target follows tracked rotation & scale relative to initial seed state
-	const rotDeg = (evalState.rotation * 180) / Math.PI;
+	const rotDeg = binding.applyRotation ? (evalState.rotation * 180) / Math.PI : 0;
 	const totalRot = binding.applyRotation ? offRot + rotDeg : offRot;
 
-	const sx = binding.applyScale ? offScale[0] * evalState.scale : offScale[0];
-	const sy = binding.applyScale ? offScale[1] * evalState.scale : offScale[1];
+	const scaleMult = binding.applyScale ? offScale[0] * evalState.scale : 1;
+	const sx = binding.applyScale ? offScale[0] * evalState.scale : 1;
+	const sy = binding.applyScale ? offScale[1] * evalState.scale : 1;
 
-	// Rotate offset vector by delta rotation if rotation tracking is active
+	// Rotate and scale offset vector
 	let finalX = posComp.x;
 	let finalY = posComp.y;
 
@@ -150,8 +151,8 @@ export function evaluateLiveTrackingBinding(
 		const cosR = Math.cos(rad);
 		const sinR = Math.sin(rad);
 
-		const rotOffX = cosR * offPos[0] - sinR * offPos[1];
-		const rotOffY = sinR * offPos[0] + cosR * offPos[1];
+		const rotOffX = (cosR * offPos[0] - sinR * offPos[1]) * scaleMult;
+		const rotOffY = (sinR * offPos[0] + cosR * offPos[1]) * scaleMult;
 
 		finalX += rotOffX;
 		finalY += rotOffY;

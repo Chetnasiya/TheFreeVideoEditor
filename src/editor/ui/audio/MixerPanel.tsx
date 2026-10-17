@@ -470,7 +470,7 @@ export const MixerPanel: React.FC<MixerPanelProps> = ({ engine: propEngine }) =>
 										return (
 											<div
 												key={slotIdx}
-												className="flex items-center justify-between rounded border border-[#1e293b] bg-[#0f172a]/80 px-1 py-0.5 text-[9px]"
+												className="strip-insert-slot flex items-center justify-between rounded border border-[#1e293b] bg-[#0f172a]/80 px-1 py-0.5 text-[9px]"
 											>
 												<span className="font-mono text-[8px] text-[#475569]">{slotIdx + 1}:</span>
 												{fx ? (
@@ -529,7 +529,7 @@ export const MixerPanel: React.FC<MixerPanelProps> = ({ engine: propEngine }) =>
 															e.target.value = '';
 														}}
 														defaultValue=""
-														className="w-full cursor-pointer bg-transparent text-center text-[8px] text-[#475569] outline-none hover:text-[#94a3b8]"
+														className="strip-insert-select w-full cursor-pointer bg-transparent text-center text-[8px] text-[#475569] outline-none hover:text-[#94a3b8]"
 													>
 														<option value="" disabled>
 															-- Empty --
@@ -567,7 +567,7 @@ export const MixerPanel: React.FC<MixerPanelProps> = ({ engine: propEngine }) =>
 											return (
 												<div
 													key={bus.id}
-													className="flex items-center justify-between rounded border border-[#1e293b] bg-[#0f172a]/60 px-1 py-0.5 text-[8px]"
+													className="strip-send-slot flex items-center justify-between rounded border border-[#1e293b] bg-[#0f172a]/60 px-1 py-0.5 text-[8px]"
 												>
 													<button
 														type="button"

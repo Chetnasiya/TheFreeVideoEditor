@@ -277,14 +277,14 @@ export function AutoCaptionModal({ open, onClose, initialSource = 'all' }: AutoC
 						{!consentGranted ? (
 							/* Consent Dialog Flow */
 							<div
+								className="auto-caption-consent-box"
 								style={{
 									display: 'flex',
 									flexDirection: 'column',
 									gap: '12px',
 									padding: '14px',
 									border: '1px solid #0284c7',
-									borderRadius: '8px',
-									background: '#14141c'
+									borderRadius: '8px'
 								}}
 							>
 								<h3

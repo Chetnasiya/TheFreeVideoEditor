@@ -97,7 +97,7 @@ export default function CodecPackDialog({ isOpen, onClose }: CodecPackDialogProp
 				<div className="codec-dialog-header">
 					<div>
 						<p className="dialog-eyebrow">CODEC PACK</p>
-						<h2 id="codec-pack-title" className="text-sm font-semibold text-[#f1f5f9]">
+						<h2 id="codec-pack-title" className="codec-dialog-title text-sm font-semibold">
 							Advanced Codec Pack
 						</h2>
 						<p className="dialog-description mt-1 text-xs">
@@ -153,7 +153,7 @@ export default function CodecPackDialog({ isOpen, onClose }: CodecPackDialogProp
 							{/* Pack Status Card */}
 							<div className="codec-card flex items-center justify-between">
 								<div>
-									<div className="flex items-center gap-2 text-xs font-semibold text-[#f1f5f9]">
+									<div className="codec-name-text flex items-center gap-2 text-xs font-semibold">
 										<span>{CODEC_PACK_METADATA.name}</span>
 										<span
 											className={`rounded px-2 py-0.5 font-mono text-[11px] ${
@@ -290,7 +290,7 @@ export default function CodecPackDialog({ isOpen, onClose }: CodecPackDialogProp
 								<div>
 									{CODEC_PACK_METADATA.decoders.map((dec) => (
 										<div key={dec} className="codec-table-row">
-											<span className="font-medium text-[#f1f5f9]">{dec}</span>
+											<span className="codec-name-text font-medium">{dec}</span>
 											<span className="font-mono text-xs text-emerald-400">LGPL libavcodec</span>
 										</div>
 									))}
@@ -302,7 +302,7 @@ export default function CodecPackDialog({ isOpen, onClose }: CodecPackDialogProp
 								<div>
 									{CODEC_PACK_METADATA.encoders.map((enc) => (
 										<div key={enc} className="codec-table-row">
-											<span className="font-medium text-[#f1f5f9]">{enc}</span>
+											<span className="codec-name-text font-medium">{enc}</span>
 											<span className="font-mono text-xs text-emerald-400">LGPL libavcodec</span>
 										</div>
 									))}
@@ -313,20 +313,22 @@ export default function CodecPackDialog({ isOpen, onClose }: CodecPackDialogProp
 
 					{activeTab === 'compliance' && (
 						<div className="codec-card space-y-3 text-xs leading-relaxed text-[#94a3b8]">
-							<h4 className="text-sm font-semibold text-[#f1f5f9]">Legal & Trademark Notices</h4>
+							<h4 className="codec-dialog-title text-sm font-semibold">
+								Legal & Trademark Notices
+							</h4>
 							<p>
-								<strong className="text-[#f1f5f9]">Apple ProRes:</strong> Apple ProRes is a
+								<strong className="codec-name-text">Apple ProRes:</strong> Apple ProRes is a
 								registered trademark of Apple Inc. The ProRes-compatible encoder in this pack is an
 								independent, open-source, reverse-engineered implementation (
 								<code className="font-mono text-xs text-[#38bdf8]">prores_ks</code>) and is not
 								certified, tested, or endorsed by Apple Inc.
 							</p>
 							<p>
-								<strong className="text-[#f1f5f9]">Avid DNxHD / DNxHR:</strong> Avid, DNxHD, and
+								<strong className="codec-name-text">Avid DNxHD / DNxHR:</strong> Avid, DNxHD, and
 								DNxHR (SMPTE VC-3) are trademarks or registered trademarks of Avid Technology, Inc.
 							</p>
 							<p>
-								<strong className="text-[#f1f5f9]">Strict LGPL Discipline:</strong> This software
+								<strong className="codec-name-text">Strict LGPL Discipline:</strong> This software
 								uses only LGPL v2.1+ open source libraries. No GPL or proprietary non-free libraries
 								are bundled. Software H.264 and HEVC encoders are explicitly omitted to prevent
 								patent exposure; all H.264/HEVC encoding uses standard hardware WebCodecs APIs.

@@ -102,7 +102,10 @@
 	border-radius: 8px;
 	overflow: hidden;
 	cursor: grab;
-	transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+	transition:
+		transform 0.14s ease,
+		border-color 0.14s ease,
+		box-shadow 0.14s ease;
 }
 
 .shape-card:hover {
@@ -218,3 +221,92 @@
 	transform: translateY(-1px);
 }
 
+/* Light Theme Overrides */
+:root[data-theme='light'] .shapes-panel {
+	background: #ffffff;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .shapes-header {
+	background: #f8fafc;
+	border-color: #e2e8f0;
+}
+
+:root[data-theme='light'] .shapes-title-text {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .shapes-header-tabs {
+	background: #f1f5f9;
+	border-color: #cbd5e1;
+}
+
+:root[data-theme='light'] .shapes-tab-btn {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .shapes-tab-btn:hover {
+	color: #0f172a;
+	background: rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme='light'] .shapes-tab-btn.is-active {
+	background: #ffffff;
+	color: #0284c7;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme='light'] .shapes-search-input {
+	background: #ffffff;
+	border-color: #cbd5e1;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .shapes-search-input::placeholder {
+	color: #94a3b8;
+}
+
+:root[data-theme='light'] .shapes-search-input:focus {
+	border-color: #0284c7;
+}
+
+:root[data-theme='light'] .shape-card {
+	background: #ffffff;
+	border-color: #e2e8f0;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme='light'] .shape-card:hover {
+	border-color: #38bdf8;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme='light'] .shape-card-preview {
+	background: radial-gradient(circle at center, #f8fafc 0%, #f1f5f9 100%);
+}
+
+:root[data-theme='light'] .shape-card-info {
+	background: #ffffff;
+	border-top-color: #e2e8f0;
+}
+
+:root[data-theme='light'] .shape-card-name {
+	color: #1e293b;
+}
+
+:root[data-theme='light'] .shape-card-add-btn {
+	border-color: #cbd5e1;
+	background: #f8fafc;
+	color: #475569;
+}
+
+:root[data-theme='light'] .shape-card-add-btn:hover {
+	background: #e0f2fe;
+	color: #0284c7;
+	border-color: #7dd3fc;
+}
+
+:root[data-theme='light'] .customizer-preview-box {
+	background: radial-gradient(circle at center, #f8fafc 0%, #f1f5f9 100%);
+	border-color: #e2e8f0;
+}

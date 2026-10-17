@@ -786,14 +786,36 @@
 	border-color: #e2e8f0;
 }
 
+:root[data-theme='light'] .mixer-strip,
 :root[data-theme='light'] .channel-strip {
+	background: #ffffff;
+	border-color: #e2e8f0;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme='light'] .mixer-strip:hover {
+	border-color: #cbd5e1;
+}
+
+:root[data-theme='light'] .mixer-strip.is-master {
+	background: #ffffff;
+	border-color: #38bdf8;
+	box-shadow: 0 2px 8px rgba(56, 189, 248, 0.12);
+}
+
+:root[data-theme='light'] .mixer-strip.is-bus {
 	background: #ffffff;
 	border-color: #e2e8f0;
 }
 
-:root[data-theme='light'] .channel-strip-header {
+:root[data-theme='light'] .channel-strip-header,
+:root[data-theme='light'] .strip-header {
 	background: #f8fafc;
 	border-color: #e2e8f0;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .strip-name {
 	color: #0f172a;
 }
 
@@ -817,8 +839,59 @@
 	color: #0f172a;
 }
 
+:root[data-theme='light'] .strip-trim-section {
+	background: #f8fafc;
+	border-color: #e2e8f0;
+}
+
+:root[data-theme='light'] .strip-trim-header {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .strip-trim-value {
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .strip-trim-slider {
+	background: #cbd5e1;
+}
+
+:root[data-theme='light'] .strip-routing-select {
+	background: #ffffff;
+	border-color: #cbd5e1;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .strip-routing-select option {
+	background: #ffffff;
+	color: #0f172a;
+}
+
 :root[data-theme='light'] .strip-routing-label {
-	color: #94a3b8;
+	color: #64748b;
+}
+
+:root[data-theme='light'] .strip-insert-slot {
+	background-color: #f8fafc !important;
+	border-color: #e2e8f0 !important;
+}
+
+:root[data-theme='light'] .strip-insert-slot span {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .strip-insert-select {
+	color: #475569 !important;
+}
+
+:root[data-theme='light'] .strip-insert-select option {
+	background: #ffffff !important;
+	color: #0f172a !important;
+}
+
+:root[data-theme='light'] .strip-send-slot {
+	background-color: #f8fafc !important;
+	border-color: #e2e8f0 !important;
 }
 
 :root[data-theme='light'] .mixer-popup-overlay {

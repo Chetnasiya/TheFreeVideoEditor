@@ -4077,21 +4077,67 @@ export function createEditorStore() {
 					try {
 						mutateProject(
 							`Change ${descriptorFor(propertyId)?.label ?? propertyId}`,
-							(proj) => ({
-								...proj,
-								tracks: proj.tracks.map((track) => ({
+							(proj) => {
+								let updatedTargetClip: Clip | null = null;
+								const nextTracks = proj.tracks.map((track) => ({
 									...track,
 									clips: track.clips.map((clip) => {
 										if (clip.id !== clipId) return clip;
 										const localTime = get().timeline.playhead - clip.start;
-										return setPropertyAtTime(clip, propertyId, localTime, value, {
+										const updated = setPropertyAtTime(clip, propertyId, localTime, value, {
 											autoKey: options?.autoKey ?? true,
 											fps: proj.settings.fps,
 											editedChannel: options?.editedChannel
 										});
+										updatedTargetClip = updated;
+										return updated;
 									})
-								}))
-							}),
+								}));
+
+								if (
+									updatedTargetClip &&
+									(propertyId === 'position' || propertyId === 'scale' || propertyId === 'rotation')
+								) {
+									const target = updatedTargetClip;
+									const playhead = get().timeline.playhead;
+									for (const track of nextTracks) {
+										track.clips = track.clips.map((c) => {
+											if (!c.trackers || c.trackers.length === 0) return c;
+											let trackersChanged = false;
+											const nextTrackers = c.trackers.map((tracker) => {
+												if (tracker.binding && tracker.binding.targetClipId === clipId) {
+													trackersChanged = true;
+													const offsets = captureBindingOffsets(
+														proj,
+														c,
+														target,
+														tracker,
+														playhead,
+														c.assetId ? (proj.assets[c.assetId]?.width ?? 1920) : 1920,
+														c.assetId ? (proj.assets[c.assetId]?.height ?? 1080) : 1080
+													);
+													return {
+														...tracker,
+														binding: {
+															...tracker.binding,
+															offsetPosition: offsets.offsetPosition,
+															offsetRotation: offsets.offsetRotation,
+															offsetScale: offsets.offsetScale
+														}
+													};
+												}
+												return tracker;
+											});
+											return trackersChanged ? { ...c, trackers: nextTrackers } : c;
+										});
+									}
+								}
+
+								return {
+									...proj,
+									tracks: nextTracks
+								};
+							},
 							{
 								history: 'record',
 								mergeKey: options?.coalesce ? `set-prop:${clipId}:${propertyId}` : undefined

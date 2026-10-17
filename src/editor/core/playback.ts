@@ -52,6 +52,41 @@ export interface TrackingEvaluationContext {
 }
 
 /**
+ * Resolves the tracking evaluation context for a target clip if bound to an active motion tracker.
+ */
+export function resolveTrackingContext(
+	project: Project,
+	targetClipId: ClipId,
+	timelineTime: Time
+): TrackingEvaluationContext | undefined {
+	for (const trk of project.tracks) {
+		for (const c of trk.clips) {
+			if (!c.trackers || c.trackers.length === 0) continue;
+			for (const tracker of c.trackers) {
+				if (tracker.binding && tracker.binding.targetClipId === targetClipId && tracker.enabled) {
+					const motion = evaluateLiveTrackingBinding(
+						project,
+						c,
+						tracker,
+						timelineTime,
+						c.assetId ? (project.assets[c.assetId]?.width ?? 1920) : 1920,
+						c.assetId ? (project.assets[c.assetId]?.height ?? 1080) : 1080
+					);
+					if (motion && motion.active && !motion.lost) {
+						return {
+							deltaPosition: tracker.binding.applyPosition ? motion.position : undefined,
+							deltaRotation: tracker.binding.applyRotation ? motion.rotation : undefined,
+							deltaScale: tracker.binding.applyScale ? motion.scale : undefined
+						};
+					}
+				}
+			}
+		}
+	}
+	return undefined;
+}
+
+/**
  * Evaluates animated clip properties at a clip-local time and merges them over the legacy
  * static transform. Property ids: position [x, y], scale [x, y], rotation (deg), opacity (0–1),
  * anchor [x, y]. Renderers never read keyframes; they only see this result.
@@ -68,11 +103,14 @@ export function evaluateLayerProperties(
 		if (clip.transform || trackingContext) {
 			const base = clip.transform ?? IDENTITY_TRANSFORM;
 			result.transform = {
-				x: base.x + (trackingContext?.deltaPosition ? trackingContext.deltaPosition[0] : 0),
-				y: base.y + (trackingContext?.deltaPosition ? trackingContext.deltaPosition[1] : 0),
+				x: trackingContext?.deltaPosition ? trackingContext.deltaPosition[0] : base.x,
+				y: trackingContext?.deltaPosition ? trackingContext.deltaPosition[1] : base.y,
 				scaleX: base.scaleX * (trackingContext?.deltaScale ? trackingContext.deltaScale[0] : 1),
 				scaleY: base.scaleY * (trackingContext?.deltaScale ? trackingContext.deltaScale[1] : 1),
-				rotation: base.rotation + (trackingContext?.deltaRotation ?? 0),
+				rotation:
+					trackingContext?.deltaRotation !== undefined
+						? trackingContext.deltaRotation
+						: base.rotation,
 				opacity: base.opacity
 			};
 		}
@@ -86,17 +124,20 @@ export function evaluateLayerProperties(
 	const position = numberPair(read('position'));
 	const scale = numberPair(read('scale'));
 	const anchor = numberPair(read('anchor'));
-	const posX =
-		(position?.[0] ?? base.x) +
-		(trackingContext?.deltaPosition ? trackingContext.deltaPosition[0] : 0);
-	const posY =
-		(position?.[1] ?? base.y) +
-		(trackingContext?.deltaPosition ? trackingContext.deltaPosition[1] : 0);
+	const posX = trackingContext?.deltaPosition
+		? trackingContext.deltaPosition[0]
+		: (position?.[0] ?? base.x);
+	const posY = trackingContext?.deltaPosition
+		? trackingContext.deltaPosition[1]
+		: (position?.[1] ?? base.y);
 	const sX =
 		(scale?.[0] ?? base.scaleX) * (trackingContext?.deltaScale ? trackingContext.deltaScale[0] : 1);
 	const sY =
 		(scale?.[1] ?? base.scaleY) * (trackingContext?.deltaScale ? trackingContext.deltaScale[1] : 1);
-	const rot = finite(read('rotation'), base.rotation) + (trackingContext?.deltaRotation ?? 0);
+	const rot =
+		trackingContext?.deltaRotation !== undefined
+			? trackingContext.deltaRotation
+			: finite(read('rotation'), base.rotation);
 
 	result.transform = {
 		x: posX,
@@ -383,32 +424,7 @@ export function resolveFrame(
 					: undefined;
 
 			// Check if any tracked clip in the project binds to this clip
-			let trackingCtx: TrackingEvaluationContext | undefined;
-			for (const trk of project.tracks) {
-				for (const c of trk.clips) {
-					if (!c.trackers || c.trackers.length === 0) continue;
-					for (const tracker of c.trackers) {
-						if (tracker.binding && tracker.binding.targetClipId === clip.id && tracker.enabled) {
-							// Evaluate live motion from c at timeline time t
-							const motion = evaluateLiveTrackingBinding(
-								project,
-								c,
-								tracker,
-								t,
-								c.assetId ? (project.assets[c.assetId]?.width ?? 1920) : 1920,
-								c.assetId ? (project.assets[c.assetId]?.height ?? 1080) : 1080
-							);
-							if (motion && motion.active && !motion.lost) {
-								trackingCtx = {
-									deltaPosition: tracker.binding.applyPosition ? motion.position : undefined,
-									deltaRotation: tracker.binding.applyRotation ? motion.rotation : undefined,
-									deltaScale: tracker.binding.applyScale ? motion.scale : undefined
-								};
-							}
-						}
-					}
-				}
-			}
+			const trackingCtx = resolveTrackingContext(project, clip.id, t);
 
 			if (clip.source?.type === 'adjustment') {
 				if (track.kind !== 'video') return null;
@@ -440,7 +456,7 @@ export function resolveFrame(
 					opacity: 1,
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
-					...evaluateLayerProperties(clip, localTime)
+					...evaluateLayerProperties(clip, localTime, trackingCtx)
 				};
 			}
 
@@ -937,76 +953,15 @@ export function resolveFrame(
 		// Standard non-transition clip loop (fast path bit-identical to Phase 1 / Gate H/I/J)
 		for (const clip of track.clips) {
 			if (time < clip.start || time >= clipEnd(clip)) continue;
-			const localTime = time - clip.start;
-			const evaluatedEffects =
-				!clip.bypassEffects && clip.effects && clip.effects.length > 0
-					? clip.effects.map((eff) => evaluateEffect(eff, localTime))
-					: undefined;
-			const evaluatedMasks =
-				clip.masks && clip.masks.length > 0
-					? clip.masks.map((m) => evaluateMask(m, localTime, clip.properties))
-					: undefined;
 
-			if (clip.source?.type === 'adjustment') {
-				if (track.kind === 'video') {
-					videoLayers.push({
-						clipId: clip.id,
-						trackId: track.id,
-						trackOrder,
-						sourceTime: localTime,
-						kind: 'adjustment',
-						opacity: 1,
-						masks: evaluatedMasks,
-						effects: evaluatedEffects,
-						...evaluateLayerProperties(clip, localTime)
-					});
-				}
+			if (track.kind === 'video') {
+				const layer = makeClipLayer(clip, time);
+				if (layer) videoLayers.push(layer);
 				continue;
 			}
 
-			if (clip.source?.type === 'solid') {
-				if (track.kind === 'video') {
-					videoLayers.push({
-						clipId: clip.id,
-						trackId: track.id,
-						trackOrder,
-						sourceTime: localTime,
-						kind: 'solid',
-						solidColor: clip.source.color,
-						solidGradientType: clip.source.gradientType,
-						solidGradientColorEnd: clip.source.gradientColorEnd,
-						solidGradientAngle: clip.source.gradientAngle,
-						opacity: 1,
-						masks: evaluatedMasks,
-						effects: evaluatedEffects,
-						...evaluateLayerProperties(clip, localTime)
-					});
-				}
-				continue;
-			}
-
-			if (clip.source?.type === 'text') {
-				if (track.kind === 'video') {
-					const textLayer = makeClipLayer(clip, time);
-					if (textLayer) videoLayers.push(textLayer);
-				}
-				continue;
-			}
-
-			if (clip.source?.type === 'shape') {
-				if (track.kind === 'video') {
-					const shapeLayer = makeClipLayer(clip, time);
-					if (shapeLayer) videoLayers.push(shapeLayer);
-				}
-				continue;
-			}
-
-			if (clip.source?.type === 'sequence') {
-				if (track.kind === 'video') {
-					const seqLayer = makeClipLayer(clip, time);
-					if (seqLayer) videoLayers.push(seqLayer);
-				} else if (track.kind === 'audio') {
-					// Audio instance on an audio track
+			if (track.kind === 'audio') {
+				if (clip.source?.type === 'sequence') {
 					const nestedSeqId = clip.source.sequenceId;
 					const nestedSeq = getSequence(project, nestedSeqId);
 					if (nestedSeq && depth < maxDepth) {
@@ -1030,45 +985,26 @@ export function resolveFrame(
 							});
 						}
 					}
+					continue;
 				}
-				continue;
-			}
 
-			if (!clip.assetId) continue;
-			const asset = project.assets[clip.assetId];
-			if (!asset) continue;
-			if (asset.offline) {
-				missing.add(asset.id);
-				continue;
-			}
-
-			const rawSource = timelineToSource(clip, time);
-			const maxSource = asset.duration > 0 ? asset.duration : rawSource;
-			const sourceTime = Math.max(0, Math.min(maxSource, rawSource));
-			const leafInstanceKey = instancePrefix ? `${instancePrefix}/${clip.id}` : clip.id;
-			if (track.kind === 'video' && (asset.kind === 'video' || asset.kind === 'image')) {
-				videoLayers.push({
-					clipId: clip.id,
-					instanceKey: leafInstanceKey,
-					assetId: asset.id,
-					trackId: track.id,
-					trackOrder,
-					sourceTime,
-					kind: asset.kind,
-					opacity: 1,
-					masks: evaluatedMasks,
-					effects: evaluatedEffects,
-					...evaluateLayerProperties(clip, localTime)
-				});
-			} else if (track.kind === 'audio' && asset.hasAudio) {
-				audioSources.push({
-					clipId: clip.id,
-					assetId: asset.id,
-					trackId: track.id,
-					trackOrder,
-					sourceTime,
-					volume: clipGainAt(clip, time)
-				});
+				if (!clip.assetId) continue;
+				const asset = project.assets[clip.assetId];
+				if (!asset) continue;
+				if (asset.offline) {
+					missing.add(asset.id);
+					continue;
+				}
+				if (asset.hasAudio) {
+					audioSources.push({
+						clipId: clip.id,
+						assetId: asset.id,
+						trackId: track.id,
+						trackOrder,
+						sourceTime: Math.max(0, timelineToSource(clip, time)),
+						volume: clipGainAt(clip, time)
+					});
+				}
 			}
 		}
 	}

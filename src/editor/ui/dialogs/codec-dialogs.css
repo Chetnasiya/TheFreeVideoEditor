@@ -238,6 +238,27 @@
 	border-color: #e2e8f0;
 }
 
+:root[data-theme='light'] .codec-dialog-header h2 {
+	color: #0f172a !important;
+}
+
+:root[data-theme='light'] .codec-dialog-header .dialog-description {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .codec-tab-button {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .codec-tab-button:hover {
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .codec-tab-button.is-active {
+	color: #0284c7;
+	border-bottom-color: #0284c7;
+}
+
 :root[data-theme='light'] .codec-dialog-body {
 	background: #ffffff;
 }
@@ -249,6 +270,18 @@
 
 :root[data-theme='light'] .codec-card-value {
 	color: #0f172a;
+}
+
+:root[data-theme='light'] .codec-card .text-\[\#f1f5f9\] {
+	color: #0f172a !important;
+}
+
+:root[data-theme='light'] .codec-card .text-\[\#cbd5e1\] {
+	color: #334155 !important;
+}
+
+:root[data-theme='light'] .codec-card .text-\[\#94a3b8\] {
+	color: #64748b !important;
 }
 
 :root[data-theme='light'] .codec-table-container {
@@ -268,4 +301,51 @@
 
 :root[data-theme='light'] .codec-table-row:hover {
 	background: #f8fafc;
+}
+
+:root[data-theme='light'] .codec-table-row .text-\[\#f1f5f9\],
+:root[data-theme='light'] .codec-table-row span.font-medium {
+	color: #0f172a !important;
+}
+
+:root[data-theme='light'] .codec-table-row .text-\[\#94a3b8\] {
+	color: #64748b !important;
+}
+
+:root[data-theme='light'] .codec-pack-dialog h4 {
+	color: #0f172a !important;
+}
+
+:root[data-theme='light'] .codec-pack-dialog strong.text-\[\#f1f5f9\] {
+	color: #0f172a !important;
+}
+
+:root[data-theme='light'] .codec-pack-dialog pre {
+	background: #f8fafc !important;
+	border-color: #e2e8f0 !important;
+	color: #065f46 !important;
+}
+
+:root[data-theme='light'] .codec-dialog-footer .secondary-button {
+	background: #ffffff !important;
+	border-color: #cbd5e1 !important;
+	color: #334155 !important;
+}
+
+:root[data-theme='light'] .codec-dialog-footer .secondary-button:hover {
+	background: #f1f5f9 !important;
+	color: #0f172a !important;
+}
+
+.codec-dialog-title {
+	color: #f1f5f9;
+}
+
+.codec-name-text {
+	color: #f1f5f9;
+}
+
+:root[data-theme='light'] .codec-dialog-title,
+:root[data-theme='light'] .codec-name-text {
+	color: #0f172a !important;
 }

@@ -11,9 +11,11 @@ import {
 	applyDrag,
 	compositionGuides,
 	edgeMidpoints,
+	evaluateLayerProperties,
 	hitTest,
 	pivotPoint,
 	readProperty,
+	resolveTrackingContext,
 	rotateHandlePoint,
 	snapToGuides,
 	stateCorners,
@@ -67,31 +69,41 @@ export default function TransformGizmo({
 	const monitorScale = renderedWidth / Math.max(1, project.settings.width);
 	const localTime = selectedClip ? playhead - selectedClip.start : 0;
 
-	// Read current evaluated properties
+	// Read current evaluated properties with tracking context if bound
+	const trackingCtx = useMemo(
+		() => (selectedClip ? resolveTrackingContext(project, selectedClip.id, playhead) : undefined),
+		[project, selectedClip, playhead]
+	);
+
+	const layerProps = useMemo(() => {
+		if (!selectedClip) return null;
+		return evaluateLayerProperties(selectedClip, localTime, trackingCtx);
+	}, [selectedClip, localTime, trackingCtx]);
+
 	const position = useMemo(() => {
-		if (!selectedClip) return [0, 0] as const;
-		return (readProperty(selectedClip, 'position', localTime) as [number, number]) ?? [0, 0];
-	}, [selectedClip, localTime]);
+		if (!layerProps?.transform) return [0, 0] as const;
+		return [layerProps.transform.x, layerProps.transform.y] as const;
+	}, [layerProps]);
 
 	const scale = useMemo(() => {
-		if (!selectedClip) return [1, 1] as const;
-		return (readProperty(selectedClip, 'scale', localTime) as [number, number]) ?? [1, 1];
-	}, [selectedClip, localTime]);
+		if (!layerProps?.transform) return [1, 1] as const;
+		return [layerProps.transform.scaleX, layerProps.transform.scaleY] as const;
+	}, [layerProps]);
 
 	const rotation = useMemo(() => {
-		if (!selectedClip) return 0;
-		return (readProperty(selectedClip, 'rotation', localTime) as number) ?? 0;
-	}, [selectedClip, localTime]);
+		if (!layerProps?.transform) return 0;
+		return layerProps.transform.rotation;
+	}, [layerProps]);
 
 	const anchor = useMemo(() => {
-		if (!selectedClip) return [0, 0] as const;
-		return (readProperty(selectedClip, 'anchor', localTime) as [number, number]) ?? [0, 0];
-	}, [selectedClip, localTime]);
+		if (!layerProps?.anchor) return [0, 0] as const;
+		return [layerProps.anchor.x, layerProps.anchor.y] as const;
+	}, [layerProps]);
 
 	const crop = useMemo(() => {
-		if (!selectedClip) return [0, 0, 0, 0] as Crop;
-		return (readProperty(selectedClip, 'crop', localTime) as unknown as Crop) ?? [0, 0, 0, 0];
-	}, [selectedClip, localTime]);
+		if (!layerProps?.crop) return [0, 0, 0, 0] as Crop;
+		return layerProps.crop as Crop;
+	}, [layerProps]);
 
 	const geometry: GizmoGeometry = useMemo(() => {
 		if (selectedClip?.source?.type === 'text') {

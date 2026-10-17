@@ -104,7 +104,7 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 				<div className="codec-dialog-header">
 					<div>
 						<p className="dialog-eyebrow">DIAGNOSTICS</p>
-						<h2 id="codec-support-title" className="text-sm font-semibold text-[#f1f5f9]">
+						<h2 id="codec-support-title" className="codec-dialog-title text-sm font-semibold">
 							Codec & Hardware Acceleration Support
 						</h2>
 						<p className="dialog-description mt-1 text-xs">
@@ -149,7 +149,9 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 						</div>
 						<div className="codec-card">
 							<span className="codec-card-label">Platform Engine</span>
-							<span className="codec-card-value truncate text-[#f1f5f9]">{getPlatformLabel()}</span>
+							<span className="codec-card-value codec-name-text truncate">
+								{getPlatformLabel()}
+							</span>
 						</div>
 					</div>
 
@@ -167,7 +169,7 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 									return (
 										<div key={codec.id} className="codec-table-row">
 											<div className="min-w-0 pr-4">
-												<span className="font-medium text-[#f1f5f9]">{codec.label}</span>
+												<span className="codec-name-text font-medium">{codec.label}</span>
 												<div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-[#94a3b8]">
 													<span>{codec.container.toUpperCase()}</span>
 													<span>•</span>
@@ -214,7 +216,7 @@ export default function CodecSupportDialog({ isOpen, onClose }: CodecSupportDial
 									return (
 										<div key={audio.id} className="codec-table-row">
 											<div className="min-w-0 pr-4">
-												<span className="font-medium text-[#f1f5f9]">{audio.label}</span>
+												<span className="codec-name-text font-medium">{audio.label}</span>
 												<div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-[#94a3b8]">
 													<span>
 														{audio.isLossless ? 'Uncompressed / Lossless' : 'Compressed AAC/Opus'}

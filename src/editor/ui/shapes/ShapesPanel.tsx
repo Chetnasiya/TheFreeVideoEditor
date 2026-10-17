@@ -424,28 +424,12 @@ export function ShapesPanel() {
 							>
 								Select Shape
 							</span>
-							<div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
+							<div className="shape-geometry-grid">
 								{SHAPE_GEOMETRIES.map((item) => (
 									<button
 										key={item.type}
 										type="button"
-										style={{
-											display: 'flex',
-											flexDirection: 'column',
-											alignItems: 'center',
-											padding: '6px 2px',
-											background:
-												customConfig.shapeType === item.type
-													? 'rgba(56, 189, 248, 0.2)'
-													: '#161622',
-											border:
-												customConfig.shapeType === item.type
-													? '1px solid #38bdf8'
-													: '1px solid #232332',
-											borderRadius: '4px',
-											color: customConfig.shapeType === item.type ? '#38bdf8' : '#94a3b8',
-											cursor: 'pointer'
-										}}
+										className={`shape-type-btn ${customConfig.shapeType === item.type ? 'is-active' : ''}`}
 										onClick={() =>
 											setCustomConfig((prev) => ({
 												...prev,

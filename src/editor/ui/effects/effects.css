@@ -248,6 +248,32 @@
 	border-color: #e2e8f0;
 }
 
+:root[data-theme='light'] .effects-main-nav {
+	background: #f1f5f9;
+	border-color: #cbd5e1;
+}
+
+:root[data-theme='light'] .effects-main-tab {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .effects-main-tab:hover {
+	color: #0f172a;
+	background: rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme='light'] .effects-main-tab.is-active {
+	background: #ffffff;
+	color: #0284c7;
+	border-color: #cbd5e1;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme='light'] .effects-tab-count {
+	background: rgba(0, 0, 0, 0.06);
+	color: #475569;
+}
+
 :root[data-theme='light'] .effects-search-input {
 	background: #ffffff;
 	border-color: #cbd5e1;

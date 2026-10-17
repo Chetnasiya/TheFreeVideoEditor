@@ -2614,20 +2614,41 @@
 		0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
-:root[data-theme='light'] .file-menu-items button {
+:root[data-theme='light'] .file-menu-items button,
+:root[data-theme='light'] .file-menu-items a,
+:root[data-theme='light'] .application-menu-items button,
+:root[data-theme='light'] .application-menu-items a {
 	color: #334155;
 }
 
-:root[data-theme='light'] .file-menu-items button:hover {
+:root[data-theme='light'] .file-menu-items button:hover,
+:root[data-theme='light'] .file-menu-items a:hover,
+:root[data-theme='light'] .application-menu-items button:hover,
+:root[data-theme='light'] .application-menu-items a:hover,
+:root[data-theme='light'] .file-menu-items button:focus-visible,
+:root[data-theme='light'] .file-menu-items a:focus-visible,
+:root[data-theme='light'] .application-menu-items button:focus-visible,
+:root[data-theme='light'] .application-menu-items a:focus-visible {
 	background: #f1f5f9;
 	color: #0284c7;
 }
 
-:root[data-theme='light'] .file-menu-items button span {
+:root[data-theme='light'] .file-menu-items button span,
+:root[data-theme='light'] .file-menu-items a span,
+:root[data-theme='light'] .application-menu-items button span,
+:root[data-theme='light'] .application-menu-items a span {
 	color: #94a3b8;
 }
 
-:root[data-theme='light'] .file-menu-items hr {
+:root[data-theme='light'] .file-menu-items button:hover span,
+:root[data-theme='light'] .file-menu-items a:hover span,
+:root[data-theme='light'] .application-menu-items button:hover span,
+:root[data-theme='light'] .application-menu-items a:hover span {
+	color: #0284c7;
+}
+
+:root[data-theme='light'] .file-menu-items hr,
+:root[data-theme='light'] .application-menu-items hr {
 	border-top-color: #e2e8f0;
 }
 

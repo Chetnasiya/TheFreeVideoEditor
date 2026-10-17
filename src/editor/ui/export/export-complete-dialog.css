@@ -309,7 +309,7 @@
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
-	    margin-bottom: 7px;
+	margin-bottom: 7px;
 
 	height: 36px;
 	min-height: 36px;
@@ -370,3 +370,62 @@
 	flex-shrink: 0;
 }
 
+/* Light Theme Overrides */
+:root[data-theme='light'] .export-complete-dialog {
+	background: #ffffff;
+	border-color: #e2e8f0;
+	box-shadow:
+		0 30px 80px -20px rgba(0, 0, 0, 0.15),
+		0 0 40px rgba(56, 189, 248, 0.1);
+}
+
+:root[data-theme='light'] .export-complete-title {
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .export-complete-subtitle {
+	color: #64748b;
+}
+
+:root[data-theme='light'] .export-complete-close-btn {
+	background: #f1f5f9;
+	border-color: #e2e8f0;
+	color: #64748b;
+}
+
+:root[data-theme='light'] .export-complete-close-btn:hover {
+	background: #e2e8f0;
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .export-complete-audio-container {
+	background: #f8fafc;
+	border-color: #e2e8f0;
+}
+
+:root[data-theme='light'] .export-complete-meta-card {
+	background: #f8fafc;
+	border-color: #e2e8f0;
+}
+
+:root[data-theme='light'] .export-complete-file-row {
+	color: #0f172a;
+}
+
+:root[data-theme='light'] .export-complete-spec-pill {
+	background: #ffffff;
+	border-color: #cbd5e1;
+	color: #475569;
+}
+
+:root[data-theme='light'] .export-complete-actions .secondary-button {
+	background: #f8fafc;
+	border-color: #cbd5e1;
+	color: #334155;
+}
+
+:root[data-theme='light'] .export-complete-actions .secondary-button:hover:not(:disabled) {
+	background: #ffffff;
+	border-color: #0284c7;
+	color: #0284c7;
+}

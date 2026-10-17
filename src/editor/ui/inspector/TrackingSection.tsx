@@ -321,7 +321,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 							</div>
 
 							{/* Tracker Box Size & Search Controls */}
-							<div className="flex flex-col gap-2 rounded-md border border-[#334155]/60 bg-[#0f172a]/60 p-2.5">
+							<div className="tracking-settings-box flex flex-col gap-2 rounded-md border border-[#334155]/60 bg-[#0f172a]/60 p-2.5">
 								<div className="flex items-center justify-between text-[11px] font-medium text-[#cbd5e1]">
 									<span>Tracker Box Size</span>
 									<div className="flex items-center gap-1.5 text-[10px]">
