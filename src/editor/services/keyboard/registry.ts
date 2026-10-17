@@ -398,7 +398,10 @@ export function createEditorShortcutRegistry(handlers: ShortcutHandlers): Shortc
 		},
 		{
 			id: 'ripple-delete',
-			keys: { mac: 'shift+delete', other: 'shift+delete' },
+			keys: {
+				mac: ['shift+delete', 'shift+backspace'],
+				other: ['shift+delete', 'shift+backspace']
+			},
 			label: 'Ripple Delete',
 			group: 'Editing',
 			scope: 'editor',

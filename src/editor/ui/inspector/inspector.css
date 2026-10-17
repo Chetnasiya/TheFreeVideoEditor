@@ -1064,6 +1064,20 @@
 	border-color: var(--color-primary);
 }
 
+.color-swatch-container.is-transparent {
+	border-color: rgba(239, 68, 68, 0.4);
+}
+
+.color-swatch-transparent-badge {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+	padding: 2px;
+}
+
 .color-swatch-preview {
 	width: 100%;
 	height: 100%;
@@ -1185,14 +1199,81 @@
 .color-palette-row {
 	display: flex;
 	align-items: center;
-	gap: 4px;
-	padding-top: 1px;
+	gap: 3px;
+	padding-top: 2px;
+	flex-wrap: nowrap;
+	min-width: 0;
+}
+
+.color-transparent-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	height: 18px;
+	padding: 0 5px 0 3px;
+	border-radius: 3px;
+	background: var(--color-canvas-elevated, #18181b);
+	border: 1px solid var(--color-hairline, #27272a);
+	color: var(--color-ink-muted, #94a3b8);
+	font-size: 9.5px;
+	font-weight: 500;
+	cursor: pointer;
+	white-space: nowrap;
+	flex-shrink: 0;
+	transition: all 0.15s ease;
+	user-select: none;
+}
+
+.color-transparent-chip:hover:not(:disabled) {
+	background: var(--color-hairline-soft, #27272a);
+	color: var(--color-ink, #f4f4f5);
+	border-color: var(--color-hairline, #3f3f46);
+}
+
+.color-transparent-chip.is-selected {
+	background: rgba(56, 189, 248, 0.15);
+	color: #38bdf8;
+	border-color: #38bdf8;
+	font-weight: 600;
+}
+
+.color-transparent-chip:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.color-checker-box {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 11px;
+	height: 11px;
+	border-radius: 2px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	background-color: #1a1a1a;
+	background-image:
+		linear-gradient(45deg, #333 25%, transparent 25%),
+		linear-gradient(-45deg, #333 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, #333 75%),
+		linear-gradient(-45deg, transparent 75%, #333 75%);
+	background-size: 6px 6px;
+	background-position: 0 0, 0 3px, 3px -3px, -3px 0;
+	overflow: hidden;
+	flex-shrink: 0;
+}
+
+.color-palette-divider {
+	width: 1px;
+	height: 12px;
+	background: var(--color-hairline, #27272a);
+	margin: 0 1px;
+	flex-shrink: 0;
 }
 
 .color-palette-swatch {
-	width: 14px;
-	height: 14px;
-	flex: 0 0 14px;
+	width: 13px;
+	height: 13px;
+	flex: 0 0 13px;
 	border-radius: 2px;
 	border: 1px solid var(--color-hairline);
 	cursor: pointer;

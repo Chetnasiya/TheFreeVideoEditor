@@ -341,6 +341,16 @@ export function rgbToHex(r: number, g: number, b: number): string {
 	return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+/** Converts normalized RGBA [0, 1] into uppercase 8-character hex string (#RRGGBBAA). */
+export function rgbaToHex(r: number, g: number, b: number, a: number = 1): string {
+	const toHex = (c: number) =>
+		Math.round(clamp01(c) * 255)
+			.toString(16)
+			.padStart(2, '0')
+			.toUpperCase();
+	return `#${toHex(r)}${toHex(g)}${toHex(b)}${toHex(a)}`;
+}
+
 /** Parses hex string (#RGB, #RRGGBB, or #RRGGBBAA) into normalized RGB [0, 1]. Returns null if invalid. */
 export function hexToRgb(hex: string): RGB | null {
 	if (!hex || typeof hex !== 'string') return null;
@@ -358,6 +368,48 @@ export function hexToRgb(hex: string): RGB | null {
 		const b = parseInt(clean.slice(4, 6), 16);
 		if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
 			return [r / 255, g / 255, b / 255];
+		}
+	}
+	return null;
+}
+
+/** Parses hex string (#RGB, #RGBA, #RRGGBB, #RRGGBBAA, 'transparent', 'none') into normalized RGBA [0, 1]. Returns null if invalid. */
+export function hexToRgba(hex: string): RGBA | null {
+	if (!hex || typeof hex !== 'string') return null;
+	const clean = hex.trim().replace(/^#/, '');
+	const lower = clean.toLowerCase();
+	if (lower === 'transparent' || lower === 'none') {
+		return [0, 0, 0, 0];
+	}
+	if (clean.length === 3) {
+		const r = parseInt(clean[0]! + clean[0]!, 16);
+		const g = parseInt(clean[1]! + clean[1]!, 16);
+		const b = parseInt(clean[2]! + clean[2]!, 16);
+		if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+			return [r / 255, g / 255, b / 255, 1];
+		}
+	} else if (clean.length === 4) {
+		const r = parseInt(clean[0]! + clean[0]!, 16);
+		const g = parseInt(clean[1]! + clean[1]!, 16);
+		const b = parseInt(clean[2]! + clean[2]!, 16);
+		const a = parseInt(clean[3]! + clean[3]!, 16);
+		if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b) && !Number.isNaN(a)) {
+			return [r / 255, g / 255, b / 255, a / 255];
+		}
+	} else if (clean.length === 6) {
+		const r = parseInt(clean.slice(0, 2), 16);
+		const g = parseInt(clean.slice(2, 4), 16);
+		const b = parseInt(clean.slice(4, 6), 16);
+		if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) {
+			return [r / 255, g / 255, b / 255, 1];
+		}
+	} else if (clean.length === 8) {
+		const r = parseInt(clean.slice(0, 2), 16);
+		const g = parseInt(clean.slice(2, 4), 16);
+		const b = parseInt(clean.slice(4, 6), 16);
+		const a = parseInt(clean.slice(6, 8), 16);
+		if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b) && !Number.isNaN(a)) {
+			return [r / 255, g / 255, b / 255, a / 255];
 		}
 	}
 	return null;

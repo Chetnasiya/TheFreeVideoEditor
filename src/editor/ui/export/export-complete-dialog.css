@@ -1,0 +1,340 @@
+/* Export Complete Dialog - Satisfying celebration modal */
+.export-complete-dialog {
+	width: min(100% - 2rem, 34rem);
+	max-height: min(92dvh, 52rem);
+	background: #101016;
+	border: 1px solid rgba(56, 189, 248, 0.35);
+	border-radius: 16px;
+	box-shadow:
+		0 30px 80px -20px rgba(0, 0, 0, 0.9),
+		0 0 40px rgba(56, 189, 248, 0.15),
+		0 0 0 1px rgba(255, 255, 255, 0.08);
+	overflow: hidden;
+	position: relative;
+	animation: exportModalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes exportModalPop {
+	0% {
+		opacity: 0;
+		transform: translate(-50%, -46%) scale(0.94);
+	}
+	100% {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+}
+
+.export-complete-container {
+	position: relative;
+	padding: 24px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 16px;
+	overflow-y: auto;
+	max-height: calc(92dvh - 32px);
+}
+
+/* Close button */
+.export-complete-close-btn {
+	position: absolute;
+	top: 14px;
+	right: 14px;
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	color: #94a3b8;
+	cursor: pointer;
+	transition: all 0.15s ease;
+	z-index: 10;
+}
+
+.export-complete-close-btn:hover {
+	background: rgba(255, 255, 255, 0.12);
+	color: #f1f5f9;
+}
+
+/* Confetti particles */
+.export-confetti-wrap {
+	position: absolute;
+	top: 48px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 1px;
+	height: 1px;
+	pointer-events: none;
+	z-index: 1;
+}
+
+.export-confetti-particle {
+	position: absolute;
+	border-radius: 2px;
+	animation: confettiPop 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes confettiPop {
+	0% {
+		transform: translate(0, 0) scale(0);
+		opacity: 1;
+	}
+	70% {
+		opacity: 0.9;
+	}
+	100% {
+		transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1);
+		opacity: 0;
+	}
+}
+
+/* Celebration Badge */
+.export-complete-badge-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-top: 4px;
+}
+
+.export-complete-pulse-ring {
+	position: absolute;
+	width: 80px;
+	height: 80px;
+	border-radius: 50%;
+	background: radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(56, 189, 248, 0) 70%);
+	animation: pulseGlow 2.5s ease-out infinite;
+}
+
+@keyframes pulseGlow {
+	0% {
+		transform: scale(0.8);
+		opacity: 0.8;
+	}
+	50% {
+		transform: scale(1.3);
+		opacity: 0.3;
+	}
+	100% {
+		transform: scale(0.8);
+		opacity: 0.8;
+	}
+}
+
+.export-complete-badge {
+	position: relative;
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(56, 189, 248, 0.2));
+	border: 2px solid #34d399;
+	color: #34d399;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow:
+		0 0 24px rgba(52, 211, 153, 0.35),
+		inset 0 0 12px rgba(52, 211, 153, 0.2);
+	animation: badgeBounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes badgeBounceIn {
+	0% {
+		transform: scale(0.3);
+		opacity: 0;
+	}
+	70% {
+		transform: scale(1.1);
+	}
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+.export-complete-check-icon {
+	stroke-dasharray: 40;
+	stroke-dashoffset: 40;
+	animation: checkDraw 0.45s ease forwards 0.25s;
+}
+
+@keyframes checkDraw {
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+
+/* Header Text */
+.export-complete-header {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.export-complete-title {
+	font-size: 20px;
+	font-weight: 700;
+	color: #f8fafc;
+	margin: 0;
+	letter-spacing: -0.02em;
+}
+
+.export-complete-subtitle {
+	font-size: 13px;
+	color: #94a3b8;
+	margin: 0;
+}
+
+/* Video Preview Player */
+.export-complete-video-container {
+	width: 100%;
+	border-radius: 10px;
+	overflow: hidden;
+	background: #000000;
+	border: 1px solid #232332;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+	max-height: 220px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.export-complete-video-container video {
+	width: 100%;
+	max-height: 220px;
+	object-fit: contain;
+	display: block;
+	background: #000;
+}
+
+.export-complete-audio-container {
+	width: 100%;
+	background: #161622;
+	padding: 12px;
+	border-radius: 8px;
+	border: 1px solid #232332;
+}
+
+.export-complete-audio-container audio {
+	width: 100%;
+	height: 36px;
+}
+
+/* Metadata Card */
+.export-complete-meta-card {
+	width: 100%;
+	background: #14141e;
+	border: 1px solid #242436;
+	border-radius: 10px;
+	padding: 12px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	text-align: left;
+}
+
+.export-complete-file-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	font-weight: 600;
+	color: #e2e8f0;
+	word-break: break-all;
+}
+
+.export-complete-file-icon {
+	color: #38bdf8;
+	flex-shrink: 0;
+}
+
+.export-complete-specs-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.export-complete-spec-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: #1c1c2a;
+	border: 1px solid #2d2d42;
+	border-radius: 5px;
+	padding: 3px 8px;
+	font-size: 11px;
+	font-weight: 500;
+	color: #94a3b8;
+}
+
+.export-complete-spec-pill.highlight {
+	background: rgba(56, 189, 248, 0.12);
+	border-color: rgba(56, 189, 248, 0.3);
+	color: #38bdf8;
+	font-weight: 600;
+}
+
+/* Warnings / Notice */
+.export-complete-notice {
+	width: 100%;
+	padding: 8px 12px;
+	border-radius: 6px;
+	background: rgba(245, 158, 11, 0.1);
+	border: 1px solid rgba(245, 158, 11, 0.3);
+	color: #fbbf24;
+	font-size: 12px;
+	text-align: left;
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+/* Dialog Actions */
+.export-complete-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	width: 100%;
+	margin-top: 4px;
+}
+
+.export-complete-done-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-width: 100px;
+	height: 36px;
+	padding: 0 16px;
+	font-weight: 600;
+	font-size: 13px;
+	border-radius: 8px;
+	background: #0284c7;
+	color: #ffffff;
+	border: 1px solid #38bdf8;
+	box-shadow: 0 2px 10px rgba(2, 132, 199, 0.4);
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.export-complete-done-btn:hover {
+	background: #0369a1;
+	border-color: #7dd3fc;
+	box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5);
+	transform: translateY(-1px);
+}
+
+.export-complete-done-btn:active {
+	transform: translateY(0);
+}
+
+.export-complete-btn-icon {
+	flex-shrink: 0;
+}
+

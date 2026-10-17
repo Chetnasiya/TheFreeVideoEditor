@@ -1,0 +1,54 @@
+.tfve-drag-ghost {
+	position: fixed;
+	top: 0;
+	left: 0;
+	display: none;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 12px;
+	background: rgba(18, 22, 31, 0.94);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	border-radius: 8px;
+	box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.2);
+	color: #f1f5f9;
+	font-family: inherit;
+	font-size: 12px;
+	font-weight: 500;
+	pointer-events: none;
+	z-index: 100000;
+	will-change: transform;
+	user-select: none;
+	white-space: nowrap;
+}
+
+.tfve-drag-ghost-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #38bdf8;
+	flex-shrink: 0;
+}
+
+.tfve-drag-ghost-title {
+	font-weight: 600;
+	color: #ffffff;
+	max-width: 220px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tfve-drag-ghost-badge {
+	font-size: 9px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	padding: 1px 6px;
+	border-radius: 4px;
+	color: #cbd5e1;
+}
+

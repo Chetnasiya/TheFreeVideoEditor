@@ -21,6 +21,7 @@ import type { Asset, AssetId, ProjectId } from '../../core';
 import { useEditorStore } from '../../state/EditorProvider';
 import { getDerived, type DerivedData } from '../../services/storage/mediaCache';
 import { getMediaFile, projectMediaSize, projectProxyTotalSize } from '../../services/storage/opfs';
+import { setTransparentDragImage, startDragGhost, stopDragGhost } from '../drag/dragOverlayService';
 import './media-library.css';
 
 function formatBytes(bytes: number): string {
@@ -423,6 +424,12 @@ export default function MediaLibrary() {
 	}
 
 	function dragAsset(event: DragEvent<HTMLDivElement>, asset: Asset): void {
+		setTransparentDragImage(event.dataTransfer);
+		startDragGhost({
+			title: asset.name,
+			kind: 'media',
+			badge: asset.kind.toUpperCase()
+		});
 		event.dataTransfer.setData('application/x-tfve-asset', asset.id);
 		event.dataTransfer.effectAllowed = 'copy';
 		beginTimelineDrag({
@@ -504,6 +511,13 @@ export default function MediaLibrary() {
 	}
 
 	function dragSequence(event: DragEvent<HTMLDivElement>, seqId: SequenceId): void {
+		setTransparentDragImage(event.dataTransfer);
+		const seq = project?.sequences?.[seqId];
+		startDragGhost({
+			title: seq?.name ?? 'Sequence',
+			kind: 'media',
+			badge: 'SEQUENCE'
+		});
 		event.dataTransfer.setData('application/x-tfve-sequence', seqId);
 		event.dataTransfer.effectAllowed = 'copy';
 	}
@@ -821,6 +835,10 @@ export default function MediaLibrary() {
 										aria-label={`${seq.name}, sequence, ${durTc}`}
 										draggable
 										onDragStart={(event) => dragSequence(event, seq.id)}
+										onDragEnd={() => {
+											stopDragGhost();
+											cancelTimelineDrag();
+										}}
 										onDoubleClick={() => openSequence(seq.id)}
 									>
 										<div className="media-asset-preview">
@@ -986,7 +1004,10 @@ export default function MediaLibrary() {
 												dragAsset(event, asset);
 											}
 										}}
-										onDragEnd={() => cancelTimelineDrag()}
+										onDragEnd={() => {
+											stopDragGhost();
+											cancelTimelineDrag();
+										}}
 										onClick={(event) => handleAssetClick(event, asset.id)}
 										onFocus={() => setActiveAssetId(asset.id)}
 										onKeyDown={(event) => handleAssetKeyDown(event, asset)}

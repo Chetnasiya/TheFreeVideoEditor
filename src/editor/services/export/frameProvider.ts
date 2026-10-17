@@ -63,8 +63,7 @@ export class ExportFrameProvider {
 			const layerKey = layer.instanceKey ?? layer.clipId;
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
 			if (layer.kind === 'shape' && layer.shapeData) {
-				const scale = Math.max(layer.transform?.scaleX ?? 1, layer.transform?.scaleY ?? 1);
-				const shapeCanvas = rasterizeShape(layer.shapeData, scale);
+				const shapeCanvas = rasterizeShape(layer.shapeData);
 				this.prepared.set(layerKey, shapeCanvas.canvas as unknown as CanvasImageSource);
 				continue;
 			}

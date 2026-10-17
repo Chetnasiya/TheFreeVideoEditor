@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { rgbToHex, hexToRgb, clamp01 } from '../../core/colorMath';
+import { rgbToHex, hexToRgb, hexToRgba, clamp01 } from '../../core/colorMath';
 
 export interface ColorPickerFieldProps {
 	/** Color value as [r, g, b, a], [r, g, b], { r, g, b, a }, or hex string */
@@ -14,6 +14,7 @@ export interface ColorPickerFieldProps {
 	disabled?: boolean;
 	showQuickPalette?: boolean;
 	showRgbaChannels?: boolean;
+	allowTransparent?: boolean;
 }
 
 const PRESET_SWATCHES = [
@@ -44,9 +45,9 @@ function normalizeRgba(val: ColorPickerFieldProps['value']): [number, number, nu
 		];
 	}
 	if (typeof val === 'string') {
-		const parsed = hexToRgb(val);
+		const parsed = hexToRgba(val);
 		if (parsed) {
-			return [parsed[0], parsed[1], parsed[2], 1];
+			return parsed;
 		}
 	}
 	return [1, 1, 1, 1];
@@ -59,10 +60,13 @@ export function ColorPickerField({
 	hasAlpha = true,
 	disabled = false,
 	showQuickPalette = true,
-	showRgbaChannels = false
+	showRgbaChannels = false,
+	allowTransparent = true
 }: ColorPickerFieldProps) {
 	const [r, g, b, a] = normalizeRgba(value);
 	const hex = rgbToHex(r, g, b);
+	const isTransparent = a < 0.005;
+	const canBeTransparent = hasAlpha && allowTransparent;
 
 	const [hexDraft, setHexDraft] = useState<string | null>(null);
 	const [showChannels, setShowChannels] = useState(showRgbaChannels);
@@ -71,13 +75,19 @@ export function ColorPickerField({
 	// Sync hexDraft when external value changes
 	useEffect(() => {
 		setHexDraft(null);
-	}, [r, g, b]);
+	}, [r, g, b, a]);
+
+	const handleSetTransparent = () => {
+		if (disabled || !canBeTransparent) return;
+		onChange([r, g, b, 0], false);
+	};
 
 	const handleNativeColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const newHex = e.target.value;
 		const parsed = hexToRgb(newHex);
 		if (parsed) {
-			onChange([parsed[0], parsed[1], parsed[2], a], false);
+			const targetAlpha = isTransparent ? 1 : a;
+			onChange([parsed[0], parsed[1], parsed[2], targetAlpha], false);
 		}
 	};
 
@@ -85,17 +95,45 @@ export function ColorPickerField({
 		const inputVal = e.target.value;
 		setHexDraft(inputVal);
 
-		const parsed = hexToRgb(inputVal);
-		if (parsed) {
-			onChange([parsed[0], parsed[1], parsed[2], a], true);
+		const clean = inputVal.trim().toLowerCase();
+		if (clean === 'transparent' || clean === 'none') {
+			if (canBeTransparent) {
+				onChange([r, g, b, 0], true);
+			}
+			return;
+		}
+
+		const parsedRgba = hexToRgba(inputVal);
+		if (parsedRgba) {
+			const cleanNoHash = clean.replace(/^#/, '');
+			if (cleanNoHash.length === 4 || cleanNoHash.length === 8) {
+				onChange([parsedRgba[0], parsedRgba[1], parsedRgba[2], canBeTransparent ? parsedRgba[3] : 1], true);
+			} else {
+				const targetAlpha = isTransparent ? 1 : a;
+				onChange([parsedRgba[0], parsedRgba[1], parsedRgba[2], targetAlpha], true);
+			}
 		}
 	};
 
 	const handleHexBlur = () => {
 		if (hexDraft !== null) {
-			const parsed = hexToRgb(hexDraft);
-			if (parsed) {
-				onChange([parsed[0], parsed[1], parsed[2], a], false);
+			const clean = hexDraft.trim().toLowerCase();
+			if (clean === 'transparent' || clean === 'none') {
+				if (canBeTransparent) {
+					onChange([r, g, b, 0], false);
+				}
+				setHexDraft(null);
+				return;
+			}
+			const parsedRgba = hexToRgba(hexDraft);
+			if (parsedRgba) {
+				const cleanNoHash = clean.replace(/^#/, '');
+				if (cleanNoHash.length === 4 || cleanNoHash.length === 8) {
+					onChange([parsedRgba[0], parsedRgba[1], parsedRgba[2], canBeTransparent ? parsedRgba[3] : 1], false);
+				} else {
+					const targetAlpha = isTransparent ? 1 : a;
+					onChange([parsedRgba[0], parsedRgba[1], parsedRgba[2], targetAlpha], false);
+				}
 			}
 			setHexDraft(null);
 		}
@@ -115,9 +153,11 @@ export function ColorPickerField({
 	};
 
 	const handlePresetClick = (presetHex: string) => {
+		if (disabled) return;
 		const parsed = hexToRgb(presetHex);
 		if (parsed) {
-			onChange([parsed[0], parsed[1], parsed[2], a], false);
+			const targetAlpha = isTransparent ? 1 : a;
+			onChange([parsed[0], parsed[1], parsed[2], targetAlpha], false);
 		}
 	};
 
@@ -135,8 +175,12 @@ export function ColorPickerField({
 			<div className="color-picker-main-row">
 				{/* Swatch Button that triggers native color picker */}
 				<div
-					className="color-swatch-container"
-					title={`Click to pick color for ${label}`}
+					className={`color-swatch-container ${isTransparent ? 'is-transparent' : ''}`}
+					title={
+						isTransparent
+							? `Transparent (${label}) - Click to pick color`
+							: `Click to pick color for ${label}`
+					}
 					onClick={() => !disabled && nativeColorInputRef.current?.click()}
 				>
 					<div
@@ -145,6 +189,21 @@ export function ColorPickerField({
 							backgroundColor: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`
 						}}
 					/>
+					{isTransparent && (
+						<div className="color-swatch-transparent-badge" aria-hidden="true">
+							<svg viewBox="0 0 24 24" width="100%" height="100%">
+								<line
+									x1="3"
+									y1="21"
+									x2="21"
+									y2="3"
+									stroke="#ef4444"
+									strokeWidth="2.5"
+									strokeLinecap="round"
+								/>
+							</svg>
+						</div>
+					)}
 					<input
 						ref={nativeColorInputRef}
 						type="color"
@@ -169,9 +228,10 @@ export function ColorPickerField({
 						onBlur={handleHexBlur}
 						onKeyDown={handleHexKeyDown}
 						disabled={disabled}
-						maxLength={8}
+						maxLength={11}
 						className="color-hex-input"
 						aria-label={`Hex color code for ${label}`}
+						placeholder={isTransparent ? 'TRANS' : undefined}
 						spellCheck={false}
 					/>
 				</div>
@@ -225,13 +285,42 @@ export function ColorPickerField({
 			{/* Quick Preset Palette Swatches */}
 			{showQuickPalette && (
 				<div className="color-palette-row" aria-label="Preset color swatches">
+					{canBeTransparent && (
+						<>
+							<button
+								type="button"
+								className={`color-transparent-chip ${isTransparent ? 'is-selected' : ''}`}
+								onClick={handleSetTransparent}
+								disabled={disabled}
+								title="Transparent (Alpha 0)"
+								aria-label={`Set ${label} to transparent`}
+							>
+								<span className="color-checker-box" aria-hidden="true">
+									<svg viewBox="0 0 16 16" width="10" height="10">
+										<line
+											x1="2"
+											y1="14"
+											x2="14"
+											y2="2"
+											stroke="#ef4444"
+											strokeWidth="2.2"
+											strokeLinecap="round"
+										/>
+									</svg>
+								</span>
+								<span className="color-transparent-label">Transparent</span>
+							</button>
+							<div className="color-palette-divider" aria-hidden="true" />
+						</>
+					)}
 					{PRESET_SWATCHES.map((swatch) => (
 						<button
 							key={swatch}
 							type="button"
-							className={`color-palette-swatch ${hex.toUpperCase() === swatch ? 'is-selected' : ''}`}
+							className={`color-palette-swatch ${!isTransparent && hex.toUpperCase() === swatch ? 'is-selected' : ''}`}
 							style={{ backgroundColor: swatch }}
 							onClick={() => handlePresetClick(swatch)}
+							disabled={disabled}
 							title={swatch}
 							aria-label={`Select ${swatch}`}
 						/>

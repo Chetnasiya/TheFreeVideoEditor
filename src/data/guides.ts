@@ -860,7 +860,7 @@ export const TOOL_GUIDES: ToolGuide[] = [
 		difficulty: 'Beginner',
 		icon: 'mark',
 		readingTimeMinutes: 4,
-		youtubeVideoId: null,
+		youtubeVideoId: 'OVfbxcjQhsk',
 		youtubeUrl: '',
 		overview:
 			'The Marker Tool (M) lets you drop frame-accurate cue points on both individual clips and the master sequence timeline. With 8 distinct colors (Green, Red, Purple, Orange, Yellow, White, Blue, Cyan), customizable notes, and instant keyboard navigation, markers help you organize complex documentary edits, sync multi-camera shoots, and cut video to musical beats.',
@@ -1760,7 +1760,7 @@ export const TOOL_GUIDES: ToolGuide[] = [
 		difficulty: 'Beginner',
 		icon: 'sparkles',
 		readingTimeMinutes: 5,
-		youtubeVideoId: null,
+		youtubeVideoId: 'BzWkSpSnydw',
 		youtubeUrl: '',
 		overview:
 			'The Transitions and VFX suite delivers real-time GPU-accelerated video transitions and creative visual effects. Drag cinematic cut transitions like Cross Dissolve, Dip to Black, Dip to White, Directional Slides, Pushes, Radial Wipes, and Whip Pans onto cut boundaries. Stack real-time WebGL2 shader effects—Gaussian Blur, Bloom Glow, Chromatic Aberration, Vignette, Film Grain, and Sharpen—with instant preview and zero render wait times.',
@@ -1861,7 +1861,7 @@ export const TOOL_GUIDES: ToolGuide[] = [
 		difficulty: 'Beginner',
 		icon: 'export',
 		readingTimeMinutes: 5,
-		youtubeVideoId: null,
+		youtubeVideoId: '4Rj1mZtKHuk',
 		youtubeUrl: '',
 		overview:
 			'The Export and Proxy system gives you seamless performance from initial ingest to final master delivery. Generate lightweight 720p or 1080p editing proxies on-the-fly inside your browser for buttery smooth playback on any laptop. When ready to deliver, render full-resolution 4K 60fps MP4 (H.264 / AV1) or WebM (VP9) videos utilizing your device hardware GPU encoder—with zero watermarks, no cloud queues, and zero compression paywalls.',

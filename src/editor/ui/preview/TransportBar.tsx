@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ticksToTimecode } from '../../core';
 import type { PlaybackEngine, PlaybackSnapshot } from '../../services/playback/engine';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import YouTubeTimelineScrubber from './YouTubeTimelineScrubber';
 
 const ZOOM_OPTIONS = [
 	{ label: 'Fit', value: 'fit' },
@@ -57,7 +58,16 @@ export default function TransportBar({
 	const totalTime = ticksToTimecode(duration, fps);
 
 	return (
-		<div className="preview-transport" role="toolbar" aria-label="Program playback controls">
+		<div className={`preview-transport ${isFullscreen ? 'is-fullscreen' : ''}`} role="toolbar" aria-label="Program playback controls">
+			{/* YouTube-like Timeline Scrubber */}
+			<YouTubeTimelineScrubber
+				engine={engine}
+				time={time}
+				duration={duration}
+				fps={fps}
+				isFullscreen={isFullscreen}
+			/>
+
 			{/* Row 1: Primary transport navigation, playhead, timecode */}
 			<div className="preview-transport-row preview-transport-row-primary">
 				<div className="preview-transport-group" role="group" aria-label="Timeline navigation">

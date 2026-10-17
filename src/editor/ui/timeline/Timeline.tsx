@@ -79,7 +79,12 @@ function useIsMobile(breakpoint = '(max-width: 48rem)'): boolean {
 interface ContextPosition {
 	x: number;
 	y: number;
-	clip: Clip;
+	clip?: Clip;
+	gap?: {
+		trackId: TrackId;
+		start: Time;
+		end: Time;
+	};
 }
 
 function ConnectedToolbar({
@@ -485,6 +490,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 	const handPanStart = useRef<{ clientX: number; scrollLeft: number } | null>(null);
 	const [isPanning, setIsPanning] = useState(false);
 	const dragPointer = useRef<number | null>(null);
+	const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+	const dragHasMoved = useRef<boolean>(false);
+	const dragClickedClip = useRef<Clip | null>(null);
 	const rulerPointer = useRef<number | null>(null);
 	const programmaticScrollLeft = useRef<number | null>(null);
 	const dragFrame = useRef<number | null>(null);
@@ -534,6 +542,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 	} | null>(null);
 	const isLongPressDragActive = useRef<boolean>(false);
 	const suppressContextMenuUntil = useRef<number>(0);
+	const suppressClickUntil = useRef<number>(0);
 	const [liftedClipId, setLiftedClipId] = useState<ClipId | null>(null);
 
 	const clips = useMemo(() => project.tracks.flatMap((track) => track.clips), [project]);
@@ -821,6 +830,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 		}
 		scroller.focus({ preventScroll: true });
 		dragPointer.current = event.pointerId;
+		dragStartPos.current = { x: event.clientX, y: event.clientY };
+		dragHasMoved.current = false;
+		dragClickedClip.current = clip;
 		const selectedIds = selection.clipIds.includes(clip.id) ? selection.clipIds : [clip.id];
 		const withGroups = [
 			...new Set(selectedIds.flatMap((id) => groupOf(activeProject, id).map((item) => item.id)))
@@ -835,6 +847,14 @@ function ActiveTimeline({ project }: { project: Project }) {
 		];
 		const time = pointerTime(event.clientX);
 		const isTouch = event.pointerType === 'touch';
+		const moveClipIds = event.altKey
+			? [clip.id]
+			: [clip.id, ...withGroups.filter((id) => id !== clip.id)];
+
+		if (!selection.clipIds.includes(clip.id)) {
+			selectClips(moveClipIds, 'replace');
+		}
+
 		const session: DragSession = {
 			kind:
 				activeTool === 'slip'
@@ -844,7 +864,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 							? 'trim-start'
 							: 'trim-end'
 						: 'move',
-			clipIds: activeTool === 'slip' || edge ? [clip.id] : selectedIds,
+			clipIds: activeTool === 'slip' || edge ? [clip.id] : moveClipIds,
 			original,
 			preview: original,
 			pointerStartTime: time,
@@ -886,7 +906,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 
 	function handleClipSelect(
 		clipId: ClipId,
-		modifiers: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }
+		modifiers: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey?: boolean }
 	): void {
 		if (activeTool === 'razor' || activeTool === 'hand' || activeTool === 'track-select') return;
 		const mode = modifiers.shiftKey
@@ -894,7 +914,10 @@ function ActiveTimeline({ project }: { project: Project }) {
 			: modifiers.ctrlKey || modifiers.metaKey
 				? 'toggle'
 				: 'replace';
-		selectClips([clipId], mode);
+		const idsToSelect = modifiers.altKey
+			? [clipId]
+			: groupOf(activeProject, clipId).map((c) => c.id);
+		selectClips(idsToSelect, mode);
 		store.getState().setScopesOpen(true);
 	}
 
@@ -941,6 +964,31 @@ function ActiveTimeline({ project }: { project: Project }) {
 		setContext(null);
 		if (restoreFocus) contextTriggerRef.current?.focus();
 		contextTriggerRef.current = null;
+	}
+
+	function openGapMenu(
+		event: MouseEvent<HTMLElement>,
+		trackId: TrackId,
+		start: Time,
+		end: Time
+	): void {
+		event.preventDefault();
+		event.stopPropagation();
+		store.getState().selectGap(trackId, start, end);
+		contextTriggerRef.current = event.currentTarget;
+		const rawX = event.clientX;
+		const rawY = event.clientY;
+		const winW = typeof window !== 'undefined' ? window.innerWidth : 1280;
+		const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
+		const estimatedW = 180;
+		const estimatedH = 60;
+		const clampedX = Math.max(10, Math.min(rawX, winW - estimatedW - 10));
+		const clampedY = Math.max(10, Math.min(rawY, winH - estimatedH - 10));
+		setContext({
+			x: clampedX,
+			y: clampedY,
+			gap: { trackId, start, end }
+		});
 	}
 
 	function scrubRuler(event: PointerEvent<HTMLDivElement>): void {
@@ -1957,7 +2005,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 		if (!(target instanceof HTMLElement)) return;
 		if (
 			target.closest(
-				'.timeline-clip, .timeline-track-header, .timeline-ruler, .timeline-track-controls, .timeline-track-resize-handle, .timeline-context-menu'
+				'.timeline-clip, .timeline-track-header, .timeline-ruler, .timeline-track-controls, .timeline-track-resize-handle, .timeline-context-menu, .timeline-gap-ripple-btn'
 			)
 		)
 			return;
@@ -1994,34 +2042,50 @@ function ActiveTimeline({ project }: { project: Project }) {
 		const x = event.clientX - rect.left + scroller.scrollLeft;
 		const y = event.clientY - rect.top + scroller.scrollTop;
 		marqueeStart.current = { x, y, clientX: event.clientX, clientY: event.clientY };
-		scroller.setPointerCapture(event.pointerId);
 		scroller.focus({ preventScroll: true });
-		setMarquee({ left: x, top: y, width: 0, height: 0 });
 	}
 
 	function updateMarquee(event: PointerEvent<HTMLDivElement>): void {
 		const scroller = scrollerRef.current;
 		const start = marqueeStart.current;
-		if (!scroller || !start || !scroller.hasPointerCapture(event.pointerId)) return;
+		if (!scroller || !start) return;
 		const rect = scroller.getBoundingClientRect();
 		const x = event.clientX - rect.left + scroller.scrollLeft;
 		const y = event.clientY - rect.top + scroller.scrollTop;
-		setMarquee({
-			left: Math.min(start.x, x),
-			top: Math.min(start.y, y),
-			width: Math.abs(x - start.x),
-			height: Math.abs(y - start.y)
-		});
+		if (Math.abs(x - start.x) > 3 || Math.abs(y - start.y) > 3) {
+			if (!scroller.hasPointerCapture(event.pointerId)) {
+				try {
+					scroller.setPointerCapture(event.pointerId);
+				} catch {
+					// ignore
+				}
+			}
+			setMarquee({
+				left: Math.min(start.x, x),
+				top: Math.min(start.y, y),
+				width: Math.abs(x - start.x),
+				height: Math.abs(y - start.y)
+			});
+		}
 	}
 
 	function endMarquee(event: PointerEvent<HTMLDivElement>): void {
 		const scroller = scrollerRef.current;
 		const start = marqueeStart.current;
 		if (!scroller || !start) return;
+		if (scroller.hasPointerCapture(event.pointerId)) {
+			try {
+				scroller.releasePointerCapture(event.pointerId);
+			} catch {
+				// ignore
+			}
+		}
 		const rect = scroller.getBoundingClientRect();
 		const endX = event.clientX - rect.left + scroller.scrollLeft;
 		const endY = event.clientY - rect.top + scroller.scrollTop;
-		if (Math.abs(endX - start.x) > 4 || Math.abs(endY - start.y) > 4) {
+		const didDrag = Math.abs(endX - start.x) > 4 || Math.abs(endY - start.y) > 4;
+		if (didDrag) {
+			suppressClickUntil.current = Date.now() + 400;
 			const left = Math.min(start.clientX, event.clientX);
 			const right = Math.max(start.clientX, event.clientX);
 			const top = Math.min(start.clientY, event.clientY);
@@ -2033,7 +2097,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 				})
 				.map((element) => element.dataset.clipId as ClipId);
 			selectClips(hitIds, event.shiftKey ? 'add' : 'replace');
-		} else if (!event.shiftKey) clearSelection();
+		}
 		marqueeStart.current = null;
 		setMarquee(null);
 	}
@@ -2076,6 +2140,14 @@ function ActiveTimeline({ project }: { project: Project }) {
 
 		const session = store.getState().timeline.drag;
 		if (!session || dragPointer.current !== event.pointerId) return;
+		if (dragStartPos.current) {
+			if (
+				Math.abs(event.clientX - dragStartPos.current.x) > 3 ||
+				Math.abs(event.clientY - dragStartPos.current.y) > 3
+			) {
+				dragHasMoved.current = true;
+			}
+		}
 		const scroller = scrollerRef.current;
 		if (!scroller) return;
 
@@ -2195,6 +2267,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 		if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
 		dragFrame.current = null;
 		pendingDragPreview.current = null;
+		const clickedClip = dragClickedClip.current;
+		const didMove = dragHasMoved.current;
+		dragStartPos.current = null;
+		dragHasMoved.current = false;
+		dragClickedClip.current = null;
 		const session = store.getState().timeline.drag;
 		if (session) {
 			const scroller = scrollerRef.current;
@@ -2279,6 +2356,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 			);
 			commitTimelineDrag();
 		}
+		if (clickedClip && !didMove && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+			handleClipSelect(clickedClip.id, event);
+		}
 	}
 
 	function cancelTimelineInteraction(): void {
@@ -2292,6 +2372,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 		if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current);
 		dragFrame.current = null;
 		pendingDragPreview.current = null;
+		dragStartPos.current = null;
+		dragHasMoved.current = false;
+		dragClickedClip.current = null;
 		if (dragPointer.current !== null) {
 			const pointerId = dragPointer.current;
 			dragPointer.current = null;
@@ -2308,6 +2391,15 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleLaneKeyDown(event: KeyboardEvent<HTMLDivElement>, track: Track): void {
+		if (event.key === 'Delete' || event.key === 'Backspace') {
+			const sel = store.getState().timeline.selection;
+			if (sel.gap && sel.gap.trackId === track.id) {
+				event.preventDefault();
+				event.stopPropagation();
+				store.getState().rippleDeleteGap(sel.gap.trackId, sel.gap.start, sel.gap.end);
+				return;
+			}
+		}
 		if (event.key !== 'Enter') return;
 		const assetId = store.getState().media.selectedAssetIds[0];
 		if (!assetId) return;
@@ -2429,13 +2521,48 @@ function ActiveTimeline({ project }: { project: Project }) {
 						cancelTimelineInteraction();
 					}}
 					onClick={(event) => {
+						if (Date.now() < suppressClickUntil.current) {
+							event.stopPropagation();
+							return;
+						}
 						const target = event.target;
 						if (
 							target instanceof HTMLElement &&
 							target.closest('.timeline-track-lane') &&
-							!target.closest('.timeline-clip')
+							!target.closest('.timeline-clip, .caption-segment-view, .transition-block')
 						) {
-							setPlayhead(pointerTime(event.clientX));
+							const lane = target.closest('.timeline-track-lane') as HTMLElement;
+							const trackId = lane.getAttribute('data-track-lane') as TrackId | null;
+							const clickTime = pointerTime(event.clientX);
+							setPlayhead(clickTime);
+
+							if (trackId) {
+								const track = activeProject.tracks.find((t) => t.id === trackId);
+								if (track && track.kind !== 'caption') {
+									const sorted = [...track.clips].sort((a, b) => a.start - b.start);
+									let hitGap: { start: Time; end: Time } | null = null;
+									if (sorted.length > 0) {
+										if (sorted[0]!.start > 0 && clickTime < sorted[0]!.start) {
+											hitGap = { start: 0, end: sorted[0]!.start };
+										} else {
+											for (let i = 0; i < sorted.length - 1; i++) {
+												const curEnd = sorted[i]!.start + sorted[i]!.duration;
+												const nextStart = sorted[i + 1]!.start;
+												if (clickTime >= curEnd && clickTime <= nextStart) {
+													hitGap = { start: curEnd, end: nextStart };
+													break;
+												}
+											}
+										}
+									}
+									if (hitGap) {
+										store.getState().selectGap(track.id, hitGap.start, hitGap.end);
+									} else {
+										store.getState().clearSelection();
+										store.getState().selectTrack(track.id);
+									}
+								}
+							}
 						}
 					}}
 					aria-label="Timeline tracks and clips"
@@ -2611,7 +2738,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 													aria-label={`${track.name} track lane`}
 													tabIndex={0}
 													onPointerDown={(event) => {
-														if ((event.target as HTMLElement).closest('.timeline-clip, .caption-segment-view, .transition-block')) return;
+														if ((event.target as HTMLElement).closest('.timeline-clip, .caption-segment-view, .transition-block, .timeline-gap')) return;
 														store.getState().selectTrack(track.id);
 													}}
 													onKeyDown={(event) => handleLaneKeyDown(event, track)}
@@ -2648,6 +2775,95 @@ function ActiveTimeline({ project }: { project: Project }) {
 																	Drop compatible media or press Enter to add selection
 																</span>
 															)}
+															{/* Gaps between clips for 1-click selection and ripple delete */}
+															{(() => {
+																const gaps: { start: Time; end: Time }[] = [];
+																const sortedClips = [...track.clips].sort((a, b) => a.start - b.start);
+																if (sortedClips.length > 0) {
+																	if (sortedClips[0]!.start > 0) {
+																		gaps.push({ start: 0, end: sortedClips[0]!.start });
+																	}
+																	for (let i = 0; i < sortedClips.length - 1; i++) {
+																		const curEnd = sortedClips[i]!.start + sortedClips[i]!.duration;
+																		const nextStart = sortedClips[i + 1]!.start;
+																		if (nextStart > curEnd) {
+																			gaps.push({ start: curEnd, end: nextStart });
+																		}
+																	}
+																}
+																return gaps.map((gap) => {
+																	const isGapSelected =
+																		selection.gap?.trackId === track.id &&
+																		selection.gap.start === gap.start &&
+																		selection.gap.end === gap.end;
+
+																	const gapLeft = timeToPixels(gap.start, pixelsPerSecond);
+																	const gapWidth = timeToPixels(gap.end - gap.start, pixelsPerSecond);
+																	if (gapWidth < 1) return null;
+
+																	const durationSec = ((gap.end - gap.start) / 1_000_000).toFixed(2);
+
+																	return (
+																		<div
+																			key={`gap-${gap.start}-${gap.end}`}
+																			className={`timeline-gap ${isGapSelected ? 'is-selected' : ''}`}
+																			style={{
+																				left: `${gapLeft}px`,
+																				width: `${gapWidth}px`
+																			}}
+																			data-gap-start={gap.start}
+																			data-gap-end={gap.end}
+																			tabIndex={0}
+																			title={`Empty space (${durationSec}s) - Click to select, Delete or Ripple to remove`}
+																			onClick={(e) => {
+																				if (Date.now() < suppressClickUntil.current) {
+																					e.stopPropagation();
+																					return;
+																				}
+																				e.stopPropagation();
+																				store.getState().selectGap(track.id, gap.start, gap.end);
+																				setPlayhead(pointerTime(e.clientX));
+																			}}
+																			onKeyDown={(e) => {
+																				if (e.key === 'Delete' || e.key === 'Backspace') {
+																					e.preventDefault();
+																					e.stopPropagation();
+																					store.getState().rippleDeleteGap(track.id, gap.start, gap.end);
+																				} else if (e.key === 'Escape') {
+																					e.preventDefault();
+																					e.stopPropagation();
+																					store.getState().clearSelection();
+																				}
+																			}}
+																			onContextMenu={(e) => {
+																				openGapMenu(e, track.id, gap.start, gap.end);
+																			}}
+																		>
+																			{isGapSelected && (
+																				<div className="timeline-gap-selected-indicator">
+																					{gapWidth >= 70 && (
+																						<button
+																							type="button"
+																							className="timeline-gap-ripple-btn"
+																							title="Ripple Delete Gap"
+																							onClick={(e) => {
+																								e.stopPropagation();
+																								store.getState().rippleDeleteGap(track.id, gap.start, gap.end);
+																							}}
+																						>
+																							<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+																								<path d="M2.5 1a1 1 0 0 0-1 1v1h11V2a1 1 0 0 0-1-1h-9zm10 3H1.5v8a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V4zm-7 2.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5zm3 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z" />
+																								<path d="M14 6l2 2-2 2V6z" />
+																							</svg>
+																							<span>Ripple Delete</span>
+																						</button>
+																					)}
+																				</div>
+																			)}
+																		</div>
+																	);
+																});
+															})()}
 															{track.clips.map((clip) => {
 																const asset = clip.assetId
 																	? activeProject.assets[clip.assetId]
@@ -2922,7 +3138,11 @@ function ActiveTimeline({ project }: { project: Project }) {
 					ref={contextMenuRef}
 					className="timeline-context-menu"
 					role="group"
-					aria-label={`Actions for ${context.clip.assetId ? (activeProject.assets[context.clip.assetId]?.name ?? 'clip') : context.clip.source?.type === 'adjustment' ? 'adjustment layer' : 'solid'}`}
+					aria-label={
+						context.gap
+							? 'Gap actions'
+							: `Actions for ${context.clip?.assetId ? (activeProject.assets[context.clip.assetId]?.name ?? 'clip') : context.clip?.source?.type === 'adjustment' ? 'adjustment layer' : 'solid'}`
+					}
 					style={{ left: context.x, top: context.y }}
 					onKeyDown={(event) => {
 						if (event.key === 'Escape') {
@@ -2931,13 +3151,36 @@ function ActiveTimeline({ project }: { project: Project }) {
 						}
 					}}
 				>
-					<button
-						type="button"
-						onClick={() => {
-							splitAtPlayhead();
-							closeContextMenu();
-						}}
-					>
+					{context.gap ? (
+						<button
+							type="button"
+							onClick={() => {
+								store.getState().rippleDeleteGap(context.gap!.trackId, context.gap!.start, context.gap!.end);
+								closeContextMenu();
+							}}
+						>
+							<svg
+								className="menu-icon"
+								viewBox="0 0 16 16"
+								width="14"
+								height="14"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<path d="M2.5 1a1 1 0 0 0-1 1v1h11V2a1 1 0 0 0-1-1h-9zm10 3H1.5v8a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V4zm-7 2.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5zm3 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z" />
+								<path d="M14 6l2 2-2 2V6z" />
+							</svg>
+							<span>Ripple Delete Gap</span>
+						</button>
+					) : context.clip ? (
+						<>
+							<button
+								type="button"
+								onClick={() => {
+									splitAtPlayhead();
+									closeContextMenu();
+								}}
+							>
 						<svg
 							className="menu-icon"
 							viewBox="0 0 16 16"
@@ -3016,7 +3259,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 					<button
 						type="button"
 						onClick={() => {
-							store.getState().openSpeedDialog(context.clip.id);
+							store.getState().openSpeedDialog(context.clip!.id);
 							closeContextMenu();
 						}}
 					>
@@ -3036,7 +3279,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 					<button
 						type="button"
 						onClick={() => {
-							store.getState().addFreezeFrame(context.clip.id);
+							store.getState().addFreezeFrame(context.clip!.id);
 							closeContextMenu();
 						}}
 					>
@@ -3055,7 +3298,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 					<button
 						type="button"
 						onClick={() => {
-							store.getState().freezeFrameToEnd(context.clip.id);
+							store.getState().freezeFrameToEnd(context.clip!.id);
 							closeContextMenu();
 						}}
 					>
@@ -3134,8 +3377,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 							<button
 								type="button"
 								onClick={() => {
-									if (context.clip.source?.type === 'sequence') {
-										store.getState().openSequence(context.clip.source.sequenceId);
+									if (context.clip!.source?.type === 'sequence') {
+										store.getState().openSequence(context.clip!.source.sequenceId);
 									}
 									closeContextMenu();
 								}}
@@ -3151,7 +3394,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 										: 'Un-nest sequence clips into timeline'
 								}
 								onClick={() => {
-									store.getState().expandSequenceInstance(context.clip.id);
+									store.getState().expandSequenceInstance(context.clip!.id);
 									closeContextMenu();
 								}}
 							>
@@ -3160,7 +3403,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 							<button
 								type="button"
 								onClick={() => {
-									store.getState().makeInstanceUnique(context.clip.id);
+									store.getState().makeInstanceUnique(context.clip!.id);
 									closeContextMenu();
 								}}
 							>
@@ -3169,8 +3412,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 							<button
 								type="button"
 								onClick={() => {
-									if (context.clip.source?.type === 'sequence') {
-										store.getState().openSequenceSettingsDialog(context.clip.source.sequenceId);
+									if (context.clip!.source?.type === 'sequence') {
+										store.getState().openSequenceSettingsDialog(context.clip!.source.sequenceId);
 									}
 									closeContextMenu();
 								}}
@@ -3197,6 +3440,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 							</button>
 						</>
 					)}
+						</>
+					) : null}
 				</div>
 			)}
 			{message && <span className="sr-only">{message}</span>}

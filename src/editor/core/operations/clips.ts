@@ -152,14 +152,37 @@ export function moveClips(project: Project, args: MoveClipsArgs): Project {
 		track.clips.filter((clip) => selected.has(clip.id)).map((clip) => ({ clip, track }))
 	);
 	for (const { track } of moving) if (track.locked) throw new TrackLockedError(track.id);
-	const anchor = moving.find(({ clip }) => args.clipIds.includes(clip.id));
+	const anchor =
+		moving.find(({ clip }) => clip.id === args.clipIds[0]) ??
+		moving.find(({ clip }) => args.clipIds.includes(clip.id)) ??
+		moving[0];
 	if (!anchor) return project;
-	const desiredAnchor = Math.max(0, anchor.clip.start + args.deltaTime);
+
+	const minimumMovingStart = Math.min(...moving.map(({ clip }) => clip.start));
+	const maxLeftShift = minimumMovingStart;
+	const clampedDelta = Math.max(-maxLeftShift, args.deltaTime);
+	const desiredAnchor = anchor.clip.start + clampedDelta;
+
+	const tracksOfAnchorKind = project.tracks.filter((t) => t.kind === anchor.track.kind);
+	const anchorTrackIndex = tracksOfAnchorKind.findIndex((t) => t.id === anchor.track.id);
+	const targetTrackIndex = args.targetTrackId
+		? tracksOfAnchorKind.findIndex((t) => t.id === args.targetTrackId)
+		: anchorTrackIndex;
+	const trackDelta =
+		anchorTrackIndex !== -1 && targetTrackIndex !== -1 ? targetTrackIndex - anchorTrackIndex : 0;
+
 	const destinations = moving.map(({ clip, track }) => {
-		const destination =
-			args.targetTrackId && track.kind === findTrack(project, anchor.track.id).kind
-				? findTrack(project, args.targetTrackId)
-				: findTrack(project, track.id);
+		let destination: Track;
+		if (track.kind === anchor.track.kind) {
+			const currentTrackIndex = tracksOfAnchorKind.findIndex((t) => t.id === track.id);
+			const destIndex = currentTrackIndex + trackDelta;
+			if (destIndex < 0 || destIndex >= tracksOfAnchorKind.length) {
+				throw new NoSpaceError();
+			}
+			destination = tracksOfAnchorKind[destIndex]!;
+		} else {
+			destination = findTrack(project, track.id);
+		}
 		if (destination.locked) throw new TrackLockedError(destination.id);
 		if (clip.assetId) {
 			const asset = project.assets[clip.assetId];
@@ -183,13 +206,11 @@ export function moveClips(project: Project, args: MoveClipsArgs): Project {
 			candidateStarts.add(
 				Math.max(0, anchor.clip.start + clip.start - entry.clip.duration - entry.clip.start)
 			);
-			candidateStarts.add(Math.max(0, anchor.clip.start + clipEnd(clip) - entry.clip.start));
 		}
 	}
 	const orderedCandidates = [...candidateStarts].toSorted(
 		(a, b) => Math.abs(a - desiredAnchor) - Math.abs(b - desiredAnchor) || a - b
 	);
-	const minimumMovingStart = Math.min(...moving.map(({ clip }) => clip.start));
 	let offset: Time | undefined;
 	for (const candidate of orderedCandidates) {
 		const proposedOffset = candidate - anchor.clip.start;
@@ -501,6 +522,81 @@ export function rippleDeleteClips(project: Project, clipIds: readonly ClipId[]):
 				.toSorted((a, b) => a.start - b.start)
 		};
 	});
+	return { ...project, tracks };
+}
+
+export function rippleDeleteGap(
+	project: Project,
+	trackId: TrackId,
+	gapStart: Time,
+	gapEnd: Time
+): Project {
+	const track = project.tracks.find((t) => t.id === trackId);
+	if (!track) return project;
+	if (track.locked) throw new TrackLockedError(track.id);
+
+	const gapDuration = gapEnd - gapStart;
+	if (gapDuration <= 0) return project;
+
+	// Find any linked clips from clips on the target track that shift
+	const clipsToShift = track.clips.filter((c) => c.start >= gapStart);
+	const linkedClipIds = new Set<ClipId>();
+	for (const c of clipsToShift) {
+		for (const member of groupOf(project, c.id)) {
+			linkedClipIds.add(member.id);
+		}
+	}
+
+	for (const t of project.tracks) {
+		if (t.locked && t.clips.some((c) => linkedClipIds.has(c.id))) {
+			throw new TrackLockedError(t.id);
+		}
+	}
+
+	const tracks = project.tracks.map((t) => {
+		if (t.locked) return t;
+
+		const isTargetTrack = t.id === trackId;
+		const hasLinkedClips = t.clips.some((c) => linkedClipIds.has(c.id));
+		const hasOverlap = t.clips.some((c) => c.start < gapEnd && clipEnd(c) > gapStart);
+		const hasCaptionOverlap = (t.captions ?? []).some((c) => c.start < gapEnd && c.end > gapStart);
+
+		const canShiftTrack = isTargetTrack || hasLinkedClips || (!hasOverlap && !hasCaptionOverlap);
+		if (!canShiftTrack) return t;
+
+		const updatedClips = t.clips
+			.map((c) => {
+				if (isTargetTrack || linkedClipIds.has(c.id) || !hasOverlap) {
+					if (c.start >= gapStart) {
+						return { ...c, start: Math.max(0, c.start - gapDuration) };
+					}
+				}
+				return c;
+			})
+			.toSorted((a, b) => a.start - b.start);
+
+		const updatedCaptions = t.captions
+			? t.captions
+					.map((c) => {
+						if (c.start >= gapStart) {
+							return {
+								...c,
+								start: Math.max(0, c.start - gapDuration),
+								end: Math.max(0, c.end - gapDuration)
+							};
+						}
+						return c;
+					})
+					.toSorted((a, b) => a.start - b.start)
+			: undefined;
+
+		return {
+			...t,
+			clips: updatedClips,
+			...(updatedCaptions !== undefined ? { captions: updatedCaptions } : {})
+		};
+	});
+
 	return { ...project, tracks };
 }
 

@@ -869,5 +869,39 @@ LUT_3D_SIZE 2
 		// Active tool must remain 'select' (pointer tool), not 'type'
 		expect(store.getState().timeline.activeTool).toBe('select');
 	});
+
+	it('manages export complete dialog lifecycle and resets export flags', () => {
+		const store = createEditorStore();
+		store.getState().openExportDialog();
+		store.getState().setExporting(true);
+		expect(store.getState().isExportDialogOpen).toBe(true);
+		expect(store.getState().isExporting).toBe(true);
+		expect(store.getState().exportCompletedResult).toBeNull();
+
+		store.getState().openExportCompleteDialog({
+			filename: 'render.mp4',
+			format: 'MP4',
+			width: 1920,
+			height: 1080,
+			fps: 30,
+			durationSec: 10,
+			fileSizeBytes: 5242880
+		});
+
+		expect(store.getState().isExportDialogOpen).toBe(false);
+		expect(store.getState().isExporting).toBe(false);
+		expect(store.getState().exportCompletedResult).toEqual({
+			filename: 'render.mp4',
+			format: 'MP4',
+			width: 1920,
+			height: 1080,
+			fps: 30,
+			durationSec: 10,
+			fileSizeBytes: 5242880
+		});
+
+		store.getState().closeExportCompleteDialog();
+		expect(store.getState().exportCompletedResult).toBeNull();
+	});
 });
 

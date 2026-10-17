@@ -8,6 +8,7 @@ import {
 } from '../../core/shapes/shapeTypes';
 import { ColorPickerField } from '../inspector/ColorPickerField';
 import { ShapeIcon, SHAPE_GEOMETRIES } from './ShapeIcons';
+import { setTransparentDragImage, startDragGhost, stopDragGhost } from '../drag/dragOverlayService';
 import './shapes.css';
 
 function rgbaToString(c?: RgbaColor): string {
@@ -244,6 +245,12 @@ export function ShapesPanel() {
 	};
 
 	const handleDragStart = (e: DragEvent<HTMLDivElement>, config: ShapeConfig, name: string) => {
+		setTransparentDragImage(e.dataTransfer);
+		startDragGhost({
+			title: name,
+			kind: 'shape',
+			badge: 'Shape'
+		});
 		e.dataTransfer.setData('application/x-tfve-shape', JSON.stringify(config));
 		e.dataTransfer.setData('application/x-tfve-shape-name', name);
 		e.dataTransfer.setData('text/plain', name);
@@ -319,7 +326,10 @@ export function ShapesPanel() {
 								className="shape-card"
 								draggable
 								onDragStart={(e) => handleDragStart(e, preset.config, preset.name)}
-								onDragEnd={() => store.getState().cancelTimelineDrag()}
+								onDragEnd={() => {
+									stopDragGhost();
+									store.getState().cancelTimelineDrag();
+								}}
 								onClick={() => handleAddShape(preset.config)}
 								title={`Click or drag "${preset.name}" onto timeline`}
 							>
@@ -350,7 +360,10 @@ export function ShapesPanel() {
 							className="customizer-preview-box"
 							draggable
 							onDragStart={(e) => handleDragStart(e, customConfig, 'Custom Shape')}
-							onDragEnd={() => store.getState().cancelTimelineDrag()}
+							onDragEnd={() => {
+								stopDragGhost();
+								store.getState().cancelTimelineDrag();
+							}}
 							title="Drag onto timeline or click Add below"
 						>
 							<ShapeSvgPreview config={customConfig} />

@@ -16,9 +16,10 @@ import SaveCopyPrompt from '../project/SaveCopyPrompt';
 import KeyboardShortcutsDialog from './KeyboardShortcutsDialog';
 import SpeedDurationDialog from '../dialogs/SpeedDurationDialog';
 import SequenceSettingsDialog from '../dialogs/SequenceSettingsDialog';
-import MarkerDialog from '../dialogs/MarkerDialog';
 import ImportDialog from '../dialogs/ImportDialog';
+import MarkerDialog from '../dialogs/MarkerDialog';
 import ExportDialog from '../export/ExportDialog';
+import ExportCompleteDialog from '../export/ExportCompleteDialog';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
 import SourceMonitor from '../preview/SourceMonitor';
 import Timeline from '../timeline/Timeline';
@@ -28,6 +29,7 @@ import EditWorkspacesDialog from '../dialogs/EditWorkspacesDialog';
 import CodecSupportDialog from '../dialogs/CodecSupportDialog';
 import CodecPackDialog from '../dialogs/CodecPackDialog';
 import { collectPanels } from '../layout/operations';
+import { DragGhostOverlay } from '../drag/DragGhostOverlay';
 import { importTfve } from '../../services/interop/native';
 import {
 	createEditorShortcutRegistry,
@@ -1840,11 +1842,13 @@ function EditorShell() {
 			<p className="sr-only" role="status" aria-live="polite">
 				{historyMessage}
 			</p>
+			<DragGhostOverlay />
 			<ProjectManagerDialog />
 			<NewProjectDialog focusProjectTitle={() => projectNameButtonRef.current?.focus()} />
 			<RecoveryDialog />
 			<SaveCopyPrompt />
 			<ExportDialog />
+			<ExportCompleteDialog />
 			<SpeedDurationDialog />
 			<SequenceSettingsDialog />
 			<MarkerDialog />

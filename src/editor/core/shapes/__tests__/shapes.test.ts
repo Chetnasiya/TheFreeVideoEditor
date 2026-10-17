@@ -9,6 +9,8 @@ import { readProperty } from '../../properties';
 import { validateAndNormalizeLayout, collectPanels } from '../../../ui/layout/operations';
 import { PRESET_EDITING } from '../../../ui/layout/presets';
 import type { LayoutNode } from '../../../ui/layout/types';
+import { ExportFrameProvider } from '../../../services/export/frameProvider';
+import { CompatibilityFrameProvider } from '../../../services/export/compatibilityFrameProvider';
 
 describe('Shapes Core Feature & Library', () => {
 	it('SHAPE_PRESETS has valid presets across categories with unique IDs', () => {
@@ -250,6 +252,91 @@ describe('Shapes Core Feature & Library', () => {
 		if (placedClip?.source?.type === 'shape') {
 			expect(placedClip.source.shapeType).toBe('rounded-rect');
 			expect(placedClip.source.width).toBe(400);
+		}
+	});
+
+	it('ExportFrameProvider and CompatibilityFrameProvider rasterize shapes with 1:1 dimensions matching preview engine', async () => {
+		const originalOffscreen = globalThis.OffscreenCanvas;
+		class FakeOffscreenCanvas {
+			width: number;
+			height: number;
+			constructor(w: number, h: number) {
+				this.width = w;
+				this.height = h;
+			}
+			getContext() {
+				return {
+					clearRect() {},
+					beginPath() {},
+					arc() {},
+					fill() {},
+					stroke() {},
+					roundRect() {},
+					rect() {},
+					moveTo() {},
+					lineTo() {},
+					closePath() {},
+					save() {},
+					restore() {},
+					setLineDash() {}
+				};
+			}
+		}
+		globalThis.OffscreenCanvas = FakeOffscreenCanvas as any;
+
+		try {
+			const project = createEmptyProject({ name: 'Export Shape Parity Test' });
+			const getFileMock = async () => new File([], 'fake');
+			const exportProvider = new ExportFrameProvider(project, getFileMock);
+			const compatProvider = new CompatibilityFrameProvider(project, getFileMock);
+
+			const shapeConfig: ShapeConfig = {
+				shapeType: 'rounded-rect',
+				width: 360,
+				height: 240,
+				fillColor: { r: 1, g: 0, b: 0, a: 1 },
+				strokeWidth: 4,
+				cornerRadius: 16
+			};
+
+			const previewRendered = rasterizeShape(shapeConfig);
+
+			const layer = {
+				clipId: 'shape-clip-1' as any,
+				trackId: 'track-1' as any,
+				trackOrder: 0,
+				sourceTime: 0,
+				kind: 'shape' as const,
+				fit: 'none' as const,
+				opacity: 1,
+				shapeData: shapeConfig,
+				transform: {
+					x: 100,
+					y: 50,
+					scaleX: 0.5,
+					scaleY: 0.5,
+					rotation: 0,
+					opacity: 1
+				}
+			};
+
+			await exportProvider.prepare([layer]);
+			await compatProvider.prepare([layer]);
+
+			const exportFrame = exportProvider.getFrame(layer) as HTMLCanvasElement | OffscreenCanvas;
+			const compatFrame = compatProvider.getFrame(layer) as HTMLCanvasElement | OffscreenCanvas;
+
+			expect(exportFrame).toBeDefined();
+			expect(exportFrame.width).toBe(previewRendered.canvas.width);
+			expect(exportFrame.height).toBe(previewRendered.canvas.height);
+			expect(compatFrame).toBeDefined();
+			expect(compatFrame.width).toBe(previewRendered.canvas.width);
+			expect(compatFrame.height).toBe(previewRendered.canvas.height);
+
+			await exportProvider.dispose();
+			await compatProvider.dispose();
+		} finally {
+			globalThis.OffscreenCanvas = originalOffscreen;
 		}
 	});
 });

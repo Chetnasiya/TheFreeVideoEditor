@@ -16,7 +16,9 @@ import {
 	sample3dLut,
 	ycbcrToRgb,
 	rgbToHex,
-	hexToRgb
+	hexToRgb,
+	rgbaToHex,
+	hexToRgba
 } from './colorMath';
 
 describe('colorMath', () => {
@@ -195,5 +197,18 @@ describe('colorMath', () => {
 		expect(hexToRgb('000')).toEqual([0, 0, 0]);
 		expect(hexToRgb('#FF0000')).toEqual([1, 0, 0]);
 		expect(hexToRgb('invalid')).toBeNull();
+	});
+
+	it('converts between RGBA and Hex strings accurately', () => {
+		expect(rgbaToHex(1, 1, 1, 1)).toBe('#FFFFFFFF');
+		expect(rgbaToHex(0, 0, 0, 0)).toBe('#00000000');
+		expect(rgbaToHex(1, 0, 0, 0.5)).toBe('#FF000080');
+
+		expect(hexToRgba('#FFFFFF')).toEqual([1, 1, 1, 1]);
+		expect(hexToRgba('FFF')).toEqual([1, 1, 1, 1]);
+		expect(hexToRgba('#FF000000')).toEqual([1, 0, 0, 0]);
+		expect(hexToRgba('transparent')).toEqual([0, 0, 0, 0]);
+		expect(hexToRgba('none')).toEqual([0, 0, 0, 0]);
+		expect(hexToRgba('invalid')).toBeNull();
 	});
 });

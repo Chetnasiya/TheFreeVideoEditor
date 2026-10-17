@@ -24,6 +24,7 @@ import {
 	removeTrack as removeTrackOperation,
 	renameTrack as renameTrackOperation,
 	rippleDeleteClips as rippleDeleteClipsOperation,
+	rippleDeleteGap as rippleDeleteGapOperation,
 	setTrackFlags as setTrackFlagsOperation,
 	splitClipsAt,
 	trimClip as trimClipOperation,
@@ -294,12 +295,19 @@ export interface RelinkAssetResult {
 	mismatch?: string;
 }
 
+export interface TimelineGapSelection {
+	trackId: TrackId;
+	start: Time;
+	end: Time;
+}
+
 export interface TimelineSelection {
 	clipIds: ClipId[];
 	trackId?: TrackId;
 	transitionId?: string;
 	captionId?: string;
 	markerIds?: MarkerId[];
+	gap?: TimelineGapSelection;
 }
 
 export type TimelineTool =
@@ -466,6 +474,19 @@ function projectClipPositions(
 	);
 }
 
+export interface ExportCompletedResult {
+	filename: string;
+	format: string;
+	width?: number;
+	height?: number;
+	fps?: number;
+	durationSec?: number;
+	fileSizeBytes?: number;
+	blob?: Blob;
+	warnings?: string[];
+	notice?: string;
+}
+
 export interface EditorState {
 	theme: ThemeMode;
 	themeMessage: string;
@@ -491,6 +512,7 @@ export interface EditorState {
 	isExportDialogOpen: boolean;
 	isExportClosePromptOpen: boolean;
 	isExporting: boolean;
+	exportCompletedResult: ExportCompletedResult | null;
 	isImportDialogOpen: boolean;
 	isSpeedDialogOpen: boolean;
 	speedDialogClipId: ClipId | null;
@@ -559,6 +581,8 @@ export interface EditorState {
 	closeSaveCopyPrompt: () => void;
 	openExportDialog: () => void;
 	closeExportDialog: () => void;
+	openExportCompleteDialog: (result: ExportCompletedResult) => void;
+	closeExportCompleteDialog: () => void;
 	openImportDialog: () => void;
 	closeImportDialog: () => void;
 	openSpeedDialog: (clipId?: ClipId) => void;
@@ -617,6 +641,8 @@ export interface EditorState {
 	splitAtPlayhead: (unlink?: boolean) => boolean;
 	deleteSelection: (unlink?: boolean) => boolean;
 	rippleDeleteSelection: () => boolean;
+	selectGap: (trackId: TrackId, start: Time, end: Time) => void;
+	rippleDeleteGap: (trackId: TrackId, start: Time, end: Time) => boolean;
 	duplicateSelection: () => boolean;
 	addTimelineTrack: (kind: Track['kind']) => void;
 	addCaptionTrack: (name?: string) => TrackId | null;
@@ -1359,6 +1385,7 @@ export function createEditorStore() {
 				isExportDialogOpen: false,
 				isExportClosePromptOpen: false,
 				isExporting: false,
+				exportCompletedResult: null,
 				isImportDialogOpen: false,
 				isSpeedDialogOpen: false,
 				speedDialogClipId: null,
@@ -2209,6 +2236,18 @@ export function createEditorStore() {
 						state.isExportDialogOpen = false;
 					});
 				},
+				openExportCompleteDialog(result) {
+					set((state) => {
+						state.isExporting = false;
+						state.isExportDialogOpen = false;
+						state.exportCompletedResult = result;
+					});
+				},
+				closeExportCompleteDialog() {
+					set((state) => {
+						state.exportCompletedResult = null;
+					});
+				},
 				openImportDialog() {
 					set((state) => {
 						state.isImportDialogOpen = true;
@@ -2581,6 +2620,7 @@ export function createEditorStore() {
 					set((state) => {
 						if (mode === 'replace') {
 							state.timeline.selection.clipIds = [...new Set(validIds)];
+							delete state.timeline.selection.gap;
 							if (validIds.length === 1) {
 								const parentTrack = activeProj.tracks.find((track) =>
 									track.clips.some((clip) => clip.id === validIds[0])
@@ -2610,6 +2650,15 @@ export function createEditorStore() {
 						} else {
 							delete state.timeline.selection.trackId;
 						}
+					});
+				},
+				selectGap(trackId, start, end) {
+					set((state) => {
+						state.timeline.selection = {
+							clipIds: [],
+							trackId,
+							gap: { trackId, start, end }
+						};
 					});
 				},
 				clearSelection() {
@@ -3285,6 +3334,9 @@ export function createEditorStore() {
 				},
 				deleteSelection(unlink = false) {
 					const sel = get().timeline.selection;
+					if (sel.gap) {
+						return get().rippleDeleteGap(sel.gap.trackId, sel.gap.start, sel.gap.end);
+					}
 					if (sel.clipIds.length === 0) {
 						if (sel.captionId && sel.trackId) {
 							return get().deleteCaptionSegment(sel.trackId, sel.captionId);
@@ -3315,7 +3367,11 @@ export function createEditorStore() {
 					}
 				},
 				rippleDeleteSelection() {
-					const ids = get().timeline.selection.clipIds;
+					const sel = get().timeline.selection;
+					if (sel.gap) {
+						return get().rippleDeleteGap(sel.gap.trackId, sel.gap.start, sel.gap.end);
+					}
+					const ids = sel.clipIds;
 					if (ids.length === 0) return false;
 					const activeSeqId = get().activeSequenceId;
 					try {
@@ -3330,6 +3386,38 @@ export function createEditorStore() {
 						get().clearSelection();
 						set((state) => {
 							state.timeline.message = 'Ripple deleted selected clips.';
+						});
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return false;
+					}
+				},
+				rippleDeleteGap(trackId, start, end) {
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Ripple delete gap',
+							(project) =>
+								applyToSequence(project, activeSeqId, (view) =>
+									rippleDeleteGapOperation(view, trackId, start, end)
+								),
+							{ history: 'record' }
+						);
+						get().clearSelection();
+						set((state) => {
+							state.timeline.message = 'Ripple deleted gap.';
+							const curPlayhead = state.timeline.playhead;
+							if (curPlayhead > start) {
+								const gapDuration = end - start;
+								if (curPlayhead <= end) {
+									state.timeline.playhead = start;
+								} else {
+									state.timeline.playhead = Math.max(start, curPlayhead - gapDuration);
+								}
+							}
 						});
 						return true;
 					} catch (error) {

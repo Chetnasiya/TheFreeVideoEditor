@@ -11,6 +11,7 @@ import {
 	renameTrack,
 	reorderTrack,
 	rippleDeleteClips,
+	rippleDeleteGap,
 	rippleTrimClip,
 	setTrackFlags,
 	splitClipsAt,
@@ -207,6 +208,27 @@ describe('timeline queries and clip operations', () => {
 		expect(copies[0]?.linkId).not.toBe(movedVideo.linkId);
 	});
 
+	it('moves multiple selected clips together across tracks and preserves track separation', () => {
+		let project = addVideo();
+		const assetId = Object.keys(project.assets)[0] as AssetId;
+		const initialVideo = project.tracks.find((t) => t.kind === 'video')!;
+		const clip1 = initialVideo.clips[0]!;
+		project = addTrack(project, 'video');
+		const newVideo = project.tracks.find((t) => t.kind === 'video' && t.id !== initialVideo.id)!;
+		project = addClipFromAsset(project, { assetId, trackId: newVideo.id, start: 0 });
+		const clip2 = project.tracks.find((t) => t.id === newVideo.id)!.clips[0]!;
+
+		const moved = moveClips(project, {
+			clipIds: [clip1.id, clip2.id],
+			deltaTime: 3_000_000,
+			targetTrackId: initialVideo.id
+		});
+		const moved1 = moved.tracks.find((t) => t.id === initialVideo.id)!.clips.find((c) => c.id === clip1.id)!;
+		const moved2 = moved.tracks.find((t) => t.id === newVideo.id)!.clips.find((c) => c.id === clip2.id)!;
+		expect(moved1.start).toBe(3_000_000);
+		expect(moved2.start).toBe(3_000_000);
+	});
+
 	it('ripple-deletes linked clips and rejects a ripple that would alter a locked track', () => {
 		let project = addVideo();
 		const assetId = Object.keys(project.assets)[0] as AssetId;
@@ -228,6 +250,39 @@ describe('timeline queries and clip operations', () => {
 			)
 		};
 		expect(() => rippleDeleteClips(locked, [first.id])).toThrow('locked');
+	});
+
+	it('ripple-deletes a gap between two clips and shifts following clips', () => {
+		let project = addVideo();
+		const assetId = Object.keys(project.assets)[0] as AssetId;
+		const videoTrack = project.tracks.find((track) => track.kind === 'video')!;
+		// First clip: [0, 5s]
+		// Second clip: starts at 12s, duration 5s -> Gap is [5s, 12s] (duration 7s)
+		project = addClipFromAsset(project, { assetId, trackId: videoTrack.id, start: 12_000_000 });
+		const vTrack = project.tracks.find((track) => track.kind === 'video')!;
+		const clip1 = vTrack.clips[0]!;
+		const clip2 = vTrack.clips[1]!;
+
+		const gapStart = clip1.start + clip1.duration; // 5s
+		const gapEnd = clip2.start; // 12s
+
+		const rippled = rippleDeleteGap(project, videoTrack.id, gapStart, gapEnd);
+		const rippledVideo = rippled.tracks.find((track) => track.kind === 'video')!;
+		const rippledAudio = rippled.tracks.find((track) => track.kind === 'audio')!;
+
+		// Second clip should now start immediately at 10s (end of first 10s clip)
+		expect(rippledVideo.clips[1]!.start).toBe(10_000_000);
+		// Linked audio should also shift to 10s
+		expect(rippledAudio.clips[1]!.start).toBe(10_000_000);
+
+		// If track is locked, should throw
+		const locked: Project = {
+			...project,
+			tracks: project.tracks.map((track) =>
+				track.kind === 'video' ? { ...track, locked: true } : track
+			)
+		};
+		expect(() => rippleDeleteGap(locked, videoTrack.id, gapStart, gapEnd)).toThrow('locked');
 	});
 
 	it('ripple trims a clip and shifts following clips across tracks', () => {

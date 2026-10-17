@@ -61,6 +61,29 @@ export default function PreviewWorkspace({
 
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [isFullscreen, setIsFullscreen] = useState(false);
+	const [isIdle, setIsIdle] = useState(false);
+	const idleTimeoutRef = useRef<number | null>(null);
+
+	const resetIdleTimer = useCallback(() => {
+		setIsIdle(false);
+		if (idleTimeoutRef.current) {
+			window.clearTimeout(idleTimeoutRef.current);
+		}
+		if (isFullscreen && engine?.snapshot.playing) {
+			idleTimeoutRef.current = window.setTimeout(() => {
+				setIsIdle(true);
+			}, 2500);
+		}
+	}, [engine?.snapshot.playing, isFullscreen]);
+
+	useEffect(() => {
+		if (!isFullscreen) {
+			setIsIdle(false);
+			if (idleTimeoutRef.current) {
+				window.clearTimeout(idleTimeoutRef.current);
+			}
+		}
+	}, [isFullscreen]);
 
 	const toggleFullscreen = useCallback(() => {
 		const container = containerRef.current;
@@ -84,7 +107,12 @@ export default function PreviewWorkspace({
 	}, []);
 
 	return (
-		<div ref={containerRef} className="preview-panel-content">
+		<div
+			ref={containerRef}
+			className={`preview-panel-content ${isFullscreen ? 'is-fullscreen' : ''} ${isIdle && isFullscreen ? 'is-idle' : ''}`}
+			onMouseMove={resetIdleTimer}
+			onPointerDown={resetIdleTimer}
+		>
 			<div
 				className="preview-stage-row"
 				style={{ display: 'flex', flex: 1, minHeight: 0, width: '100%' }}

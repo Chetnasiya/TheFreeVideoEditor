@@ -998,6 +998,77 @@
 	pointer-events: none;
 }
 
+/* Timeline Gap (empty space between clips) */
+.timeline-gap {
+	position: absolute;
+	top: 0.45rem;
+	height: calc(100% - 0.9rem);
+	box-sizing: border-box;
+	cursor: pointer;
+	z-index: 1;
+	border-radius: var(--radius-sm);
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.timeline-gap:hover:not(.is-selected) {
+	background-color: rgba(255, 255, 255, 0.05);
+	outline: 1px dashed rgba(255, 255, 255, 0.25);
+	outline-offset: -1px;
+}
+
+.timeline-gap.is-selected {
+	z-index: 15;
+	background-color: rgba(56, 189, 248, 0.2);
+	background-image: repeating-linear-gradient(
+		-45deg,
+		rgba(56, 189, 248, 0.12),
+		rgba(56, 189, 248, 0.12) 8px,
+		rgba(56, 189, 248, 0.28) 8px,
+		rgba(56, 189, 248, 0.28) 16px
+	);
+	border: 1.5px solid #38bdf8;
+	box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4), inset 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.timeline-gap-selected-indicator {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+	overflow: hidden;
+}
+
+.timeline-gap-ripple-btn {
+	pointer-events: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: 24px;
+	padding: 0 8px;
+	border-radius: 4px;
+	background: #0284c7;
+	border: 1px solid #38bdf8;
+	color: #ffffff;
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+	transition: all 0.15s ease;
+	white-space: nowrap;
+}
+
+.timeline-gap-ripple-btn:hover {
+	background: #0369a1;
+	border-color: #7dd3fc;
+	transform: scale(1.05);
+}
+
+.timeline-gap-ripple-btn:active {
+	transform: scale(0.97);
+}
+
 .timeline-clip {
 	position: absolute;
 	top: 0.45rem;

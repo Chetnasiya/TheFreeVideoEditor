@@ -22,7 +22,7 @@ export class CompatibilityFrameProvider {
 
 	async prepare(layers: readonly ActiveLayer[], signal?: AbortSignal): Promise<void> {
 		for (const item of this.prepared.values()) {
-			if (item instanceof ImageBitmap) item.close();
+			if (typeof ImageBitmap !== 'undefined' && item instanceof ImageBitmap) item.close();
 		}
 		this.prepared.clear();
 
@@ -46,8 +46,7 @@ export class CompatibilityFrameProvider {
 			const layerKey = layer.instanceKey ?? layer.clipId;
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
 			if (layer.kind === 'shape' && layer.shapeData) {
-				const scale = Math.max(layer.transform?.scaleX ?? 1, layer.transform?.scaleY ?? 1);
-				const shapeCanvas = rasterizeShape(layer.shapeData, scale);
+				const shapeCanvas = rasterizeShape(layer.shapeData);
 				this.prepared.set(layerKey, shapeCanvas.canvas as unknown as CanvasImageSource);
 				continue;
 			}
@@ -152,7 +151,7 @@ export class CompatibilityFrameProvider {
 		for (const image of this.images.values()) image.close();
 		this.images.clear();
 		for (const item of this.prepared.values()) {
-			if (item instanceof ImageBitmap) item.close();
+			if (typeof ImageBitmap !== 'undefined' && item instanceof ImageBitmap) item.close();
 		}
 		this.prepared.clear();
 	}

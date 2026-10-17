@@ -666,7 +666,10 @@ export default function ClipView({
 					return;
 				}
 				if (event.button !== 0) return;
-				onSelect(clip.id, event);
+				const hasModifiers = event.shiftKey || event.ctrlKey || event.metaKey;
+				if (!selected || hasModifiers) {
+					onSelect(clip.id, event);
+				}
 				if (!(event.target instanceof HTMLElement && event.target.closest('.clip-trim-handle'))) {
 					onPointerDown(event, clip);
 				}

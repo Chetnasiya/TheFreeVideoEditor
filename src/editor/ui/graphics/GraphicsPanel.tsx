@@ -9,6 +9,7 @@ import {
 } from '../../core/text/graphicsTemplates';
 import { readProperty } from '../../core/properties';
 import { ColorPickerField } from '../inspector/ColorPickerField';
+import { setTransparentDragImage, startDragGhost, stopDragGhost } from '../drag/dragOverlayService';
 import type { Clip, GraphicFrameStyle } from '../../core/types';
 import './graphics.css';
 
@@ -305,6 +306,12 @@ export default function GraphicsPanel() {
 
 	// Drag start handler for timeline drop
 	const handleDragStart = (e: DragEvent, template: GraphicTemplate) => {
+		setTransparentDragImage(e.dataTransfer);
+		startDragGhost({
+			title: template.name,
+			kind: 'graphic',
+			badge: template.category
+		});
 		e.dataTransfer.setData('application/x-tfve-graphic-template', template.id);
 		e.dataTransfer.setData('application/x-tfve-graphic-name', template.name);
 		e.dataTransfer.setData('text/plain', template.id);
@@ -711,7 +718,10 @@ export default function GraphicsPanel() {
 										className="graphic-card"
 										draggable
 										onDragStart={(e) => handleDragStart(e, template)}
-										onDragEnd={() => store.getState().cancelTimelineDrag()}
+										onDragEnd={() => {
+											stopDragGhost();
+											store.getState().cancelTimelineDrag();
+										}}
 										onDoubleClick={() => handleAddTemplate(template)}
 										role="listitem"
 										aria-label={`${template.name} graphic template`}
@@ -723,7 +733,16 @@ export default function GraphicsPanel() {
 											style={{ background: template.previewColors.background }}
 										>
 											<div className="graphic-motion-badge">
-												<span>⚡</span>
+												<svg
+													width="10"
+													height="10"
+													viewBox="0 0 24 24"
+													fill="currentColor"
+													stroke="none"
+													aria-hidden="true"
+												>
+													<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+												</svg>
 												<span>{template.animationPresetId}</span>
 											</div>
 
@@ -769,7 +788,20 @@ export default function GraphicsPanel() {
 							<>
 								<div className="graphics-selected-banner">
 									<div className="graphics-selected-title">
-										<span>✏</span>
+										<svg
+											width="13"
+											height="13"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="2"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											aria-hidden="true"
+										>
+											<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+											<path d="m15 5 4 4" />
+										</svg>
 										<span>Selected Graphic</span>
 									</div>
 									<div className="graphics-banner-actions">
@@ -1111,7 +1143,21 @@ export default function GraphicsPanel() {
 							</>
 						) : (
 							<div className="graphics-empty-state">
-								<div className="graphics-empty-icon">✨</div>
+								<div className="graphics-empty-icon">
+									<svg
+										width="24"
+										height="24"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										aria-hidden="true"
+									>
+										<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z" />
+									</svg>
+								</div>
 								<div className="graphics-empty-title">No Text Clip Selected</div>
 								<div className="graphics-empty-desc">
 									Select any text or graphic clip on the timeline to edit its lines, colors, and

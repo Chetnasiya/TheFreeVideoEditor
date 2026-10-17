@@ -9,6 +9,7 @@ import {
 import { isTransitionsEnabled } from '../../core/transitions';
 import type { EffectDefinition } from '../../core/effects/types';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import { setTransparentDragImage, startDragGhost, stopDragGhost } from '../drag/dragOverlayService';
 import './effects.css';
 
 type MainTab = 'video' | 'transitions' | 'audio';
@@ -189,6 +190,12 @@ export default function EffectsLibrary() {
 	};
 
 	const handleDragStart = (e: DragEvent, def: EffectDefinition) => {
+		setTransparentDragImage(e.dataTransfer);
+		startDragGhost({
+			title: def.name,
+			kind: 'effect',
+			badge: def.category
+		});
 		e.dataTransfer.setData('application/x-tfve-effect', def.id);
 		e.dataTransfer.setData('application/x-tfve-effect-name', def.name);
 		e.dataTransfer.setData('text/plain', def.id);
@@ -304,6 +311,7 @@ export default function EffectsLibrary() {
 								className="effect-card"
 								draggable
 								onDragStart={(e) => handleDragStart(e, def)}
+								onDragEnd={() => stopDragGhost()}
 								onDoubleClick={() => handleAddEffect(def)}
 								onKeyDown={(e) => {
 									if (e.key === 'Enter') handleAddEffect(def);
@@ -341,10 +349,17 @@ export default function EffectsLibrary() {
 								className="effect-card"
 								draggable
 								onDragStart={(e) => {
+									setTransparentDragImage(e.dataTransfer);
+									startDragGhost({
+										title: def.name,
+										kind: 'transition',
+										badge: 'TRANSITION'
+									});
 									e.dataTransfer.setData('application/x-tfve-transition', def.id);
 									e.dataTransfer.setData('text/plain', def.id);
 									e.dataTransfer.effectAllowed = 'copy';
 								}}
+								onDragEnd={() => stopDragGhost()}
 								onDoubleClick={() => handleAddTransition(def)}
 								onKeyDown={(e) => {
 									if (e.key === 'Enter') handleAddTransition(def);
@@ -382,11 +397,18 @@ export default function EffectsLibrary() {
 								className="effect-card"
 								draggable
 								onDragStart={(e) => {
+									setTransparentDragImage(e.dataTransfer);
+									startDragGhost({
+										title: def.name,
+										kind: 'effect',
+										badge: 'AUDIO FX'
+									});
 									e.dataTransfer.setData('application/x-tfve-audio-effect', def.id);
 									e.dataTransfer.setData('application/x-tfve-effect-name', def.name);
 									e.dataTransfer.setData('text/plain', def.id);
 									e.dataTransfer.effectAllowed = 'copy';
 								}}
+								onDragEnd={() => stopDragGhost()}
 								onDoubleClick={() => handleAddAudioEffect(def)}
 								onKeyDown={(e) => {
 									if (e.key === 'Enter') handleAddAudioEffect(def);

@@ -365,7 +365,14 @@ export default function ExportDialog() {
 	useEffect(() => {
 		const dialog = dialogRef.current;
 		if (!dialog) return;
-		if (open && !dialog.open) dialog.showModal();
+		if (open && !dialog.open) {
+			dialog.showModal();
+			setNotice('');
+			setErrorMessage('');
+			setProgress(null);
+			setIsRunning(false);
+			setCancelConfirmation(false);
+		}
 		if (!open && dialog.open && !isRunning) dialog.close();
 	}, [isRunning, open]);
 
@@ -579,6 +586,22 @@ export default function ExportDialog() {
 						]);
 					}
 				}
+				if (dialogRef.current?.open) {
+					dialogRef.current.close();
+				}
+				const durationSec = durationSeconds > 0 ? durationSeconds : undefined;
+				editorStore.getState().openExportCompleteDialog({
+					filename: settings.filename.replace(/\.[^.]+$/, '.webm'),
+					format: 'WEBM',
+					width: settings.width,
+					height: settings.height,
+					fps: settings.fps,
+					durationSec,
+					fileSizeBytes: result.blob.size,
+					blob: result.blob,
+					warnings: exportWarnings.length > 0 ? exportWarnings : undefined,
+					notice: 'Compatibility export uses real-time browser recording.'
+				});
 				setNotice(
 					[
 						'Compatibility export uses real-time browser recording. Some frames may be dropped on slower devices.',
@@ -659,6 +682,24 @@ export default function ExportDialog() {
 					? `${videoFormat.toUpperCase()} export complete. ${fallbackNotice || 'The yielding main-thread encoder was used; the editor may respond more slowly.'}`
 					: `${videoFormat.toUpperCase()} video export complete.`;
 			setNotice([completionNotice, ...exportWarnings].join(' '));
+
+			if (dialogRef.current?.open) {
+				dialogRef.current.close();
+			}
+			const durationSec = durationSeconds > 0 ? durationSeconds : undefined;
+			const fileSizeBytes = result.blob ? result.blob.size : result.bytes;
+			editorStore.getState().openExportCompleteDialog({
+				filename: settings.filename,
+				format: videoFormat.toUpperCase(),
+				width: settings.width,
+				height: settings.height,
+				fps: settings.fps,
+				durationSec,
+				fileSizeBytes,
+				blob: result.blob ?? undefined,
+				warnings: exportWarnings.length > 0 ? exportWarnings : undefined,
+				notice: fallbackNotice || undefined
+			});
 		} catch (error) {
 			if (
 				isAbortError(error) ||
@@ -694,6 +735,7 @@ export default function ExportDialog() {
 		setErrorMessage('');
 		setNotice('');
 		setPackageProgress(null);
+		let finalBlob: Blob | undefined;
 		try {
 			unregister = registerProjectExport(snapshot.id, controller);
 			if (packageFile) {
@@ -738,20 +780,33 @@ export default function ExportDialog() {
 							type: 'application/zip'
 						}
 					);
+					finalBlob = blob;
 					await saveFile(blob, suggestedName, interchangeFileTypes(interchangeFormat, packageFile));
 				}
 			} else {
 				const contents = exportRuntime.exportInterchangeFile(snapshot, interchangeFormat);
 				const mimeType = interchangeFormat === 'otio' ? 'application/json' : 'application/xml';
+				finalBlob = new Blob([contents], { type: `${mimeType};charset=utf-8` });
 				await saveFile(
-					new Blob([contents], { type: `${mimeType};charset=utf-8` }),
+					finalBlob,
 					suggestedName,
 					interchangeFileTypes(interchangeFormat, false)
 				);
 			}
+			const interchangeLabel =
+				INTERCHANGE_FORMATS.find((item) => item.value === interchangeFormat)?.label ?? 'Project';
 			setNotice(
-				`${INTERCHANGE_FORMATS.find((item) => item.value === interchangeFormat)?.label ?? 'Project'} export complete.`
+				`${interchangeLabel} export complete.`
 			);
+			if (dialogRef.current?.open) {
+				dialogRef.current.close();
+			}
+			editorStore.getState().openExportCompleteDialog({
+				filename: suggestedName,
+				format: interchangeFormat.toUpperCase(),
+				fileSizeBytes: finalBlob ? finalBlob.size : undefined,
+				blob: finalBlob
+			});
 		} catch (error) {
 			if (isAbortError(error)) setNotice('Export cancelled. No output file was saved.');
 			else setErrorMessage(errorText(error));
