@@ -64,6 +64,22 @@ describe('hashTextConfig', () => {
 		expect(key1).not.toBe(key2);
 	});
 
+	it('changes hash when gradientAngle changes for linear-angle', () => {
+		const key1 = hashTextConfig({
+			...baseConfig,
+			gradientType: 'linear-angle',
+			gradientColorEnd: { r: 1, g: 0.5, b: 0, a: 1 },
+			gradientAngle: 45
+		});
+		const key2 = hashTextConfig({
+			...baseConfig,
+			gradientType: 'linear-angle',
+			gradientColorEnd: { r: 1, g: 0.5, b: 0, a: 1 },
+			gradientAngle: 135
+		});
+		expect(key1).not.toBe(key2);
+	});
+
 	it('changes hash when frameStyle changes to new styles', () => {
 		const key1 = hashTextConfig(baseConfig);
 		const key2 = hashTextConfig({

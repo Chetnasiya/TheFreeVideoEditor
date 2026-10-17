@@ -1195,6 +1195,31 @@ export default function GraphicsPanel() {
 											value={fillColorValue}
 											onChange={handleFillColorChange}
 											label="Fill Color"
+											gradient={
+												selectedClip?.source?.type === 'text'
+													? {
+															type: selectedClip.source.box?.gradientType ?? 'none',
+															colorEnd: selectedClip.source.box?.gradientColorEnd,
+															angle: selectedClip.source.box?.gradientAngle ?? 90
+														}
+													: undefined
+											}
+											onGradientChange={
+												selectedClip && isTextClipSelected
+													? ({ type, colorEnd, angle }) => {
+															store.getState().setTextBox(selectedClip.id, {
+																gradientType: type,
+																gradientColorEnd: {
+																	r: colorEnd[0],
+																	g: colorEnd[1],
+																	b: colorEnd[2],
+																	a: colorEnd[3]
+																},
+																gradientAngle: angle
+															});
+														}
+													: undefined
+											}
 										/>
 									</div>
 									<div className="graphics-field-group" style={{ flex: 1 }}>

@@ -48,8 +48,9 @@ export interface TextRasterConfig {
 		| 'callout-pointer'
 		| 'cinematic-box';
 	badgeText?: string;
-	gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial';
+	gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle';
 	gradientColorEnd?: { r: number; g: number; b: number; a: number };
+	gradientAngle?: number;
 	colorRuns?: TextColorRun[];
 	scale?: number;
 }
@@ -438,6 +439,16 @@ export function rasterizeText(
 			const cx = boxW / 2;
 			const cy = boxH / 2;
 			grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(boxW, boxH) / 2);
+		} else if (config.gradientType === 'linear-angle') {
+			const angleRad = ((config.gradientAngle ?? 45) * Math.PI) / 180;
+			const halfDiag = Math.sqrt(boxW * boxW + boxH * boxH) / 2;
+			const cx = boxW / 2;
+			const cy = boxH / 2;
+			const x0 = cx - Math.cos(angleRad) * halfDiag;
+			const y0 = cy - Math.sin(angleRad) * halfDiag;
+			const x1 = cx + Math.cos(angleRad) * halfDiag;
+			const y1 = cy + Math.sin(angleRad) * halfDiag;
+			grad = ctx.createLinearGradient(x0, y0, x1, y1);
 		} else {
 			grad = ctx.createLinearGradient(0, 0, boxW, 0);
 		}
@@ -698,7 +709,7 @@ export function hashTextConfig(config: TextRasterConfig): string {
 		.join(';');
 	const gradKey =
 		config.gradientType && config.gradientType !== 'none' && config.gradientColorEnd
-			? `${config.gradientType}:${Math.round(config.gradientColorEnd.r * 255)},${Math.round(config.gradientColorEnd.g * 255)},${Math.round(config.gradientColorEnd.b * 255)},${config.gradientColorEnd.a}`
+			? `${config.gradientType}:${Math.round(config.gradientColorEnd.r * 255)},${Math.round(config.gradientColorEnd.g * 255)},${Math.round(config.gradientColorEnd.b * 255)},${config.gradientColorEnd.a}:${config.gradientAngle ?? 0}`
 			: '0';
 	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${revealUnit}#${shadow}#${bg}#${borderKey}#${barKey}#${frameKey}#${badgeKey}#${runsKey}#${gradKey}#${text}`;
 }

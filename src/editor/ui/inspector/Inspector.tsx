@@ -196,7 +196,8 @@ export default function Inspector() {
 	const isShapeExpanded = inspector.expanded.shape !== false;
 	const isSolid = selectedClip.source?.type === 'solid';
 	const isSolidExpanded = inspector.expanded.solid !== false;
-	const hasAudio = !isText && !isShape && (clipTrack?.kind === 'audio' || (clipAsset?.hasAudio ?? false));
+	const hasAudio =
+		!isText && !isShape && (clipTrack?.kind === 'audio' || (clipAsset?.hasAudio ?? false));
 
 	const kindLabel = isText
 		? 'Text'
@@ -275,11 +276,7 @@ export default function Inspector() {
 						</span>
 					</button>
 					{isShapeExpanded && (
-						<ShapeSection
-							clip={selectedClip}
-							localTime={localTime}
-							fps={project.settings.fps}
-						/>
+						<ShapeSection clip={selectedClip} localTime={localTime} fps={project.settings.fps} />
 					)}
 				</section>
 			)}
@@ -295,7 +292,7 @@ export default function Inspector() {
 					>
 						<span className="inspector-section-title">
 							<ChevronIcon />
-							Solid Color
+							Solid / Gradient Color
 						</span>
 					</button>
 					{isSolidExpanded && (
@@ -314,6 +311,23 @@ export default function Inspector() {
 									}}
 									label="Solid Color"
 									hasAlpha={true}
+									gradient={{
+										type: selectedClip.source.gradientType ?? 'none',
+										colorEnd: selectedClip.source.gradientColorEnd,
+										angle: selectedClip.source.gradientAngle ?? 90
+									}}
+									onGradientChange={({ type, colorEnd, angle }) => {
+										store.getState().setSolidGradient(selectedClip.id, {
+											gradientType: type,
+											gradientColorEnd: {
+												r: colorEnd[0],
+												g: colorEnd[1],
+												b: colorEnd[2],
+												a: colorEnd[3]
+											},
+											gradientAngle: angle
+										});
+									}}
 								/>
 							</div>
 						</div>
@@ -943,6 +957,31 @@ export function PropertyRow({
 						}}
 						label={desc.label}
 						hasAlpha={true}
+						gradient={
+							propertyId === 'text.fillColor' && clip.source?.type === 'text'
+								? {
+										type: clip.source.box?.gradientType ?? 'none',
+										colorEnd: clip.source.box?.gradientColorEnd,
+										angle: clip.source.box?.gradientAngle ?? 90
+									}
+								: undefined
+						}
+						onGradientChange={
+							propertyId === 'text.fillColor' && clip.source?.type === 'text'
+								? ({ type, colorEnd, angle }) => {
+										store.getState().setTextGradient(clip.id, {
+											gradientType: type,
+											gradientColorEnd: {
+												r: colorEnd[0],
+												g: colorEnd[1],
+												b: colorEnd[2],
+												a: colorEnd[3]
+											},
+											gradientAngle: angle
+										});
+									}
+								: undefined
+						}
 					/>
 				) : (
 					<div className="property-inputs">

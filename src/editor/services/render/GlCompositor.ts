@@ -9,7 +9,12 @@ import {
 	type FrameSource,
 	type LastGoodFrames
 } from '../playback/compositor';
-import { RenderContext, type GlCanvas, type RenderContextOptions } from './RenderContext';
+import {
+	RenderContext,
+	create2DCanvas,
+	type GlCanvas,
+	type RenderContextOptions
+} from './RenderContext';
 import type { RenderStats } from './stats';
 import { FboPool, type PooledFbo } from './passes/FboPool';
 import { ShaderPassManager } from './passes/ShaderPass';
@@ -110,6 +115,7 @@ export class GlCompositor implements FrameRenderer {
 	private fboPool: FboPool;
 	private passManager: ShaderPassManager;
 	private solidTexture: WebGLTexture | null = null;
+	private solidGradientTextures = new Map<string, WebGLTexture>();
 	private lutProvider: ((id: string) => ParsedLut3D | null) | null = getParsedLut;
 	private scopesEnabled = false;
 	private lastScopeFrame: ScopeFrameData | null = null;
@@ -132,6 +138,10 @@ export class GlCompositor implements FrameRenderer {
 					this.context.gl.deleteTexture(this.solidTexture);
 					this.solidTexture = null;
 				}
+				for (const tex of this.solidGradientTextures.values()) {
+					this.context.gl.deleteTexture(tex);
+				}
+				this.solidGradientTextures.clear();
 				this.context.stats.texturesDeleted += this.textures.size;
 				this.textures.clear();
 				this.vao = null;
@@ -404,7 +414,12 @@ export class GlCompositor implements FrameRenderer {
 			if (layer.kind === 'solid') {
 				// Solid clip: create 1x1 solid texture
 				const color = layer.solidColor ?? { r: 0, g: 0, b: 0, a: 1 };
-				const solidTex = this.getSolidTexture(color);
+				const solidTex = this.getSolidTexture(
+					color,
+					layer.solidGradientType,
+					layer.solidGradientColorEnd,
+					layer.solidGradientAngle
+				);
 				let currentTex = solidTex;
 				const fbosToRelease: PooledFbo[] = [];
 
@@ -847,8 +862,76 @@ export class GlCompositor implements FrameRenderer {
 		return res instanceof VideoFrame ? res : null;
 	}
 
-	private getSolidTexture(color: { r: number; g: number; b: number; a: number }): WebGLTexture {
+	private getSolidTexture(
+		color: { r: number; g: number; b: number; a: number },
+		gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle',
+		gradientColorEnd?: { r: number; g: number; b: number; a: number },
+		gradientAngle?: number
+	): WebGLTexture {
 		const gl = this.context.gl;
+
+		if (gradientType && gradientType !== 'none' && gradientColorEnd) {
+			const key = `${color.r},${color.g},${color.b},${color.a}_${gradientType}_${gradientColorEnd.r},${gradientColorEnd.g},${gradientColorEnd.b},${gradientColorEnd.a}_${gradientAngle ?? 0}`;
+			const cached = this.solidGradientTextures.get(key);
+			if (cached) return cached;
+
+			const size = 256;
+			const canvas = create2DCanvas(size, size);
+			if (!canvas) {
+				return this.getSolidTexture(color);
+			}
+
+			const ctx = canvas.getContext('2d') as
+				CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+			if (!ctx) return this.getSolidTexture(color);
+
+			const startStr = `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${color.a})`;
+			const endStr = `rgba(${Math.round(gradientColorEnd.r * 255)}, ${Math.round(gradientColorEnd.g * 255)}, ${Math.round(gradientColorEnd.b * 255)}, ${gradientColorEnd.a})`;
+			let grad: CanvasGradient;
+
+			if (gradientType === 'linear-vertical') {
+				grad = ctx.createLinearGradient(0, 0, 0, size);
+			} else if (gradientType === 'radial') {
+				grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+			} else if (gradientType === 'linear-angle') {
+				const rad = ((gradientAngle ?? 45) * Math.PI) / 180;
+				const halfDiag = (size * Math.SQRT2) / 2;
+				const cx = size / 2;
+				const cy = size / 2;
+				const x0 = cx - Math.cos(rad) * halfDiag;
+				const y0 = cy - Math.sin(rad) * halfDiag;
+				const x1 = cx + Math.cos(rad) * halfDiag;
+				const y1 = cy + Math.sin(rad) * halfDiag;
+				grad = ctx.createLinearGradient(x0, y0, x1, y1);
+			} else {
+				grad = ctx.createLinearGradient(0, 0, size, 0);
+			}
+
+			grad.addColorStop(0, startStr);
+			grad.addColorStop(1, endStr);
+			ctx.fillStyle = grad;
+			ctx.fillRect(0, 0, size, size);
+
+			const tex = gl.createTexture()!;
+			gl.bindTexture(gl.TEXTURE_2D, tex);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas as TexImageSource);
+
+			if (this.solidGradientTextures.size > 32) {
+				const firstKey = this.solidGradientTextures.keys().next().value;
+				if (firstKey) {
+					const oldTex = this.solidGradientTextures.get(firstKey);
+					if (oldTex) gl.deleteTexture(oldTex);
+					this.solidGradientTextures.delete(firstKey);
+				}
+			}
+			this.solidGradientTextures.set(key, tex);
+			return tex;
+		}
+
 		if (!this.solidTexture) {
 			this.solidTexture = gl.createTexture()!;
 			gl.bindTexture(gl.TEXTURE_2D, this.solidTexture);
@@ -936,7 +1019,12 @@ export class GlCompositor implements FrameRenderer {
 
 		if (layer.kind === 'solid') {
 			const color = layer.solidColor ?? { r: 0, g: 0, b: 0, a: 1 };
-			const solidTex = this.getSolidTexture(color);
+			const solidTex = this.getSolidTexture(
+				color,
+				layer.solidGradientType,
+				layer.solidGradientColorEnd,
+				layer.solidGradientAngle
+			);
 			let currentTex = solidTex;
 			const fbosToRelease: PooledFbo[] = [];
 
@@ -1145,6 +1233,10 @@ export class GlCompositor implements FrameRenderer {
 			this.context.gl.deleteTexture(this.solidTexture);
 			this.solidTexture = null;
 		}
+		for (const tex of this.solidGradientTextures.values()) {
+			if (!this.context.lost) this.context.gl.deleteTexture(tex);
+		}
+		this.solidGradientTextures.clear();
 		if (this.colorConversionPass) {
 			this.colorConversionPass.dispose();
 			this.colorConversionPass = null;

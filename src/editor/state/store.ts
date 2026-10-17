@@ -899,6 +899,22 @@ export interface EditorState {
 		clipId: ClipId,
 		color: { r: number; g: number; b: number; a?: number }
 	) => boolean;
+	setSolidGradient: (
+		clipId: ClipId,
+		options: {
+			gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle';
+			gradientColorEnd?: { r: number; g: number; b: number; a: number };
+			gradientAngle?: number;
+		}
+	) => boolean;
+	setTextGradient: (
+		clipId: ClipId,
+		options: {
+			gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle';
+			gradientColorEnd?: { r: number; g: number; b: number; a: number };
+			gradientAngle?: number;
+		}
+	) => boolean;
 	// Shape actions
 	addShapeClip: (
 		configOrOptions?: Partial<import('../core/shapes/shapeTypes').ShapeConfig> & {
@@ -7031,6 +7047,40 @@ export function createEditorStore() {
 					} catch {
 						return false;
 					}
+				},
+
+				setSolidGradient(clipId, options) {
+					const activeSeqId = get().activeSequenceId;
+					try {
+						mutateProject(
+							'Update solid gradient',
+							(proj) =>
+								applyToSequence(proj, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'solid') return c;
+											return {
+												...c,
+												source: {
+													...c.source,
+													...options
+												}
+											};
+										})
+									}))
+								})),
+							{ history: 'record', mergeKey: `solid-gradient-${clipId}` }
+						);
+						return true;
+					} catch {
+						return false;
+					}
+				},
+
+				setTextGradient(clipId, options) {
+					return get().setTextBox(clipId, options);
 				},
 
 				setProjectProxySettings(settings) {

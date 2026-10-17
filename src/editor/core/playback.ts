@@ -134,6 +134,9 @@ export interface ActiveLayer {
 	/** Source insets [left, top, right, bottom] as fractions; the visible part keeps its position. */
 	crop?: Crop;
 	solidColor?: { r: number; g: number; b: number; a: number };
+	solidGradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle';
+	solidGradientColorEnd?: { r: number; g: number; b: number; a: number };
+	solidGradientAngle?: number;
 	shapeData?: import('./shapes/shapeTypes').ShapeConfig;
 	/** Text content and evaluated styling for text layers */
 	textData?: {
@@ -160,8 +163,9 @@ export interface ActiveLayer {
 		accentBarWidth?: number;
 		frameStyle?: import('./types').GraphicFrameStyle;
 		badgeText?: string;
-		gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial';
+		gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle';
 		gradientColorEnd?: { r: number; g: number; b: number; a: number };
+		gradientAngle?: number;
 		colorRuns?: Array<{
 			startIndex: number;
 			endIndex: number;
@@ -430,6 +434,9 @@ export function resolveFrame(
 					sourceTime: localTime,
 					kind: 'solid',
 					solidColor: clip.source.color,
+					solidGradientType: clip.source.gradientType,
+					solidGradientColorEnd: clip.source.gradientColorEnd,
+					solidGradientAngle: clip.source.gradientAngle,
 					opacity: 1,
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
@@ -522,7 +529,10 @@ export function resolveFrame(
 						shadowColor,
 						shadowBlur,
 						shadowOffsetX,
-						shadowOffsetY
+						shadowOffsetY,
+						gradientType: shapeSource.gradientType,
+						gradientColorEnd: shapeSource.gradientColorEnd,
+						gradientAngle: shapeSource.gradientAngle
 					},
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
@@ -627,6 +637,7 @@ export function resolveFrame(
 				const badgeText = clip.source.box?.badgeText;
 				const gradientType = clip.source.box?.gradientType;
 				const gradientColorEnd = clip.source.box?.gradientColorEnd;
+				const gradientAngle = clip.source.box?.gradientAngle;
 
 				const colorRuns =
 					'colorRuns' in clip.source && Array.isArray(clip.source.colorRuns)
@@ -669,6 +680,7 @@ export function resolveFrame(
 						badgeText,
 						gradientType,
 						gradientColorEnd,
+						gradientAngle,
 						colorRuns
 					},
 					masks: evaluatedMasks,
@@ -961,6 +973,9 @@ export function resolveFrame(
 						sourceTime: localTime,
 						kind: 'solid',
 						solidColor: clip.source.color,
+						solidGradientType: clip.source.gradientType,
+						solidGradientColorEnd: clip.source.gradientColorEnd,
+						solidGradientAngle: clip.source.gradientAngle,
 						opacity: 1,
 						masks: evaluatedMasks,
 						effects: evaluatedEffects,

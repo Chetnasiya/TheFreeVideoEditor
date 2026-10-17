@@ -99,6 +99,7 @@ export class ExportFrameProvider {
 					badgeText: data.badgeText,
 					gradientType: data.gradientType,
 					gradientColorEnd: data.gradientColorEnd,
+					gradientAngle: data.gradientAngle,
 					colorRuns: data.colorRuns,
 					scale
 				});

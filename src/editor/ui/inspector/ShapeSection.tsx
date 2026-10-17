@@ -224,6 +224,23 @@ export function ShapeSection({ clip }: ShapeSectionProps) {
 						value={fillColor}
 						onChange={([r, g, b, a]) => handleUpdate({ fillColor: { r, g, b, a } })}
 						hasAlpha={true}
+						gradient={{
+							type: shapeSource.gradientType ?? 'none',
+							colorEnd: shapeSource.gradientColorEnd,
+							angle: shapeSource.gradientAngle ?? 90
+						}}
+						onGradientChange={({ type, colorEnd, angle }) =>
+							handleUpdate({
+								gradientType: type,
+								gradientColorEnd: {
+									r: colorEnd[0],
+									g: colorEnd[1],
+									b: colorEnd[2],
+									a: colorEnd[3]
+								},
+								gradientAngle: angle
+							})
+						}
 					/>
 				</div>
 			)}

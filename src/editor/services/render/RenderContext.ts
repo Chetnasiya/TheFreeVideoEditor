@@ -57,6 +57,19 @@ export function probeWebGL2(): boolean {
 	return false;
 }
 
+export function create2DCanvas(width: number, height: number): GlCanvas | null {
+	if (typeof OffscreenCanvas !== 'undefined') {
+		return new OffscreenCanvas(width, height);
+	}
+	if (typeof document !== 'undefined') {
+		const canvas = document.createElement('canvas');
+		canvas.width = width;
+		canvas.height = height;
+		return canvas;
+	}
+	return null;
+}
+
 function compile(
 	gl: WebGL2RenderingContext,
 	type: number,

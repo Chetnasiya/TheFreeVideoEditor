@@ -340,4 +340,103 @@ describe('Shapes Core Feature & Library', () => {
 			globalThis.OffscreenCanvas = originalOffscreen;
 		}
 	});
+
+	it('Rasterizes shapes with all gradient types (linear-horizontal, linear-vertical, linear-angle, radial)', () => {
+		const originalOffscreen = globalThis.OffscreenCanvas;
+		class FakeOffscreenCanvas {
+			width: number;
+			height: number;
+			constructor(w: number, h: number) {
+				this.width = w;
+				this.height = h;
+			}
+			getContext() {
+				return {
+					clearRect() {},
+					beginPath() {},
+					rect() {},
+					roundRect() {},
+					arc() {},
+					arcTo() {},
+					ellipse() {},
+					moveTo() {},
+					lineTo() {},
+					closePath() {},
+					fill() {},
+					stroke() {},
+					createLinearGradient() {
+						return { addColorStop() {} };
+					},
+					createRadialGradient() {
+						return { addColorStop() {} };
+					},
+					save() {},
+					restore() {},
+					setLineDash() {}
+				};
+			}
+		}
+		globalThis.OffscreenCanvas = FakeOffscreenCanvas as unknown as typeof OffscreenCanvas;
+
+		try {
+			const gradientTypes = [
+				'linear-horizontal',
+				'linear-vertical',
+				'linear-angle',
+				'radial'
+			] as const;
+
+			for (const gType of gradientTypes) {
+				const rendered = rasterizeShape({
+					shapeType: 'rounded-rect',
+					width: 200,
+					height: 120,
+					fillColor: { r: 1, g: 0.2, b: 0.3, a: 1 },
+					gradientType: gType,
+					gradientColorEnd: { r: 0.1, g: 0.5, b: 0.9, a: 1 },
+					gradientAngle: 60,
+					cornerRadius: 12
+				});
+
+				expect(rendered).toBeDefined();
+				expect(rendered.width).toBeGreaterThan(0);
+				expect(rendered.height).toBeGreaterThan(0);
+				expect(rendered.canvas.width).toBeGreaterThan(0);
+			}
+		} finally {
+			globalThis.OffscreenCanvas = originalOffscreen;
+		}
+	});
+
+	it('Store updateShapeProperties modifies gradient properties on shape clip', () => {
+		const store = createEditorStore();
+		const project = createEmptyProject({ name: 'Gradient Shape' });
+		store.setState({ project });
+
+		const clipId = store.getState().addShapeClip({
+			shapeType: 'circle',
+			width: 150,
+			height: 150,
+			fillColor: { r: 0.2, g: 0.8, b: 0.2, a: 1 }
+		});
+		expect(clipId).toBeTruthy();
+
+		// Apply gradient
+		const updated = store.getState().updateShapeProperties(clipId!, {
+			gradientType: 'linear-angle',
+			gradientColorEnd: { r: 0.9, g: 0.6, b: 0.1, a: 1 },
+			gradientAngle: 120
+		});
+		expect(updated).toBe(true);
+
+		const updatedTracks = store.getState().project?.tracks;
+		const clip = updatedTracks?.flatMap((t) => t.clips).find((c) => c.id === clipId);
+		expect(clip).toBeDefined();
+		expect(clip?.source?.type).toBe('shape');
+		if (clip?.source?.type === 'shape') {
+			expect(clip.source.gradientType).toBe('linear-angle');
+			expect(clip.source.gradientColorEnd).toEqual({ r: 0.9, g: 0.6, b: 0.1, a: 1 });
+			expect(clip.source.gradientAngle).toBe(120);
+		}
+	});
 });

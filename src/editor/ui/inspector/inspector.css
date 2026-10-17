@@ -1257,7 +1257,11 @@
 		linear-gradient(45deg, transparent 75%, #333 75%),
 		linear-gradient(-45deg, transparent 75%, #333 75%);
 	background-size: 6px 6px;
-	background-position: 0 0, 0 3px, 3px -3px, -3px 0;
+	background-position:
+		0 0,
+		0 3px,
+		3px -3px,
+		-3px 0;
 	overflow: hidden;
 	flex-shrink: 0;
 }
@@ -2404,4 +2408,205 @@
 
 :root[data-theme='light'] .transition-checkbox-label {
 	color: #334155;
+}
+
+/* Color Picker Gradient Extensions */
+.color-mode-tabs {
+	display: flex;
+	background: #141418;
+	border: 1px solid #27272a;
+	border-radius: var(--radius-sm, 4px);
+	padding: 2px;
+	gap: 2px;
+	margin-bottom: 6px;
+}
+
+.color-mode-tab {
+	flex: 1;
+	padding: 3px 6px;
+	font-size: 10px;
+	font-weight: 500;
+	color: var(--color-mute, #a1a1aa);
+	background: transparent;
+	border: none;
+	border-radius: 3px;
+	cursor: pointer;
+	text-align: center;
+	transition: all 0.15s ease;
+}
+
+.color-mode-tab:hover {
+	color: var(--color-ink, #f4f4f5);
+}
+
+.color-mode-tab.is-active {
+	background: #27272a;
+	color: #38bdf8;
+	font-weight: 600;
+}
+
+.color-gradient-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 6px;
+	background: #121216;
+	border: 1px solid #232328;
+	border-radius: var(--radius-sm, 4px);
+	padding: 6px;
+}
+
+.color-gradient-types-row {
+	display: flex;
+	gap: 3px;
+}
+
+.color-gradient-type-btn {
+	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	padding: 3px 4px;
+	font-size: 9.5px;
+	background: #18181f;
+	border: 1px solid #2e2e38;
+	color: #94a3b8;
+	border-radius: 3px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.color-gradient-type-btn:hover {
+	border-color: #38bdf8;
+	color: #f8fafc;
+}
+
+.color-gradient-type-btn.is-active {
+	background: rgba(56, 189, 248, 0.15);
+	border-color: #38bdf8;
+	color: #38bdf8;
+	font-weight: 600;
+}
+
+.color-gradient-preview-bar {
+	width: 100%;
+	height: 18px;
+	border-radius: 3px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.color-gradient-stops-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+}
+
+.color-gradient-stop-chip {
+	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 6px;
+	background: #1c1c24;
+	border: 1px solid #32323e;
+	border-radius: 3px;
+	cursor: pointer;
+	font-size: 10px;
+	color: #94a3b8;
+	transition: all 0.15s ease;
+}
+
+.color-gradient-stop-chip:hover {
+	border-color: #38bdf8;
+	color: #f1f5f9;
+}
+
+.color-gradient-stop-chip.is-active {
+	border-color: #38bdf8;
+	background: rgba(56, 189, 248, 0.12);
+	color: #38bdf8;
+	font-weight: 600;
+}
+
+.color-gradient-stop-swatch {
+	width: 12px;
+	height: 12px;
+	border-radius: 2px;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	flex-shrink: 0;
+}
+
+.color-gradient-swap-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	background: #18181f;
+	border: 1px solid #2e2e38;
+	border-radius: 3px;
+	color: #94a3b8;
+	cursor: pointer;
+	font-size: 11px;
+	transition: all 0.15s ease;
+}
+
+.color-gradient-swap-btn:hover {
+	border-color: #38bdf8;
+	color: #38bdf8;
+	transform: scale(1.05);
+}
+
+.color-gradient-angle-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 2px;
+}
+
+.color-gradient-angle-label {
+	font-size: 9.5px;
+	color: #94a3b8;
+	width: 32px;
+}
+
+.color-gradient-angle-slider {
+	flex: 1;
+	height: 4px;
+	accent-color: #38bdf8;
+	cursor: pointer;
+}
+
+.color-gradient-angle-val {
+	font-family: var(--font-mono, monospace);
+	font-size: 9.5px;
+	color: #e2e8f0;
+	width: 28px;
+	text-align: right;
+}
+
+.color-gradient-presets-grid {
+	display: grid;
+	grid-template-columns: repeat(8, 1fr);
+	gap: 3px;
+	padding-top: 2px;
+}
+
+.color-gradient-preset-swatch {
+	height: 16px;
+	border-radius: 2px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	cursor: pointer;
+	transition:
+		transform 0.1s ease,
+		border-color 0.15s ease;
+}
+
+.color-gradient-preset-swatch:hover {
+	transform: scale(1.15);
+	border-color: #ffffff;
+	z-index: 2;
 }

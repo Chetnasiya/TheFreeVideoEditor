@@ -82,6 +82,7 @@ export class CompatibilityFrameProvider {
 					badgeText: data.badgeText,
 					gradientType: data.gradientType,
 					gradientColorEnd: data.gradientColorEnd,
+					gradientAngle: data.gradientAngle,
 					colorRuns: data.colorRuns,
 					scale
 				});

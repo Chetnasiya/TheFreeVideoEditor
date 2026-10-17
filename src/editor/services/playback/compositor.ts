@@ -26,6 +26,15 @@ export interface CompositionContext {
 	globalCompositeOperation?: GlobalCompositeOperation;
 	clearRect(x: number, y: number, width: number, height: number): void;
 	fillRect(x: number, y: number, width: number, height: number): void;
+	createLinearGradient?(x0: number, y0: number, x1: number, y1: number): CanvasGradient;
+	createRadialGradient?(
+		x0: number,
+		y0: number,
+		r0: number,
+		x1: number,
+		y1: number,
+		r1: number
+	): CanvasGradient;
 	drawImage(
 		image: CanvasImageSource | VideoFrame,
 		x: number,
@@ -68,6 +77,59 @@ function sourceDimensions(source: FrameSource): { width: number; height: number 
 	return { width: 0, height: 0 };
 }
 
+function applySolidFill(
+	context: CompositionContext,
+	color: { r: number; g: number; b: number; a: number },
+	gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle',
+	gradientColorEnd?: { r: number; g: number; b: number; a: number },
+	gradientAngle?: number,
+	rect?: { x: number; y: number; width: number; height: number }
+): void {
+	if (
+		gradientType &&
+		gradientType !== 'none' &&
+		gradientColorEnd &&
+		rect &&
+		typeof context.createLinearGradient === 'function' &&
+		typeof context.createRadialGradient === 'function'
+	) {
+		const startStr = `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${color.a})`;
+		const endStr = `rgba(${Math.round(gradientColorEnd.r * 255)}, ${Math.round(gradientColorEnd.g * 255)}, ${Math.round(gradientColorEnd.b * 255)}, ${gradientColorEnd.a})`;
+		let grad: CanvasGradient;
+		const { x, y, width: w, height: h } = rect;
+		if (gradientType === 'linear-vertical') {
+			grad = context.createLinearGradient(x, y, x, y + h);
+		} else if (gradientType === 'radial') {
+			grad = context.createRadialGradient(
+				x + w / 2,
+				y + h / 2,
+				0,
+				x + w / 2,
+				y + h / 2,
+				Math.max(w, h) / 2
+			);
+		} else if (gradientType === 'linear-angle') {
+			const rad = ((gradientAngle ?? 45) * Math.PI) / 180;
+			const halfDiag = Math.sqrt(w * w + h * h) / 2;
+			const cx = x + w / 2;
+			const cy = y + h / 2;
+			grad = context.createLinearGradient(
+				cx - Math.cos(rad) * halfDiag,
+				cy - Math.sin(rad) * halfDiag,
+				cx + Math.cos(rad) * halfDiag,
+				cy + Math.sin(rad) * halfDiag
+			);
+		} else {
+			grad = context.createLinearGradient(x, y, x + w, y);
+		}
+		grad.addColorStop(0, startStr);
+		grad.addColorStop(1, endStr);
+		context.fillStyle = grad;
+	} else {
+		context.fillStyle = `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${color.a})`;
+	}
+}
+
 export function renderFrame(
 	context: CompositionContext,
 	size: CompositionSize,
@@ -102,7 +164,19 @@ export function renderFrame(
 						height: size.height * (1 - cropTop - cropBottom)
 					};
 					const drawSolid = (offsetX: number, offsetY: number): void => {
-						context.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`;
+						applySolidFill(
+							context,
+							c,
+							sub.solidGradientType,
+							sub.solidGradientColorEnd,
+							sub.solidGradientAngle,
+							{
+								x: drawRect.x - offsetX,
+								y: drawRect.y - offsetY,
+								width: drawRect.width,
+								height: drawRect.height
+							}
+						);
 						context.fillRect(
 							drawRect.x - offsetX,
 							drawRect.y - offsetY,
@@ -210,7 +284,19 @@ export function renderFrame(
 				height: size.height * (1 - cropTop - cropBottom)
 			};
 			const drawSolid = (offsetX: number, offsetY: number): void => {
-				context.fillStyle = `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${c.a})`;
+				applySolidFill(
+					context,
+					c,
+					layer.solidGradientType,
+					layer.solidGradientColorEnd,
+					layer.solidGradientAngle,
+					{
+						x: drawRect.x - offsetX,
+						y: drawRect.y - offsetY,
+						width: drawRect.width,
+						height: drawRect.height
+					}
+				);
 				context.fillRect(
 					drawRect.x - offsetX,
 					drawRect.y - offsetY,

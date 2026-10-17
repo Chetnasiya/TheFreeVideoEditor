@@ -35,6 +35,9 @@ export interface ShapeConfig {
 	shadowBlur?: number;
 	shadowOffsetX?: number;
 	shadowOffsetY?: number;
+	gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle';
+	gradientColorEnd?: RgbaColor;
+	gradientAngle?: number;
 }
 
 export interface ShapePreset {
@@ -294,4 +297,3 @@ export const SHAPE_PRESETS: ShapePreset[] = [
 		}
 	}
 ];
-

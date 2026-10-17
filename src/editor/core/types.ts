@@ -159,8 +159,9 @@ export interface TextBox {
 	borderRadius?: number;
 	accentBarColor?: { r: number; g: number; b: number; a: number };
 	accentBarWidth?: number;
-	gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial';
+	gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle';
 	gradientColorEnd?: { r: number; g: number; b: number; a: number };
+	gradientAngle?: number;
 }
 
 export interface TextColorRun {
@@ -182,7 +183,13 @@ export type ClipSource =
 			animationPresetId?: string;
 	  }
 	| { type: 'sequence'; sequenceId: SequenceId }
-	| { type: 'solid'; color: { r: number; g: number; b: number; a: number } }
+	| {
+			type: 'solid';
+			color: { r: number; g: number; b: number; a: number };
+			gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle';
+			gradientColorEnd?: { r: number; g: number; b: number; a: number };
+			gradientAngle?: number;
+	  }
 	| { type: 'adjustment' }
 	| {
 			type: 'shape';
@@ -200,6 +207,9 @@ export type ClipSource =
 			shadowBlur?: number;
 			shadowOffsetX?: number;
 			shadowOffsetY?: number;
+			gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial' | 'linear-angle';
+			gradientColorEnd?: { r: number; g: number; b: number; a: number };
+			gradientAngle?: number;
 	  };
 
 export interface MaskPoint {

@@ -747,7 +747,9 @@ LUT_3D_SIZE 2
 		// 4. Add Solid Layer - since existing video tracks already have clips, it MUST be added in a new track!
 		const solidClipId = store.getState().addSolidLayer('#ff5500');
 		expect(solidClipId).toBeTruthy();
-		const videoTracksAfterSolid = store.getState().project!.tracks.filter((t) => t.kind === 'video');
+		const videoTracksAfterSolid = store
+			.getState()
+			.project!.tracks.filter((t) => t.kind === 'video');
 		expect(videoTracksAfterSolid.length).toBe(4);
 		const solidTrack = videoTracksAfterSolid.find((t) => t.clips.some((c) => c.id === solidClipId));
 		expect(solidTrack).toBeDefined();
@@ -755,9 +757,13 @@ LUT_3D_SIZE 2
 		// 5. Add Graphic Template Layer - since existing video tracks already have clips, it MUST be added in a new track!
 		const graphicClipId = store.getState().addGraphicClip('modern-clean');
 		expect(graphicClipId).toBeTruthy();
-		const videoTracksAfterGraphic = store.getState().project!.tracks.filter((t) => t.kind === 'video');
+		const videoTracksAfterGraphic = store
+			.getState()
+			.project!.tracks.filter((t) => t.kind === 'video');
 		expect(videoTracksAfterGraphic.length).toBe(5);
-		const graphicTrack = videoTracksAfterGraphic.find((t) => t.clips.some((c) => c.id === graphicClipId));
+		const graphicTrack = videoTracksAfterGraphic.find((t) =>
+			t.clips.some((c) => c.id === graphicClipId)
+		);
 		expect(graphicTrack).toBeDefined();
 
 		// 6. Add Caption Layer - creates first caption track
@@ -770,7 +776,10 @@ LUT_3D_SIZE 2
 		expect(secondCapId).toBeTruthy();
 		const captionTracks = store.getState().project!.tracks.filter((t) => t.kind === 'caption');
 		expect(captionTracks.length).toBe(2);
-		expect(captionTracks[0]!.captions?.some((c) => c.id === secondCapId) || captionTracks[1]!.captions?.some((c) => c.id === secondCapId)).toBe(true);
+		expect(
+			captionTracks[0]!.captions?.some((c) => c.id === secondCapId) ||
+				captionTracks[1]!.captions?.some((c) => c.id === secondCapId)
+		).toBe(true);
 		expect(captionTracks[0]!.id).not.toBe(captionTracks[1]!.id);
 
 		// 8. ONLY add track if there is another clip in that range:
@@ -778,14 +787,18 @@ LUT_3D_SIZE 2
 		store.getState().setPlayhead(20_000_000);
 		const nonOverlapTextId = store.getState().addTextClip({ text: 'Non Overlapping' });
 		expect(nonOverlapTextId).toBeTruthy();
-		const videoTracksAfterNonOverlap = store.getState().project!.tracks.filter((t) => t.kind === 'video');
+		const videoTracksAfterNonOverlap = store
+			.getState()
+			.project!.tracks.filter((t) => t.kind === 'video');
 		expect(videoTracksAfterNonOverlap.length).toBe(5); // Still 5 tracks, no unnecessary track added!
 
 		// When playhead is at 10s (no caption cues in range 10s-12s), adding caption MUST NOT add a new caption track!
 		store.getState().setPlayhead(10_000_000);
 		const nonOverlapCapId = store.getState().addCaptionAtPlayhead('Caption 3');
 		expect(nonOverlapCapId).toBeTruthy();
-		const captionTracksAfterNonOverlap = store.getState().project!.tracks.filter((t) => t.kind === 'caption');
+		const captionTracksAfterNonOverlap = store
+			.getState()
+			.project!.tracks.filter((t) => t.kind === 'caption');
 		expect(captionTracksAfterNonOverlap.length).toBe(2); // Still 2 caption tracks!
 	});
 
@@ -806,7 +819,10 @@ LUT_3D_SIZE 2
 		store.getState().setPlayhead(9_000_000);
 		const text2 = store.getState().addTextClip({ text: 'Text 2' });
 		expect(text2).toBeTruthy();
-		console.log('Video tracks count after 9s text:', store.getState().project!.tracks.filter((t) => t.kind === 'video').length);
+		console.log(
+			'Video tracks count after 9s text:',
+			store.getState().project!.tracks.filter((t) => t.kind === 'video').length
+		);
 		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(2);
 
 		// At 15s, add text -> Video 2 is free in 15s-20s!
@@ -903,5 +919,52 @@ LUT_3D_SIZE 2
 		store.getState().closeExportCompleteDialog();
 		expect(store.getState().exportCompletedResult).toBeNull();
 	});
-});
 
+	it('updates solid and text gradients via setSolidGradient and setTextGradient', async () => {
+		const store = createEditorStore();
+		await store.getState().createProject({ name: 'Gradient Store Test' });
+
+		const solidId = store.getState().addSolidLayer('#3b82f6')!;
+		expect(solidId).toBeTruthy();
+
+		const solidUpdated = store.getState().setSolidGradient(solidId, {
+			gradientType: 'linear-vertical',
+			gradientColorEnd: { r: 1, g: 0.8, b: 0.2, a: 1 },
+			gradientAngle: 90
+		});
+		expect(solidUpdated).toBe(true);
+
+		const solidClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === solidId);
+		expect(solidClip?.source?.type).toBe('solid');
+		if (solidClip?.source?.type === 'solid') {
+			expect(solidClip.source.gradientType).toBe('linear-vertical');
+			expect(solidClip.source.gradientColorEnd).toEqual({ r: 1, g: 0.8, b: 0.2, a: 1 });
+			expect(solidClip.source.gradientAngle).toBe(90);
+		}
+
+		// Add a graphic or text clip and set gradient
+		const graphicId = store.getState().addGraphicClip('minimal-clean');
+		expect(graphicId).toBeTruthy();
+
+		const textUpdated = store.getState().setTextGradient(graphicId!, {
+			gradientType: 'linear-angle',
+			gradientColorEnd: { r: 0.9, g: 0.1, b: 0.5, a: 1 },
+			gradientAngle: 45
+		});
+		expect(textUpdated).toBe(true);
+
+		const textClip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === graphicId);
+		expect(textClip?.source?.type).toBe('text');
+		if (textClip?.source?.type === 'text') {
+			expect(textClip.source.box?.gradientType).toBe('linear-angle');
+			expect(textClip.source.box?.gradientColorEnd).toEqual({ r: 0.9, g: 0.1, b: 0.5, a: 1 });
+			expect(textClip.source.box?.gradientAngle).toBe(45);
+		}
+	});
+});

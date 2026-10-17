@@ -1,4 +1,4 @@
-import { useState, useMemo, type DragEvent } from 'react';
+import { useState, useMemo, useId, type DragEvent } from 'react';
 import { useEditorStoreApi } from '../../state/EditorProvider';
 import { SHAPE_PRESETS, type ShapeConfig, type RgbaColor } from '../../core/shapes/shapeTypes';
 import { trackFeatureUsed } from '../../../services/activityTracking';
@@ -20,7 +20,16 @@ export function ShapeSvgPreview({ config }: { config: ShapeConfig }) {
 	const h = config.height || 100;
 	const strokeWidth = config.strokeWidth ?? 2;
 	const stroke = rgbaToString(config.strokeColor ?? { r: 1, g: 1, b: 1, a: 0.9 });
-	const fill = config.shapeType === 'line' ? 'transparent' : rgbaToString(config.fillColor);
+	const hasGradient =
+		config.shapeType !== 'line' &&
+		Boolean(config.gradientType && config.gradientType !== 'none' && config.gradientColorEnd);
+	const gradId = useId();
+	const fill =
+		config.shapeType === 'line'
+			? 'transparent'
+			: hasGradient
+				? `url(#${gradId})`
+				: rgbaToString(config.fillColor);
 	const dash =
 		config.strokeStyle === 'dashed' ? '6,4' : config.strokeStyle === 'dotted' ? '2,3' : undefined;
 
@@ -33,6 +42,42 @@ export function ShapeSvgPreview({ config }: { config: ShapeConfig }) {
 
 	return (
 		<svg viewBox={viewBox} width="100%" height="100%" style={{ overflow: 'visible' }}>
+			{hasGradient && (
+				<defs>
+					{config.gradientType === 'linear-vertical' && (
+						<linearGradient id={gradId} x1="0%" y1="0%" x2="0%" y2="100%">
+							<stop offset="0%" stopColor={rgbaToString(config.fillColor)} />
+							<stop offset="100%" stopColor={rgbaToString(config.gradientColorEnd)} />
+						</linearGradient>
+					)}
+					{config.gradientType === 'linear-horizontal' && (
+						<linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+							<stop offset="0%" stopColor={rgbaToString(config.fillColor)} />
+							<stop offset="100%" stopColor={rgbaToString(config.gradientColorEnd)} />
+						</linearGradient>
+					)}
+					{config.gradientType === 'radial' && (
+						<radialGradient id={gradId} cx="50%" cy="50%" r="50%">
+							<stop offset="0%" stopColor={rgbaToString(config.fillColor)} />
+							<stop offset="100%" stopColor={rgbaToString(config.gradientColorEnd)} />
+						</radialGradient>
+					)}
+					{config.gradientType === 'linear-angle' &&
+						(() => {
+							const angleRad = ((config.gradientAngle ?? 45) * Math.PI) / 180;
+							const x1 = Math.round(50 - 50 * Math.cos(angleRad));
+							const y1 = Math.round(50 - 50 * Math.sin(angleRad));
+							const x2 = Math.round(50 + 50 * Math.cos(angleRad));
+							const y2 = Math.round(50 + 50 * Math.sin(angleRad));
+							return (
+								<linearGradient id={gradId} x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`}>
+									<stop offset="0%" stopColor={rgbaToString(config.fillColor)} />
+									<stop offset="100%" stopColor={rgbaToString(config.gradientColorEnd)} />
+								</linearGradient>
+							);
+						})()}
+				</defs>
+			)}
 			{config.shapeType === 'rect' && (
 				<rect
 					x={x}
@@ -448,6 +493,24 @@ export function ShapesPanel() {
 									setCustomConfig((prev) => ({ ...prev, fillColor: { r, g, b, a } }))
 								}
 								hasAlpha={true}
+								gradient={{
+									type: customConfig.gradientType ?? 'none',
+									colorEnd: customConfig.gradientColorEnd,
+									angle: customConfig.gradientAngle ?? 90
+								}}
+								onGradientChange={({ type, colorEnd, angle }) =>
+									setCustomConfig((prev) => ({
+										...prev,
+										gradientType: type,
+										gradientColorEnd: {
+											r: colorEnd[0],
+											g: colorEnd[1],
+											b: colorEnd[2],
+											a: colorEnd[3]
+										},
+										gradientAngle: angle
+									}))
+								}
 							/>
 						)}
 
