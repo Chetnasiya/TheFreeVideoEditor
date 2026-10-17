@@ -59,14 +59,16 @@ export default function TransportBar({
 
 	return (
 		<div className={`preview-transport ${isFullscreen ? 'is-fullscreen' : ''}`} role="toolbar" aria-label="Program playback controls">
-			{/* YouTube-like Timeline Scrubber */}
-			<YouTubeTimelineScrubber
-				engine={engine}
-				time={time}
-				duration={duration}
-				fps={fps}
-				isFullscreen={isFullscreen}
-			/>
+			{/* Timeline Scrubber in Fullscreen Preview Only */}
+			{isFullscreen && (
+				<YouTubeTimelineScrubber
+					engine={engine}
+					time={time}
+					duration={duration}
+					fps={fps}
+					isFullscreen={true}
+				/>
+			)}
 
 			{/* Row 1: Primary transport navigation, playhead, timecode */}
 			<div className="preview-transport-row preview-transport-row-primary">

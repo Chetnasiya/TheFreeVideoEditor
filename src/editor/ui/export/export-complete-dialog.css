@@ -304,6 +304,38 @@
 	margin-top: 4px;
 }
 
+.export-complete-actions .secondary-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	    margin-bottom: 7px;
+
+	height: 36px;
+	min-height: 36px;
+	padding: 0 16px;
+	font-weight: 500;
+	font-size: 13px;
+	border-radius: 8px;
+	border: 1px solid #2a2a3c;
+	background: #161622;
+	color: #94a3b8;
+	cursor: pointer;
+	box-sizing: border-box;
+	transition: all 0.15s ease;
+}
+
+.export-complete-actions .secondary-button:hover:not(:disabled) {
+	border-color: #38bdf8;
+	background: #1c1c2c;
+	color: #f1f5f9;
+	transform: translateY(-1px);
+}
+
+.export-complete-actions .secondary-button:active:not(:disabled) {
+	transform: translateY(0);
+}
+
 .export-complete-done-btn {
 	display: inline-flex;
 	align-items: center;

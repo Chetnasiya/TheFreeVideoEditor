@@ -1984,6 +1984,8 @@
 	gap: 10px;
 }
 
+.project-row-actions > button,
+.project-row-rename > button,
 .dialog-actions > button,
 .dialog-footer > button,
 .dialog-actions .secondary-button,
@@ -2005,6 +2007,8 @@
 	margin: 0;
 }
 
+.project-row-actions .secondary-button,
+.project-row-rename .secondary-button,
 .dialog-actions .secondary-button,
 .dialog-footer .secondary-button,
 .dialog-actions .cancel-button,
@@ -2020,6 +2024,8 @@
 	transition: all 0.15s ease;
 }
 
+.project-row-actions .secondary-button:hover:not(:disabled),
+.project-row-rename .secondary-button:hover:not(:disabled),
 .dialog-actions .secondary-button:hover:not(:disabled),
 .dialog-footer .secondary-button:hover:not(:disabled),
 .dialog-actions .cancel-button:hover:not(:disabled),
