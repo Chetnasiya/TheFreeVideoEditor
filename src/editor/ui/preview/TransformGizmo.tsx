@@ -136,6 +136,25 @@ export default function TransformGizmo({
 				}
 			};
 		}
+		if (selectedClip?.source?.type === 'shape') {
+			const w =
+				(readProperty(selectedClip, 'shape.width', localTime) as number) ??
+				selectedClip.source.width ??
+				300;
+			const h =
+				(readProperty(selectedClip, 'shape.height', localTime) as number) ??
+				selectedClip.source.height ??
+				200;
+			return {
+				sourceWidth: w,
+				sourceHeight: h,
+				width: project.settings.width,
+				height: project.settings.height,
+				crop,
+				fit: 'none',
+				kind: 'shape'
+			};
+		}
 		const asset = selectedClip?.assetId ? project.assets[selectedClip.assetId] : undefined;
 		return {
 			sourceWidth: asset?.width ?? project.settings.width,

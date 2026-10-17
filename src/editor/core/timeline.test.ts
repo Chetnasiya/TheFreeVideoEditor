@@ -411,7 +411,7 @@ describe('timeline queries and clip operations', () => {
 		expect(reordered.tracks.at(-1)?.id).toBe(audioTrack.id);
 	});
 
-	it('rearranges caption tracks among themselves without dropping to the bottom', () => {
+	it('rearranges caption tracks among visual tracks without dropping into audio', () => {
 		const project = videoProject();
 		// Add two caption tracks
 		const withCap1 = addTrack(project, 'caption');
@@ -430,27 +430,33 @@ describe('timeline queries and clip operations', () => {
 		expect(reordered.tracks[2]?.kind).toBe('video');
 		expect(reordered.tracks[3]?.kind).toBe('audio');
 
-		// Reorder first caption track downwards towards bottom (e.g. target index 99)
-		// Should clamp strictly within the caption zone (index 1), NEVER dropping below video or into audio
-		const clamped = reorderTrack(reordered, secondCap!.id, 99);
-		expect(clamped.tracks[0]?.id).toBe(firstCap!.id);
-		expect(clamped.tracks[1]?.id).toBe(secondCap!.id);
-		expect(clamped.tracks[2]?.kind).toBe('video');
-		expect(clamped.tracks[3]?.kind).toBe('audio');
+		// Move first caption track below video (index 2)
+		const movedBelowVideo = reorderTrack(reordered, firstCap!.id, 2);
+		expect(movedBelowVideo.tracks.map((t) => t.kind)).toEqual(['caption', 'video', 'caption', 'audio']);
+
+		// Reorder caption track downwards towards bottom (e.g. target index 99)
+		// Should clamp strictly within the visual zone (above audio), NEVER dropping into audio
+		const clamped = reorderTrack(movedBelowVideo, secondCap!.id, 99);
+		expect(clamped.tracks.map((t) => t.kind)).toEqual(['video', 'caption', 'caption', 'audio']);
 	});
 
-	it('keeps a single caption track at the top and prevents dragging it to the bottom', () => {
+	it('allows a caption track to move below video tracks and prevents dragging into audio', () => {
 		const project = videoProject();
 		const withCap = addTrack(project, 'caption');
 		const capTrack = withCap.tracks.find((t) => t.kind === 'caption')!;
 
 		expect(withCap.tracks[0]?.id).toBe(capTrack.id);
 
-		// Attempting to reorder single caption track anywhere (e.g. index 5, 2, or 1)
-		// should remain safely at index 0 and never drop to the bottom
+		// Move caption track below video track (index 1)
+		const reorderedDown = reorderTrack(withCap, capTrack.id, 1);
+		expect(reorderedDown.tracks[0]?.kind).toBe('video');
+		expect(reorderedDown.tracks[1]?.id).toBe(capTrack.id);
+		expect(reorderedDown.tracks.map((t) => t.kind)).toEqual(['video', 'caption', 'audio']);
+
+		// Attempting to reorder caption track to index 99 clamps strictly above audio
 		const reorderedBottom = reorderTrack(withCap, capTrack.id, 99);
-		expect(reorderedBottom.tracks[0]?.id).toBe(capTrack.id);
-		expect(reorderedBottom.tracks.map((t) => t.kind)).toEqual(['caption', 'video', 'audio']);
+		expect(reorderedBottom.tracks[1]?.id).toBe(capTrack.id);
+		expect(reorderedBottom.tracks.map((t) => t.kind)).toEqual(['video', 'caption', 'audio']);
 	});
 
 	it('preserves the no-overlap invariant over 500 generated placements and edits', () => {

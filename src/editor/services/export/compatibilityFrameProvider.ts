@@ -2,6 +2,7 @@ import type { ActiveLayer, AssetId, Project } from '../../core';
 import { getMediaFile } from '../storage/opfs';
 import { rasterizeText } from '../render/text/rasterizer';
 import { ensureFontLoaded } from '../render/text/fontLoader';
+import { rasterizeShape } from '../render/shapes/shapeRasterizer';
 
 interface VideoEntry {
 	video: HTMLVideoElement;
@@ -44,6 +45,12 @@ export class CompatibilityFrameProvider {
 		for (const layer of allLayers) {
 			const layerKey = layer.instanceKey ?? layer.clipId;
 			if (signal?.aborted) throw new DOMException('Export cancelled.', 'AbortError');
+			if (layer.kind === 'shape' && layer.shapeData) {
+				const scale = Math.max(layer.transform?.scaleX ?? 1, layer.transform?.scaleY ?? 1);
+				const shapeCanvas = rasterizeShape(layer.shapeData, scale);
+				this.prepared.set(layerKey, shapeCanvas.canvas as unknown as CanvasImageSource);
+				continue;
+			}
 			if (layer.kind === 'text' && layer.textData) {
 				const data = layer.textData;
 				if (data.style.fontFamily) {

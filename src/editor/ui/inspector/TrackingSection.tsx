@@ -14,14 +14,18 @@ function getClipLabel(targetClip: Clip, project: Project | null): string {
 		return `T "${text.length > 20 ? text.slice(0, 18) + '…' : text}"`;
 	}
 	if (targetClip.source?.type === 'solid') {
-		return '■ Solid Color';
+		return 'Solid Color';
 	}
 	if (targetClip.source?.type === 'adjustment') {
-		return '⚡ Adjustment Layer';
+		return 'Adjustment Layer';
+	}
+	if (targetClip.source?.type === 'shape') {
+		const shapeType = targetClip.source.shapeType ?? 'Shape';
+		return `Shape (${shapeType})`;
 	}
 	if (targetClip.assetId && project?.assets[targetClip.assetId]) {
 		const asset = project.assets[targetClip.assetId]!;
-		return `${asset.kind === 'image' ? '🖼️ ' : '🎬 '}${asset.name}`;
+		return `[${asset.kind === 'image' ? 'Image' : 'Video'}] ${asset.name}`;
 	}
 	return targetClip.id;
 }
@@ -169,7 +173,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 						type="button"
 						onClick={() => handleAddTracker('point')}
 						className="tracking-action-btn-primary"
-						aria-label="+ Add Point Tracker"
+						aria-label="Add Point Tracker"
 					>
 						<svg
 							width="12"
@@ -183,7 +187,7 @@ export function TrackingSection({ clip }: TrackingSectionProps) {
 							<line x1="12" y1="5" x2="12" y2="19" />
 							<line x1="5" y1="12" x2="19" y2="12" />
 						</svg>
-						<span>+ Add Point Tracker</span>
+						<span>Add Point Tracker</span>
 					</button>
 				</div>
 			) : (

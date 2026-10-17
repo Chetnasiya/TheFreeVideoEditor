@@ -4,6 +4,7 @@ import MediaLibrary from '../media-library/MediaLibrary';
 import EffectsLibrary from '../effects/EffectsLibrary';
 import { CaptionsPanel } from '../captions/CaptionsPanel';
 import GraphicsPanel from '../graphics/GraphicsPanel';
+import ShapesPanel from '../shapes/ShapesPanel';
 import SourceMonitor from '../preview/SourceMonitor';
 import PreviewWorkspace from '../preview/PreviewWorkspace';
 import Inspector from '../inspector/Inspector';
@@ -44,8 +45,16 @@ export const PANEL_REGISTRY: Record<PanelId, PanelDefinition> = {
 	},
 	graphics: {
 		id: 'graphics',
-		title: 'Graphics',
+		title: 'Titles',
 		component: GraphicsPanel as ComponentType<{ [key: string]: unknown }>,
+		singleInstance: true,
+		keepAlive: false,
+		minSize: { width: 220, height: 180 }
+	},
+	shapes: {
+		id: 'shapes',
+		title: 'Shapes',
+		component: ShapesPanel as ComponentType<{ [key: string]: unknown }>,
 		singleInstance: true,
 		keepAlive: false,
 		minSize: { width: 220, height: 180 }

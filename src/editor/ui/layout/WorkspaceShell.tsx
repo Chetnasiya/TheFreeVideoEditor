@@ -445,6 +445,8 @@ function StackRenderer({
 										? 'captions-panel-title'
 										: panelId === 'graphics'
 											? 'graphics-panel-title'
+											: panelId === 'shapes'
+												? 'shapes-panel-title'
 											: panelId === 'inspector'
 												? 'inspector-title'
 												: panelId === 'color'
@@ -515,6 +517,7 @@ function StackRenderer({
 						effects: 'effects-panel',
 						captions: 'captions-panel',
 						graphics: 'graphics-panel',
+						shapes: 'shapes-panel',
 						source: 'source-panel',
 						program: 'program-panel',
 						inspector: 'inspector-panel',

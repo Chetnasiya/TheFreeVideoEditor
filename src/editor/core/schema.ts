@@ -127,7 +127,24 @@ export const clipSourceSchema = z.discriminatedUnion('type', [
 	}),
 	z.object({ type: z.literal('sequence'), sequenceId: z.string().min(1) }),
 	z.object({ type: z.literal('solid'), color: colorSchema }),
-	z.object({ type: z.literal('adjustment') })
+	z.object({ type: z.literal('adjustment') }),
+	z.object({
+		type: z.literal('shape'),
+		shapeType: z.string(),
+		width: z.number().positive(),
+		height: z.number().positive(),
+		fillColor: colorSchema,
+		strokeColor: colorSchema.optional(),
+		strokeWidth: z.number().nonnegative().optional(),
+		strokeStyle: z.enum(['solid', 'dashed', 'dotted']).optional(),
+		cornerRadius: z.number().nonnegative().optional(),
+		points: z.number().nonnegative().optional(),
+		innerRadius: z.number().nonnegative().optional(),
+		shadowColor: colorSchema.optional(),
+		shadowBlur: z.number().nonnegative().optional(),
+		shadowOffsetX: z.number().optional(),
+		shadowOffsetY: z.number().optional()
+	})
 ]) as unknown as z.ZodType<ClipSource>;
 
 export const maskPointSchema = z.object({
@@ -487,7 +504,7 @@ export const captionSegmentSchema = z.object({
 	speaker: z.string().optional()
 });
 
-export const captionPositionPresetSchema = z.enum(['bottom', 'center', 'top']);
+export const captionPositionPresetSchema = z.enum(['bottom', 'center', 'top', 'custom']);
 export const captionHighlightModeSchema = z.enum(['none', 'word', 'progressive']);
 
 export const captionStyleSchema = z.object({
@@ -506,6 +523,8 @@ export const captionStyleSchema = z.object({
 	shadowOffsetX: z.number().optional(),
 	shadowOffsetY: z.number().optional(),
 	positionPreset: captionPositionPresetSchema,
+	customX: z.number().optional(),
+	customY: z.number().optional(),
 	alignment: z.enum(['left', 'center', 'right']),
 	marginPercent: z.number().min(0).max(50).optional(),
 	maxLines: z.number().int().min(1).max(5),

@@ -10,6 +10,7 @@ import TransformGizmo from './TransformGizmo';
 import MaskOverlay from './MaskOverlay';
 import TextInlineEditor from './TextInlineEditor';
 import { TrackingOverlay } from './TrackingOverlay';
+import CaptionOverlay from './CaptionOverlay';
 
 interface PreviewPlayerProps {
 	project: Project | null;
@@ -92,6 +93,11 @@ export default function PreviewPlayer({
 							renderedHeight={renderedHeight}
 						/>
 						<TrackingOverlay
+							project={activeProject ?? project}
+							renderedWidth={renderedWidth}
+							renderedHeight={renderedHeight}
+						/>
+						<CaptionOverlay
 							project={activeProject ?? project}
 							renderedWidth={renderedWidth}
 							renderedHeight={renderedHeight}

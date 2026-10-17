@@ -110,9 +110,9 @@ const TOOLS: ToolItem[] = [
 	},
 	{
 		id: 'type',
-		label: 'Type Tool',
+		label: 'Text Tool',
 		shortcut: 'T',
-		description: 'Create horizontal text layers and titles over your video track',
+		description: 'Add text layer at playhead',
 		icon: (
 			<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true">
 				{/* Clean bold capital T */}
@@ -126,9 +126,17 @@ interface TimelineToolsProps {
 	activeTool: TimelineTool;
 	onSelectTool: (tool: TimelineTool) => void;
 	onAddMarker?: () => void;
+	onAddText?: () => void;
+	onAddShape?: () => void;
 }
 
-export function TimelineTools({ activeTool, onSelectTool, onAddMarker }: TimelineToolsProps) {
+export function TimelineTools({
+	activeTool,
+	onSelectTool,
+	onAddMarker,
+	onAddText,
+	onAddShape
+}: TimelineToolsProps) {
 	return (
 		<aside
 			className="timeline-toolstrip"
@@ -137,8 +145,8 @@ export function TimelineTools({ activeTool, onSelectTool, onAddMarker }: Timelin
 			aria-orientation="vertical"
 		>
 			{TOOLS.map((tool) => {
-				const isMarkAction = tool.id === 'mark';
-				const isActive = !isMarkAction && activeTool === tool.id;
+				const isAction = tool.id === 'mark' || tool.id === 'type' || tool.id === 'rect';
+				const isActive = !isAction && activeTool === tool.id;
 				const title = tool.shortcut
 					? `${tool.label} (${tool.shortcut}) – ${tool.description}`
 					: `${tool.label} – ${tool.description}`;
@@ -153,6 +161,18 @@ export function TimelineTools({ activeTool, onSelectTool, onAddMarker }: Timelin
 						onClick={() => {
 							if (tool.id === 'mark') {
 								onAddMarker?.();
+							} else if (tool.id === 'type') {
+								if (onAddText) {
+									onAddText();
+								} else {
+									onSelectTool(tool.id);
+								}
+							} else if (tool.id === 'rect') {
+								if (onAddShape) {
+									onAddShape();
+								} else {
+									onSelectTool(tool.id);
+								}
 							} else {
 								onSelectTool(tool.id);
 							}

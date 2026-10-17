@@ -36,7 +36,7 @@ export const PRESET_EDITING: Workspace = {
 				children: [
 					{
 						type: 'stack',
-						panelIds: ['media', 'effects', 'captions', 'graphics'],
+						panelIds: ['captions', 'graphics', 'shapes', 'media', 'effects'],
 						activeId: 'media'
 					},
 					{
@@ -346,7 +346,7 @@ export const PRESET_GRAPHICS: Workspace = {
 				children: [
 					{
 						type: 'stack',
-						panelIds: ['graphics', 'captions', 'media', 'effects'],
+						panelIds: ['captions', 'graphics', 'shapes', 'media', 'effects'],
 						activeId: 'graphics'
 					},
 					{

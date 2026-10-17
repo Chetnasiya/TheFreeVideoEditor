@@ -27,6 +27,7 @@ import MasksSection from './MasksSection';
 import { TrackingSection } from './TrackingSection';
 import TimeRemapSection from './TimeRemapSection';
 import { TextSection } from './TextSection';
+import { ShapeSection } from './ShapeSection';
 import { TransitionInspector } from './TransitionInspector';
 import { audioEffectRegistry } from '../../core/audio/effects';
 import { ColorPickerField } from './ColorPickerField';
@@ -191,19 +192,23 @@ export default function Inspector() {
 	const clipTrack = project.tracks.find((t) => t.clips.some((c) => c.id === selectedClip.id));
 	const isText = selectedClip.source?.type === 'text';
 	const isTextExpanded = inspector.expanded.text !== false;
+	const isShape = selectedClip.source?.type === 'shape';
+	const isShapeExpanded = inspector.expanded.shape !== false;
 	const isSolid = selectedClip.source?.type === 'solid';
 	const isSolidExpanded = inspector.expanded.solid !== false;
-	const hasAudio = !isText && (clipTrack?.kind === 'audio' || (clipAsset?.hasAudio ?? false));
+	const hasAudio = !isText && !isShape && (clipTrack?.kind === 'audio' || (clipAsset?.hasAudio ?? false));
 
 	const kindLabel = isText
 		? 'Text'
-		: isSolid
-			? 'Solid Color'
-			: isAdjustment
-				? 'Adjustment'
-				: clipTrack?.kind === 'audio'
-					? 'Audio'
-					: 'Video';
+		: isShape
+			? 'Shape'
+			: isSolid
+				? 'Solid Color'
+				: isAdjustment
+					? 'Adjustment'
+					: clipTrack?.kind === 'audio'
+						? 'Audio'
+						: 'Video';
 	const clipDurationSec = (selectedClip.duration / 1_000_000).toFixed(2);
 
 	return (
@@ -250,6 +255,30 @@ export default function Inspector() {
 							confirmDisable={confirmDisable}
 							onStartDisableConfirm={setConfirmDisable}
 							onCancelDisableConfirm={() => setConfirmDisable(null)}
+						/>
+					)}
+				</section>
+			)}
+
+			{/* Shape Section */}
+			{isShape && selectedClip.source?.type === 'shape' && (
+				<section className={`inspector-section ${isShapeExpanded ? 'is-open' : ''}`}>
+					<button
+						type="button"
+						className="inspector-section-header"
+						onClick={() => store.getState().setInspectorExpanded('shape', !isShapeExpanded)}
+						aria-expanded={isShapeExpanded}
+					>
+						<span className="inspector-section-title">
+							<ChevronIcon />
+							Shape
+						</span>
+					</button>
+					{isShapeExpanded && (
+						<ShapeSection
+							clip={selectedClip}
+							localTime={localTime}
+							fps={project.settings.fps}
 						/>
 					)}
 				</section>

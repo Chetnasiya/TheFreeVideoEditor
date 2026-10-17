@@ -53,7 +53,6 @@ export default function TransportBar({
 	const time = snapshot?.time ?? 0;
 	const duration = snapshot?.duration ?? 0;
 	const disabled = !engine;
-	const level = Math.max(0, Math.min(1, snapshot?.meter ?? 0));
 	const currentTime = ticksToTimecode(time, fps);
 	const totalTime = ticksToTimecode(duration, fps);
 
@@ -270,17 +269,6 @@ export default function TransportBar({
 							aria-label="Master playback volume"
 						/>
 					</label>
-					<div
-						className="preview-level-meter"
-						role="meter"
-						aria-label="Audio level"
-						aria-valuemin={0}
-						aria-valuemax={1}
-						aria-valuenow={level}
-						title={`Live Peak Level: ${Math.round(level * 100)}%`}
-					>
-						<span style={{ width: `${level * 100}%` }} />
-					</div>
 				</div>
 
 				<div

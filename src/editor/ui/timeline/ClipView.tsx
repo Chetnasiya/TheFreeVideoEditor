@@ -4,6 +4,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	type DragEvent,
 	type PointerEvent,
 	type KeyboardEvent,
 	type MouseEvent
@@ -27,6 +28,9 @@ import {
 import { getDerived, type DerivedData } from '../../services/storage/mediaCache';
 import { isSpeedExceedingMedia, timelineToSource } from '../../core/timeRemap';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
+import { EFFECT_DEFINITIONS } from '../../core/effects/registry';
+import { audioEffectRegistry } from '../../core/audio/effects';
+import type { EffectType } from '../../core/effects/types';
 
 interface ClipViewProps {
 	clip: Clip;
@@ -444,6 +448,7 @@ export default function ClipView({
 	const isAdjustment = clip.source?.type === 'adjustment';
 	const isSolid = clip.source?.type === 'solid';
 	const isText = clip.source?.type === 'text';
+	const isShape = clip.source?.type === 'shape';
 	const isSequence = clip.source?.type === 'sequence';
 	const nestedSeqId = clip.source?.type === 'sequence' ? clip.source.sequenceId : null;
 	const nestedSeq = nestedSeqId ? project.sequences?.[nestedSeqId] : null;
@@ -460,17 +465,23 @@ export default function ClipView({
 		!isSequenceEmpty &&
 		clip.sourceIn + clip.duration * (clip.speed || 1) > nestedDuration;
 	const textContent = clip.source?.type === 'text' ? clip.source.text : '';
+	const shapeTypeLabel =
+		clip.source?.type === 'shape' && clip.source.shapeType
+			? clip.source.shapeType.charAt(0).toUpperCase() + clip.source.shapeType.slice(1)
+			: 'Shape';
 	const clipName =
 		asset?.name ??
 		(isSequence
 			? `▸ ${sequenceName}`
 			: isText
 				? `T ${textContent || 'Text'}`
-				: isAdjustment
-					? 'Adjustment Layer'
-					: isSolid
-						? 'Solid'
-						: 'Clip');
+				: isShape
+					? `◆ ${shapeTypeLabel}`
+					: isAdjustment
+						? 'Adjustment Layer'
+						: isSolid
+							? 'Solid'
+							: 'Clip');
 	const kindClass =
 		track.kind === 'audio'
 			? 'is-audio'
@@ -478,16 +489,161 @@ export default function ClipView({
 				? 'is-sequence'
 				: isText
 					? 'is-text'
-					: isAdjustment
-						? 'is-adjustment'
-						: isSolid
-							? 'is-solid'
-							: 'is-video';
+					: isShape
+						? 'is-shape'
+						: isAdjustment
+							? 'is-adjustment'
+							: isSolid
+								? 'is-solid'
+								: 'is-video';
+
+	// Drag & Drop effects onto clip
+	const [isEffectTarget, setIsEffectTarget] = useState(false);
+	const [isEffectInvalid, setIsEffectInvalid] = useState(false);
+	const [hoveredEffectName, setHoveredEffectName] = useState<string | null>(null);
+	const [isDropCelebrated, setIsDropCelebrated] = useState(false);
+	const [celebrationEffectName, setCelebrationEffectName] = useState<string | null>(null);
+	const dragCounterRef = useRef(0);
+
+	const isVideoFxCompatible =
+		track.kind === 'video' ||
+		asset?.kind === 'video' ||
+		asset?.kind === 'image' ||
+		clip.source?.type === 'text' ||
+		clip.source?.type === 'shape' ||
+		clip.source?.type === 'adjustment' ||
+		clip.source?.type === 'solid' ||
+		clip.source?.type === 'sequence';
+
+	const isAudioFxCompatible =
+		track.kind === 'audio' ||
+		Boolean(asset?.hasAudio) ||
+		asset?.kind === 'video' ||
+		asset?.kind === 'audio';
+
+	const handleDragEnter = useCallback(
+		(e: DragEvent<HTMLDivElement>) => {
+			if (ghost) return;
+			const isVideoFx = e.dataTransfer.types.includes('application/x-tfve-effect');
+			const isAudioFx = e.dataTransfer.types.includes('application/x-tfve-audio-effect');
+			if (!isVideoFx && !isAudioFx) return;
+
+			dragCounterRef.current++;
+			e.preventDefault();
+			e.stopPropagation();
+
+			const isCompatible = isVideoFx ? isVideoFxCompatible : isAudioFxCompatible;
+
+			setIsEffectTarget(isCompatible);
+			setIsEffectInvalid(!isCompatible);
+			e.dataTransfer.dropEffect = isCompatible ? 'copy' : 'none';
+
+			const fxName =
+				e.dataTransfer.getData('application/x-tfve-effect-name') ||
+				(isVideoFx ? 'Video Effect' : 'Audio Effect');
+			setHoveredEffectName(fxName);
+		},
+		[ghost, isVideoFxCompatible, isAudioFxCompatible]
+	);
+
+	const handleDragOver = useCallback(
+		(e: DragEvent<HTMLDivElement>) => {
+			if (ghost) return;
+			const isVideoFx = e.dataTransfer.types.includes('application/x-tfve-effect');
+			const isAudioFx = e.dataTransfer.types.includes('application/x-tfve-audio-effect');
+			if (!isVideoFx && !isAudioFx) return;
+
+			e.preventDefault();
+			e.stopPropagation();
+
+			const isCompatible = isVideoFx ? isVideoFxCompatible : isAudioFxCompatible;
+
+			e.dataTransfer.dropEffect = isCompatible ? 'copy' : 'none';
+			if (!isEffectTarget && isCompatible) {
+				setIsEffectTarget(true);
+			}
+		},
+		[ghost, isEffectTarget, isVideoFxCompatible, isAudioFxCompatible]
+	);
+
+	const handleDragLeave = useCallback(
+		(e: DragEvent<HTMLDivElement>) => {
+			if (ghost) return;
+			const isVideoFx = e.dataTransfer.types.includes('application/x-tfve-effect');
+			const isAudioFx = e.dataTransfer.types.includes('application/x-tfve-audio-effect');
+			if (!isVideoFx && !isAudioFx) return;
+
+			dragCounterRef.current--;
+			if (dragCounterRef.current <= 0) {
+				dragCounterRef.current = 0;
+				setIsEffectTarget(false);
+				setIsEffectInvalid(false);
+				setHoveredEffectName(null);
+			}
+		},
+		[ghost]
+	);
+
+	const handleDrop = useCallback(
+		(e: DragEvent<HTMLDivElement>) => {
+			if (ghost) return;
+			dragCounterRef.current = 0;
+			const videoEffectId = e.dataTransfer.getData('application/x-tfve-effect');
+			const audioEffectId = e.dataTransfer.getData('application/x-tfve-audio-effect');
+			if (!videoEffectId && !audioEffectId) return;
+
+			e.preventDefault();
+			e.stopPropagation();
+			setIsEffectTarget(false);
+			setIsEffectInvalid(false);
+			setHoveredEffectName(null);
+
+			const effectName =
+				e.dataTransfer.getData('application/x-tfve-effect-name') ||
+				(videoEffectId ? EFFECT_DEFINITIONS[videoEffectId]?.name : undefined) ||
+				(audioEffectId ? audioEffectRegistry.get(audioEffectId)?.name : undefined) ||
+				videoEffectId ||
+				audioEffectId;
+
+			if (videoEffectId) {
+				if (isVideoFxCompatible) {
+					store.getState().addEffect(clip.id, videoEffectId as EffectType);
+					store.getState().selectClips([clip.id], 'replace');
+					setCelebrationEffectName(effectName);
+					setIsDropCelebrated(true);
+					setTimeout(() => setIsDropCelebrated(false), 950);
+					store.getState().setTimelineMessage(`Applied ${effectName} to ${clipName}.`);
+				}
+			} else if (audioEffectId) {
+				if (isAudioFxCompatible) {
+					const existing = clip.audioEffects ? [...clip.audioEffects] : [];
+					const newFx = audioEffectRegistry.createDefaultInstance(audioEffectId);
+					newFx.managedBy = 'user';
+					existing.push(newFx);
+					store.getState().setClipAudioEffects(clip.id, existing);
+					store.getState().selectClips([clip.id], 'replace');
+					setCelebrationEffectName(effectName);
+					setIsDropCelebrated(true);
+					setTimeout(() => setIsDropCelebrated(false), 950);
+					store.getState().setTimelineMessage(`Applied ${effectName} audio effect to ${clipName}.`);
+				}
+			}
+		},
+		[
+			ghost,
+			clip.id,
+			clip.audioEffects,
+			clipName,
+			isVideoFxCompatible,
+			isAudioFxCompatible,
+			store
+		]
+	);
 
 	return (
 		<div
 			ref={clipRef}
-			className={`timeline-clip ${kindClass} ${selected ? 'is-selected' : ''} ${asset?.offline ? 'is-offline' : ''} ${ghost ? 'is-ghost' : ''} ${isLifted ? 'is-drag-lifted' : ''}`}
+			className={`timeline-clip ${kindClass} ${selected ? 'is-selected' : ''} ${asset?.offline ? 'is-offline' : ''} ${ghost ? 'is-ghost' : ''} ${isLifted ? 'is-drag-lifted' : ''} ${isEffectTarget ? 'is-effect-target' : ''} ${isEffectInvalid ? 'is-effect-invalid' : ''} ${isDropCelebrated ? 'is-drop-celebrated' : ''}`}
 			data-clip-id={clip.id}
 			data-track-id={track.id}
 			role="group"
@@ -495,6 +651,10 @@ export default function ClipView({
 			aria-label={`Clip: ${clipName}, ${track.name}, starts ${startLabel}, duration ${durationLabel}${clip.linkId ? ', linked' : ''}${asset?.offline ? ', offline' : ''}${selected ? ', selected' : ''}`}
 			draggable={false}
 			style={{ left: start, width }}
+			onDragEnter={handleDragEnter}
+			onDragOver={handleDragOver}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
 			onPointerDown={(event) => {
 				if (ghost) return;
 				if (event.button === 2) {
@@ -711,6 +871,17 @@ export default function ClipView({
 					⚠️
 				</span>
 			)}
+			{Boolean(!ghost && ((clip.effects && clip.effects.length > 0) || (clip.audioEffects && clip.audioEffects.length > 0))) && (
+				<span
+					className="clip-fx-badge"
+					title={`Effects applied: ${[
+						...(clip.effects?.map((e) => e.type) ?? []),
+						...(clip.audioEffects?.map((e) => e.type) ?? [])
+					].join(', ')}`}
+				>
+					fx
+				</span>
+			)}
 			<span className="timeline-clip-duration">{durationLabel}</span>
 
 			{/* Keyframe summary lane */}
@@ -870,6 +1041,35 @@ export default function ClipView({
 					<button type="button" onClick={() => setKfMenu(null)}>
 						Close
 					</button>
+				</div>
+			)}
+
+			{/* Drag & Drop Effect Indicator & Satisfying Feedback */}
+			{isEffectTarget && (
+				<div className="clip-effect-target-overlay" aria-hidden="true">
+					<div className="clip-effect-glow-shimmer" />
+					<div className="clip-effect-target-badge">
+						<span className="badge-sparkle">✨</span>
+						<span className="badge-name">+ {hoveredEffectName || 'Effect'}</span>
+					</div>
+				</div>
+			)}
+			{isEffectInvalid && (
+				<div className="clip-effect-invalid-overlay" aria-hidden="true">
+					<div className="clip-effect-invalid-badge">
+						<span>✕</span>
+						<span>Incompatible</span>
+					</div>
+				</div>
+			)}
+			{isDropCelebrated && (
+				<div className="clip-effect-celebration-overlay" aria-hidden="true">
+					<div className="clip-drop-flash-ring" />
+					<div className="clip-drop-burst-particles" />
+					<div className="clip-drop-success-badge">
+						<span className="success-check">✓</span>
+						<span className="success-text">{celebrationEffectName || 'Effect'} Added!</span>
+					</div>
 				</div>
 			)}
 		</div>

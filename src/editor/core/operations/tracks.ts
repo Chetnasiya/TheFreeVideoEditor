@@ -23,23 +23,17 @@ export function addTrack(project: Project, kind: Track['kind'], index?: number):
 		captionStyle: kind === 'caption' ? { ...DEFAULT_CAPTION_STYLE } : undefined
 	};
 	const tracks = [...project.tracks];
-	const captionTrackCount = tracks.filter((item) => item.kind === 'caption').length;
-	const videoTrackCount = tracks.filter((item) => item.kind === 'video').length;
+	const visualTrackCount = tracks.filter((item) => item.kind === 'caption' || item.kind === 'video').length;
 
 	let target: number;
-	if (kind === 'caption') {
-		target = index === undefined ? 0 : Math.max(0, Math.min(index, captionTrackCount));
-	} else if (kind === 'video') {
-		target =
-			index === undefined
-				? captionTrackCount
-				: Math.max(captionTrackCount, Math.min(index, captionTrackCount + videoTrackCount));
+	if (kind === 'caption' || kind === 'video') {
+		target = index === undefined ? 0 : Math.max(0, Math.min(index, visualTrackCount));
 	} else {
 		// audio track
 		target =
 			index === undefined
 				? tracks.length
-				: Math.max(captionTrackCount + videoTrackCount, Math.min(index, tracks.length));
+				: Math.max(visualTrackCount, Math.min(index, tracks.length));
 	}
 	tracks.splice(target, 0, track);
 	return { ...project, tracks };
@@ -81,20 +75,14 @@ export function reorderTrack(project: Project, trackId: TrackId, targetIndex: nu
 	const [track] = tracks.splice(index, 1);
 	if (!track) return project;
 
-	const captionTrackCount = tracks.filter((item) => item.kind === 'caption').length;
-	const videoTrackCount = tracks.filter((item) => item.kind === 'video').length;
+	const visualTrackCount = tracks.filter((item) => item.kind === 'caption' || item.kind === 'video').length;
 
 	let target: number;
-	if (track.kind === 'caption') {
-		target = Math.max(0, Math.min(targetIndex, captionTrackCount));
-	} else if (track.kind === 'video') {
-		target = Math.max(
-			captionTrackCount,
-			Math.min(targetIndex, captionTrackCount + videoTrackCount)
-		);
+	if (track.kind === 'caption' || track.kind === 'video') {
+		target = Math.max(0, Math.min(targetIndex, visualTrackCount));
 	} else {
 		// audio track
-		target = Math.max(captionTrackCount + videoTrackCount, Math.min(targetIndex, tracks.length));
+		target = Math.max(visualTrackCount, Math.min(targetIndex, tracks.length));
 	}
 	tracks.splice(target, 0, track);
 	return { ...project, tracks };

@@ -713,4 +713,161 @@ LUT_3D_SIZE 2
 		expect(store.getState().undo()).toBe(true);
 		expect(store.getState().project?.tracks[0]?.clips.length).toBe(1);
 	});
+
+	it('adds text, caption, solid, adjustment, and graphic layers in new tracks when clips already exist in existing tracks', async () => {
+		const store = createEditorStore();
+		await store.getState().createProject({ name: 'Layers In New Track Test' });
+
+		// 1. Existing initial track gets a base clip
+		const initialTrack = store.getState().project!.tracks.find((t) => t.kind === 'video')!;
+		const baseSolidId = store.getState().addSolidLayer('#333333', initialTrack.id, 0, 10_000_000);
+		expect(baseSolidId).toBeTruthy();
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(1);
+
+		// 2. Add Text Layer - since base track already has a clip, it MUST be added in a new track!
+		store.getState().setPlayhead(1_000_000);
+		const textClipId = store.getState().addTextClip({ text: 'Overlay Title' });
+		expect(textClipId).toBeTruthy();
+		const videoTracksAfterText = store.getState().project!.tracks.filter((t) => t.kind === 'video');
+		expect(videoTracksAfterText.length).toBe(2);
+		const textTrack = videoTracksAfterText.find((t) => t.clips.some((c) => c.id === textClipId));
+		expect(textTrack).toBeDefined();
+		expect(textTrack!.id).not.toBe(initialTrack.id);
+
+		// 3. Add Adjustment Layer - since existing video tracks already have clips, it MUST be added in a new track!
+		const adjClipId = store.getState().addAdjustmentLayer();
+		expect(adjClipId).toBeTruthy();
+		const videoTracksAfterAdj = store.getState().project!.tracks.filter((t) => t.kind === 'video');
+		expect(videoTracksAfterAdj.length).toBe(3);
+		const adjTrack = videoTracksAfterAdj.find((t) => t.clips.some((c) => c.id === adjClipId));
+		expect(adjTrack).toBeDefined();
+		expect(adjTrack!.id).not.toBe(initialTrack.id);
+		expect(adjTrack!.id).not.toBe(textTrack!.id);
+
+		// 4. Add Solid Layer - since existing video tracks already have clips, it MUST be added in a new track!
+		const solidClipId = store.getState().addSolidLayer('#ff5500');
+		expect(solidClipId).toBeTruthy();
+		const videoTracksAfterSolid = store.getState().project!.tracks.filter((t) => t.kind === 'video');
+		expect(videoTracksAfterSolid.length).toBe(4);
+		const solidTrack = videoTracksAfterSolid.find((t) => t.clips.some((c) => c.id === solidClipId));
+		expect(solidTrack).toBeDefined();
+
+		// 5. Add Graphic Template Layer - since existing video tracks already have clips, it MUST be added in a new track!
+		const graphicClipId = store.getState().addGraphicClip('modern-clean');
+		expect(graphicClipId).toBeTruthy();
+		const videoTracksAfterGraphic = store.getState().project!.tracks.filter((t) => t.kind === 'video');
+		expect(videoTracksAfterGraphic.length).toBe(5);
+		const graphicTrack = videoTracksAfterGraphic.find((t) => t.clips.some((c) => c.id === graphicClipId));
+		expect(graphicTrack).toBeDefined();
+
+		// 6. Add Caption Layer - creates first caption track
+		const firstCapId = store.getState().addCaptionAtPlayhead('Caption 1');
+		expect(firstCapId).toBeTruthy();
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'caption').length).toBe(1);
+
+		// 7. Add Caption Layer again while playhead is at 1s (overlapping with Caption 1) - MUST create a new track!
+		const secondCapId = store.getState().addCaptionAtPlayhead('Caption 2');
+		expect(secondCapId).toBeTruthy();
+		const captionTracks = store.getState().project!.tracks.filter((t) => t.kind === 'caption');
+		expect(captionTracks.length).toBe(2);
+		expect(captionTracks[0]!.captions?.some((c) => c.id === secondCapId) || captionTracks[1]!.captions?.some((c) => c.id === secondCapId)).toBe(true);
+		expect(captionTracks[0]!.id).not.toBe(captionTracks[1]!.id);
+
+		// 8. ONLY add track if there is another clip in that range:
+		// When playhead is at 20s (no clips in range 20s-25s), adding text MUST NOT add a new track!
+		store.getState().setPlayhead(20_000_000);
+		const nonOverlapTextId = store.getState().addTextClip({ text: 'Non Overlapping' });
+		expect(nonOverlapTextId).toBeTruthy();
+		const videoTracksAfterNonOverlap = store.getState().project!.tracks.filter((t) => t.kind === 'video');
+		expect(videoTracksAfterNonOverlap.length).toBe(5); // Still 5 tracks, no unnecessary track added!
+
+		// When playhead is at 10s (no caption cues in range 10s-12s), adding caption MUST NOT add a new caption track!
+		store.getState().setPlayhead(10_000_000);
+		const nonOverlapCapId = store.getState().addCaptionAtPlayhead('Caption 3');
+		expect(nonOverlapCapId).toBeTruthy();
+		const captionTracksAfterNonOverlap = store.getState().project!.tracks.filter((t) => t.kind === 'caption');
+		expect(captionTracksAfterNonOverlap.length).toBe(2); // Still 2 caption tracks!
+	});
+
+	it('reuses existing higher video tracks when adding text/solid/adjustment at spaced playhead positions', async () => {
+		const store = createEditorStore();
+		await store.getState().createProject({ name: 'Sequential Layers Test' });
+		const initialTrack = store.getState().project!.tracks.find((t) => t.kind === 'video')!;
+		// Base track has clips spanning 0 to 60s
+		store.getState().addSolidLayer('#111111', initialTrack.id, 0, 60_000_000);
+
+		// At 2s, add text -> Video 2 should be created (1 clip on Video 2: 2s-7s)
+		store.getState().setPlayhead(2_000_000);
+		const text1 = store.getState().addTextClip({ text: 'Text 1' });
+		expect(text1).toBeTruthy();
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(2);
+
+		// At 9s, add text -> Video 2 is free in 9s-14s! MUST REUSE Video 2, NOT create Video 3!
+		store.getState().setPlayhead(9_000_000);
+		const text2 = store.getState().addTextClip({ text: 'Text 2' });
+		expect(text2).toBeTruthy();
+		console.log('Video tracks count after 9s text:', store.getState().project!.tracks.filter((t) => t.kind === 'video').length);
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(2);
+
+		// At 15s, add text -> Video 2 is free in 15s-20s!
+		store.getState().setPlayhead(15_433_333);
+		const text3 = store.getState().addTextClip({ text: 'Text 3' });
+		expect(text3).toBeTruthy();
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(2);
+
+		// Now add a 3rd video track with a clip at 22s-27s
+		store.getState().addTimelineTrack('video');
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(3);
+		const v3 = store.getState().project!.tracks.find((t) => t.kind === 'video')!;
+		store.getState().addSolidLayer('#00ffff', v3.id, 22_000_000, 5_000_000);
+
+		// Now we have:
+		// Video 1 (base): 0 - 60s
+		// Video 2: 2-7s, 9-14s, 15.43-20.43s
+		// Video 3: 22-27s
+		// At 35s, both Video 2 and Video 3 have free space!
+		// Adding text at 35s MUST reuse an existing free track, NOT create Video 4!
+		store.getState().setPlayhead(35_000_000);
+		const text4 = store.getState().addTextClip({ text: 'Text 4' });
+		expect(text4).toBeTruthy();
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(3);
+
+		// Adding solid at 45s MUST reuse an existing free track, NOT create Video 4!
+		store.getState().setPlayhead(45_000_000);
+		const solid1 = store.getState().addSolidLayer('#00ff00');
+		expect(solid1).toBeTruthy();
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(3);
+
+		// Adding adjustment layer at 50s MUST reuse an existing free track, NOT create Video 4!
+		store.getState().setPlayhead(50_000_000);
+		const adj1 = store.getState().addAdjustmentLayer();
+		expect(adj1).toBeTruthy();
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(3);
+
+		// Explicit selection of Track 3 directs new layer to Track 3 if free in range:
+		store.getState().selectTrack(v3.id);
+		store.getState().setPlayhead(55_000_000);
+		const textOnV3 = store.getState().addTextClip({ text: 'Directed to V3' });
+		expect(textOnV3).toBeTruthy();
+		expect(store.getState().project!.tracks.filter((t) => t.kind === 'video').length).toBe(3);
+		const v3Track = store.getState().project!.tracks.find((t) => t.id === v3.id)!;
+		expect(v3Track.clips.some((c) => c.id === textOnV3)).toBe(true);
+	});
+
+	it('setActiveTimelineTool("type") adds text layer and preserves selection/pointer tool', async () => {
+		const store = createEditorStore();
+		await store.getState().createProject({ name: 'Text tool test' });
+		expect(store.getState().timeline.activeTool).toBe('select');
+
+		store.getState().setActiveTimelineTool('type');
+
+		// A text clip should be added
+		const videoTracks = store.getState().project!.tracks.filter((t) => t.kind === 'video');
+		const allClips = videoTracks.flatMap((t) => t.clips);
+		expect(allClips.some((c) => c.source?.type === 'text')).toBe(true);
+
+		// Active tool must remain 'select' (pointer tool), not 'type'
+		expect(store.getState().timeline.activeTool).toBe('select');
+	});
 });
+

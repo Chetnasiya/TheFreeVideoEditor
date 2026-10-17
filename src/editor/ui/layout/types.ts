@@ -5,6 +5,7 @@ export type PanelId =
 	| 'effects'
 	| 'captions'
 	| 'graphics'
+	| 'shapes'
 	| 'source'
 	| 'program'
 	| 'inspector'

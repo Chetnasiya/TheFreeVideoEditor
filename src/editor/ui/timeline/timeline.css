@@ -754,6 +754,12 @@
 	background: #13131a;
 }
 
+.timeline-track-header.is-selected {
+	background: #171c26;
+	border-left: 3px solid #38bdf8;
+	padding-left: 5px;
+}
+
 .timeline-track-header[draggable='true'] {
 	cursor: grab;
 }
@@ -1042,6 +1048,11 @@
 	background: color-mix(in srgb, var(--color-teal) 22%, var(--color-canvas-elevated));
 }
 
+.timeline-clip.is-shape {
+	border-color: color-mix(in srgb, #8b5cf6 65%, var(--color-hairline));
+	background: color-mix(in srgb, #8b5cf6 25%, var(--color-canvas-elevated));
+}
+
 .timeline-clip.is-selected {
 	border-color: var(--color-link);
 	box-shadow: inset 0 0 0 1px var(--color-link);
@@ -1057,10 +1068,325 @@
 }
 
 .timeline-clip.is-ghost {
-	z-index: 4;
-	border-style: dashed;
-	opacity: 0.65;
+	z-index: 10;
+	border: 1.5px dashed #38bdf8;
+	background: rgba(56, 189, 248, 0.18) !important;
+	opacity: 0.88;
 	pointer-events: none;
+	box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+	animation: ghost-clip-pulse 1.4s infinite ease-in-out;
+}
+
+/* Effect Drag and Drop & Clip Celebration */
+.timeline-clip.is-effect-target {
+	border-color: #38bdf8 !important;
+	transform: scale(1.025) translateY(-2px);
+	box-shadow:
+		0 0 0 2px #38bdf8,
+		0 8px 24px rgba(56, 189, 248, 0.45),
+		inset 0 0 16px rgba(56, 189, 248, 0.25) !important;
+	z-index: 45 !important;
+	transition:
+		transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1),
+		box-shadow 0.15s ease,
+		border-color 0.15s ease;
+}
+
+.timeline-clip.is-effect-invalid {
+	border-color: #ef4444 !important;
+	box-shadow:
+		0 0 0 2px #ef4444,
+		0 4px 14px rgba(239, 68, 68, 0.4) !important;
+	opacity: 0.82;
+	transition:
+		box-shadow 0.15s ease,
+		border-color 0.15s ease;
+}
+
+.timeline-clip.is-drop-celebrated {
+	z-index: 55 !important;
+	animation: effect-clip-pop 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Hover overlay when dragging an effect over clip */
+.clip-effect-target-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 25;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: inherit;
+	pointer-events: none;
+	overflow: hidden;
+}
+
+.clip-effect-glow-shimmer {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		105deg,
+		rgba(56, 189, 248, 0) 10%,
+		rgba(56, 189, 248, 0.35) 45%,
+		rgba(168, 85, 247, 0.4) 55%,
+		rgba(56, 189, 248, 0) 90%
+	);
+	background-size: 250% 100%;
+	animation: effect-shimmer 1.25s linear infinite;
+}
+
+.clip-effect-target-badge {
+	position: relative;
+	z-index: 2;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 10px;
+	background: rgba(15, 23, 42, 0.94);
+	border: 1px solid #38bdf8;
+	border-radius: 9999px;
+	color: #f8fafc;
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+	box-shadow:
+		0 2px 10px rgba(0, 0, 0, 0.6),
+		0 0 12px rgba(56, 189, 248, 0.4);
+	backdrop-filter: blur(6px);
+	animation: badge-spring-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.clip-effect-target-badge .badge-sparkle {
+	font-size: 12px;
+	animation: sparkle-spin 1.4s ease-in-out infinite;
+}
+
+/* Invalid drop target overlay */
+.clip-effect-invalid-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 25;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(239, 68, 68, 0.16);
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+.clip-effect-invalid-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 9px;
+	background: rgba(153, 27, 27, 0.92);
+	border: 1px solid #f87171;
+	border-radius: 9999px;
+	color: #ffffff;
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Celebration overlay when drop succeeds */
+.clip-effect-celebration-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 30;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: inherit;
+	pointer-events: none;
+	overflow: hidden;
+}
+
+.clip-drop-flash-ring {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	border: 2px solid #38bdf8;
+	animation: flash-ring-expand 0.65s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+.clip-drop-burst-particles {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background: radial-gradient(
+		circle at center,
+		rgba(56, 189, 248, 0.65) 0%,
+		rgba(16, 185, 129, 0.45) 35%,
+		transparent 70%
+	);
+	animation: particle-burst 0.7s ease-out forwards;
+}
+
+.clip-drop-success-badge {
+	position: relative;
+	z-index: 3;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 12px;
+	background: linear-gradient(135deg, rgba(16, 185, 129, 0.96), rgba(5, 150, 105, 0.96));
+	border: 1px solid #6ee7b7;
+	border-radius: 9999px;
+	color: #ffffff;
+	font-size: 11px;
+	font-weight: 700;
+	white-space: nowrap;
+	box-shadow:
+		0 4px 16px rgba(16, 185, 129, 0.5),
+		0 0 12px rgba(110, 231, 183, 0.8);
+	animation: success-badge-burst 0.95s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.clip-drop-success-badge .success-check {
+	font-size: 12px;
+	font-weight: 900;
+}
+
+/* Premiere-style persistent FX badge on clips */
+.clip-fx-badge {
+	position: relative;
+	z-index: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-left: var(--spacing-xxs);
+	padding: 0 4px;
+	height: 14px;
+	border-radius: 2px;
+	background: #7c3aed;
+	border: 1px solid #a78bfa;
+	color: #f5f3ff;
+	font-family: var(--font-mono, monospace);
+	font-size: 0.575rem;
+	font-weight: 700;
+	line-height: 1;
+	letter-spacing: -0.02em;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Keyframes */
+@keyframes effect-clip-pop {
+	0% {
+		transform: scale(0.97);
+		filter: brightness(1.6);
+		box-shadow: 0 0 0 3px #38bdf8, 0 0 30px rgba(56, 189, 248, 0.8);
+	}
+	40% {
+		transform: scale(1.04) translateY(-3px);
+		filter: brightness(1.25);
+		box-shadow: 0 0 0 3px #10b981, 0 8px 24px rgba(16, 185, 129, 0.6);
+	}
+	70% {
+		transform: scale(0.99) translateY(0);
+		filter: brightness(1.08);
+		box-shadow: 0 0 0 1px #10b981, 0 4px 12px rgba(16, 185, 129, 0.3);
+	}
+	100% {
+		transform: scale(1) translateY(0);
+		filter: brightness(1);
+		box-shadow: none;
+	}
+}
+
+@keyframes effect-shimmer {
+	0% {
+		background-position: -200% 0;
+	}
+	100% {
+		background-position: 200% 0;
+	}
+}
+
+@keyframes badge-spring-in {
+	0% {
+		transform: scale(0.65) translateY(4px);
+		opacity: 0;
+	}
+	100% {
+		transform: scale(1) translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes sparkle-spin {
+	0%, 100% {
+		transform: rotate(0deg) scale(1);
+	}
+	50% {
+		transform: rotate(18deg) scale(1.25);
+	}
+}
+
+@keyframes flash-ring-expand {
+	0% {
+		transform: scale(0.96);
+		opacity: 1;
+		border-color: #38bdf8;
+		box-shadow: 0 0 24px #38bdf8;
+	}
+	50% {
+		border-color: #10b981;
+	}
+	100% {
+		transform: scale(1.1);
+		opacity: 0;
+		border-color: #10b981;
+		box-shadow: 0 0 40px rgba(16, 185, 129, 0);
+	}
+}
+
+@keyframes particle-burst {
+	0% {
+		opacity: 0.95;
+		transform: scale(0.3);
+	}
+	50% {
+		opacity: 0.65;
+	}
+	100% {
+		opacity: 0;
+		transform: scale(1.6);
+	}
+}
+
+@keyframes success-badge-burst {
+	0% {
+		transform: scale(0.5);
+		opacity: 0;
+	}
+	30% {
+		transform: scale(1.15);
+		opacity: 1;
+	}
+	50% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	80% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(0.9) translateY(-6px);
+		opacity: 0;
+	}
+}
+
+@keyframes ghost-clip-pulse {
+	0%, 100% {
+		border-color: rgba(56, 189, 248, 0.85);
+		box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+	}
+	50% {
+		border-color: rgba(168, 85, 247, 0.85);
+		box-shadow: 0 0 18px rgba(168, 85, 247, 0.45);
+	}
 }
 
 .timeline-thumbnail {

@@ -280,7 +280,7 @@ test.describe('Gate P: Captions System E2E', () => {
 		expect(updatedCaptions[0]!.end).toBeLessThanOrEqual(updatedCaptions[1]!.start);
 	});
 
-	test('rearranging caption tracks in timeline keeps them in top caption zone and never drops them to the bottom', async ({
+	test('rearranging caption tracks in timeline allows positioning with video tracks and clamps safely above audio tracks', async ({
 		page
 	}) => {
 		await page.waitForFunction(() => Boolean((window as any).__TFVE_STORE__?.getState().project));
@@ -378,7 +378,7 @@ test.describe('Gate P: Captions System E2E', () => {
 			}
 		});
 
-		// Verify it clamps safely within the caption zone (index 1), NEVER dropping to the bottom
+		// Verify it clamps safely within the visual track zone (above audio tracks)
 		const clampedOrder = await page.evaluate(() => {
 			const s = (
 				window as unknown as {
@@ -392,6 +392,50 @@ test.describe('Gate P: Captions System E2E', () => {
 			return s?.getState().project.tracks.map((t) => t.kind) ?? [];
 		});
 
-		expect(clampedOrder).toEqual(['caption', 'caption', 'video', 'audio']);
+		expect(clampedOrder).toEqual(['caption', 'video', 'caption', 'audio']);
+	});
+
+	test('allows dragging caption directly on preview canvas and adjusting custom position offsets', async ({
+		page
+	}) => {
+		await page.waitForFunction(() => Boolean((window as any).__TFVE_STORE__?.getState().project));
+
+		// 1. Add Caption via Timeline Toolbar
+		const addCaptionBtn = page.getByRole('button', { name: 'Caption Layer' });
+		await expect(addCaptionBtn).toBeVisible();
+		await addCaptionBtn.click();
+
+		// 2. Caption canvas overlay should appear on preview player
+		const overlay = page.locator('.caption-canvas-overlay');
+		await expect(overlay).toBeVisible({ timeout: 5000 });
+
+		// 3. Drag overlay on preview monitor
+		const box = await overlay.boundingBox();
+		expect(box).not.toBeNull();
+		if (box) {
+			await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+			await page.mouse.down();
+			await page.mouse.move(box.x + box.width / 2 + 50, box.y + box.height / 2 - 40, { steps: 5 });
+			await page.mouse.up();
+		}
+
+		// 4. Verify caption style in store was updated to custom preset with offsets
+		const captionStyle = await page.evaluate(() => {
+			const s = (
+				window as unknown as {
+					__TFVE_STORE__?: {
+						getState: () => {
+							project: { tracks: Array<{ kind: string; captionStyle?: { positionPreset: string; customX?: number; customY?: number } }> };
+						};
+					};
+				}
+			).__TFVE_STORE__;
+			const capTrack = s?.getState().project.tracks.find((t) => t.kind === 'caption');
+			return capTrack?.captionStyle;
+		});
+
+		expect(captionStyle?.positionPreset).toBe('custom');
+		expect(typeof captionStyle?.customX).toBe('number');
+		expect(typeof captionStyle?.customY).toBe('number');
 	});
 });

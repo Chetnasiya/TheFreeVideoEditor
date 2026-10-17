@@ -123,7 +123,7 @@ export interface ActiveLayer {
 	trackId: TrackId;
 	trackOrder: number;
 	sourceTime: Time;
-	kind: 'video' | 'image' | 'solid' | 'adjustment' | 'text' | 'sequence';
+	kind: 'video' | 'image' | 'solid' | 'adjustment' | 'text' | 'sequence' | 'shape';
 	opacity: number;
 	transform?: Clip['transform'];
 	/** Pivot offset from the layer center, in composition pixels. */
@@ -134,6 +134,7 @@ export interface ActiveLayer {
 	/** Source insets [left, top, right, bottom] as fractions; the visible part keeps its position. */
 	crop?: Crop;
 	solidColor?: { r: number; g: number; b: number; a: number };
+	shapeData?: import('./shapes/shapeTypes').ShapeConfig;
 	/** Text content and evaluated styling for text layers */
 	textData?: {
 		text: string;
@@ -235,11 +236,14 @@ export function resolveFrame(
 
 			const cStyle = track.captionStyle ?? DEFAULT_CAPTION_STYLE;
 			const marginPct = (cStyle.marginPercent ?? 7) / 100;
+			const posX = cStyle.customX ?? 0;
 			let posY = 0;
 			if (cStyle.positionPreset === 'top') {
 				posY = -Math.round(project.settings.height * (0.5 - marginPct - 0.05));
 			} else if (cStyle.positionPreset === 'bottom') {
 				posY = Math.round(project.settings.height * (0.5 - marginPct - 0.05));
+			} else if (cStyle.positionPreset === 'custom') {
+				posY = cStyle.customY ?? 0;
 			}
 
 			let opacity = 1;
@@ -318,7 +322,7 @@ export function resolveFrame(
 				fit: 'none',
 				opacity,
 				transform: {
-					x: 0,
+					x: posX,
 					y: posY,
 					scaleX: 1,
 					scaleY: 1,
@@ -428,6 +432,87 @@ export function resolveFrame(
 					masks: evaluatedMasks,
 					effects: evaluatedEffects,
 					...evaluateLayerProperties(clip, localTime)
+				};
+			}
+
+			if (clip.source?.type === 'shape') {
+				if (track.kind !== 'video') return null;
+				const shapeSource = clip.source;
+				const props = clip.properties;
+				const read = (id: string, fallback: unknown): unknown => {
+					const anim = props?.[id] as AnimatedValue<unknown> | undefined;
+					return anim ? evaluateOr(anim, localTime, fallback) : fallback;
+				};
+
+				const width = finite(read('shape.width', shapeSource.width ?? 300), shapeSource.width ?? 300);
+				const height = finite(read('shape.height', shapeSource.height ?? 200), shapeSource.height ?? 200);
+
+				const rawFill = read('shape.fillColor', null);
+				const fillColor =
+					Array.isArray(rawFill) && rawFill.length >= 4
+						? {
+								r: finite(rawFill[0], 1),
+								g: finite(rawFill[1], 1),
+								b: finite(rawFill[2], 1),
+								a: finite(rawFill[3], 1)
+							}
+						: shapeSource.fillColor;
+
+				const rawStroke = read('shape.strokeColor', null);
+				const strokeColor =
+					Array.isArray(rawStroke) && rawStroke.length >= 4
+						? {
+								r: finite(rawStroke[0], 0),
+								g: finite(rawStroke[1], 0),
+								b: finite(rawStroke[2], 0),
+								a: finite(rawStroke[3], 1)
+							}
+						: shapeSource.strokeColor;
+
+				const strokeWidth = finite(read('shape.strokeWidth', shapeSource.strokeWidth ?? 0), 0);
+				const cornerRadius = finite(read('shape.cornerRadius', shapeSource.cornerRadius ?? 0), 0);
+
+				const rawShadow = read('shape.shadowColor', null);
+				const shadowColor =
+					Array.isArray(rawShadow) && rawShadow.length >= 4
+						? {
+								r: finite(rawShadow[0], 0),
+								g: finite(rawShadow[1], 0),
+								b: finite(rawShadow[2], 0),
+								a: finite(rawShadow[3], 1)
+							}
+						: shapeSource.shadowColor;
+				const shadowBlur = finite(read('shape.shadowBlur', shapeSource.shadowBlur ?? 0), 0);
+				const shadowOffsetX = finite(read('shape.shadowOffsetX', shapeSource.shadowOffsetX ?? 0), 0);
+				const shadowOffsetY = finite(read('shape.shadowOffsetY', shapeSource.shadowOffsetY ?? 0), 0);
+
+				return {
+					clipId: clip.id,
+					trackId: track.id,
+					trackOrder,
+					sourceTime: localTime,
+					kind: 'shape',
+					fit: 'none',
+					opacity: 1,
+					shapeData: {
+						shapeType: shapeSource.shapeType,
+						width,
+						height,
+						fillColor,
+						strokeColor,
+						strokeWidth,
+						strokeStyle: shapeSource.strokeStyle,
+						cornerRadius,
+						points: shapeSource.points,
+						innerRadius: shapeSource.innerRadius,
+						shadowColor,
+						shadowBlur,
+						shadowOffsetX,
+						shadowOffsetY
+					},
+					masks: evaluatedMasks,
+					effects: evaluatedEffects,
+					...evaluateLayerProperties(clip, localTime, trackingCtx)
 				};
 			}
 
@@ -871,6 +956,14 @@ export function resolveFrame(
 				if (track.kind === 'video') {
 					const textLayer = makeClipLayer(clip, time);
 					if (textLayer) videoLayers.push(textLayer);
+				}
+				continue;
+			}
+
+			if (clip.source?.type === 'shape') {
+				if (track.kind === 'video') {
+					const shapeLayer = makeClipLayer(clip, time);
+					if (shapeLayer) videoLayers.push(shapeLayer);
 				}
 				continue;
 			}

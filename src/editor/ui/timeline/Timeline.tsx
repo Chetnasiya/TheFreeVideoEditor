@@ -40,6 +40,12 @@ import ClipView from './ClipView';
 import { CaptionSegmentView } from './CaptionSegmentView';
 import { TransitionBlock } from './TransitionBlock';
 import type { TransitionType } from '../../core/transitionsRegistry';
+import { createGraphicClip } from '../../core/text/graphicsTemplates';
+import { createShapeClip } from '../../core/adjustment';
+import type { ShapeConfig } from '../../core/shapes/shapeTypes';
+import { EFFECT_DEFINITIONS } from '../../core/effects/registry';
+import { audioEffectRegistry } from '../../core/audio/effects';
+import type { EffectType } from '../../core/effects/types';
 import Playhead from './Playhead';
 import TimelineRuler from './TimelineRuler';
 import TimelineToolbar from './TimelineToolbar';
@@ -140,6 +146,7 @@ function ConnectedToolbar({
 			onAddTrack={onAddTrack}
 			onAddAdjustment={() => store.getState().addAdjustmentLayer()}
 			onAddSolid={() => store.getState().addSolidLayer()}
+			onAddShape={() => store.getState().addShapeClip()}
 			onAddText={() => store.getState().addTextClip()}
 			onAddCaption={() => store.getState().addCaptionAtPlayhead()}
 		/>
@@ -165,6 +172,8 @@ function ConnectedPlayhead({
 function TrackHeader({
 	track,
 	index,
+	selected,
+	onSelect,
 	onRename,
 	onRemove,
 	onFlag,
@@ -172,6 +181,8 @@ function TrackHeader({
 }: {
 	track: Track;
 	index: number;
+	selected?: boolean;
+	onSelect?: () => void;
 	onRename: (trackId: TrackId, name: string) => void;
 	onRemove: (track: Track) => void;
 	onFlag: (trackId: TrackId, flags: Partial<Pick<Track, 'muted' | 'locked' | 'hidden'>>) => void;
@@ -187,12 +198,16 @@ function TrackHeader({
 	}, [editing]);
 	return (
 		<div
-			className={`timeline-track-header track-${track.kind}${isDragOver ? 'is-track-drag-over' : ''}`}
+			className={`timeline-track-header track-${track.kind}${selected ? ' is-selected' : ''}${isDragOver ? ' is-track-drag-over' : ''}`}
 			draggable
 			role="group"
 			tabIndex={0}
 			aria-label={`${track.name} track controls. Use Alt+Arrow Up or Alt+Arrow Down to reorder.`}
 			data-track-header-id={track.id}
+			onClick={(event) => {
+				if ((event.target as HTMLElement).closest('button, input')) return;
+				onSelect?.();
+			}}
 			onDragStart={(event) => {
 				event.dataTransfer.setData('application/x-tfve-track', track.id);
 				event.dataTransfer.effectAllowed = 'move';
@@ -273,18 +288,6 @@ function TrackHeader({
 				</button>
 			)}
 			<div className="timeline-track-controls" role="group" aria-label={`${track.name} settings`}>
-				{track.kind === 'audio' && (
-					<button
-						type="button"
-						className={`timeline-track-control-btn track-mute-btn ${track.muted ? 'is-active' : ''}`}
-						aria-label={`${track.muted ? 'Unmute' : 'Mute'} ${track.name}`}
-						aria-pressed={track.muted}
-						title={track.muted ? 'Unmute track (M)' : 'Mute track (M)'}
-						onClick={() => onFlag(track.id, { muted: !track.muted })}
-					>
-						M
-					</button>
-				)}
 				<button
 					type="button"
 					className={`timeline-track-control-btn track-lock-btn ${track.locked ? 'is-active' : ''}`}
@@ -326,6 +329,18 @@ function TrackHeader({
 						</svg>
 					)}
 				</button>
+				{track.kind === 'audio' && (
+					<button
+						type="button"
+						className={`timeline-track-control-btn track-mute-btn ${track.muted ? 'is-active' : ''}`}
+						aria-label={`${track.muted ? 'Unmute' : 'Mute'} ${track.name}`}
+						aria-pressed={track.muted}
+						title={track.muted ? 'Unmute track (M)' : 'Mute track (M)'}
+						onClick={() => onFlag(track.id, { muted: !track.muted })}
+					>
+						M
+					</button>
+				)}
 				{(track.kind === 'video' || track.kind === 'caption') && (
 					<button
 						type="button"
@@ -1001,6 +1016,148 @@ function ActiveTimeline({ project }: { project: Project }) {
 		return session?.kind === 'asset' ? (session.assetId ?? null) : null;
 	}
 
+	function graphicTemplateFromData(dataTransfer: DataTransfer): string | null {
+		const templateId = dataTransfer.getData('application/x-tfve-graphic-template');
+		if (templateId) return templateId;
+		const session = store.getState().timeline.drag;
+		return session?.kind === 'graphic-template' ? (session.graphicTemplateId ?? null) : null;
+	}
+
+	function beginGraphicTemplatePreview(
+		event: DragEvent<HTMLElement>,
+		targetTrackId: TrackId
+	): string | null {
+		const templateId = graphicTemplateFromData(event.dataTransfer);
+		const track = activeProject.tracks.find((item) => item.id === targetTrackId);
+		if (!templateId || !track) return null;
+		if (track.kind !== 'video' || track.locked) {
+			event.dataTransfer.dropEffect = 'none';
+			return templateId;
+		}
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+		const time = pointerTime(event.clientX);
+		if (drag?.graphicTemplateId !== templateId || drag?.targetTrackId !== targetTrackId) {
+			beginTimelineDrag({
+				kind: 'graphic-template',
+				clipIds: [],
+				original: [],
+				preview: [],
+				pointerStartTime: 0,
+				pointerTime: time,
+				targetTrackId,
+				createTrackKind: undefined,
+				graphicTemplateId: templateId,
+				allowed: true,
+				unlink: false
+			});
+		}
+		const activeDrag = store.getState().timeline.drag;
+		if (activeDrag) scheduleDragPreview(activeDrag, time, targetTrackId, false, false, undefined);
+		return templateId;
+	}
+
+	function beginGraphicTemplateNewTrackPreview(
+		event: DragEvent<HTMLElement>
+	): string | null {
+		const templateId = graphicTemplateFromData(event.dataTransfer);
+		if (!templateId) return null;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+		const time = pointerTime(event.clientX);
+		if (drag?.graphicTemplateId !== templateId || drag?.createTrackKind !== 'video') {
+			beginTimelineDrag({
+				kind: 'graphic-template',
+				clipIds: [],
+				original: [],
+				preview: [],
+				pointerStartTime: 0,
+				pointerTime: time,
+				targetTrackId: undefined,
+				createTrackKind: 'video',
+				graphicTemplateId: templateId,
+				allowed: true,
+				unlink: false
+			});
+		}
+		const activeDrag = store.getState().timeline.drag;
+		if (activeDrag) scheduleDragPreview(activeDrag, time, undefined, false, false, 'video');
+		return templateId;
+	}
+
+	function shapeFromData(dataTransfer: DataTransfer): ShapeConfig | null {
+		const raw = dataTransfer.getData('application/x-tfve-shape');
+		if (raw) {
+			try {
+				return JSON.parse(raw) as ShapeConfig;
+			} catch {}
+		}
+		const session = store.getState().timeline.drag;
+		return session?.kind === 'shape' ? (session.shapeConfig ?? null) : null;
+	}
+
+	function beginShapePreview(
+		event: DragEvent<HTMLElement>,
+		targetTrackId: TrackId
+	): ShapeConfig | null {
+		const shapeConfig = shapeFromData(event.dataTransfer);
+		const track = activeProject.tracks.find((item) => item.id === targetTrackId);
+		if (!shapeConfig || !track) return null;
+		if (track.kind !== 'video' || track.locked) {
+			event.dataTransfer.dropEffect = 'none';
+			return shapeConfig;
+		}
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+		const time = pointerTime(event.clientX);
+		if (drag?.kind !== 'shape' || drag?.targetTrackId !== targetTrackId) {
+			beginTimelineDrag({
+				kind: 'shape',
+				clipIds: [],
+				original: [],
+				preview: [],
+				pointerStartTime: 0,
+				pointerTime: time,
+				targetTrackId,
+				createTrackKind: undefined,
+				shapeConfig,
+				allowed: true,
+				unlink: false
+			});
+		}
+		const activeDrag = store.getState().timeline.drag;
+		if (activeDrag) scheduleDragPreview(activeDrag, time, targetTrackId, false, false, undefined);
+		return shapeConfig;
+	}
+
+	function beginShapeNewTrackPreview(
+		event: DragEvent<HTMLElement>
+	): ShapeConfig | null {
+		const shapeConfig = shapeFromData(event.dataTransfer);
+		if (!shapeConfig) return null;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+		const time = pointerTime(event.clientX);
+		if (drag?.kind !== 'shape' || drag?.createTrackKind !== 'video') {
+			beginTimelineDrag({
+				kind: 'shape',
+				clipIds: [],
+				original: [],
+				preview: [],
+				pointerStartTime: 0,
+				pointerTime: time,
+				targetTrackId: undefined,
+				createTrackKind: 'video',
+				shapeConfig,
+				allowed: true,
+				unlink: false
+			});
+		}
+		const activeDrag = store.getState().timeline.drag;
+		if (activeDrag) scheduleDragPreview(activeDrag, time, undefined, false, false, 'video');
+		return shapeConfig;
+	}
+
 	function beginAssetPreview(
 		event: DragEvent<HTMLElement>,
 		targetTrackId: TrackId
@@ -1076,9 +1233,14 @@ function ActiveTimeline({ project }: { project: Project }) {
 			event.dataTransfer.dropEffect = 'move';
 			return;
 		}
+		if (event.dataTransfer.types.includes('application/x-tfve-transition')) {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'copy';
+			return;
+		}
 		if (
-			event.dataTransfer.types.includes('application/x-tfve-transition') ||
-			event.dataTransfer.types.includes('application/x-tfve-graphic-template')
+			event.dataTransfer.types.includes('application/x-tfve-effect') ||
+			event.dataTransfer.types.includes('application/x-tfve-audio-effect')
 		) {
 			event.preventDefault();
 			event.dataTransfer.dropEffect = 'copy';
@@ -1089,13 +1251,82 @@ function ActiveTimeline({ project }: { project: Project }) {
 			event.dataTransfer.dropEffect = 'copy';
 			return;
 		}
-		if (!assetFromData(event.dataTransfer)) {
+
+		const laneRect = event.currentTarget.getBoundingClientRect();
+		const topEdgeThreshold = 14;
+		const bottomEdgeThreshold = 14;
+		const isNearTopEdge = event.clientY - laneRect.top < topEdgeThreshold;
+		const isNearBottomEdge = laneRect.bottom - event.clientY < bottomEdgeThreshold;
+		const firstVideoTrack = activeProject.tracks.find((t) => t.kind === 'video');
+		const lastTrack = activeProject.tracks[activeProject.tracks.length - 1];
+
+		const shapeConfig = shapeFromData(event.dataTransfer);
+		if (
+			shapeConfig ||
+			event.dataTransfer.types.includes('application/x-tfve-shape')
+		) {
+			event.stopPropagation();
+			if (isNearTopEdge && track.id === firstVideoTrack?.id) {
+				beginShapeNewTrackPreview(event);
+				return;
+			}
+			if (isNearBottomEdge && track.id === lastTrack?.id) {
+				beginShapeNewTrackPreview(event);
+				return;
+			}
+			if (track.kind === 'video' && !track.locked) {
+				beginShapePreview(event, track.id);
+			} else {
+				beginShapeNewTrackPreview(event);
+			}
+			return;
+		}
+
+		const graphicTemplateId = graphicTemplateFromData(event.dataTransfer);
+		if (
+			graphicTemplateId ||
+			event.dataTransfer.types.includes('application/x-tfve-graphic-template')
+		) {
+			event.stopPropagation();
+			if (isNearTopEdge && track.id === firstVideoTrack?.id) {
+				beginGraphicTemplateNewTrackPreview(event);
+				return;
+			}
+			if (isNearBottomEdge && track.id === lastTrack?.id) {
+				beginGraphicTemplateNewTrackPreview(event);
+				return;
+			}
+			if (track.kind === 'video' && !track.locked) {
+				beginGraphicTemplatePreview(event, track.id);
+			} else {
+				beginGraphicTemplateNewTrackPreview(event);
+			}
+			return;
+		}
+
+		const assetId = assetFromData(event.dataTransfer);
+		const asset = assetId ? activeProject.assets[assetId] : undefined;
+		const assetTrackKind: Track['kind'] = asset?.kind === 'audio' ? 'audio' : 'video';
+
+		if (isNearTopEdge && track.id === activeProject.tracks[0]?.id) {
+			event.stopPropagation();
+			beginAssetNewTrackPreview(event, assetTrackKind);
+			return;
+		}
+		if (isNearBottomEdge && track.id === lastTrack?.id) {
+			event.stopPropagation();
+			beginAssetNewTrackPreview(event, assetTrackKind);
+			return;
+		}
+
+		if (!assetId) {
 			if (event.dataTransfer.types.includes('application/x-tfve-asset')) {
 				event.preventDefault();
 				event.dataTransfer.dropEffect = 'copy';
 			}
 			return;
 		}
+		event.stopPropagation();
 		beginAssetPreview(event, track.id);
 	}
 
@@ -1185,6 +1416,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTrackDrop(event: DragEvent<HTMLDivElement>, track: Track): void {
+		event.stopPropagation();
 		const draggedTrackId = event.dataTransfer.getData('application/x-tfve-track') as TrackId;
 		if (draggedTrackId) {
 			event.preventDefault();
@@ -1200,6 +1432,89 @@ function ActiveTimeline({ project }: { project: Project }) {
 			event.preventDefault();
 			const time = pointerTime(event.clientX);
 			applyTransitionDrop(track, time, transitionType);
+			return;
+		}
+		const videoEffectId = event.dataTransfer.getData('application/x-tfve-effect');
+		const audioEffectId = event.dataTransfer.getData('application/x-tfve-audio-effect');
+		if (videoEffectId || audioEffectId) {
+			event.preventDefault();
+			const time = pointerTime(event.clientX);
+			const targetClip = track.clips.find((c) => time >= c.start && time < c.start + c.duration);
+			if (targetClip) {
+				const effectName =
+					event.dataTransfer.getData('application/x-tfve-effect-name') ||
+					(videoEffectId ? EFFECT_DEFINITIONS[videoEffectId]?.name : undefined) ||
+					(audioEffectId ? audioEffectRegistry.get(audioEffectId)?.name : undefined) ||
+					videoEffectId ||
+					audioEffectId;
+				if (videoEffectId && track.kind === 'video') {
+					store.getState().addEffect(targetClip.id, videoEffectId as EffectType);
+					store.getState().selectClips([targetClip.id], 'replace');
+					store.getState().setTimelineMessage(`Applied ${effectName} to clip.`);
+				} else if (audioEffectId) {
+					const existing = targetClip.audioEffects ? [...targetClip.audioEffects] : [];
+					const newFx = audioEffectRegistry.createDefaultInstance(audioEffectId);
+					newFx.managedBy = 'user';
+					existing.push(newFx);
+					store.getState().setClipAudioEffects(targetClip.id, existing);
+					store.getState().selectClips([targetClip.id], 'replace');
+					store.getState().setTimelineMessage(`Applied ${effectName} audio effect to clip.`);
+				}
+			}
+			return;
+		}
+		const shapeConfig = shapeFromData(event.dataTransfer);
+		if (shapeConfig) {
+			event.preventDefault();
+			const session = store.getState().timeline.drag;
+			if (session?.createTrackKind) {
+				commitTimelineDrag();
+				return;
+			}
+			if (track.kind !== 'video' || track.locked) {
+				cancelTimelineDrag();
+				setTimelineMessage('Shapes can only be placed on unlocked video tracks.');
+				return;
+			}
+			if (session?.kind === 'shape' && session.shapeConfig) {
+				const time = pointerTime(event.clientX);
+				const activeDrag = store.getState().timeline.drag;
+				if (activeDrag) setSnappedDragTime(activeDrag, time, track.id, false, false, undefined);
+				commitTimelineDrag();
+			} else {
+				const time = pointerTime(event.clientX);
+				store.getState().addShapeClip(shapeConfig, {
+					start: time,
+					trackId: track.id
+				});
+			}
+			return;
+		}
+		const graphicTemplateId = graphicTemplateFromData(event.dataTransfer);
+		if (graphicTemplateId) {
+			event.preventDefault();
+			const session = store.getState().timeline.drag;
+			if (session?.createTrackKind) {
+				commitTimelineDrag();
+				return;
+			}
+			if (track.kind !== 'video' || track.locked) {
+				cancelTimelineDrag();
+				setTimelineMessage('Graphic titles can only be placed on unlocked video tracks.');
+				return;
+			}
+			if (session?.graphicTemplateId === graphicTemplateId) {
+				const time = pointerTime(event.clientX);
+				const activeDrag = store.getState().timeline.drag;
+				if (activeDrag) setSnappedDragTime(activeDrag, time, track.id, false, false, undefined);
+				commitTimelineDrag();
+			} else {
+				const time = pointerTime(event.clientX);
+				store.getState().addGraphicClip(graphicTemplateId, {
+					start: time,
+					trackId: track.id
+				});
+			}
 			return;
 		}
 		const sequenceId = sequenceFromData(event.dataTransfer);
@@ -1225,6 +1540,10 @@ function ActiveTimeline({ project }: { project: Project }) {
 		}
 		const time = pointerTime(event.clientX);
 		const session = store.getState().timeline.drag;
+		if (session?.createTrackKind) {
+			commitTimelineDrag();
+			return;
+		}
 		if (session?.assetId === assetId) {
 			const activeDrag = store.getState().timeline.drag;
 			if (activeDrag) setSnappedDragTime(activeDrag, time, track.id, false, false, undefined);
@@ -1233,6 +1552,12 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function beginEmptyTrackDrop(event: DragEvent<HTMLDivElement>): void {
+		event.stopPropagation();
+		const graphicTemplateId = graphicTemplateFromData(event.dataTransfer);
+		if (graphicTemplateId) {
+			beginGraphicTemplateNewTrackPreview(event);
+			return;
+		}
 		const assetId = assetFromData(event.dataTransfer);
 		const asset = assetId ? activeProject.assets[assetId] : undefined;
 		if (!asset) return;
@@ -1241,6 +1566,20 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function dropOnNewTrack(event: DragEvent<HTMLDivElement>): void {
+		event.stopPropagation();
+		const graphicTemplateId = graphicTemplateFromData(event.dataTransfer);
+		if (graphicTemplateId) {
+			event.preventDefault();
+			const session = store.getState().timeline.drag;
+			if (session?.graphicTemplateId === graphicTemplateId && session.createTrackKind) {
+				commitTimelineDrag();
+			} else {
+				store.getState().addGraphicClip(graphicTemplateId, {
+					start: pointerTime(event.clientX)
+				});
+			}
+			return;
+		}
 		const assetId = assetFromData(event.dataTransfer);
 		const asset = assetId ? activeProject.assets[assetId] : undefined;
 		if (!asset) return;
@@ -1258,15 +1597,185 @@ function ActiveTimeline({ project }: { project: Project }) {
 	}
 
 	function handleTimelineDragOver(event: DragEvent<HTMLDivElement>): void {
+		if (event.dataTransfer.types.includes('application/x-tfve-transition')) {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'copy';
+			return;
+		}
 		if (
-			event.dataTransfer.types.includes('application/x-tfve-transition') ||
-			event.dataTransfer.types.includes('application/x-tfve-graphic-template')
+			event.dataTransfer.types.includes('application/x-tfve-effect') ||
+			event.dataTransfer.types.includes('application/x-tfve-audio-effect')
 		) {
 			event.preventDefault();
 			event.dataTransfer.dropEffect = 'copy';
 			return;
 		}
 		if (event.dataTransfer.types.includes('application/x-tfve-sequence')) return;
+
+		const shapeConfig = shapeFromData(event.dataTransfer);
+		if (
+			shapeConfig ||
+			event.dataTransfer.types.includes('application/x-tfve-shape')
+		) {
+			const target = document.elementFromPoint(event.clientX, event.clientY);
+			const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
+
+			if (
+				trackLaneEl &&
+				!trackLaneEl.classList.contains('is-preview-lane') &&
+				activeProject.tracks.some((t) => t.id === trackLaneEl.dataset.trackLane)
+			) {
+				const track = activeProject.tracks.find((t) => t.id === trackLaneEl.dataset.trackLane);
+				if (track) {
+					const laneRect = trackLaneEl.getBoundingClientRect();
+					const isNearTopEdge = event.clientY - laneRect.top < 14;
+					const isNearBottomEdge = laneRect.bottom - event.clientY < 14;
+					const firstVideoTrack = activeProject.tracks.find((t) => t.kind === 'video');
+					const lastTrack = activeProject.tracks[activeProject.tracks.length - 1];
+
+					if (isNearTopEdge && track.id === firstVideoTrack?.id) {
+						beginShapeNewTrackPreview(event);
+						return;
+					}
+					if (isNearBottomEdge && track.id === lastTrack?.id) {
+						beginShapeNewTrackPreview(event);
+						return;
+					}
+					if (track.kind === 'video' && !track.locked) {
+						event.preventDefault();
+						event.dataTransfer.dropEffect = 'copy';
+						beginShapePreview(event, track.id);
+					} else {
+						beginShapeNewTrackPreview(event);
+					}
+				} else {
+					event.dataTransfer.dropEffect = 'none';
+				}
+				return;
+			}
+
+			const scroller = scrollerRef.current;
+			if (!scroller) return;
+			const rowsContainer = scroller.querySelector('.timeline-track-rows');
+			if (rowsContainer) {
+				const trackRows = Array.from(
+					rowsContainer.querySelectorAll<HTMLElement>(
+						'.timeline-track-row:not(.is-new-track-preview)'
+					)
+				);
+				if (trackRows.length > 0) {
+					const firstRowRect = trackRows[0]!.getBoundingClientRect();
+					const lastRowRect = trackRows[trackRows.length - 1]!.getBoundingClientRect();
+
+					if (event.clientY < firstRowRect.top + 14 || event.clientY > lastRowRect.bottom - 14) {
+						beginShapeNewTrackPreview(event);
+					} else {
+						for (const row of trackRows) {
+							const r = row.getBoundingClientRect();
+							if (event.clientY >= r.top && event.clientY <= r.bottom) {
+								const lane = row.querySelector<HTMLElement>('[data-track-lane]');
+								const tId = lane?.dataset.trackLane as TrackId | undefined;
+								const track = activeProject.tracks.find((t) => t.id === tId);
+								if (track && track.kind === 'video' && !track.locked) {
+									event.preventDefault();
+									event.dataTransfer.dropEffect = 'copy';
+									beginShapePreview(event, track.id);
+								} else {
+									beginShapeNewTrackPreview(event);
+								}
+								break;
+							}
+						}
+					}
+				} else {
+					beginShapeNewTrackPreview(event);
+				}
+			}
+			return;
+		}
+
+		const graphicTemplateId = graphicTemplateFromData(event.dataTransfer);
+		if (
+			graphicTemplateId ||
+			event.dataTransfer.types.includes('application/x-tfve-graphic-template')
+		) {
+			const target = document.elementFromPoint(event.clientX, event.clientY);
+			const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
+
+			if (
+				trackLaneEl &&
+				!trackLaneEl.classList.contains('is-preview-lane') &&
+				activeProject.tracks.some((t) => t.id === trackLaneEl.dataset.trackLane)
+			) {
+				const track = activeProject.tracks.find((t) => t.id === trackLaneEl.dataset.trackLane);
+				if (track) {
+					const laneRect = trackLaneEl.getBoundingClientRect();
+					const isNearTopEdge = event.clientY - laneRect.top < 14;
+					const isNearBottomEdge = laneRect.bottom - event.clientY < 14;
+					const firstVideoTrack = activeProject.tracks.find((t) => t.kind === 'video');
+					const lastTrack = activeProject.tracks[activeProject.tracks.length - 1];
+
+					if (isNearTopEdge && track.id === firstVideoTrack?.id) {
+						beginGraphicTemplateNewTrackPreview(event);
+						return;
+					}
+					if (isNearBottomEdge && track.id === lastTrack?.id) {
+						beginGraphicTemplateNewTrackPreview(event);
+						return;
+					}
+					if (track.kind === 'video' && !track.locked) {
+						event.preventDefault();
+						event.dataTransfer.dropEffect = 'copy';
+						beginGraphicTemplatePreview(event, track.id);
+					} else {
+						beginGraphicTemplateNewTrackPreview(event);
+					}
+				} else {
+					event.dataTransfer.dropEffect = 'none';
+				}
+				return;
+			}
+
+			const scroller = scrollerRef.current;
+			if (!scroller) return;
+			const rowsContainer = scroller.querySelector('.timeline-track-rows');
+			if (rowsContainer) {
+				const trackRows = Array.from(
+					rowsContainer.querySelectorAll<HTMLElement>(
+						'.timeline-track-row:not(.is-new-track-preview)'
+					)
+				);
+				if (trackRows.length > 0) {
+					const firstRowRect = trackRows[0]!.getBoundingClientRect();
+					const lastRowRect = trackRows[trackRows.length - 1]!.getBoundingClientRect();
+
+					if (event.clientY < firstRowRect.top + 14 || event.clientY > lastRowRect.bottom - 14) {
+						beginGraphicTemplateNewTrackPreview(event);
+					} else {
+						for (const row of trackRows) {
+							const r = row.getBoundingClientRect();
+							if (event.clientY >= r.top && event.clientY <= r.bottom) {
+								const lane = row.querySelector<HTMLElement>('[data-track-lane]');
+								const tId = lane?.dataset.trackLane as TrackId | undefined;
+								const track = activeProject.tracks.find((t) => t.id === tId);
+								if (track && track.kind === 'video' && !track.locked) {
+									event.preventDefault();
+									event.dataTransfer.dropEffect = 'copy';
+									beginGraphicTemplatePreview(event, track.id);
+								} else {
+									beginGraphicTemplateNewTrackPreview(event);
+								}
+								break;
+							}
+						}
+					}
+				} else {
+					beginGraphicTemplateNewTrackPreview(event);
+				}
+			}
+			return;
+		}
+
 		const assetId = assetFromData(event.dataTransfer);
 		if (!assetId) return;
 		const asset = activeProject.assets[assetId];
@@ -1283,6 +1792,21 @@ function ActiveTimeline({ project }: { project: Project }) {
 		) {
 			const track = activeProject.tracks.find((t) => t.id === trackLaneEl.dataset.trackLane);
 			if (track) {
+				const laneRect = trackLaneEl.getBoundingClientRect();
+				const isNearTopEdge = event.clientY - laneRect.top < 14;
+				const isNearBottomEdge = laneRect.bottom - event.clientY < 14;
+				const firstTrack = activeProject.tracks[0];
+				const lastTrack = activeProject.tracks[activeProject.tracks.length - 1];
+
+				if (isNearTopEdge && track.id === firstTrack?.id) {
+					beginAssetNewTrackPreview(event, assetTrackKind);
+					return;
+				}
+				if (isNearBottomEdge && track.id === lastTrack?.id) {
+					beginAssetNewTrackPreview(event, assetTrackKind);
+					return;
+				}
+
 				const compatible =
 					track.kind === 'video'
 						? asset.kind === 'video' || asset.kind === 'image'
@@ -1311,7 +1835,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 				const firstRowRect = trackRows[0]!.getBoundingClientRect();
 				const lastRowRect = trackRows[trackRows.length - 1]!.getBoundingClientRect();
 
-				if (event.clientY < firstRowRect.top || event.clientY > lastRowRect.bottom) {
+				if (event.clientY < firstRowRect.top + 14 || event.clientY > lastRowRect.bottom - 14) {
 					beginAssetNewTrackPreview(event, assetTrackKind);
 				} else {
 					for (const row of trackRows) {
@@ -1357,9 +1881,37 @@ function ActiveTimeline({ project }: { project: Project }) {
 			}
 			return;
 		}
-		const graphicTemplateId = event.dataTransfer.getData('application/x-tfve-graphic-template');
+		const shapeConfig = shapeFromData(event.dataTransfer);
+		if (shapeConfig) {
+			event.preventDefault();
+			const session = store.getState().timeline.drag;
+			if (session?.kind === 'shape') {
+				commitTimelineDrag();
+				return;
+			}
+			const target = document.elementFromPoint(event.clientX, event.clientY);
+			const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
+			const targetTrack =
+				(trackLaneEl &&
+					activeProject.tracks.find(
+						(t) => t.id === trackLaneEl.dataset.trackLane && t.kind === 'video'
+					)) ||
+				activeProject.tracks.find((t) => t.kind === 'video' && !t.locked);
+			const time = pointerTime(event.clientX);
+			store.getState().addShapeClip(shapeConfig, {
+				start: time,
+				trackId: targetTrack?.id
+			});
+			return;
+		}
+		const graphicTemplateId = graphicTemplateFromData(event.dataTransfer);
 		if (graphicTemplateId) {
 			event.preventDefault();
+			const session = store.getState().timeline.drag;
+			if (session?.graphicTemplateId === graphicTemplateId) {
+				commitTimelineDrag();
+				return;
+			}
 			const target = document.elementFromPoint(event.clientX, event.clientY);
 			const trackLaneEl = target?.closest<HTMLElement>('[data-track-lane]');
 			const targetTrack =
@@ -1434,6 +1986,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 
 		if (activeTool === 'type') {
 			store.getState().addTextClip();
+			store.getState().setActiveTimelineTool('select');
 			return;
 		}
 
@@ -1842,6 +2395,18 @@ function ActiveTimeline({ project }: { project: Project }) {
 					activeTool={activeTool}
 					onSelectTool={(tool) => store.getState().setActiveTimelineTool(tool)}
 					onAddMarker={() => store.getState().addMarker(store.getState().timeline.playhead)}
+					onAddText={() => {
+						store.getState().addTextClip();
+						if (store.getState().timeline.activeTool !== 'select') {
+							store.getState().setActiveTimelineTool('select');
+						}
+					}}
+					onAddShape={() => {
+						store.getState().addShapeClip();
+						if (store.getState().timeline.activeTool !== 'select') {
+							store.getState().setActiveTimelineTool('select');
+						}
+					}}
 				/>
 				<div
 					className={`timeline-scroll ${isPanning ? 'is-panning' : ''}`}
@@ -1917,11 +2482,19 @@ function ActiveTimeline({ project }: { project: Project }) {
 											role="gridcell"
 											aria-label={`New ${drag.createTrackKind} track preview`}
 											onDragOver={(event) => {
+												event.stopPropagation();
 												if (drag?.createTrackKind) {
-													beginAssetNewTrackPreview(event, drag.createTrackKind);
+													if (drag?.shapeConfig) {
+														beginShapeNewTrackPreview(event);
+													} else if (drag?.graphicTemplateId) {
+														beginGraphicTemplateNewTrackPreview(event);
+													} else {
+														beginAssetNewTrackPreview(event, drag.createTrackKind);
+													}
 												}
 											}}
 											onDrop={(event) => {
+												event.stopPropagation();
 												event.preventDefault();
 												const session = store.getState().timeline.drag;
 												if (session?.createTrackKind) {
@@ -1940,7 +2513,12 @@ function ActiveTimeline({ project }: { project: Project }) {
 												}
 												const assetId = drag.assetId ?? sourceClip?.assetId;
 												const asset = assetId ? activeProject.assets[assetId] : undefined;
-												if (!asset && (!sourceClip?.source || sourceClip.source.type === 'asset')) {
+												if (
+													!asset &&
+													(!sourceClip?.source || sourceClip.source.type === 'asset') &&
+													!drag.graphicTemplateId &&
+													!drag.shapeConfig
+												) {
 													return null;
 												}
 												const previewTrack: Track = {
@@ -1960,16 +2538,20 @@ function ActiveTimeline({ project }: { project: Project }) {
 															sourceIn: position.sourceIn,
 															sourceOut: position.sourceOut
 														}
-													: {
-															id: position.clipId,
-															assetId: asset?.id,
-															start: position.start,
-															duration: position.duration,
-															sourceIn: position.sourceIn,
-															sourceOut: position.sourceOut,
-															speed: 1,
-															volume: 1
-														};
+													: drag.shapeConfig
+														? createShapeClip(position.start, position.duration, drag.shapeConfig)
+														: drag.graphicTemplateId
+															? createGraphicClip(drag.graphicTemplateId, position.start, position.duration)
+															: {
+																id: position.clipId,
+																assetId: asset?.id,
+																start: position.start,
+																duration: position.duration,
+																sourceIn: position.sourceIn,
+																sourceOut: position.sourceOut,
+																speed: 1,
+																volume: 1
+															};
 												return (
 													<ClipView
 														key={`preview-track-ghost-${position.clipId}`}
@@ -2015,6 +2597,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 												<TrackHeader
 													track={track}
 													index={index}
+													selected={selection.trackId === track.id}
+													onSelect={() => store.getState().selectTrack(track.id)}
 													onRename={renameTimelineTrack}
 													onRemove={handleTrackRemoval}
 													onFlag={setTimelineTrackFlags}
@@ -2026,6 +2610,10 @@ function ActiveTimeline({ project }: { project: Project }) {
 													role="gridcell"
 													aria-label={`${track.name} track lane`}
 													tabIndex={0}
+													onPointerDown={(event) => {
+														if ((event.target as HTMLElement).closest('.timeline-clip, .caption-segment-view, .transition-block')) return;
+														store.getState().selectTrack(track.id);
+													}}
 													onKeyDown={(event) => handleLaneKeyDown(event, track)}
 													onDragOver={(event) => handleTrackDragOver(event, track)}
 													onDrop={(event) => handleTrackDrop(event, track)}
@@ -2140,7 +2728,9 @@ function ActiveTimeline({ project }: { project: Project }) {
 														const asset = assetId ? activeProject.assets[assetId] : undefined;
 														if (
 															!asset &&
-															(!sourceClip?.source || sourceClip.source.type === 'asset')
+															(!sourceClip?.source || sourceClip.source.type === 'asset') &&
+															!drag?.graphicTemplateId &&
+															!drag?.shapeConfig
 														) {
 															return null;
 														}
@@ -2152,16 +2742,28 @@ function ActiveTimeline({ project }: { project: Project }) {
 																	sourceIn: position.sourceIn,
 																	sourceOut: position.sourceOut
 																}
-															: {
-																	id: position.clipId,
-																	assetId: asset?.id,
-																	start: position.start,
-																	duration: position.duration,
-																	sourceIn: position.sourceIn,
-																	sourceOut: position.sourceOut,
-																	speed: 1,
-																	volume: 1
-																};
+															: drag?.shapeConfig
+																? createShapeClip(
+																		position.start,
+																		position.duration,
+																		drag.shapeConfig
+																	)
+																: drag?.graphicTemplateId
+																	? createGraphicClip(
+																			drag.graphicTemplateId,
+																			position.start,
+																			position.duration
+																		)
+																	: {
+																		id: position.clipId,
+																		assetId: asset?.id,
+																		start: position.start,
+																		duration: position.duration,
+																		sourceIn: position.sourceIn,
+																		sourceOut: position.sourceOut,
+																		speed: 1,
+																		volume: 1
+																	};
 														return (
 															<ClipView
 																key={`ghost-${position.clipId}`}

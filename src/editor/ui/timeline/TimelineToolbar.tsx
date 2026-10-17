@@ -25,6 +25,7 @@ interface TimelineToolbarProps {
 	onAddTrack: (kind: 'video' | 'audio') => void;
 	onAddAdjustment?: () => void;
 	onAddSolid?: () => void;
+	onAddShape?: () => void;
 	onAddText?: () => void;
 	onAddCaption?: () => void;
 }
@@ -51,6 +52,7 @@ export default function TimelineToolbar({
 	onFit,
 	onAddAdjustment,
 	onAddSolid,
+	onAddShape,
 	onAddText,
 	onAddCaption
 }: TimelineToolbarProps) {
@@ -254,6 +256,32 @@ export default function TimelineToolbar({
 								<rect x="2" y="2" width="12" height="12" rx="2" />
 							</svg>
 							<span>Solid Layer</span>
+						</button>
+					)}
+					{onAddShape && (
+						<button
+							type="button"
+							className="tool-button"
+							onClick={onAddShape}
+							title="Add shape layer at playhead"
+							aria-label="Shape Layer"
+						>
+							<svg
+								className="tool-btn-icon"
+								viewBox="0 0 16 16"
+								width="12"
+								height="12"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.75"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<rect x="2" y="2" width="7.5" height="7.5" rx="1" />
+								<circle cx="10" cy="10" r="4" />
+							</svg>
+							<span>Shape Layer</span>
 						</button>
 					)}
 					{onAddText && (

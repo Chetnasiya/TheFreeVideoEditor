@@ -190,6 +190,7 @@ export default function EffectsLibrary() {
 
 	const handleDragStart = (e: DragEvent, def: EffectDefinition) => {
 		e.dataTransfer.setData('application/x-tfve-effect', def.id);
+		e.dataTransfer.setData('application/x-tfve-effect-name', def.name);
 		e.dataTransfer.setData('text/plain', def.id);
 		e.dataTransfer.effectAllowed = 'copy';
 	};
@@ -382,6 +383,7 @@ export default function EffectsLibrary() {
 								draggable
 								onDragStart={(e) => {
 									e.dataTransfer.setData('application/x-tfve-audio-effect', def.id);
+									e.dataTransfer.setData('application/x-tfve-effect-name', def.name);
 									e.dataTransfer.setData('text/plain', def.id);
 									e.dataTransfer.effectAllowed = 'copy';
 								}}

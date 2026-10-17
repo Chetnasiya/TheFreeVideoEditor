@@ -89,7 +89,7 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 	};
 
 	const handleAddCue = () => {
-		store.getState().addCaptionAtPlayhead('New Caption');
+		store.getState().addCaptionAtPlayhead('New Caption', activeTrackId);
 	};
 
 	const handleUpdateText = (captionId: string, newText: string) => {
@@ -172,7 +172,23 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 		return (
 			<div className="captions-panel">
 				<div className="captions-empty">
-					<span className="captions-empty-icon">💬</span>
+					<svg
+						width="36"
+						height="36"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						className="captions-empty-svg"
+						aria-hidden="true"
+						style={{ opacity: 0.5, marginBottom: '8px' }}
+					>
+						<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+						<line x1="7" y1="9" x2="17" y2="9" />
+						<line x1="7" y1="13" x2="13" y2="13" />
+					</svg>
 					<p className="captions-empty-hint">Open or create a project to edit captions.</p>
 				</div>
 			</div>
@@ -210,13 +226,27 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 					<button
 						type="button"
 						className="captions-btn-icon captions-btn-primary"
+						style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
 						onClick={() => {
 							if (onAutoCaption) onAutoCaption();
 							else setAutoCaptionModalOpen(true);
 						}}
 						title="Auto-generate subtitles locally with AI"
 					>
-						✨ Auto-Caption
+						<svg
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							aria-hidden="true"
+						>
+							<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z" />
+						</svg>
+						<span>Auto-Caption</span>
 					</button>
 					<button
 						type="button"
@@ -355,7 +385,23 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 				<div className="captions-cue-list-container">
 					{filteredCaptions.length === 0 ? (
 						<div className="captions-empty">
-							<span className="captions-empty-icon">💬</span>
+							<svg
+								width="36"
+								height="36"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								className="captions-empty-svg"
+								aria-hidden="true"
+								style={{ opacity: 0.5, marginBottom: '8px' }}
+							>
+								<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+								<line x1="7" y1="9" x2="17" y2="9" />
+								<line x1="7" y1="13" x2="13" y2="13" />
+							</svg>
 							<p className="captions-empty-hint">
 								{captionTracks.length === 0
 									? 'Click "+ New Track" or "+ Add Cue" to start subtitle authoring.'
@@ -532,31 +578,73 @@ export function CaptionsPanel({ onAutoCaption }: CaptionsPanelProps) {
 								value={currentStyle.positionPreset}
 								onChange={(e) =>
 									handleUpdateStyle({
-										positionPreset: e.target.value as CaptionPositionPreset
+										positionPreset: e.target.value as CaptionPositionPreset,
+										...(e.target.value === 'custom'
+											? {
+													customX: currentStyle.customX ?? 0,
+													customY: currentStyle.customY ?? 0
+												}
+											: {})
 									})
 								}
 							>
 								<option value="bottom">Bottom</option>
 								<option value="center">Center</option>
 								<option value="top">Top</option>
+								<option value="custom">Custom (Drag or Offset)</option>
 							</select>
 						</div>
 
-						<div className="captions-field-row">
-							<label>Margin</label>
-							<div className="captions-range-wrapper">
-								<input
-									type="range"
-									min={2}
-									max={30}
-									value={currentStyle.marginPercent ?? 7}
-									onChange={(e) => handleUpdateStyle({ marginPercent: Number(e.target.value) })}
-								/>
-								<span style={{ fontSize: '12px', minWidth: '32px' }}>
-									{currentStyle.marginPercent ?? 7}%
-								</span>
+						{currentStyle.positionPreset === 'custom' ? (
+							<>
+								<div className="captions-field-row">
+									<label>Offset X</label>
+									<div className="captions-range-wrapper">
+										<input
+											type="range"
+											min={-960}
+											max={960}
+											value={currentStyle.customX ?? 0}
+											onChange={(e) => handleUpdateStyle({ customX: Number(e.target.value) })}
+										/>
+										<span style={{ fontSize: '12px', minWidth: '40px', textAlign: 'right' }}>
+											{currentStyle.customX ?? 0}px
+										</span>
+									</div>
+								</div>
+								<div className="captions-field-row">
+									<label>Offset Y</label>
+									<div className="captions-range-wrapper">
+										<input
+											type="range"
+											min={-540}
+											max={540}
+											value={currentStyle.customY ?? 0}
+											onChange={(e) => handleUpdateStyle({ customY: Number(e.target.value) })}
+										/>
+										<span style={{ fontSize: '12px', minWidth: '40px', textAlign: 'right' }}>
+											{currentStyle.customY ?? 0}px
+										</span>
+									</div>
+								</div>
+							</>
+						) : (
+							<div className="captions-field-row">
+								<label>Margin</label>
+								<div className="captions-range-wrapper">
+									<input
+										type="range"
+										min={2}
+										max={30}
+										value={currentStyle.marginPercent ?? 7}
+										onChange={(e) => handleUpdateStyle({ marginPercent: Number(e.target.value) })}
+									/>
+									<span style={{ fontSize: '12px', minWidth: '32px' }}>
+										{currentStyle.marginPercent ?? 7}%
+									</span>
+								</div>
 							</div>
-						</div>
+						)}
 					</div>
 
 					<div className="captions-style-group">

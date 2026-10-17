@@ -396,7 +396,13 @@ function EditorShell() {
 			'tool-slip': () => state().setActiveTimelineTool('slip'),
 			'tool-pen': () => state().setActiveTimelineTool('pen'),
 			'tool-hand': () => state().setActiveTimelineTool('hand'),
-			'new-text-clip': () => state().setActiveTimelineTool('type'),
+			'new-text-clip': () => {
+				const s = state();
+				s.addTextClip();
+				if (s.timeline.activeTool !== 'select') {
+					s.setActiveTimelineTool('select');
+				}
+			},
 			'add-caption': () => state().addCaptionAtPlayhead(),
 			undo: () => state().undo(),
 			redo: () => state().redo(),

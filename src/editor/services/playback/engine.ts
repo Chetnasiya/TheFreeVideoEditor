@@ -17,6 +17,7 @@ import { MediaPool } from './mediaPool';
 import { TextRasterCache } from '../render/text/cache';
 import { ensureFontLoaded } from '../render/text/fontLoader';
 import { ensureLutLoaded, getParsedLut } from '../media/lutCache';
+import { rasterizeShape } from '../render/shapes/shapeRasterizer';
 
 export interface PlaybackSnapshot {
 	time: Time;
@@ -589,6 +590,10 @@ class PlaybackEngineImpl implements PlaybackEngine {
 			{ width: proj.settings.width, height: proj.settings.height },
 			layers,
 			(layer: ActiveLayer): FrameSource | null => {
+				if (layer.kind === 'shape' && layer.shapeData) {
+					const rendered = rasterizeShape(layer.shapeData);
+					return rendered.canvas as FrameSource;
+				}
 				if (layer.kind === 'text' && layer.textData) {
 					const data = layer.textData;
 					if (data.style.fontFamily) {

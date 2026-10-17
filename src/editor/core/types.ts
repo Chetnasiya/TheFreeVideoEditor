@@ -176,7 +176,24 @@ export type ClipSource =
 	  }
 	| { type: 'sequence'; sequenceId: SequenceId }
 	| { type: 'solid'; color: { r: number; g: number; b: number; a: number } }
-	| { type: 'adjustment' };
+	| { type: 'adjustment' }
+	| {
+			type: 'shape';
+			shapeType: import('./shapes/shapeTypes').ShapeKind;
+			width: number;
+			height: number;
+			fillColor: { r: number; g: number; b: number; a: number };
+			strokeColor?: { r: number; g: number; b: number; a: number };
+			strokeWidth?: number;
+			strokeStyle?: 'solid' | 'dashed' | 'dotted';
+			cornerRadius?: number;
+			points?: number;
+			innerRadius?: number;
+			shadowColor?: { r: number; g: number; b: number; a: number };
+			shadowBlur?: number;
+			shadowOffsetX?: number;
+			shadowOffsetY?: number;
+	  };
 
 export interface MaskPoint {
 	x: number;
@@ -451,7 +468,7 @@ export interface Tracker {
 
 export type TrackKind = 'video' | 'audio' | 'caption';
 
-export type CaptionPositionPreset = 'bottom' | 'center' | 'top';
+export type CaptionPositionPreset = 'bottom' | 'center' | 'top' | 'custom';
 export type CaptionHighlightMode = 'none' | 'word' | 'progressive';
 
 export interface RgbaColor {
@@ -492,6 +509,8 @@ export interface CaptionStyle {
 	shadowOffsetX?: number;
 	shadowOffsetY?: number;
 	positionPreset: CaptionPositionPreset;
+	customX?: number;
+	customY?: number;
 	alignment: 'left' | 'center' | 'right';
 	marginPercent?: number;
 	maxLines: number;
@@ -558,7 +577,14 @@ export interface ProjectSummary {
 	assetCount: number;
 }
 
-export type TimelineDragKind = 'move' | 'trim-start' | 'trim-end' | 'asset' | 'slip';
+export type TimelineDragKind =
+	| 'move'
+	| 'trim-start'
+	| 'trim-end'
+	| 'asset'
+	| 'slip'
+	| 'graphic-template'
+	| 'shape';
 
 export interface DragPosition {
 	clipId: ClipId;
@@ -579,6 +605,8 @@ export interface DragSession {
 	targetTrackId?: TrackId;
 	createTrackKind?: Track['kind'];
 	assetId?: AssetId;
+	graphicTemplateId?: string;
+	shapeConfig?: import('./shapes/shapeTypes').ShapeConfig;
 	snappedTo?: Time;
 	allowed: boolean;
 	unlink: boolean;

@@ -306,8 +306,20 @@ export default function GraphicsPanel() {
 	// Drag start handler for timeline drop
 	const handleDragStart = (e: DragEvent, template: GraphicTemplate) => {
 		e.dataTransfer.setData('application/x-tfve-graphic-template', template.id);
+		e.dataTransfer.setData('application/x-tfve-graphic-name', template.name);
 		e.dataTransfer.setData('text/plain', template.id);
 		e.dataTransfer.effectAllowed = 'copy';
+		store.getState().beginTimelineDrag({
+			kind: 'graphic-template',
+			clipIds: [],
+			original: [],
+			preview: [],
+			pointerStartTime: 0,
+			pointerTime: 0,
+			graphicTemplateId: template.id,
+			allowed: true,
+			unlink: false
+		});
 	};
 
 	// Text edits in Quick Editor
@@ -699,6 +711,7 @@ export default function GraphicsPanel() {
 										className="graphic-card"
 										draggable
 										onDragStart={(e) => handleDragStart(e, template)}
+										onDragEnd={() => store.getState().cancelTimelineDrag()}
 										onDoubleClick={() => handleAddTemplate(template)}
 										role="listitem"
 										aria-label={`${template.name} graphic template`}
