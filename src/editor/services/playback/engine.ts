@@ -15,7 +15,7 @@ import { extractCanvasScopeFrame, type ScopeFrameData } from '../render/passes/s
 import { createPlaybackClock, type PlaybackRate } from './clock';
 import { MediaPool } from './mediaPool';
 import { TextRasterCache } from '../render/text/cache';
-import { ensureFontLoaded } from '../render/text/fontLoader';
+import { ensureFontLoaded, isFontLoaded } from '../render/text/fontLoader';
 import { ensureLutLoaded, getParsedLut } from '../media/lutCache';
 import { rasterizeShape } from '../render/shapes/shapeRasterizer';
 
@@ -596,7 +596,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 				}
 				if (layer.kind === 'text' && layer.textData) {
 					const data = layer.textData;
-					if (data.style.fontFamily) {
+					if (data.style.fontFamily && !isFontLoaded(data.style.fontFamily)) {
 						void ensureFontLoaded(data.style.fontFamily).then((loaded) => {
 							if (loaded) this.requestRender();
 						});
@@ -626,6 +626,8 @@ class PlaybackEngineImpl implements PlaybackEngine {
 						accentBarWidth: data.accentBarWidth,
 						frameStyle: data.frameStyle,
 						badgeText: data.badgeText,
+						gradientType: data.gradientType,
+						gradientColorEnd: data.gradientColorEnd,
 						colorRuns: data.colorRuns,
 						scale
 					});

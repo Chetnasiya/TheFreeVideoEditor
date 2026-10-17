@@ -138,7 +138,12 @@ export type GraphicFrameStyle =
 	| 'title-badge'
 	| 'split-slash'
 	| 'divided-box'
-	| 'diagonal-repeat';
+	| 'diagonal-repeat'
+	| 'lower-third-line'
+	| 'lower-third-glass'
+	| 'social-pill'
+	| 'callout-pointer'
+	| 'cinematic-box';
 
 export interface TextBox {
 	width?: number;
@@ -154,6 +159,8 @@ export interface TextBox {
 	borderRadius?: number;
 	accentBarColor?: { r: number; g: number; b: number; a: number };
 	accentBarWidth?: number;
+	gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial';
+	gradientColorEnd?: { r: number; g: number; b: number; a: number };
 }
 
 export interface TextColorRun {
@@ -578,13 +585,7 @@ export interface ProjectSummary {
 }
 
 export type TimelineDragKind =
-	| 'move'
-	| 'trim-start'
-	| 'trim-end'
-	| 'asset'
-	| 'slip'
-	| 'graphic-template'
-	| 'shape';
+	'move' | 'trim-start' | 'trim-end' | 'asset' | 'slip' | 'graphic-template' | 'shape';
 
 export interface DragPosition {
 	clipId: ClipId;

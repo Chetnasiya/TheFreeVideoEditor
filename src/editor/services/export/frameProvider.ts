@@ -97,6 +97,8 @@ export class ExportFrameProvider {
 					accentBarWidth: data.accentBarWidth,
 					frameStyle: data.frameStyle,
 					badgeText: data.badgeText,
+					gradientType: data.gradientType,
+					gradientColorEnd: data.gradientColorEnd,
 					colorRuns: data.colorRuns,
 					scale
 				});

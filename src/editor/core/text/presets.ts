@@ -394,6 +394,213 @@ export const TEXT_ANIMATION_PRESETS: readonly TextAnimationPreset[] = [
 				{ time: 1_500_000, value: 1, interpolation: 'linear' }
 			]
 		}
+	},
+	{
+		id: 'whip-slide-left',
+		name: 'Whip Slide Left',
+		description: 'Lightning-fast whip pan slide with aggressive deceleration',
+		duration: 450_000,
+		kind: 'in',
+		keyframes: {
+			position: [
+				{
+					time: 0,
+					value: [-380, 0],
+					interpolation: 'bezier',
+					easeOut: { x: 0.05, y: 0.95 },
+					easeIn: { x: 0.1, y: 1 }
+				},
+				{ time: 450_000, value: [0, 0], interpolation: 'linear' }
+			],
+			opacity: [
+				{ time: 0, value: 0, interpolation: 'linear' },
+				{ time: 180_000, value: 1, interpolation: 'linear' }
+			]
+		}
+	},
+	{
+		id: 'whip-slide-right',
+		name: 'Whip Slide Right',
+		description: 'Lightning-fast whip slide from right edge',
+		duration: 450_000,
+		kind: 'in',
+		keyframes: {
+			position: [
+				{
+					time: 0,
+					value: [380, 0],
+					interpolation: 'bezier',
+					easeOut: { x: 0.05, y: 0.95 },
+					easeIn: { x: 0.1, y: 1 }
+				},
+				{ time: 450_000, value: [0, 0], interpolation: 'linear' }
+			],
+			opacity: [
+				{ time: 0, value: 0, interpolation: 'linear' },
+				{ time: 180_000, value: 1, interpolation: 'linear' }
+			]
+		}
+	},
+	{
+		id: 'elastic-spring',
+		name: 'Elastic Spring Bounce',
+		description: 'High-end AE spring overshoot with multi-bounce settling',
+		duration: 700_000,
+		kind: 'in',
+		keyframes: {
+			scale: [
+				{
+					time: 0,
+					value: [0.2, 0.2],
+					interpolation: 'bezier',
+					easeOut: { x: 0.34, y: 1.56 },
+					easeIn: { x: 0.64, y: 1 }
+				},
+				{
+					time: 420_000,
+					value: [1.14, 1.14],
+					interpolation: 'bezier',
+					easeOut: { x: 0.25, y: 0.1 },
+					easeIn: { x: 0.25, y: 1 }
+				},
+				{ time: 560_000, value: [0.96, 0.96], interpolation: 'linear' },
+				{ time: 700_000, value: [1.0, 1.0], interpolation: 'linear' }
+			],
+			opacity: [
+				{ time: 0, value: 0, interpolation: 'linear' },
+				{ time: 180_000, value: 1, interpolation: 'linear' }
+			]
+		}
+	},
+	{
+		id: 'cinematic-reveal',
+		name: 'Cinematic Letterbox Reveal',
+		description: 'Dramatic slow push with tracking expansion and film dissolve',
+		duration: 900_000,
+		kind: 'in',
+		keyframes: {
+			scale: [
+				{
+					time: 0,
+					value: [0.95, 0.95],
+					interpolation: 'bezier',
+					easeOut: { x: 0.25, y: 0.1 },
+					easeIn: { x: 0.25, y: 1 }
+				},
+				{ time: 900_000, value: [1.03, 1.03], interpolation: 'linear' }
+			],
+			'text.letterSpacing': [
+				{
+					time: 0,
+					value: 12,
+					interpolation: 'bezier',
+					easeOut: { x: 0.16, y: 1 },
+					easeIn: { x: 0.3, y: 1 }
+				},
+				{ time: 900_000, value: 3, interpolation: 'linear' }
+			],
+			opacity: [
+				{ time: 0, value: 0, interpolation: 'linear' },
+				{ time: 650_000, value: 1, interpolation: 'linear' }
+			]
+		}
+	},
+	{
+		id: 'broadcast-lower-third-in',
+		name: 'Broadcast Lower Third Entrance',
+		description: 'Television-style smooth horizontal lockup slide with accent lead',
+		duration: 550_000,
+		kind: 'in',
+		keyframes: {
+			position: [
+				{
+					time: 0,
+					value: [-320, 0],
+					interpolation: 'bezier',
+					easeOut: { x: 0.16, y: 1 },
+					easeIn: { x: 0.3, y: 1 }
+				},
+				{ time: 550_000, value: [0, 0], interpolation: 'linear' }
+			],
+			opacity: [
+				{ time: 0, value: 0, interpolation: 'linear' },
+				{ time: 260_000, value: 1, interpolation: 'linear' }
+			]
+		}
+	},
+	{
+		id: 'pop-pill-in',
+		name: 'Pop Pill Badge',
+		description: 'Snappy overshoot pop-up tailored for badges, pills, and buttons',
+		duration: 420_000,
+		kind: 'in',
+		keyframes: {
+			scale: [
+				{
+					time: 0,
+					value: [0.35, 0.35],
+					interpolation: 'bezier',
+					easeOut: { x: 0.34, y: 1.56 },
+					easeIn: { x: 0.64, y: 1 }
+				},
+				{ time: 280_000, value: [1.1, 1.1], interpolation: 'linear' },
+				{ time: 420_000, value: [1.0, 1.0], interpolation: 'linear' }
+			],
+			position: [
+				{
+					time: 0,
+					value: [0, 35],
+					interpolation: 'bezier',
+					easeOut: { x: 0.25, y: 0.1 },
+					easeIn: { x: 0.25, y: 1 }
+				},
+				{ time: 420_000, value: [0, 0], interpolation: 'linear' }
+			],
+			opacity: [
+				{ time: 0, value: 0, interpolation: 'linear' },
+				{ time: 160_000, value: 1, interpolation: 'linear' }
+			]
+		}
+	},
+	{
+		id: 'whip-out-left',
+		name: 'Whip Out Left (End)',
+		description: 'Aggressive whip pan exit at clip ending',
+		duration: 400_000,
+		kind: 'out',
+		keyframes: {
+			position: [
+				{
+					time: 0,
+					value: [0, 0],
+					interpolation: 'bezier',
+					easeOut: { x: 0.7, y: 0 },
+					easeIn: { x: 0.84, y: 0 }
+				},
+				{ time: 400_000, value: [-450, 0], interpolation: 'linear' }
+			],
+			opacity: [
+				{ time: 0, value: 1, interpolation: 'linear' },
+				{ time: 400_000, value: 0, interpolation: 'linear' }
+			]
+		}
+	},
+	{
+		id: 'zoom-fade-out',
+		name: 'Cinematic Zoom Out (End)',
+		description: 'Slow push scale expansion with dissolve exit',
+		duration: 500_000,
+		kind: 'out',
+		keyframes: {
+			scale: [
+				{ time: 0, value: [1.0, 1.0], interpolation: 'linear' },
+				{ time: 500_000, value: [1.15, 1.15], interpolation: 'linear' }
+			],
+			opacity: [
+				{ time: 0, value: 1, interpolation: 'linear' },
+				{ time: 500_000, value: 0, interpolation: 'linear' }
+			]
+		}
 	}
 ];
 

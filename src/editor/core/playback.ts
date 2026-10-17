@@ -160,6 +160,8 @@ export interface ActiveLayer {
 		accentBarWidth?: number;
 		frameStyle?: import('./types').GraphicFrameStyle;
 		badgeText?: string;
+		gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial';
+		gradientColorEnd?: { r: number; g: number; b: number; a: number };
 		colorRuns?: Array<{
 			startIndex: number;
 			endIndex: number;
@@ -444,8 +446,14 @@ export function resolveFrame(
 					return anim ? evaluateOr(anim, localTime, fallback) : fallback;
 				};
 
-				const width = finite(read('shape.width', shapeSource.width ?? 300), shapeSource.width ?? 300);
-				const height = finite(read('shape.height', shapeSource.height ?? 200), shapeSource.height ?? 200);
+				const width = finite(
+					read('shape.width', shapeSource.width ?? 300),
+					shapeSource.width ?? 300
+				);
+				const height = finite(
+					read('shape.height', shapeSource.height ?? 200),
+					shapeSource.height ?? 200
+				);
 
 				const rawFill = read('shape.fillColor', null);
 				const fillColor =
@@ -483,8 +491,14 @@ export function resolveFrame(
 							}
 						: shapeSource.shadowColor;
 				const shadowBlur = finite(read('shape.shadowBlur', shapeSource.shadowBlur ?? 0), 0);
-				const shadowOffsetX = finite(read('shape.shadowOffsetX', shapeSource.shadowOffsetX ?? 0), 0);
-				const shadowOffsetY = finite(read('shape.shadowOffsetY', shapeSource.shadowOffsetY ?? 0), 0);
+				const shadowOffsetX = finite(
+					read('shape.shadowOffsetX', shapeSource.shadowOffsetX ?? 0),
+					0
+				);
+				const shadowOffsetY = finite(
+					read('shape.shadowOffsetY', shapeSource.shadowOffsetY ?? 0),
+					0
+				);
 
 				return {
 					clipId: clip.id,
@@ -611,6 +625,8 @@ export function resolveFrame(
 
 				const frameStyle = clip.source.box?.frameStyle;
 				const badgeText = clip.source.box?.badgeText;
+				const gradientType = clip.source.box?.gradientType;
+				const gradientColorEnd = clip.source.box?.gradientColorEnd;
 
 				const colorRuns =
 					'colorRuns' in clip.source && Array.isArray(clip.source.colorRuns)
@@ -651,6 +667,8 @@ export function resolveFrame(
 						accentBarWidth,
 						frameStyle,
 						badgeText,
+						gradientType,
+						gradientColorEnd,
 						colorRuns
 					},
 					masks: evaluatedMasks,

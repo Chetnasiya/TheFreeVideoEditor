@@ -63,6 +63,7 @@ export const BUNDLED_FONTS: readonly BundledFont[] = [
 ];
 
 const loadedFonts = new Set<string>();
+const failedFonts = new Set<string>();
 const loadingPromises = new Map<string, Promise<boolean>>();
 const customFonts = new Map<string, CustomFont>();
 
@@ -157,6 +158,7 @@ export async function registerCustomFont(font: CustomFont): Promise<boolean> {
 		}
 
 		loadedFonts.add(font.family);
+		failedFonts.delete(font.family.toLowerCase());
 		customFonts.set(font.family.toLowerCase(), font);
 		return true;
 	} catch (err) {
@@ -180,6 +182,7 @@ export function unregisterCustomFont(family: string): void {
 	}
 	customFonts.delete(lower);
 	loadedFonts.delete(family);
+	failedFonts.delete(lower);
 }
 
 /**
@@ -266,11 +269,32 @@ export async function deleteCustomFont(family: string): Promise<void> {
  */
 export async function ensureFontLoaded(family: string, url?: string): Promise<boolean> {
 	if (loadedFonts.has(family)) return true;
+	if (failedFonts.has(family.toLowerCase())) return false;
 	if (loadingPromises.has(family)) return loadingPromises.get(family)!;
 
 	const loadPromise = (async () => {
 		try {
-			if (typeof FontFace === 'undefined') return true;
+			if (typeof FontFace === 'undefined') {
+				loadedFonts.add(family);
+				return true;
+			}
+
+			// If font is already available in document.fonts (e.g. loaded via CSS link tag)
+			if (typeof document !== 'undefined' && document.fonts) {
+				try {
+					if (document.fonts.check(`16px "${family}"`)) {
+						loadedFonts.add(family);
+						return true;
+					}
+					const loadedList = await document.fonts.load(`16px "${family}"`);
+					if (loadedList.length > 0 || document.fonts.check(`16px "${family}"`)) {
+						loadedFonts.add(family);
+						return true;
+					}
+				} catch {
+					// Fall through to manual FontFace loading
+				}
+			}
 
 			// If font is bundled or custom url is given
 			const fontInfo = BUNDLED_FONTS.find((f) => f.family.toLowerCase() === family.toLowerCase());
@@ -329,6 +353,7 @@ export async function ensureFontLoaded(family: string, url?: string): Promise<bo
 			loadedFonts.add(family);
 			return true;
 		} catch {
+			failedFonts.add(family.toLowerCase());
 			return false;
 		} finally {
 			loadingPromises.delete(family);
@@ -343,6 +368,7 @@ export async function ensureFontLoaded(family: string, url?: string): Promise<bo
  * Synchronous check whether font is already loaded.
  */
 export function isFontLoaded(family: string): boolean {
+	const lower = family.toLowerCase();
 	if (
 		[
 			'sans-serif',
@@ -353,9 +379,19 @@ export function isFontLoaded(family: string): boolean {
 			'system-ui',
 			'arial',
 			'helvetica'
-		].includes(family.toLowerCase())
+		].includes(lower)
 	) {
 		return true;
 	}
-	return loadedFonts.has(family);
+	if (failedFonts.has(lower)) {
+		return true;
+	}
+	if (loadedFonts.has(family)) {
+		return true;
+	}
+	if (typeof document !== 'undefined' && document.fonts?.check?.(`16px "${family}"`)) {
+		loadedFonts.add(family);
+		return true;
+	}
+	return false;
 }

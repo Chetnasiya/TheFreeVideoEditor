@@ -53,4 +53,28 @@ describe('hashTextConfig', () => {
 		});
 		expect(key1).not.toBe(key2);
 	});
+
+	it('changes hash when gradientType and gradientColorEnd change', () => {
+		const key1 = hashTextConfig(baseConfig);
+		const key2 = hashTextConfig({
+			...baseConfig,
+			gradientType: 'linear-horizontal',
+			gradientColorEnd: { r: 1, g: 0.5, b: 0, a: 1 }
+		});
+		expect(key1).not.toBe(key2);
+	});
+
+	it('changes hash when frameStyle changes to new styles', () => {
+		const key1 = hashTextConfig(baseConfig);
+		const key2 = hashTextConfig({
+			...baseConfig,
+			frameStyle: 'lower-third-line'
+		});
+		const key3 = hashTextConfig({
+			...baseConfig,
+			frameStyle: 'social-pill'
+		});
+		expect(key1).not.toBe(key2);
+		expect(key2).not.toBe(key3);
+	});
 });

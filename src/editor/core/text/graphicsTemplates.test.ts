@@ -12,11 +12,14 @@ import { createEditorStore } from '../../state/store';
 import { createEmptyProject } from '../factory';
 
 describe('Graphic Motion Templates & Kinetic Typography', () => {
-	it('defines 18 curated graphic templates with valid metadata, colors, and frame styles', () => {
-		expect(GRAPHIC_TEMPLATES.length).toBe(18);
+	it('defines 34 curated graphic templates with valid metadata, colors, and frame styles', () => {
+		expect(GRAPHIC_TEMPLATES.length).toBe(34);
 
 		const categories = new Set(GRAPHIC_TEMPLATES.map((t) => t.category));
 		expect(categories.has('kinetic')).toBe(true);
+		expect(categories.has('lower-third')).toBe(true);
+		expect(categories.has('titles')).toBe(true);
+		expect(categories.has('callouts')).toBe(true);
 		expect(categories.has('minimal')).toBe(true);
 		expect(categories.has('badge')).toBe(true);
 		expect(categories.has('neon')).toBe(true);
@@ -37,6 +40,20 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 		expect(ids.has('universal-slanted-box')).toBe(true);
 		expect(ids.has('new-trend-italic-slash')).toBe(true);
 		expect(ids.has('typography-titles-multiline')).toBe(true);
+		// Verify professional lower thirds, titles, and callouts
+		expect(ids.has('broadcast-news-lower-third')).toBe(true);
+		expect(ids.has('minimal-creator-tag')).toBe(true);
+		expect(ids.has('glass-streamer-badge')).toBe(true);
+		expect(ids.has('documentary-speaker-card')).toBe(true);
+		expect(ids.has('blockbuster-trailer')).toBe(true);
+		expect(ids.has('editorial-serif-title')).toBe(true);
+		expect(ids.has('cyberpunk-glitch-title')).toBe(true);
+		expect(ids.has('youtube-subscribe-bell')).toBe(true);
+		expect(ids.has('reels-hook-headline')).toBe(true);
+		expect(ids.has('pointer-feature-callout')).toBe(true);
+		expect(ids.has('verified-pill-badge')).toBe(true);
+		expect(ids.has('kinetic-bold-punch')).toBe(true);
+		expect(ids.has('kinetic-stagger-stack')).toBe(true);
 
 		for (const tpl of GRAPHIC_TEMPLATES) {
 			expect(tpl.id).toBeTruthy();

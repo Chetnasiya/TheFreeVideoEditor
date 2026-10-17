@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Clip, Time } from '../../core';
 import { readProperty } from '../../core';
 import { TEXT_TEMPLATE_PRESETS, TEXT_ANIMATION_PRESETS } from '../../core/text/presets';
+import { GRAPHIC_TEMPLATES } from '../../core/text/graphicsTemplates';
 import { useEditorStoreApi } from '../../state/EditorProvider';
 import { trackFeatureUsed } from '../../../services/activityTracking';
 import { PropertyRow, type ConfirmDisableState } from './Inspector';
@@ -137,7 +138,12 @@ export function TextSection({
 
 	const handleTemplateSelect = (templateId: string) => {
 		trackFeatureUsed('text_layer', { template: templateId });
-		store.getState().applyTextTemplate(clip.id, templateId);
+		const isGraphic = GRAPHIC_TEMPLATES.some((g) => g.id === templateId);
+		if (isGraphic) {
+			store.getState().applyGraphicTemplate(clip.id, templateId);
+		} else {
+			store.getState().applyTextTemplate(clip.id, templateId);
+		}
 	};
 
 	const handleAnimationSelect = (presetId: string) => {
@@ -276,11 +282,20 @@ export function TextSection({
 					<option value="" disabled>
 						Apply Style Template…
 					</option>
-					{TEXT_TEMPLATE_PRESETS.map((t) => (
-						<option key={t.id} value={t.id}>
-							{t.name}
-						</option>
-					))}
+					<optgroup label="Essential Text Presets">
+						{TEXT_TEMPLATE_PRESETS.map((t) => (
+							<option key={t.id} value={t.id}>
+								{t.name}
+							</option>
+						))}
+					</optgroup>
+					<optgroup label="Motion Graphic Templates">
+						{GRAPHIC_TEMPLATES.map((t) => (
+							<option key={t.id} value={t.id}>
+								{t.name} ({t.category})
+							</option>
+						))}
+					</optgroup>
 				</select>
 			</div>
 

@@ -10,7 +10,16 @@ import type {
 } from '../types';
 import { TEXT_ANIMATION_PRESETS, type TextAnimationPreset } from './presets';
 
-export type GraphicCategory = 'all' | 'kinetic' | 'minimal' | 'badge' | 'neon' | 'social';
+export type GraphicCategory =
+	| 'all'
+	| 'kinetic'
+	| 'lower-third'
+	| 'titles'
+	| 'social'
+	| 'callouts'
+	| 'minimal'
+	| 'badge'
+	| 'neon';
 
 export interface GraphicAnimationPreset extends TextAnimationPreset {
 	category?: 'in' | 'out' | 'emphasis';
@@ -1010,6 +1019,738 @@ export const GRAPHIC_TEMPLATES: readonly GraphicTemplate[] = [
 			primary: '#ffffff',
 			accent: '#ff5a33',
 			badge: '#2d1410'
+		}
+	},
+	// ─── Lower Thirds ────────────────────────────────────────────────────────
+	{
+		id: 'broadcast-news-lower-third',
+		name: 'Broadcast News Lower Third',
+		category: 'lower-third',
+		description:
+			'Television broadcast two-tier lower third with crisp cyan rule and weighted hierarchy',
+		tags: ['lower-third', 'broadcast', 'news', 'interview', 'tv', 'modern', 'cyan'],
+		defaultText: 'MARCUS CHEN\nCHIEF TECHNOLOGY OFFICER',
+		primaryLine: 'MARCUS CHEN',
+		secondaryLine: 'CHIEF TECHNOLOGY OFFICER',
+		highlightWord: 'MARCUS CHEN',
+		frameStyle: 'lower-third-line',
+		accentColor: { r: 0.22, g: 0.74, b: 0.98, a: 1.0 },
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '800',
+			alignment: 'left',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'bottom',
+			paddingX: 28,
+			paddingY: 16,
+			frameStyle: 'lower-third-line'
+		},
+		properties: {
+			position: [-240, 340],
+			'text.fontSize': 42,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.25,
+			'text.accentBarColor': [0.22, 0.74, 0.98, 1],
+			opacity: 1
+		},
+		animationPresetId: 'broadcast-lower-third-in',
+		inDurationUs: 550_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#0a1017',
+			primary: '#ffffff',
+			accent: '#38bdf8',
+			badge: '#0284c7'
+		}
+	},
+	{
+		id: 'minimal-creator-tag',
+		name: 'Minimal Creator Tag',
+		category: 'lower-third',
+		description: 'Clean amber-accented speaker identifier for YouTube interviews and vlogs',
+		tags: ['lower-third', 'creator', 'minimal', 'clean', 'vlog', 'youtube', 'amber'],
+		defaultText: 'SARAH JENNINGS\nDocumentary Filmmaker',
+		primaryLine: 'SARAH JENNINGS',
+		secondaryLine: 'Documentary Filmmaker',
+		frameStyle: 'accent-bar',
+		accentColor: { r: 0.98, g: 0.65, b: 0.12, a: 1.0 },
+		style: {
+			fontFamily: 'Inter',
+			fontWeight: '700',
+			alignment: 'left',
+			letterSpacing: 1
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'bottom',
+			paddingX: 20,
+			paddingY: 12,
+			frameStyle: 'accent-bar'
+		},
+		properties: {
+			position: [-260, 350],
+			'text.fontSize': 38,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 1,
+			'text.lineHeight': 1.2,
+			'text.accentBarWidth': 5,
+			'text.accentBarColor': [0.98, 0.65, 0.12, 1],
+			opacity: 1
+		},
+		animationPresetId: 'whip-slide-left',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#121214',
+			primary: '#ffffff',
+			accent: '#f59e0b',
+			badge: '#78350f'
+		}
+	},
+	{
+		id: 'glass-streamer-badge',
+		name: 'Glass Streamer Lower Third',
+		category: 'lower-third',
+		description:
+			'Frosted dark glass card with glowing cyber-violet left border for streamers and esports',
+		tags: ['lower-third', 'glass', 'streamer', 'twitch', 'gaming', 'violet', 'modern'],
+		defaultText: 'ALEX_LIVE\nGRANDMASTER RANK #1',
+		primaryLine: 'ALEX_LIVE',
+		secondaryLine: 'GRANDMASTER RANK #1',
+		highlightWord: 'ALEX_LIVE',
+		frameStyle: 'lower-third-glass',
+		accentColor: { r: 0.75, g: 0.42, b: 0.98, a: 1.0 },
+		style: {
+			fontFamily: 'Bebas Neue',
+			fontWeight: 'bold',
+			alignment: 'left',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'bottom',
+			paddingX: 24,
+			paddingY: 14,
+			frameStyle: 'lower-third-glass'
+		},
+		properties: {
+			position: [-240, 330],
+			'text.fontSize': 44,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.15,
+			'text.backgroundBoxColor': [0.08, 0.09, 0.16, 0.88],
+			'text.backgroundBoxRadius': 8,
+			'text.accentBarColor': [0.75, 0.42, 0.98, 1],
+			'text.accentBarWidth': 5,
+			opacity: 1
+		},
+		animationPresetId: 'split-slide',
+		inDurationUs: 500_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#13111f',
+			primary: '#ffffff',
+			accent: '#a855f7',
+			badge: '#581c87'
+		}
+	},
+	{
+		id: 'documentary-speaker-card',
+		name: 'Documentary Speaker Title',
+		category: 'lower-third',
+		description:
+			'Refined serif typography with delicate gold divider for high-end film and docuseries',
+		tags: ['lower-third', 'documentary', 'film', 'serif', 'gold', 'elegant', 'interview'],
+		defaultText: 'DR. ELENA ROSTOVA\nProfessor of Astrophysics',
+		primaryLine: 'DR. ELENA ROSTOVA',
+		secondaryLine: 'Professor of Astrophysics',
+		frameStyle: 'divided-box',
+		accentColor: { r: 0.92, g: 0.78, b: 0.45, a: 1.0 },
+		style: {
+			fontFamily: 'Playfair Display',
+			fontWeight: '700',
+			alignment: 'left',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'bottom',
+			paddingX: 26,
+			paddingY: 16,
+			frameStyle: 'divided-box'
+		},
+		properties: {
+			position: [-220, 330],
+			'text.fontSize': 36,
+			'text.fillColor': [0.96, 0.96, 0.96, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.3,
+			'text.boxBorderColor': [0.92, 0.78, 0.45, 0.9],
+			'text.boxBorderWidth': 2,
+			opacity: 1
+		},
+		animationPresetId: 'cinematic-reveal',
+		inDurationUs: 800_000,
+		outDurationUs: 500_000,
+		previewColors: {
+			background: '#12100d',
+			primary: '#f5f5f5',
+			accent: '#eab308',
+			badge: '#713f12'
+		}
+	},
+	// ─── Title Sequences ─────────────────────────────────────────────────────
+	{
+		id: 'blockbuster-trailer',
+		name: 'Cinematic Blockbuster Title',
+		category: 'titles',
+		description:
+			'Epic letterbox trailer headline with tracked typography and subtle lens flare framing',
+		tags: ['titles', 'cinematic', 'trailer', 'epic', 'movie', 'blockbuster', 'letterbox'],
+		defaultText: 'INCEPTION OF LIGHT\nA FILM BY CHRISTOPHER NOLAN',
+		primaryLine: 'INCEPTION OF LIGHT',
+		secondaryLine: 'A FILM BY CHRISTOPHER NOLAN',
+		frameStyle: 'cinematic-box',
+		accentColor: { r: 0.95, g: 0.95, b: 1.0, a: 1.0 },
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 6
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'center',
+			paddingX: 36,
+			paddingY: 24,
+			frameStyle: 'cinematic-box'
+		},
+		properties: {
+			'text.fontSize': 54,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 6,
+			'text.lineHeight': 1.25,
+			'text.shadowColor': [0, 0, 0, 0.85],
+			'text.shadowBlur': 16,
+			opacity: 1
+		},
+		animationPresetId: 'cinematic-reveal',
+		inDurationUs: 900_000,
+		outDurationUs: 500_000,
+		previewColors: {
+			background: '#07090e',
+			primary: '#ffffff',
+			accent: '#94a3b8',
+			badge: '#1e293b'
+		}
+	},
+	{
+		id: 'editorial-serif-title',
+		name: 'Editorial Luxury Title',
+		category: 'titles',
+		description:
+			'High-fashion editorial Bodoni serif headline for luxury, lifestyle, and brand films',
+		tags: ['titles', 'luxury', 'fashion', 'editorial', 'serif', 'gold', 'minimal'],
+		defaultText: 'VOGUE ARCHIVE\nAUTUMN / WINTER 2026',
+		primaryLine: 'VOGUE ARCHIVE',
+		secondaryLine: 'AUTUMN / WINTER 2026',
+		highlightWord: 'VOGUE ARCHIVE',
+		frameStyle: 'none',
+		accentColor: { r: 0.88, g: 0.74, b: 0.48, a: 1.0 },
+		style: {
+			fontFamily: 'Bodoni Moda',
+			fontWeight: '700',
+			alignment: 'center',
+			letterSpacing: 4
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'center'
+		},
+		properties: {
+			'text.fontSize': 60,
+			'text.fillColor': [0.98, 0.96, 0.92, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 4,
+			'text.lineHeight': 1.2,
+			opacity: 1
+		},
+		animationPresetId: 'smooth-drift',
+		inDurationUs: 800_000,
+		outDurationUs: 500_000,
+		previewColors: {
+			background: '#12100d',
+			primary: '#fef3c7',
+			accent: '#d97706',
+			badge: '#451a03'
+		}
+	},
+	{
+		id: 'cyberpunk-glitch-title',
+		name: 'Cyberpunk Neon Matrix',
+		category: 'titles',
+		description:
+			'High-energy cyberpunk title with glowing electric cyan typography and dark framed bounds',
+		tags: ['titles', 'cyberpunk', 'glitch', 'neon', 'tech', 'matrix', 'gaming'],
+		defaultText: 'SYSTEM OVERRIDE\nNEURAL INTERFACE CONNECTED',
+		primaryLine: 'SYSTEM OVERRIDE',
+		secondaryLine: 'NEURAL INTERFACE CONNECTED',
+		highlightWord: 'SYSTEM OVERRIDE',
+		frameStyle: 'frame',
+		accentColor: { r: 0.0, g: 0.95, b: 0.95, a: 1.0 },
+		style: {
+			fontFamily: 'JetBrains Mono',
+			fontWeight: '800',
+			alignment: 'center',
+			letterSpacing: 3
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'center',
+			paddingX: 30,
+			paddingY: 18,
+			frameStyle: 'frame'
+		},
+		properties: {
+			'text.fontSize': 48,
+			'text.fillColor': [0.0, 0.96, 0.96, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 3,
+			'text.lineHeight': 1.2,
+			'text.boxBorderColor': [0.0, 0.96, 0.96, 0.8],
+			'text.boxBorderWidth': 3,
+			'text.shadowColor': [0.0, 0.96, 0.96, 0.6],
+			'text.shadowBlur': 18,
+			opacity: 1
+		},
+		animationPresetId: 'glitch-snap',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#061014',
+			primary: '#00f5f5',
+			accent: '#ff007f',
+			badge: '#042f2e'
+		}
+	},
+	{
+		id: 'minimal-tech-headline',
+		name: 'Minimalist Tech Launch',
+		category: 'titles',
+		description:
+			'Clean modern Silicon Valley product launch header with emerald accent and crisp tracking',
+		tags: ['titles', 'tech', 'minimal', 'modern', 'clean', 'corporate', 'launch'],
+		defaultText: 'NEXT GENERATION ENGINE\nBUILT FOR SPEED AND PRECISION',
+		primaryLine: 'NEXT GENERATION ENGINE',
+		secondaryLine: 'BUILT FOR SPEED AND PRECISION',
+		frameStyle: 'accent-bar',
+		accentColor: { r: 0.15, g: 0.92, b: 0.58, a: 1.0 },
+		style: {
+			fontFamily: 'Inter',
+			fontWeight: '800',
+			alignment: 'left',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'center',
+			paddingX: 24,
+			paddingY: 16,
+			frameStyle: 'accent-bar'
+		},
+		properties: {
+			'text.fontSize': 48,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.25,
+			'text.accentBarWidth': 6,
+			'text.accentBarColor': [0.15, 0.92, 0.58, 1],
+			opacity: 1
+		},
+		animationPresetId: 'whip-slide-left',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#07100b',
+			primary: '#ffffff',
+			accent: '#10b981',
+			badge: '#064e3b'
+		}
+	},
+	// ─── Social Media Presets ────────────────────────────────────────────────
+	{
+		id: 'youtube-subscribe-bell',
+		name: 'YouTube Subscribe & Bell',
+		category: 'social',
+		description:
+			'Iconic high-converting YouTube call to action with red pill badge and bell prompt',
+		tags: ['social', 'youtube', 'subscribe', 'bell', 'cta', 'creator', 'red'],
+		defaultText: 'SUBSCRIBE\n& HIT THE BELL 🔔',
+		primaryLine: 'SUBSCRIBE',
+		secondaryLine: '& HIT THE BELL 🔔',
+		frameStyle: 'social-pill',
+		accentColor: { r: 0.95, g: 0.15, b: 0.12, a: 1.0 },
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '800',
+			alignment: 'center',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'bottom',
+			paddingX: 32,
+			paddingY: 14,
+			frameStyle: 'social-pill'
+		},
+		properties: {
+			position: [0, 340],
+			'text.fontSize': 36,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.15,
+			'text.backgroundBoxColor': [0.88, 0.12, 0.1, 1.0],
+			'text.shadowColor': [0.88, 0.12, 0.1, 0.4],
+			'text.shadowBlur': 16,
+			opacity: 1
+		},
+		animationPresetId: 'pop-pill-in',
+		inDurationUs: 420_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#1c0d0c',
+			primary: '#ffffff',
+			accent: '#ef4444',
+			badge: '#7f1d1d'
+		}
+	},
+	{
+		id: 'reels-hook-headline',
+		name: 'Reels / TikTok Viral Hook',
+		category: 'social',
+		description:
+			'High-contrast yellow and black attention-grabbing hook header for short-form video',
+		tags: ['social', 'tiktok', 'reels', 'shorts', 'hook', 'viral', 'yellow'],
+		defaultText: 'STOP SCROLLING!\nYOU NEED TO TRY THIS HACK',
+		primaryLine: 'STOP SCROLLING!',
+		secondaryLine: 'YOU NEED TO TRY THIS HACK',
+		frameStyle: 'badge-header',
+		accentColor: { r: 0.98, g: 0.88, b: 0.08, a: 1.0 },
+		style: {
+			fontFamily: 'Anton',
+			fontWeight: 'bold',
+			alignment: 'center',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'top',
+			paddingX: 24,
+			paddingY: 12,
+			frameStyle: 'badge-header'
+		},
+		properties: {
+			position: [0, -320],
+			'text.fontSize': 48,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.2,
+			'text.accentBarColor': [0.98, 0.88, 0.08, 1],
+			opacity: 1
+		},
+		animationPresetId: 'bounce-in',
+		inDurationUs: 600_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#141208',
+			primary: '#ffffff',
+			accent: '#facc15',
+			badge: '#713f12'
+		}
+	},
+	{
+		id: 'instagram-handle-pill',
+		name: 'Social Handle Pill',
+		category: 'social',
+		description: 'Sleek rounded dark pill badge for Instagram, Twitter/X, and social media handles',
+		tags: ['social', 'instagram', 'handle', 'pill', 'twitter', 'badge', 'pink'],
+		defaultText: '@CREATIVE_STUDIO\nFOLLOW FOR DAILY TUTORIALS',
+		primaryLine: '@CREATIVE_STUDIO',
+		secondaryLine: 'FOLLOW FOR DAILY TUTORIALS',
+		highlightWord: '@CREATIVE_STUDIO',
+		frameStyle: 'social-pill',
+		accentColor: { r: 0.95, g: 0.28, b: 0.65, a: 1.0 },
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '800',
+			alignment: 'center',
+			letterSpacing: 1.5
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'bottom',
+			paddingX: 28,
+			paddingY: 12,
+			frameStyle: 'social-pill'
+		},
+		properties: {
+			position: [0, 350],
+			'text.fontSize': 32,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 1.5,
+			'text.lineHeight': 1.2,
+			'text.backgroundBoxColor': [0.12, 0.12, 0.16, 0.92],
+			'text.boxBorderColor': [0.95, 0.28, 0.65, 0.7],
+			'text.boxBorderWidth': 2,
+			opacity: 1
+		},
+		animationPresetId: 'pop-pill-in',
+		inDurationUs: 420_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#190e18',
+			primary: '#ffffff',
+			accent: '#ec4899',
+			badge: '#831843'
+		}
+	},
+	{
+		id: 'podcast-guest-badge',
+		name: 'Podcast Guest Card',
+		category: 'social',
+		description: 'Three-tiered podcast presenter and guest lockup with episode tag and role label',
+		tags: ['social', 'podcast', 'guest', 'card', 'interview', 'talkshow', 'blue'],
+		defaultText: 'EPISODE 42 • SPECIAL GUEST\nELON HAWTHORNE\nFOUNDER & AI RESEARCHER',
+		primaryLine: 'EPISODE 42 • SPECIAL GUEST',
+		secondaryLine: 'ELON HAWTHORNE',
+		tertiaryLine: 'FOUNDER & AI RESEARCHER',
+		highlightWord: 'ELON HAWTHORNE',
+		frameStyle: 'card',
+		accentColor: { r: 0.25, g: 0.55, b: 1.0, a: 1.0 },
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '800',
+			alignment: 'center',
+			letterSpacing: 2
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'bottom',
+			paddingX: 30,
+			paddingY: 16,
+			frameStyle: 'card'
+		},
+		properties: {
+			position: [0, 320],
+			'text.fontSize': 34,
+			'text.fillColor': [0.08, 0.08, 0.1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 2,
+			'text.lineHeight': 1.25,
+			'text.backgroundBoxColor': [1, 1, 1, 0.96],
+			'text.backgroundBoxRadius': 8,
+			opacity: 1
+		},
+		animationPresetId: 'split-slide',
+		inDurationUs: 500_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#0d1322',
+			primary: '#111827',
+			accent: '#3b82f6',
+			badge: '#1e3a8a'
+		}
+	},
+	// ─── Callouts & Badges ───────────────────────────────────────────────────
+	{
+		id: 'pointer-feature-callout',
+		name: 'Technical Pointer Callout',
+		category: 'callouts',
+		description:
+			'Precision technical indicator with target dot and diagonal leader line for hardware and tech reviews',
+		tags: ['callouts', 'pointer', 'hardware', 'technical', 'review', 'indicator', 'cyan'],
+		defaultText: 'ULTRA SENSOR\n4K 120FPS DUAL LENS',
+		primaryLine: 'ULTRA SENSOR',
+		secondaryLine: '4K 120FPS DUAL LENS',
+		highlightWord: 'ULTRA SENSOR',
+		frameStyle: 'callout-pointer',
+		accentColor: { r: 0.06, g: 0.85, b: 0.95, a: 1.0 },
+		style: {
+			fontFamily: 'Inter',
+			fontWeight: '700',
+			alignment: 'left',
+			letterSpacing: 1.5
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'center',
+			paddingX: 20,
+			paddingY: 12,
+			frameStyle: 'callout-pointer'
+		},
+		properties: {
+			position: [180, -100],
+			'text.fontSize': 32,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 1.5,
+			'text.lineHeight': 1.2,
+			'text.backgroundBoxColor': [0.08, 0.12, 0.16, 0.9],
+			'text.accentBarColor': [0.06, 0.85, 0.95, 1],
+			opacity: 1
+		},
+		animationPresetId: 'pop-pill-in',
+		inDurationUs: 420_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#081318',
+			primary: '#ffffff',
+			accent: '#06b6d4',
+			badge: '#164e63'
+		}
+	},
+	{
+		id: 'verified-pill-badge',
+		name: 'Verified Highlight Pill',
+		category: 'callouts',
+		description:
+			'Compact emerald trust badge for features, verified claims, and key selling points',
+		tags: ['callouts', 'verified', 'badge', 'pill', 'trust', 'emerald', 'clean'],
+		defaultText: '100% PRIVATE\nFILES NEVER LEAVE DEVICE',
+		primaryLine: '100% PRIVATE',
+		secondaryLine: 'FILES NEVER LEAVE DEVICE',
+		highlightWord: '100% PRIVATE',
+		frameStyle: 'social-pill',
+		accentColor: { r: 0.12, g: 0.85, b: 0.48, a: 1.0 },
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '800',
+			alignment: 'center',
+			letterSpacing: 1.5
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'center',
+			paddingX: 26,
+			paddingY: 12,
+			frameStyle: 'social-pill'
+		},
+		properties: {
+			'text.fontSize': 30,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 1.5,
+			'text.lineHeight': 1.2,
+			'text.backgroundBoxColor': [0.06, 0.14, 0.1, 0.94],
+			'text.boxBorderColor': [0.12, 0.85, 0.48, 0.8],
+			'text.boxBorderWidth': 2,
+			opacity: 1
+		},
+		animationPresetId: 'elastic-spring',
+		inDurationUs: 700_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#07160e',
+			primary: '#ffffff',
+			accent: '#10b981',
+			badge: '#064e3b'
+		}
+	},
+	// ─── Kinetic Typography Additions ────────────────────────────────────────
+	{
+		id: 'kinetic-bold-punch',
+		name: 'Kinetic Punch Zoom',
+		category: 'kinetic',
+		description: 'High-octane snap zoom typography for fast-paced commercial and sports edits',
+		tags: ['kinetic', 'punch', 'zoom', 'impact', 'energy', 'bold', 'orange'],
+		defaultText: 'IMPACT\nMAXIMUM ENERGY',
+		primaryLine: 'IMPACT',
+		secondaryLine: 'MAXIMUM ENERGY',
+		highlightWord: 'IMPACT',
+		frameStyle: 'none',
+		accentColor: { r: 1.0, g: 0.35, b: 0.15, a: 1.0 },
+		style: {
+			fontFamily: 'Montserrat',
+			fontWeight: '900',
+			alignment: 'center',
+			letterSpacing: 4
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'center'
+		},
+		properties: {
+			'text.fontSize': 72,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 4,
+			'text.lineHeight': 1.1,
+			opacity: 1
+		},
+		animationPresetId: 'kinetic-zoom',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#190c08',
+			primary: '#ffffff',
+			accent: '#f97316',
+			badge: '#7c2d12'
+		}
+	},
+	{
+		id: 'kinetic-stagger-stack',
+		name: 'Kinetic Stagger Stack',
+		category: 'kinetic',
+		description:
+			'Three-tiered staggered kinetic typography with electric lime highlight and whip entrance',
+		tags: ['kinetic', 'stagger', 'stack', 'whip', 'modern', 'bold', 'lime'],
+		defaultText: 'CREATE\nWITHOUT\nLIMITS',
+		primaryLine: 'CREATE',
+		secondaryLine: 'WITHOUT',
+		tertiaryLine: 'LIMITS',
+		highlightWord: 'LIMITS',
+		frameStyle: 'none',
+		accentColor: { r: 0.72, g: 1.0, b: 0.05, a: 1.0 },
+		style: {
+			fontFamily: 'Bebas Neue',
+			fontWeight: 'bold',
+			alignment: 'center',
+			letterSpacing: 4
+		},
+		box: {
+			autoSize: true,
+			verticalAnchor: 'center'
+		},
+		properties: {
+			'text.fontSize': 68,
+			'text.fillColor': [1, 1, 1, 1],
+			'text.strokeWidth': 0,
+			'text.letterSpacing': 4,
+			'text.lineHeight': 1.05,
+			opacity: 1
+		},
+		animationPresetId: 'whip-slide-left',
+		inDurationUs: 450_000,
+		outDurationUs: 400_000,
+		previewColors: {
+			background: '#101407',
+			primary: '#ffffff',
+			accent: '#84cc16',
+			badge: '#365314'
 		}
 	}
 ];

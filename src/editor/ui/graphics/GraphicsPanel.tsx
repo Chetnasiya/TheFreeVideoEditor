@@ -16,10 +16,13 @@ import './graphics.css';
 const CATEGORIES: Array<{ id: GraphicCategory; label: string }> = [
 	{ id: 'all', label: 'All' },
 	{ id: 'kinetic', label: 'Kinetic' },
-	{ id: 'minimal', label: 'Minimal' },
+	{ id: 'lower-third', label: 'Lower Thirds' },
+	{ id: 'titles', label: 'Titles' },
+	{ id: 'social', label: 'Social' },
+	{ id: 'callouts', label: 'Callouts' },
 	{ id: 'badge', label: 'Badges' },
 	{ id: 'neon', label: 'Neon' },
-	{ id: 'social', label: 'Social' }
+	{ id: 'minimal', label: 'Minimal' }
 ];
 
 const FRAME_STYLES: Array<{ id: GraphicFrameStyle; label: string }> = [
@@ -32,7 +35,12 @@ const FRAME_STYLES: Array<{ id: GraphicFrameStyle; label: string }> = [
 	{ id: 'title-badge', label: 'Title Badge' },
 	{ id: 'split-slash', label: 'Diagonal Slash' },
 	{ id: 'divided-box', label: 'Divided Box' },
-	{ id: 'diagonal-repeat', label: 'Marquee Repeat' }
+	{ id: 'diagonal-repeat', label: 'Marquee Repeat' },
+	{ id: 'lower-third-line', label: 'Broadcast Rule' },
+	{ id: 'lower-third-glass', label: 'Glass Ribbon' },
+	{ id: 'social-pill', label: 'Social Pill' },
+	{ id: 'callout-pointer', label: 'Pointer Callout' },
+	{ id: 'cinematic-box', label: 'Letterbox Frame' }
 ];
 
 /**
@@ -177,7 +185,169 @@ function GraphicCardPreview({ template }: { template: GraphicTemplate }) {
 		);
 	}
 
-	// Default fallback with highlight and neon support
+	if (id === 'broadcast-news-lower-third') {
+		return (
+			<div className="preview-broadcast-news">
+				<span className="preview-broadcast-title">{template.primaryLine}</span>
+				<div className="preview-broadcast-rule" />
+				<span className="preview-broadcast-sub">{template.secondaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'minimal-creator-tag') {
+		return (
+			<div className="preview-creator-tag">
+				<div className="preview-creator-bar" />
+				<div className="preview-creator-text">
+					<span className="preview-creator-name">{template.primaryLine}</span>
+					<span className="preview-creator-sub">{template.secondaryLine}</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'glass-streamer-badge') {
+		return (
+			<div className="preview-glass-ribbon">
+				<div className="preview-glass-stripe" />
+				<div className="preview-glass-content">
+					<span className="preview-glass-main">{template.primaryLine}</span>
+					<span className="preview-glass-sub">{template.secondaryLine}</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'documentary-speaker-card') {
+		return (
+			<div className="preview-documentary-card">
+				<span className="preview-doc-speaker">{template.primaryLine}</span>
+				<div className="preview-doc-rule" />
+				<span className="preview-doc-title">{template.secondaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'blockbuster-trailer') {
+		return (
+			<div className="preview-blockbuster-box">
+				<div className="preview-bracket-tl" />
+				<div className="preview-bracket-br" />
+				<span className="preview-blockbuster-title">{template.primaryLine}</span>
+				<span className="preview-blockbuster-sub">{template.secondaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'editorial-serif-title') {
+		return (
+			<div className="preview-editorial-title">
+				<span className="preview-editorial-main">{template.primaryLine}</span>
+				<span className="preview-editorial-sub">{template.secondaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'cyberpunk-glitch-title') {
+		return (
+			<div className="preview-cyber-matrix">
+				<span className="preview-cyber-head">{template.primaryLine}</span>
+				<span className="preview-cyber-sub">{template.secondaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'minimal-tech-headline') {
+		return (
+			<div className="preview-tech-headline">
+				<div className="preview-tech-indicator" />
+				<div>
+					<span className="preview-tech-main">{template.primaryLine}</span>
+					<span className="preview-tech-sub">{template.secondaryLine}</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'youtube-subscribe-bell') {
+		return (
+			<div className="preview-yt-pill">
+				<div className="preview-yt-btn">
+					<span className="preview-yt-text">SUBSCRIBE</span>
+					<span className="preview-yt-bell">🔔</span>
+				</div>
+			</div>
+		);
+	}
+
+	if (id === 'reels-hook-headline') {
+		return (
+			<div className="preview-reels-hook">
+				<div className="preview-reels-tag">{template.primaryLine}</div>
+				<div className="preview-reels-sub">{template.secondaryLine}</div>
+			</div>
+		);
+	}
+
+	if (id === 'instagram-handle-pill') {
+		return (
+			<div className="preview-ig-pill">
+				<span className="preview-ig-at">@</span>
+				<span className="preview-ig-handle">{template.primaryLine.replace('@', '')}</span>
+			</div>
+		);
+	}
+
+	if (id === 'podcast-guest-badge') {
+		return (
+			<div className="preview-podcast-card">
+				<span className="preview-pod-ep">{template.primaryLine}</span>
+				<span className="preview-pod-name">{template.secondaryLine}</span>
+				<span className="preview-pod-role">{template.tertiaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'pointer-feature-callout') {
+		return (
+			<div className="preview-pointer-callout">
+				<div className="preview-callout-bubble">
+					<span>{template.primaryLine}</span>
+					<span className="preview-callout-sub">{template.secondaryLine}</span>
+				</div>
+				<div className="preview-pointer-dot" />
+			</div>
+		);
+	}
+
+	if (id === 'verified-pill-badge') {
+		return (
+			<div className="preview-verified-pill">
+				<span className="preview-verified-check">✓</span>
+				<span>{template.primaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'kinetic-bold-punch') {
+		return (
+			<div className="preview-punch-zoom">
+				<span className="preview-punch-main">{template.primaryLine}</span>
+				<span className="preview-punch-sub">{template.secondaryLine}</span>
+			</div>
+		);
+	}
+
+	if (id === 'kinetic-stagger-stack') {
+		return (
+			<div className="preview-stagger-stack">
+				<span>{lines[0]}</span>
+				<span>{lines[1]}</span>
+				<span className="preview-stagger-highlight">{lines[2]}</span>
+			</div>
+		);
+	}
 	return (
 		<div className="graphic-preview-text">
 			{lines.map((line, idx) => {
@@ -430,12 +600,10 @@ export default function GraphicsPanel() {
 
 	const handleLetterSpacingChange = (spacing: number) => {
 		if (!selectedClip || !isTextClipSelected) return;
-		store
-			.getState()
-			.setProperty(selectedClip.id, 'text.letterSpacing', spacing, {
-				autoKey: true,
-				coalesce: true
-			});
+		store.getState().setProperty(selectedClip.id, 'text.letterSpacing', spacing, {
+			autoKey: true,
+			coalesce: true
+		});
 	};
 
 	const handleBorderWidthChange = (bw: number) => {
@@ -962,6 +1130,64 @@ export default function GraphicsPanel() {
 
 								{/* Colors & Luminescence */}
 								<div className="graphics-section-title">Colors & Luminescence</div>
+
+								{/* Quick Gradient Styles */}
+								<div className="graphics-field-group">
+									<label className="graphics-field-label">Gradient Presets</label>
+									<div className="graphics-gradient-pills">
+										{[
+											{ label: 'Solid', type: 'none' as const, end: undefined, bg: '#ffffff' },
+											{
+												label: 'Gold',
+												type: 'linear-horizontal' as const,
+												end: { r: 0.95, g: 0.75, b: 0.25, a: 1 },
+												bg: 'linear-gradient(90deg, #fff, #f59e0b)'
+											},
+											{
+												label: 'Sunset',
+												type: 'linear-horizontal' as const,
+												end: { r: 0.98, g: 0.25, b: 0.45, a: 1 },
+												bg: 'linear-gradient(90deg, #f59e0b, #ec4899)'
+											},
+											{
+												label: 'Cyber',
+												type: 'linear-horizontal' as const,
+												end: { r: 0.0, g: 0.95, b: 0.95, a: 1 },
+												bg: 'linear-gradient(90deg, #a855f7, #06b6d4)'
+											},
+											{
+												label: 'Emerald',
+												type: 'linear-horizontal' as const,
+												end: { r: 0.1, g: 0.9, b: 0.5, a: 1 },
+												bg: 'linear-gradient(90deg, #38bdf8, #10b981)'
+											},
+											{
+												label: 'Silver',
+												type: 'linear-vertical' as const,
+												end: { r: 0.6, g: 0.65, b: 0.75, a: 1 },
+												bg: 'linear-gradient(180deg, #ffffff, #64748b)'
+											}
+										].map((g) => (
+											<button
+												key={g.label}
+												type="button"
+												className="graphics-gradient-btn"
+												style={{ background: g.bg, color: g.label === 'Solid' ? '#000' : '#fff' }}
+												onClick={() => {
+													if (selectedClip) {
+														store.getState().setTextBox(selectedClip.id, {
+															gradientType: g.type,
+															gradientColorEnd: g.end
+														});
+													}
+												}}
+											>
+												{g.label}
+											</button>
+										))}
+									</div>
+								</div>
+
 								<div className="graphics-row-2">
 									<div className="graphics-field-group" style={{ flex: 1 }}>
 										<label className="graphics-field-label">Text Fill Color</label>
@@ -1002,6 +1228,106 @@ export default function GraphicsPanel() {
 
 								{/* Geometry & Typography Controls */}
 								<div className="graphics-section-title">Geometry & Typography Controls</div>
+
+								{/* Font Family & Weight */}
+								<div className="graphics-row-2">
+									<div className="graphics-field-group" style={{ flex: 1 }}>
+										<label className="graphics-field-label">Font Family</label>
+										<select
+											className="graphics-select"
+											value={
+												selectedClip?.source?.type === 'text'
+													? selectedClip.source.style?.fontFamily || 'Montserrat'
+													: 'Montserrat'
+											}
+											onChange={(e) => {
+												if (selectedClip) {
+													store
+														.getState()
+														.setTextStyle(selectedClip.id, { fontFamily: e.target.value });
+												}
+											}}
+										>
+											<option value="Montserrat">Montserrat (Punch)</option>
+											<option value="Inter">Inter (Sans)</option>
+											<option value="Bebas Neue">Bebas Neue (Condensed)</option>
+											<option value="Playfair Display">Playfair Display (Serif)</option>
+											<option value="Bodoni Moda">Bodoni Moda (Luxury)</option>
+											<option value="JetBrains Mono">JetBrains Mono (Tech)</option>
+											<option value="Anton">Anton (Viral)</option>
+											<option value="Roboto">Roboto (Clean)</option>
+										</select>
+									</div>
+									<div className="graphics-field-group" style={{ flex: 1 }}>
+										<label className="graphics-field-label">Font Weight</label>
+										<select
+											className="graphics-select"
+											value={
+												selectedClip?.source?.type === 'text'
+													? selectedClip.source.style?.fontWeight || '700'
+													: '700'
+											}
+											onChange={(e) => {
+												if (selectedClip) {
+													store.getState().setTextStyle(selectedClip.id, {
+														fontWeight: e.target.value as
+															'normal' | 'bold' | '500' | '600' | '700' | '800' | '900'
+													});
+												}
+											}}
+										>
+											<option value="normal">Regular (400)</option>
+											<option value="500">Medium (500)</option>
+											<option value="600">SemiBold (600)</option>
+											<option value="bold">Bold (700)</option>
+											<option value="800">ExtraBold (800)</option>
+											<option value="900">Black (900)</option>
+										</select>
+									</div>
+								</div>
+
+								{/* Keyframe Actions */}
+								<div className="graphics-field-group">
+									<label className="graphics-field-label">Keyframes & Motion</label>
+									<div style={{ display: 'flex', gap: '6px' }}>
+										<button
+											type="button"
+											className="graphic-apply-btn"
+											style={{ flex: 1, padding: '6px 8px', fontSize: '11px' }}
+											onClick={() => {
+												if (selectedClip) {
+													store
+														.getState()
+														.setProperty(selectedClip.id, 'scale', [1, 1], { autoKey: true });
+													store
+														.getState()
+														.setProperty(selectedClip.id, 'opacity', 1, { autoKey: true });
+													setAnnouncement('Added motion keyframe at playhead.');
+												}
+											}}
+										>
+											◆ Keyframe at Playhead
+										</button>
+										<button
+											type="button"
+											className="graphic-apply-btn"
+											style={{
+												flex: 1,
+												padding: '6px 8px',
+												fontSize: '11px',
+												background: '#182234',
+												borderColor: '#38bdf8',
+												color: '#38bdf8'
+											}}
+											onClick={() => {
+												store.getState().switchWorkspace('editing');
+												setAnnouncement('Opened editing workspace with keyframe graph.');
+											}}
+										>
+											📈 Open Graph Editor
+										</button>
+									</div>
+								</div>
 
 								<div className="graphics-field-group">
 									<div className="graphics-field-label">

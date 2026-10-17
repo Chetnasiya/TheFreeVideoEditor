@@ -51,7 +51,12 @@ const PROPERTY_COLORS: Record<string, string> = {
 	'crop:0': '#06b6d4',
 	'crop:1': '#14b8a6',
 	'crop:2': '#0ea5e9',
-	'crop:3': '#6366f1'
+	'crop:3': '#6366f1',
+	'text.fontSize': '#38bdf8',
+	'text.letterSpacing': '#a855f7',
+	'text.lineHeight': '#34d399',
+	'text.reveal': '#fbbf24',
+	'text.strokeWidth': '#f43f5e'
 };
 
 const FILTER_PROPERTIES: PropertyId[] = ['position', 'scale', 'rotation', 'opacity', 'crop'];
@@ -81,6 +86,15 @@ export default function GraphEditor() {
 	// Filter properties available for this clip
 	const availableFilterProperties: PropertyId[] = useMemo(() => {
 		const props: PropertyId[] = [...FILTER_PROPERTIES];
+		if (selectedClip?.source?.type === 'text') {
+			props.push(
+				'text.fontSize',
+				'text.letterSpacing',
+				'text.lineHeight',
+				'text.reveal',
+				'text.strokeWidth'
+			);
+		}
 		if (selectedClip?.masks) {
 			for (const mask of selectedClip.masks) {
 				props.push(`mask:${mask.id}:feather` as PropertyId);

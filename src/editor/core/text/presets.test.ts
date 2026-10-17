@@ -11,7 +11,7 @@ import { evaluate } from '../animation';
 import type { Keyframe } from '../types';
 
 describe('Text Presets & Templates', () => {
-	it('has 7 valid template presets and 8 animation presets', () => {
+	it('has 7 valid template presets and 16 animation presets', () => {
 		expect(TEXT_TEMPLATE_PRESETS.length).toBe(7);
 		const ids = TEXT_TEMPLATE_PRESETS.map((t) => t.id);
 		expect(ids).toContain('title');
@@ -22,7 +22,7 @@ describe('Text Presets & Templates', () => {
 		expect(ids).toContain('typewriter-caption');
 		expect(ids).toContain('pop-in-caption');
 
-		expect(TEXT_ANIMATION_PRESETS.length).toBe(8);
+		expect(TEXT_ANIMATION_PRESETS.length).toBe(16);
 		const animIds = TEXT_ANIMATION_PRESETS.map((a) => a.id);
 		expect(animIds).toContain('fade-in');
 		expect(animIds).toContain('fade-out');
@@ -32,6 +32,10 @@ describe('Text Presets & Templates', () => {
 		expect(animIds).toContain('slide-in-right');
 		expect(animIds).toContain('pop-in');
 		expect(animIds).toContain('typewriter');
+		expect(animIds).toContain('whip-slide-left');
+		expect(animIds).toContain('elastic-spring');
+		expect(animIds).toContain('cinematic-reveal');
+		expect(animIds).toContain('broadcast-lower-third-in');
 	});
 
 	it('applies a template preset to a text clip', () => {

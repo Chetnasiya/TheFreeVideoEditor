@@ -41,8 +41,15 @@ export interface TextRasterConfig {
 		| 'title-badge'
 		| 'split-slash'
 		| 'divided-box'
-		| 'diagonal-repeat';
+		| 'diagonal-repeat'
+		| 'lower-third-line'
+		| 'lower-third-glass'
+		| 'social-pill'
+		| 'callout-pointer'
+		| 'cinematic-box';
 	badgeText?: string;
+	gradientType?: 'none' | 'linear-horizontal' | 'linear-vertical' | 'radial';
+	gradientColorEnd?: { r: number; g: number; b: number; a: number };
 	colorRuns?: TextColorRun[];
 	scale?: number;
 }
@@ -253,6 +260,99 @@ export function rasterizeText(
 			ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
 			ctx.stroke();
 		}
+	} else if (frameStyle === 'social-pill') {
+		const r = Math.min(boxW, boxH) / 2;
+		const bg = config.backgroundBoxColor ?? { r: 0.12, g: 0.12, b: 0.16, a: 1 };
+		ctx.fillStyle = `rgba(${Math.round(bg.r * 255)}, ${Math.round(bg.g * 255)}, ${Math.round(bg.b * 255)}, ${bg.a})`;
+		if (typeof ctx.roundRect === 'function') {
+			ctx.beginPath();
+			ctx.roundRect(0, 0, boxW, boxH, r);
+			ctx.fill();
+		} else {
+			ctx.fillRect(0, 0, boxW, boxH);
+		}
+		if (config.boxBorderWidth && config.boxBorderWidth > 0) {
+			const bWidth = Math.max(1, config.boxBorderWidth * scale);
+			const bColor = config.boxBorderColor ?? config.fillColor;
+			ctx.strokeStyle = `rgba(${Math.round(bColor.r * 255)}, ${Math.round(bColor.g * 255)}, ${Math.round(bColor.b * 255)}, ${bColor.a})`;
+			ctx.lineWidth = bWidth;
+			if (typeof ctx.roundRect === 'function') {
+				ctx.beginPath();
+				ctx.roundRect(bWidth / 2, bWidth / 2, boxW - bWidth, boxH - bWidth, r);
+				ctx.stroke();
+			}
+		}
+	} else if (frameStyle === 'lower-third-glass') {
+		const radius = Math.max(4, 8 * scale);
+		const bg = config.backgroundBoxColor ?? { r: 0.07, g: 0.08, b: 0.13, a: 0.88 };
+		ctx.fillStyle = `rgba(${Math.round(bg.r * 255)}, ${Math.round(bg.g * 255)}, ${Math.round(bg.b * 255)}, ${bg.a})`;
+		if (typeof ctx.roundRect === 'function') {
+			ctx.beginPath();
+			ctx.roundRect(0, 0, boxW, boxH, radius);
+			ctx.fill();
+		} else {
+			ctx.fillRect(0, 0, boxW, boxH);
+		}
+		// Left vertical accent stripe
+		const barW = Math.max(3, (config.accentBarWidth ?? 5) * scale);
+		const barCol = config.accentBarColor ?? config.fillColor;
+		ctx.fillStyle = `rgba(${Math.round(barCol.r * 255)}, ${Math.round(barCol.g * 255)}, ${Math.round(barCol.b * 255)}, ${barCol.a})`;
+		ctx.fillRect(0, 0, barW, boxH);
+		// Subtle glass border
+		ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+		ctx.lineWidth = Math.max(1, 1 * scale);
+		if (typeof ctx.roundRect === 'function') {
+			ctx.beginPath();
+			ctx.roundRect(0.5, 0.5, boxW - 1, boxH - 1, radius);
+			ctx.stroke();
+		}
+	} else if (frameStyle === 'callout-pointer') {
+		if (config.backgroundBoxColor && config.backgroundBoxColor.a > 0) {
+			const bg = config.backgroundBoxColor;
+			ctx.fillStyle = `rgba(${Math.round(bg.r * 255)}, ${Math.round(bg.g * 255)}, ${Math.round(bg.b * 255)}, ${bg.a})`;
+			const radius = Math.max(2, 4 * scale);
+			if (typeof ctx.roundRect === 'function') {
+				ctx.beginPath();
+				ctx.roundRect(0, 0, boxW, boxH, radius);
+				ctx.fill();
+			} else {
+				ctx.fillRect(0, 0, boxW, boxH);
+			}
+		}
+		// Pointer leader line and anchor circle
+		const pColor = config.accentBarColor ?? config.fillColor;
+		const pColorStr = `rgba(${Math.round(pColor.r * 255)}, ${Math.round(pColor.g * 255)}, ${Math.round(pColor.b * 255)}, ${pColor.a})`;
+		ctx.strokeStyle = pColorStr;
+		ctx.fillStyle = pColorStr;
+		ctx.lineWidth = Math.max(1.5, 2 * scale);
+		const dotR = Math.max(3, 4 * scale);
+		ctx.beginPath();
+		ctx.arc(dotR + 2, boxH - dotR - 2, dotR, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.beginPath();
+		ctx.moveTo(dotR * 2 + 4, boxH - dotR - 2);
+		ctx.lineTo(boxW - 4, boxH - dotR - 2);
+		ctx.stroke();
+	} else if (frameStyle === 'cinematic-box') {
+		const cColor = config.accentBarColor ?? config.fillColor;
+		const cColorStr = `rgba(${Math.round(cColor.r * 255)}, ${Math.round(cColor.g * 255)}, ${Math.round(cColor.b * 255)}, ${cColor.a})`;
+		ctx.strokeStyle = cColorStr;
+		ctx.lineWidth = Math.max(1.5, 2 * scale);
+		const cornerLen = Math.max(8, 16 * scale);
+		ctx.beginPath();
+		ctx.moveTo(0, cornerLen);
+		ctx.lineTo(0, 0);
+		ctx.lineTo(cornerLen, 0);
+		ctx.moveTo(boxW - cornerLen, 0);
+		ctx.lineTo(boxW, 0);
+		ctx.lineTo(boxW, cornerLen);
+		ctx.moveTo(0, boxH - cornerLen);
+		ctx.lineTo(0, boxH);
+		ctx.lineTo(cornerLen, boxH);
+		ctx.moveTo(boxW - cornerLen, boxH);
+		ctx.lineTo(boxW, boxH);
+		ctx.lineTo(boxW, boxH - cornerLen);
+		ctx.stroke();
 	} else {
 		// Standard box / card / frame background
 		if (config.backgroundBoxColor && config.backgroundBoxColor.a > 0) {
@@ -324,7 +424,27 @@ export function rasterizeText(
 	const hasStroke = Boolean(strokeColor && strokeWidth > 0 && strokeColor.a > 0);
 
 	const fillColor = config.fillColor ?? { r: 1, g: 1, b: 1, a: 1 };
-	const fillStyleStr = `rgba(${Math.round(fillColor.r * 255)}, ${Math.round(fillColor.g * 255)}, ${Math.round(fillColor.b * 255)}, ${fillColor.a})`;
+	let fillStyleStr: string | CanvasGradient =
+		`rgba(${Math.round(fillColor.r * 255)}, ${Math.round(fillColor.g * 255)}, ${Math.round(fillColor.b * 255)}, ${fillColor.a})`;
+
+	if (config.gradientType && config.gradientType !== 'none' && config.gradientColorEnd) {
+		const end = config.gradientColorEnd;
+		const startStr = fillStyleStr;
+		const endStr = `rgba(${Math.round(end.r * 255)}, ${Math.round(end.g * 255)}, ${Math.round(end.b * 255)}, ${end.a})`;
+		let grad: CanvasGradient;
+		if (config.gradientType === 'linear-vertical') {
+			grad = ctx.createLinearGradient(0, 0, 0, boxH);
+		} else if (config.gradientType === 'radial') {
+			const cx = boxW / 2;
+			const cy = boxH / 2;
+			grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(boxW, boxH) / 2);
+		} else {
+			grad = ctx.createLinearGradient(0, 0, boxW, 0);
+		}
+		grad.addColorStop(0, startStr);
+		grad.addColorStop(1, endStr);
+		fillStyleStr = grad;
+	}
 
 	const renderString = (str: string, x: number, y: number, isStroke: boolean) => {
 		if (supportsSpacing || effectiveLetterSpacing === 0) {
@@ -386,6 +506,13 @@ export function rasterizeText(
 			const bColor = config.accentBarColor ?? config.fillColor;
 			ctx.fillStyle = `rgba(${Math.round(bColor.r * 255)}, ${Math.round(bColor.g * 255)}, ${Math.round(bColor.b * 255)}, ${bColor.a})`;
 			ctx.fillRect(line.x, line.y + effectiveFontSize * 1.15, line.width, 3 * scale);
+		}
+
+		if (frameStyle === 'lower-third-line' && lineIdx === 0) {
+			const bColor = config.accentBarColor ?? config.fillColor;
+			ctx.fillStyle = `rgba(${Math.round(bColor.r * 255)}, ${Math.round(bColor.g * 255)}, ${Math.round(bColor.b * 255)}, ${bColor.a})`;
+			const lineY = line.y + effectiveFontSize * 1.15;
+			ctx.fillRect(line.x, lineY, Math.max(line.width, boxW * 0.7), Math.max(2, 3 * scale));
 		}
 
 		if (frameStyle === 'divided-box' && lineIdx === 0) {
@@ -569,5 +696,9 @@ export function hashTextConfig(config: TextRasterConfig): string {
 				`${r.startIndex}-${r.endIndex}:${r.fillColor ? `${Math.round(r.fillColor.r * 255)},${Math.round(r.fillColor.g * 255)},${Math.round(r.fillColor.b * 255)},${r.fillColor.a}` : ''}`
 		)
 		.join(';');
-	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${revealUnit}#${shadow}#${bg}#${borderKey}#${barKey}#${frameKey}#${badgeKey}#${runsKey}#${text}`;
+	const gradKey =
+		config.gradientType && config.gradientType !== 'none' && config.gradientColorEnd
+			? `${config.gradientType}:${Math.round(config.gradientColorEnd.r * 255)},${Math.round(config.gradientColorEnd.g * 255)},${Math.round(config.gradientColorEnd.b * 255)},${config.gradientColorEnd.a}`
+			: '0';
+	return `${styleKey}#${boxKey}#${Math.round(config.fontSize)}#${scale}#${colorKey}#${stroke}#${reveal}#${revealUnit}#${shadow}#${bg}#${borderKey}#${barKey}#${frameKey}#${badgeKey}#${runsKey}#${gradKey}#${text}`;
 }
