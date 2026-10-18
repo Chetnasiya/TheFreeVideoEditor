@@ -1,0 +1,304 @@
+{
+  "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
+  "tfve_type": "motion_template",
+  "version": 1,
+  "id": "typography-titles-multiline",
+  "name": "Framed Multiline Titles",
+  "category": "Titles",
+  "description": "Framed rectangular box with top header, horizontal divider line, and multi-tier titles",
+  "author": "TheFreeVideoEditor",
+  "createdAt": 1792312586928,
+  "duration": 5000000,
+  "responsiveTiming": {
+    "introDuration": 500000,
+    "outroDuration": 400000
+  },
+  "bounds": {
+    "width": 648,
+    "height": 428,
+    "originX": 0,
+    "originY": 75
+  },
+  "tracks": [
+    {
+      "id": "tpl_trk_1",
+      "kind": "video",
+      "name": "Background Frame",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "shape",
+            "shapeType": "rect",
+            "width": 600,
+            "height": 230,
+            "cornerRadius": 4,
+            "fillColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "strokeColor": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "strokeWidth": 2.5
+          },
+          "properties": {
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0,
+                    75
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    0,
+                    -75
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "rotation": {
+              "value": 0
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 300000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "tpl_trk_2",
+      "kind": "video",
+      "name": "Title Text",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_2",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "NEW TREND\nTYPOGRAPHY\nTITLES",
+            "style": {
+              "fontFamily": "Montserrat",
+              "fontWeight": "900",
+              "alignment": "left",
+              "letterSpacing": 2
+            },
+            "box": {
+              "autoSize": true,
+              "paddingX": 32,
+              "paddingY": 22,
+              "verticalAnchor": "center",
+              "frameStyle": "divided-box",
+              "badgeText": "TYPOGRAPHY"
+            },
+            "colorRuns": [],
+            "graphicTemplateId": "typography-titles-multiline",
+            "animationPresetId": "slide-in-up"
+          },
+          "properties": {
+            "text.fontSize": {
+              "value": 46
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.boxBorderColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.boxBorderWidth": {
+              "value": 3
+            },
+            "text.letterSpacing": {
+              "value": 2
+            },
+            "text.lineHeight": {
+              "value": 1.2
+            },
+            "text.reveal": {
+              "value": 1
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 300000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0,
+                    75
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    0,
+                    -75
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    }
+  ],
+  "publishedParams": [
+    {
+      "id": "param_title_text",
+      "name": "Title Text",
+      "type": "text",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.content",
+      "defaultValue": "NEW TREND\nTYPOGRAPHY\nTITLES"
+    },
+    {
+      "id": "param_font_family",
+      "name": "Font Family",
+      "type": "font",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.fontFamily",
+      "defaultValue": "Montserrat"
+    },
+    {
+      "id": "param_text_color",
+      "name": "Text Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.fill",
+      "defaultValue": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    },
+    {
+      "id": "param_shape_fill",
+      "name": "Accent / Background Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "shape.fill",
+      "defaultValue": {
+        "r": 0,
+        "g": 0,
+        "b": 0,
+        "a": 0
+      }
+    },
+    {
+      "id": "param_shape_stroke",
+      "name": "Border Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "shape.stroke",
+      "defaultValue": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    }
+  ]
+}

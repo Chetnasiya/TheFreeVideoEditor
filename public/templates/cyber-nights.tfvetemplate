@@ -1,0 +1,211 @@
+{
+  "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
+  "tfve_type": "motion_template",
+  "version": 1,
+  "id": "cyber-nights",
+  "name": "Cyberpunk Glitch",
+  "category": "Kinetic",
+  "description": "High-energy cyber aesthetic with neon cyan / magenta edge punch",
+  "author": "TheFreeVideoEditor",
+  "createdAt": 1792312586928,
+  "duration": 5000000,
+  "responsiveTiming": {
+    "introDuration": 350000,
+    "outroDuration": 350000
+  },
+  "bounds": {
+    "width": 394,
+    "height": 154,
+    "originX": 0,
+    "originY": 0
+  },
+  "tracks": [
+    {
+      "id": "tpl_trk_1",
+      "kind": "video",
+      "name": "Title Text",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "CYBER\nNIGHTS",
+            "style": {
+              "fontFamily": "Montserrat",
+              "fontWeight": "900",
+              "fontStyle": "italic",
+              "alignment": "center",
+              "letterSpacing": 4
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "center",
+              "badgeText": "NIGHTS"
+            },
+            "colorRuns": [
+              {
+                "startIndex": 6,
+                "endIndex": 12,
+                "fillColor": {
+                  "r": 0,
+                  "g": 0.94,
+                  "b": 1,
+                  "a": 1
+                }
+              }
+            ],
+            "graphicTemplateId": "cyber-nights",
+            "animationPresetId": "glitch-snap"
+          },
+          "properties": {
+            "text.fontSize": {
+              "value": 78
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.strokeWidth": {
+              "value": 0
+            },
+            "text.letterSpacing": {
+              "value": 4
+            },
+            "text.lineHeight": {
+              "value": 1.05
+            },
+            "text.shadowColor": {
+              "value": [
+                0,
+                0.94,
+                1,
+                0.85
+              ]
+            },
+            "text.shadowBlur": {
+              "value": 20
+            },
+            "text.shadowOffsetY": {
+              "value": 0
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 80000,
+                  "value": 1,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 140000,
+                  "value": 0.25,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 200000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    1.15,
+                    0.9
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 100000,
+                  "value": [
+                    0.95,
+                    1.05
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 350000,
+                  "value": [
+                    1,
+                    1
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": [],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "rotation": 0,
+            "opacity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "publishedParams": [
+    {
+      "id": "param_title_text",
+      "name": "Title Text",
+      "type": "text",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.content",
+      "defaultValue": "CYBER\nNIGHTS"
+    },
+    {
+      "id": "param_font_family",
+      "name": "Font Family",
+      "type": "font",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.fontFamily",
+      "defaultValue": "Montserrat"
+    },
+    {
+      "id": "param_text_color",
+      "name": "Text Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.fill",
+      "defaultValue": {
+        "r": 0,
+        "g": 0.94,
+        "b": 1,
+        "a": 1
+      }
+    }
+  ]
+}

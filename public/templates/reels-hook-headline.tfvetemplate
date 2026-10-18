@@ -1,0 +1,370 @@
+{
+  "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
+  "tfve_type": "motion_template",
+  "version": 1,
+  "id": "reels-hook-headline",
+  "name": "Reels / TikTok Viral Hook",
+  "category": "Social",
+  "description": "High-contrast yellow and black attention-grabbing hook header for short-form video",
+  "author": "TheFreeVideoEditor",
+  "createdAt": 1792312586932,
+  "duration": 5000000,
+  "responsiveTiming": {
+    "introDuration": 600000,
+    "outroDuration": 400000
+  },
+  "bounds": {
+    "width": 532,
+    "height": 378,
+    "originX": 0,
+    "originY": -55
+  },
+  "tracks": [
+    {
+      "id": "tpl_trk_1",
+      "kind": "video",
+      "name": "Background Frame",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "shape",
+            "shapeType": "rect",
+            "width": 460,
+            "height": 68,
+            "cornerRadius": 34,
+            "fillColor": {
+              "r": 0.98,
+              "g": 0.88,
+              "b": 0.08,
+              "a": 1
+            },
+            "strokeWidth": 0
+          },
+          "properties": {
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0,
+                    -125
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.34,
+                    "y": 1.56
+                  },
+                  "easeIn": {
+                    "x": 0.64,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 420000,
+                  "value": [
+                    0,
+                    70
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    0,
+                    55
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "rotation": {
+              "value": 0
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0.85,
+                    1.15
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 420000,
+                  "value": [
+                    1.05,
+                    0.95
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    1,
+                    1
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 200000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "tpl_trk_2",
+      "kind": "video",
+      "name": "Title Text",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_2",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "STOP SCROLLING!\nYOU NEED TO TRY THIS HACK",
+            "style": {
+              "fontFamily": "Anton",
+              "fontWeight": "bold",
+              "alignment": "center",
+              "letterSpacing": 2
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "top",
+              "paddingX": 24,
+              "paddingY": 12,
+              "frameStyle": "badge-header",
+              "badgeText": "YOU NEED TO TRY THIS HACK"
+            },
+            "colorRuns": [],
+            "graphicTemplateId": "reels-hook-headline",
+            "animationPresetId": "bounce-in"
+          },
+          "properties": {
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0,
+                    -125
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.34,
+                    "y": 1.56
+                  },
+                  "easeIn": {
+                    "x": 0.64,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 420000,
+                  "value": [
+                    0,
+                    70
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    0,
+                    55
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "text.fontSize": {
+              "value": 48
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.strokeWidth": {
+              "value": 0
+            },
+            "text.letterSpacing": {
+              "value": 2
+            },
+            "text.lineHeight": {
+              "value": 1.2
+            },
+            "text.accentBarColor": {
+              "value": [
+                0.98,
+                0.88,
+                0.08,
+                1
+              ]
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 200000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0.85,
+                    1.15
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 420000,
+                  "value": [
+                    1.05,
+                    0.95
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    1,
+                    1
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    }
+  ],
+  "publishedParams": [
+    {
+      "id": "param_title_text",
+      "name": "Title Text",
+      "type": "text",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.content",
+      "defaultValue": "STOP SCROLLING!\nYOU NEED TO TRY THIS HACK"
+    },
+    {
+      "id": "param_font_family",
+      "name": "Font Family",
+      "type": "font",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.fontFamily",
+      "defaultValue": "Anton"
+    },
+    {
+      "id": "param_text_color",
+      "name": "Text Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.fill",
+      "defaultValue": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    },
+    {
+      "id": "param_shape_fill",
+      "name": "Accent / Background Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "shape.fill",
+      "defaultValue": {
+        "r": 0.98,
+        "g": 0.88,
+        "b": 0.08,
+        "a": 1
+      }
+    }
+  ]
+}

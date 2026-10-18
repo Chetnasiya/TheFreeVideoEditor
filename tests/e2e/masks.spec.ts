@@ -290,4 +290,82 @@ test.describe('Masks Architecture & Pipeline (Gate L)', () => {
 		});
 		expect(updatedEllipse[2]).toBeGreaterThan(0.21); // rx increased
 	});
+
+	test('allows moving rectangle, ellipse, and path masks by dragging center handle or body', async ({
+		page
+	}) => {
+		await createProject(page, 'Masks Move Shapes');
+
+		await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clipId = store.getState().addSolidLayer('#3b82f6');
+			store.getState().selectClips([clipId]);
+			store.getState().setProperty(clipId, 'rotation', 25);
+			store.getState().addMask(clipId, 'rect', {
+				shape: [0.5, 0.5, 0.3, 0.3, 30, 0]
+			});
+		});
+
+		await page.waitForTimeout(300);
+
+		const overlay = page.locator('.mask-canvas-overlay');
+		await expect(overlay).toBeVisible();
+
+		// Drag rect center handle
+		const centerHandle = overlay.locator('circle[data-handle="move"]').first();
+		await expect(centerHandle).toBeAttached();
+		const handleBox = await centerHandle.boundingBox();
+		expect(handleBox).not.toBeNull();
+
+		await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + handleBox!.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(handleBox!.x + handleBox!.width / 2 + 35, handleBox!.y + handleBox!.height / 2 + 35, { steps: 5 });
+		await page.mouse.up();
+
+		await page.waitForTimeout(300);
+
+		const movedRect = await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			return clip.masks[0].shape;
+		});
+		expect(movedRect[0]).not.toBeCloseTo(0.5, 2);
+
+		// Add path mask and verify whole path moves when dragging center handle
+		await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			store.getState().addMask(clip.id, 'path');
+		});
+
+		await page.waitForTimeout(300);
+
+		const initialPathPoints = await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			return clip.masks[1].points.map((p: any) => ({ x: p.x, y: p.y }));
+		});
+
+		const pathCenterHandle = overlay.locator('circle[data-handle="move"]').last();
+		await expect(pathCenterHandle).toBeAttached();
+		const pathBox = await pathCenterHandle.boundingBox();
+		expect(pathBox).not.toBeNull();
+
+		await page.mouse.move(pathBox!.x + pathBox!.width / 2, pathBox!.y + pathBox!.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(pathBox!.x + pathBox!.width / 2 + 40, pathBox!.y + pathBox!.height / 2 + 40, { steps: 5 });
+		await page.mouse.up();
+
+		await page.waitForTimeout(300);
+
+		const updatedPathPoints = await page.evaluate(() => {
+			const store = (window as any).__TFVE_STORE__;
+			const clip = store.getState().project.tracks.flatMap((t: any) => t.clips)[0];
+			return clip.masks[1].points.map((p: any) => ({ x: p.x, y: p.y }));
+		});
+
+		expect(updatedPathPoints[0].x).not.toBeCloseTo(initialPathPoints[0].x, 2);
+		expect(updatedPathPoints[1].x).not.toBeCloseTo(initialPathPoints[1].x, 2);
+		expect(updatedPathPoints[2].x).not.toBeCloseTo(initialPathPoints[2].x, 2);
+	});
 });

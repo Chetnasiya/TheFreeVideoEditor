@@ -1,0 +1,179 @@
+{
+  "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
+  "tfve_type": "motion_template",
+  "version": 1,
+  "id": "kinetic-stagger-stack",
+  "name": "Kinetic Stagger Stack",
+  "category": "Kinetic",
+  "description": "Three-tiered staggered kinetic typography with electric lime highlight and whip entrance",
+  "author": "TheFreeVideoEditor",
+  "createdAt": 1792312586933,
+  "duration": 5000000,
+  "responsiveTiming": {
+    "introDuration": 450000,
+    "outroDuration": 400000
+  },
+  "bounds": {
+    "width": 728,
+    "height": 148,
+    "originX": -190,
+    "originY": 0
+  },
+  "tracks": [
+    {
+      "id": "tpl_trk_1",
+      "kind": "video",
+      "name": "Title Text",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "CREATE\nWITHOUT\nLIMITS",
+            "style": {
+              "fontFamily": "Bebas Neue",
+              "fontWeight": "bold",
+              "alignment": "center",
+              "letterSpacing": 4
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "center",
+              "frameStyle": "none",
+              "badgeText": "WITHOUT"
+            },
+            "colorRuns": [
+              {
+                "startIndex": 15,
+                "endIndex": 21,
+                "fillColor": {
+                  "r": 0.72,
+                  "g": 1,
+                  "b": 0.05,
+                  "a": 1
+                }
+              }
+            ],
+            "graphicTemplateId": "kinetic-stagger-stack",
+            "animationPresetId": "whip-slide-left"
+          },
+          "properties": {
+            "text.fontSize": {
+              "value": 68
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.strokeWidth": {
+              "value": 0
+            },
+            "text.letterSpacing": {
+              "value": 4
+            },
+            "text.lineHeight": {
+              "value": 1.05
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 180000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    -190,
+                    0
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.05,
+                    "y": 0.95
+                  },
+                  "easeIn": {
+                    "x": 0.1,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 450000,
+                  "value": [
+                    190,
+                    0
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    }
+  ],
+  "publishedParams": [
+    {
+      "id": "param_title_text",
+      "name": "Title Text",
+      "type": "text",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.content",
+      "defaultValue": "CREATE\nWITHOUT\nLIMITS"
+    },
+    {
+      "id": "param_font_family",
+      "name": "Font Family",
+      "type": "font",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.fontFamily",
+      "defaultValue": "Bebas Neue"
+    },
+    {
+      "id": "param_text_color",
+      "name": "Text Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.fill",
+      "defaultValue": {
+        "r": 0.72,
+        "g": 1,
+        "b": 0.05,
+        "a": 1
+      }
+    }
+  ]
+}

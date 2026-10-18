@@ -413,4 +413,51 @@ describe('Mask Keyframing, Geometry & Split Continuity (Gate L Verification)', (
 		expect(evalLeft.feather).toBeCloseTo(25);
 		expect(evalRight.feather).toBeCloseTo(25);
 	});
+
+	it('maintains perpendicular corners (no shearing) for rotated masks on 16:9 layers', async () => {
+		const { maskLocalToMonitor } = await import('../ui/preview/MaskOverlay');
+		const { layerAffine } = await import('./layerGeometry');
+
+		const sourceWidth = 1920;
+		const sourceHeight = 1080;
+		const compW = 1920;
+		const compH = 1080;
+		const aspect = sourceWidth / sourceHeight;
+
+		// Layer rotated 45 degrees
+		const layer = {
+			transform: { rotation: 45, scaleX: 1, scaleY: 1, x: 0, y: 0, opacity: 1 },
+			anchor: { x: 0, y: 0 },
+			crop: [0, 0, 0, 0] as [number, number, number, number],
+			fit: 'contain' as const
+		};
+		const affine = layerAffine(layer, sourceWidth, sourceHeight, compW, compH);
+		const toMonitor = (p: { x: number; y: number }) => ({
+			x: affine.a * p.x + affine.c * p.y + affine.e,
+			y: affine.b * p.x + affine.d * p.y + affine.f
+		});
+
+		// Mask rotated 30 degrees
+		const cx = 0.5, cy = 0.5, w = 0.4, h = 0.3, rotDeg = 30;
+		const p0 = maskLocalToMonitor(-w / 2, -h / 2, cx, cy, rotDeg, aspect, toMonitor);
+		const p1 = maskLocalToMonitor(+w / 2, -h / 2, cx, cy, rotDeg, aspect, toMonitor);
+		const p2 = maskLocalToMonitor(+w / 2, +h / 2, cx, cy, rotDeg, aspect, toMonitor);
+
+		// Vector top edge: p1 - p0
+		const topEdge = { x: p1.x - p0.x, y: p1.y - p0.y };
+		// Vector right edge: p2 - p1
+		const rightEdge = { x: p2.x - p1.x, y: p2.y - p1.y };
+
+		// Dot product of top edge and right edge must be exactly 0 (perpendicular, zero shear!)
+		const dot = topEdge.x * rightEdge.x + topEdge.y * rightEdge.y;
+		expect(Math.abs(dot)).toBeLessThan(1e-4);
+
+		// Total rotation angle on screen should be 45 + 30 = 75 degrees
+		// Top edge vector from p0 to p1: in unrotated local frame, points along +X (dx > 0, dy = 0)
+		// When rotated 75 degrees clockwise (+Y is down):
+		// dx = len * cos(75°), dy = len * sin(75°)
+		const expectedAngleRad = (75 * Math.PI) / 180;
+		const actualAngleRad = Math.atan2(topEdge.y, topEdge.x);
+		expect(actualAngleRad).toBeCloseTo(expectedAngleRad, 4);
+	});
 });

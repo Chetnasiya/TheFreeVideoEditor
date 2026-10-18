@@ -53,6 +53,9 @@ import {
 	deleteKeyframes as deleteClipKeyframes,
 	setKeyframeInterpolation as setClipKeyframeInterpolation,
 	setBezierHandles as setClipBezierHandles,
+	setKeyframeValue as setClipKeyframeValue,
+	evaluate,
+	readProperty,
 	copyKeyframes,
 	pasteKeyframes,
 	createAdjustmentClip,
@@ -737,7 +740,22 @@ export interface EditorState {
 		clipId: ClipId,
 		propertyId: PropertyId,
 		time: Time,
-		handles: { easeIn?: BezierHandle; easeOut?: BezierHandle }
+		handles: { easeIn?: BezierHandle; easeOut?: BezierHandle },
+		commit?: boolean
+	) => void;
+	setKeyframeValue: (
+		clipId: ClipId,
+		propertyId: PropertyId,
+		time: Time,
+		value: PropertyValue,
+		editedChannel?: number,
+		commit?: boolean
+	) => void;
+	addKeyframeAtTime: (
+		clipId: ClipId,
+		propertyId: PropertyId,
+		time: Time,
+		value?: PropertyValue
 	) => void;
 	copySelectedKeyframes: () => void;
 	pasteKeyframes: (targetClipId?: ClipId, targetPropertyId?: PropertyId) => void;
@@ -1124,6 +1142,9 @@ export function createEditorStore() {
 					mergeKey?: string;
 					coalesceWindowMs?: number;
 					resetHistory?: boolean;
+					updateKeyframeSelection?: (
+						selection: { clipId: ClipId; propertyId: PropertyId; time: Time }[]
+					) => { clipId: ClipId; propertyId: PropertyId; time: Time }[];
 				} = {}
 			): Project | null {
 				const current = options.target ?? get().project ?? options.initial;
@@ -1196,6 +1217,9 @@ export function createEditorStore() {
 								!activeProj.tracks.some((track) => track.id === state.timeline.selection.trackId)
 							) {
 								delete state.timeline.selection.trackId;
+							}
+							if (options.updateKeyframeSelection) {
+								state.keyframes.selection = options.updateKeyframeSelection(state.keyframes.selection);
 							}
 							state.keyframes.selection = state.keyframes.selection.filter((ref) => {
 								const clip = clipsMap.get(ref.clipId);
@@ -4341,17 +4365,13 @@ export function createEditorStore() {
 							}),
 							{
 								history: commit ? 'record' : 'skip',
-								mergeKey: !commit ? 'move-keyframes' : undefined
+								mergeKey: !commit ? 'move-keyframes' : undefined,
+								updateKeyframeSelection: (sel) =>
+									appliedDelta !== 0
+										? sel.map((ref) => ({ ...ref, time: ref.time + appliedDelta }))
+										: sel
 							}
 						);
-						if (appliedDelta !== 0) {
-							set((state) => {
-								state.keyframes.selection = state.keyframes.selection.map((ref) => ({
-									...ref,
-									time: ref.time + appliedDelta
-								}));
-							});
-						}
 					} catch (error) {
 						set((state) => {
 							state.projectMessage = errorMessage(error);
@@ -4391,7 +4411,7 @@ export function createEditorStore() {
 						});
 					}
 				},
-				setBezierHandles(clipId, propertyId, time, handles) {
+				setBezierHandles(clipId, propertyId, time, handles, commit = true) {
 					const project = get().project;
 					if (!project) return;
 					try {
@@ -4408,8 +4428,76 @@ export function createEditorStore() {
 									)
 								}))
 							}),
-							{ history: 'record', mergeKey: `bezier:${clipId}:${propertyId}:${time}` }
+							{
+								history: commit ? 'record' : 'skip',
+								mergeKey: !commit ? `bezier:${clipId}:${propertyId}:${time}` : undefined
+							}
 						);
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				setKeyframeValue(clipId, propertyId, time, value, editedChannel, commit = true) {
+					const project = get().project;
+					if (!project) return;
+					try {
+						mutateProject(
+							'Adjust keyframe value',
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) =>
+										clip.id === clipId
+											? setClipKeyframeValue(clip, propertyId, time, value, editedChannel)
+											: clip
+									)
+								}))
+							}),
+							{
+								history: commit ? 'record' : 'skip',
+								mergeKey: !commit ? `keyframe-val:${clipId}:${propertyId}:${time}` : undefined
+							}
+						);
+					} catch (error) {
+						set((state) => {
+							state.projectMessage = errorMessage(error);
+						});
+					}
+				},
+				addKeyframeAtTime(clipId, propertyId, time, value) {
+					const project = get().project;
+					if (!project) return;
+					try {
+						mutateProject(
+							`Add ${descriptorFor(propertyId)?.label ?? propertyId} keyframe`,
+							(proj) => ({
+								...proj,
+								tracks: proj.tracks.map((track) => ({
+									...track,
+									clips: track.clips.map((clip) => {
+										if (clip.id !== clipId) return clip;
+										const curve = propertyCurve(clip, propertyId);
+										const val =
+											value !== undefined
+												? value
+												: curve
+													? evaluate(curve, time)
+													: readProperty(clip, propertyId, time);
+										return setPropertyAtTime(clip, propertyId, time, val, {
+											autoKey: true,
+											fps: proj.settings.fps
+										});
+									})
+								}))
+							}),
+							{ history: 'record' }
+						);
+						set((state) => {
+							state.keyframes.selection = [{ clipId, propertyId, time }];
+						});
 					} catch (error) {
 						set((state) => {
 							state.projectMessage = errorMessage(error);
@@ -5645,6 +5733,8 @@ export function createEditorStore() {
 									);
 								}
 								get().setProperty(clipId, shapePropId, coords, { autoKey: true });
+							} else if (patch.shape && (shapeAnimated || shapeCurve)) {
+								get().setProperty(clipId, shapePropId, [...patch.shape], { autoKey: true });
 							}
 						}
 					}

@@ -45,14 +45,16 @@ interface MotionTemplateCardProps {
 	template: MotionGraphicTemplate;
 	onAdd: () => void;
 	onExport: () => void;
-	onDelete: () => void;
+	onDelete?: () => void;
+	onApply?: () => void;
 }
 
 export function MotionTemplateCard({
 	template,
 	onAdd,
 	onExport,
-	onDelete
+	onDelete,
+	onApply
 }: MotionTemplateCardProps) {
 	const store = useEditorStoreApi();
 	const hasMotion = useMemo(() => checkTemplateHasMotion(template), [template]);
@@ -172,6 +174,7 @@ export function MotionTemplateCard({
 			onMouseLeave={() => setIsHovered(false)}
 			role="listitem"
 			aria-label={`${template.name} motion graphic template`}
+			data-testid={`graphic-card-${template.id}`}
 		>
 			{/* Preview Box */}
 			<div className="custom-template-preview-box">
@@ -211,21 +214,23 @@ export function MotionTemplateCard({
 							<line x1="12" y1="15" x2="12" y2="3" />
 						</svg>
 					</button>
-					<button
-						type="button"
-						className="custom-template-quick-btn delete"
-						onClick={(e) => {
-							e.stopPropagation();
-							onDelete();
-						}}
-						title="Delete template"
-						aria-label="Delete template"
-					>
-						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-							<line x1="18" y1="6" x2="6" y2="18" />
-							<line x1="6" y1="6" x2="18" y2="18" />
-						</svg>
-					</button>
+					{onDelete && (
+						<button
+							type="button"
+							className="custom-template-quick-btn delete"
+							onClick={(e) => {
+								e.stopPropagation();
+								onDelete();
+							}}
+							title="Delete template"
+							aria-label="Delete template"
+						>
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+								<line x1="18" y1="6" x2="6" y2="18" />
+								<line x1="6" y1="6" x2="18" y2="18" />
+							</svg>
+						</button>
+					)}
 				</div>
 
 				{/* Live Visual SVG Preview */}
@@ -487,6 +492,19 @@ export function MotionTemplateCard({
 					</span>
 				</div>
 				<div className="graphic-card-actions">
+					{onApply && (
+						<button
+							type="button"
+							className="graphic-apply-btn"
+							onClick={(e) => {
+								e.stopPropagation();
+								onApply();
+							}}
+							title="Apply style to selected clip"
+						>
+							Apply
+						</button>
+					)}
 					<button
 						type="button"
 						className="graphic-add-btn"

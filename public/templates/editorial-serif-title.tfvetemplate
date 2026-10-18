@@ -1,0 +1,179 @@
+{
+  "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
+  "tfve_type": "motion_template",
+  "version": 1,
+  "id": "editorial-serif-title",
+  "name": "Editorial Luxury Title",
+  "category": "Titles",
+  "description": "High-fashion editorial Bodoni serif headline for luxury, lifestyle, and brand films",
+  "author": "TheFreeVideoEditor",
+  "createdAt": 1792312586931,
+  "duration": 5000000,
+  "responsiveTiming": {
+    "introDuration": 800000,
+    "outroDuration": 500000
+  },
+  "bounds": {
+    "width": 354,
+    "height": 150,
+    "originX": 0,
+    "originY": 0
+  },
+  "tracks": [
+    {
+      "id": "tpl_trk_1",
+      "kind": "video",
+      "name": "Title Text",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "VOGUE ARCHIVE\nAUTUMN / WINTER 2026",
+            "style": {
+              "fontFamily": "Bodoni Moda",
+              "fontWeight": "700",
+              "alignment": "center",
+              "letterSpacing": 4
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "center",
+              "frameStyle": "none",
+              "badgeText": "AUTUMN / WINTER 2026"
+            },
+            "colorRuns": [
+              {
+                "startIndex": 0,
+                "endIndex": 13,
+                "fillColor": {
+                  "r": 0.88,
+                  "g": 0.74,
+                  "b": 0.48,
+                  "a": 1
+                }
+              }
+            ],
+            "graphicTemplateId": "editorial-serif-title",
+            "animationPresetId": "smooth-drift"
+          },
+          "properties": {
+            "text.fontSize": {
+              "value": 60
+            },
+            "text.fillColor": {
+              "value": [
+                0.98,
+                0.96,
+                0.92,
+                1
+              ]
+            },
+            "text.strokeWidth": {
+              "value": 0
+            },
+            "text.letterSpacing": {
+              "value": 4
+            },
+            "text.lineHeight": {
+              "value": 1.2
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 600000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0.95,
+                    0.95
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 800000,
+                  "value": [
+                    1.02,
+                    1.02
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": [],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "rotation": 0,
+            "opacity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "publishedParams": [
+    {
+      "id": "param_title_text",
+      "name": "Title Text",
+      "type": "text",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.content",
+      "defaultValue": "VOGUE ARCHIVE\nAUTUMN / WINTER 2026"
+    },
+    {
+      "id": "param_font_family",
+      "name": "Font Family",
+      "type": "font",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.fontFamily",
+      "defaultValue": "Bodoni Moda"
+    },
+    {
+      "id": "param_text_color",
+      "name": "Text Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.fill",
+      "defaultValue": {
+        "r": 0.88,
+        "g": 0.74,
+        "b": 0.48,
+        "a": 1
+      }
+    }
+  ]
+}

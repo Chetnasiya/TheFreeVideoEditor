@@ -1,0 +1,285 @@
+{
+  "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
+  "tfve_type": "motion_template",
+  "version": 1,
+  "id": "minimal-tech-headline",
+  "name": "Minimalist Tech Launch",
+  "category": "Titles",
+  "description": "Clean modern Silicon Valley product launch header with emerald accent and crisp tracking",
+  "author": "TheFreeVideoEditor",
+  "createdAt": 1792312586931,
+  "duration": 5000000,
+  "responsiveTiming": {
+    "introDuration": 450000,
+    "outroDuration": 400000
+  },
+  "bounds": {
+    "width": 952,
+    "height": 154,
+    "originX": -151,
+    "originY": 0
+  },
+  "tracks": [
+    {
+      "id": "tpl_trk_1",
+      "kind": "video",
+      "name": "Background Frame",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "shape",
+            "shapeType": "rect",
+            "width": 6,
+            "height": 105,
+            "cornerRadius": 3,
+            "fillColor": {
+              "r": 0.15,
+              "g": 0.92,
+              "b": 0.58,
+              "a": 1
+            },
+            "strokeWidth": 0
+          },
+          "properties": {
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    -449,
+                    0
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.05,
+                    "y": 0.95
+                  },
+                  "easeIn": {
+                    "x": 0.1,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 450000,
+                  "value": [
+                    -69,
+                    0
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "rotation": {
+              "value": 0
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 180000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "tpl_trk_2",
+      "kind": "video",
+      "name": "Title Text",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_2",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "NEXT GENERATION ENGINE\nBUILT FOR SPEED AND PRECISION",
+            "style": {
+              "fontFamily": "Inter",
+              "fontWeight": "800",
+              "alignment": "left",
+              "letterSpacing": 2
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "center",
+              "paddingX": 24,
+              "paddingY": 16,
+              "frameStyle": "accent-bar",
+              "badgeText": "BUILT FOR SPEED AND PRECISION"
+            },
+            "colorRuns": [],
+            "graphicTemplateId": "minimal-tech-headline",
+            "animationPresetId": "whip-slide-left"
+          },
+          "properties": {
+            "text.fontSize": {
+              "value": 48
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.strokeWidth": {
+              "value": 0
+            },
+            "text.letterSpacing": {
+              "value": 2
+            },
+            "text.lineHeight": {
+              "value": 1.25
+            },
+            "text.accentBarWidth": {
+              "value": 6
+            },
+            "text.accentBarColor": {
+              "value": [
+                0.15,
+                0.92,
+                0.58,
+                1
+              ]
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 180000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    -229,
+                    0
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.05,
+                    "y": 0.95
+                  },
+                  "easeIn": {
+                    "x": 0.1,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 450000,
+                  "value": [
+                    151,
+                    0
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    }
+  ],
+  "publishedParams": [
+    {
+      "id": "param_title_text",
+      "name": "Title Text",
+      "type": "text",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.content",
+      "defaultValue": "NEXT GENERATION ENGINE\nBUILT FOR SPEED AND PRECISION"
+    },
+    {
+      "id": "param_font_family",
+      "name": "Font Family",
+      "type": "font",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.fontFamily",
+      "defaultValue": "Inter"
+    },
+    {
+      "id": "param_text_color",
+      "name": "Text Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.fill",
+      "defaultValue": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    },
+    {
+      "id": "param_shape_fill",
+      "name": "Accent / Background Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "shape.fill",
+      "defaultValue": {
+        "r": 0.15,
+        "g": 0.92,
+        "b": 0.58,
+        "a": 1
+      }
+    }
+  ]
+}

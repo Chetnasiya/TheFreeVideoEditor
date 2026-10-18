@@ -366,7 +366,7 @@ export default function TransformGizmo({
 
 	const maskActive =
 		maskTool.showOverlay &&
-		((selectedClip.masks && selectedClip.masks.length > 0 && maskTool.selectedMaskId !== null) ||
+		((selectedClip.masks && selectedClip.masks.length > 0) ||
 			maskTool.activeTool !== 'select');
 	if (maskActive) return null;
 

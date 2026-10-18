@@ -1,0 +1,178 @@
+{
+  "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
+  "tfve_type": "motion_template",
+  "version": 1,
+  "id": "modern-clean",
+  "name": "Modern & Clean",
+  "category": "Titles",
+  "description": "Minimalist editorial lockup with tracked tagline and bold center title",
+  "author": "TheFreeVideoEditor",
+  "createdAt": 1792312586928,
+  "duration": 5000000,
+  "responsiveTiming": {
+    "introDuration": 800000,
+    "outroDuration": 500000
+  },
+  "bounds": {
+    "width": 354,
+    "height": 150,
+    "originX": 0,
+    "originY": 0
+  },
+  "tracks": [
+    {
+      "id": "tpl_trk_1",
+      "kind": "video",
+      "name": "Title Text",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "CREATE WITH PASSION\nTHE FREE VIDEO EDITOR",
+            "style": {
+              "fontFamily": "Montserrat",
+              "fontWeight": "bold",
+              "alignment": "center",
+              "letterSpacing": 3
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "center",
+              "badgeText": "THE FREE VIDEO EDITOR"
+            },
+            "colorRuns": [
+              {
+                "startIndex": 20,
+                "endIndex": 41,
+                "fillColor": {
+                  "r": 0.22,
+                  "g": 0.74,
+                  "b": 0.97,
+                  "a": 1
+                }
+              }
+            ],
+            "graphicTemplateId": "modern-clean",
+            "animationPresetId": "smooth-drift"
+          },
+          "properties": {
+            "text.fontSize": {
+              "value": 48
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.strokeWidth": {
+              "value": 0
+            },
+            "text.letterSpacing": {
+              "value": 3
+            },
+            "text.lineHeight": {
+              "value": 1.3
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 600000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0.95,
+                    0.95
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 800000,
+                  "value": [
+                    1.02,
+                    1.02
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": [],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "rotation": 0,
+            "opacity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "publishedParams": [
+    {
+      "id": "param_title_text",
+      "name": "Title Text",
+      "type": "text",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.content",
+      "defaultValue": "CREATE WITH PASSION\nTHE FREE VIDEO EDITOR"
+    },
+    {
+      "id": "param_font_family",
+      "name": "Font Family",
+      "type": "font",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.fontFamily",
+      "defaultValue": "Montserrat"
+    },
+    {
+      "id": "param_text_color",
+      "name": "Text Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.fill",
+      "defaultValue": {
+        "r": 0.22,
+        "g": 0.74,
+        "b": 0.97,
+        "a": 1
+      }
+    }
+  ]
+}

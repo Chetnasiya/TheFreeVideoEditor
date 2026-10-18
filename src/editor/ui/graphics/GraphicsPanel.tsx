@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, type DragEvent } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import {
 	GRAPHIC_TEMPLATES,
@@ -9,7 +9,6 @@ import {
 } from '../../core/text/graphicsTemplates';
 import { readProperty } from '../../core/properties';
 import { ColorPickerField } from '../inspector/ColorPickerField';
-import { setTransparentDragImage, startDragGhost, stopDragGhost } from '../drag/dragOverlayService';
 import type { Clip, GraphicFrameStyle } from '../../core/types';
 import {
 	getCustomTemplates,
@@ -21,6 +20,7 @@ import {
 import type { MotionGraphicTemplate } from '../../core/templates/templateTypes';
 import { SaveTemplateModal } from './SaveTemplateModal';
 import { MotionTemplateCard } from './MotionTemplateCard';
+import { getBuiltinMotionTemplate } from '../../core/templates/builtinTemplates';
 import './graphics.css';
 
 const CATEGORIES: Array<{ id: GraphicCategory; label: string }> = [
@@ -52,342 +52,6 @@ const FRAME_STYLES: Array<{ id: GraphicFrameStyle; label: string }> = [
 	{ id: 'callout-pointer', label: 'Pointer Callout' },
 	{ id: 'cinematic-box', label: 'Letterbox Frame' }
 ];
-
-/**
- * Visual Preview renderer matching the 12 kinetic typography graphics
- * depicted in the reference image.
- */
-function GraphicCardPreview({ template }: { template: GraphicTemplate }) {
-	const lines = template.defaultText.split('\n');
-	const id = template.id;
-
-	if (id === 'trendy-typography-card') {
-		return (
-			<div className="preview-card-trendy">
-				<div className="preview-trendy-box">
-					<span className="preview-trendy-sub">{template.primaryLine}</span>
-					<span className="preview-trendy-main">{template.secondaryLine}</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'modern-title-split') {
-		return (
-			<div className="preview-split-title">
-				<div className="preview-split-badge">{template.secondaryLine ?? 'NEW TREND'}</div>
-				<div className="preview-split-main">
-					<span>{template.primaryLine}</span>
-					<div className="preview-split-cut-line" />
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'run-wild-side') {
-		return (
-			<div className="preview-run-wild">
-				<div className="preview-wild-slash" />
-				<div className="preview-wild-solid">{template.primaryLine}</div>
-				<div className="preview-wild-outline">{template.secondaryLine ?? 'WILD SIDE.'}</div>
-			</div>
-		);
-	}
-
-	if (id === 'tutorial-video-badge') {
-		return (
-			<div className="preview-tutorial-lockup">
-				<div className="preview-tutorial-header">
-					<span className="preview-tutorial-title">{template.primaryLine}</span>
-					<span className="preview-tutorial-badge">
-						{template.badgeText ?? template.secondaryLine ?? 'VIDEO'}
-					</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'new-trend-diagonal-repeat') {
-		return (
-			<div className="preview-diagonal-marquee">
-				<div className="preview-marquee-scroller">
-					<span className="preview-marquee-solid">NEW NEW NEW</span>
-					<span className="preview-marquee-outline">TREND TREND TREND</span>
-					<span className="preview-marquee-solid">NEW NEW NEW</span>
-					<span className="preview-marquee-outline">TREND TREND TREND</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'new-cubed-box') {
-		return (
-			<div className="preview-cubed-box">
-				<div className="preview-cubed-inner">
-					<span>NEW</span>
-					<span>NEW</span>
-					<span>NEW</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'circular-titles-4k' || id === 'trends-af-circle') {
-		return (
-			<div className="preview-circle-emblem">
-				<div className="preview-circle-outer">
-					<div className="preview-circle-inner">
-						<span>{lines[0]}</span>
-						<span style={{ fontSize: '13px', fontWeight: 900 }}>{lines[1]}</span>
-					</div>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'kinetic-typography-bar') {
-		return (
-			<div className="preview-kinetic-bar">
-				<div className="preview-bar-pipe" />
-				<div className="preview-bar-text">
-					<span>{lines[0]}</span>
-					<span>{lines[1]}</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'stylish-boxed-frame') {
-		return (
-			<div className="preview-stylish-frame">
-				<span>{template.primaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'universal-slanted-box') {
-		return (
-			<div className="preview-slanted-box">
-				<span>{template.primaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'new-trend-italic-slash') {
-		return (
-			<div className="preview-italic-slash">
-				<span className="preview-italic-outline">{lines[0]}</span>
-				<span className="preview-italic-solid">{lines[1]}</span>
-			</div>
-		);
-	}
-
-	if (id === 'typography-titles-multiline') {
-		return (
-			<div className="preview-multiline-frame">
-				<div className="preview-multiline-top">{lines[0]}</div>
-				<div className="preview-multiline-divider" />
-				<div className="preview-multiline-bottom">
-					<span>{lines[1]}</span>
-					<span style={{ fontSize: '11px', letterSpacing: '3px' }}>{lines[2]}</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'broadcast-news-lower-third') {
-		return (
-			<div className="preview-broadcast-news">
-				<span className="preview-broadcast-title">{template.primaryLine}</span>
-				<div className="preview-broadcast-rule" />
-				<span className="preview-broadcast-sub">{template.secondaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'minimal-creator-tag') {
-		return (
-			<div className="preview-creator-tag">
-				<div className="preview-creator-bar" />
-				<div className="preview-creator-text">
-					<span className="preview-creator-name">{template.primaryLine}</span>
-					<span className="preview-creator-sub">{template.secondaryLine}</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'glass-streamer-badge') {
-		return (
-			<div className="preview-glass-ribbon">
-				<div className="preview-glass-stripe" />
-				<div className="preview-glass-content">
-					<span className="preview-glass-main">{template.primaryLine}</span>
-					<span className="preview-glass-sub">{template.secondaryLine}</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'documentary-speaker-card') {
-		return (
-			<div className="preview-documentary-card">
-				<span className="preview-doc-speaker">{template.primaryLine}</span>
-				<div className="preview-doc-rule" />
-				<span className="preview-doc-title">{template.secondaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'blockbuster-trailer') {
-		return (
-			<div className="preview-blockbuster-box">
-				<div className="preview-bracket-tl" />
-				<div className="preview-bracket-br" />
-				<span className="preview-blockbuster-title">{template.primaryLine}</span>
-				<span className="preview-blockbuster-sub">{template.secondaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'editorial-serif-title') {
-		return (
-			<div className="preview-editorial-title">
-				<span className="preview-editorial-main">{template.primaryLine}</span>
-				<span className="preview-editorial-sub">{template.secondaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'cyberpunk-glitch-title') {
-		return (
-			<div className="preview-cyber-matrix">
-				<span className="preview-cyber-head">{template.primaryLine}</span>
-				<span className="preview-cyber-sub">{template.secondaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'minimal-tech-headline') {
-		return (
-			<div className="preview-tech-headline">
-				<div className="preview-tech-indicator" />
-				<div>
-					<span className="preview-tech-main">{template.primaryLine}</span>
-					<span className="preview-tech-sub">{template.secondaryLine}</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'youtube-subscribe-bell') {
-		return (
-			<div className="preview-yt-pill">
-				<div className="preview-yt-btn">
-					<span className="preview-yt-text">SUBSCRIBE</span>
-					<span className="preview-yt-bell">🔔</span>
-				</div>
-			</div>
-		);
-	}
-
-	if (id === 'reels-hook-headline') {
-		return (
-			<div className="preview-reels-hook">
-				<div className="preview-reels-tag">{template.primaryLine}</div>
-				<div className="preview-reels-sub">{template.secondaryLine}</div>
-			</div>
-		);
-	}
-
-	if (id === 'instagram-handle-pill') {
-		return (
-			<div className="preview-ig-pill">
-				<span className="preview-ig-at">@</span>
-				<span className="preview-ig-handle">{template.primaryLine.replace('@', '')}</span>
-			</div>
-		);
-	}
-
-	if (id === 'podcast-guest-badge') {
-		return (
-			<div className="preview-podcast-card">
-				<span className="preview-pod-ep">{template.primaryLine}</span>
-				<span className="preview-pod-name">{template.secondaryLine}</span>
-				<span className="preview-pod-role">{template.tertiaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'pointer-feature-callout') {
-		return (
-			<div className="preview-pointer-callout">
-				<div className="preview-callout-bubble">
-					<span>{template.primaryLine}</span>
-					<span className="preview-callout-sub">{template.secondaryLine}</span>
-				</div>
-				<div className="preview-pointer-dot" />
-			</div>
-		);
-	}
-
-	if (id === 'verified-pill-badge') {
-		return (
-			<div className="preview-verified-pill">
-				<span className="preview-verified-check">✓</span>
-				<span>{template.primaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'kinetic-bold-punch') {
-		return (
-			<div className="preview-punch-zoom">
-				<span className="preview-punch-main">{template.primaryLine}</span>
-				<span className="preview-punch-sub">{template.secondaryLine}</span>
-			</div>
-		);
-	}
-
-	if (id === 'kinetic-stagger-stack') {
-		return (
-			<div className="preview-stagger-stack">
-				<span>{lines[0]}</span>
-				<span>{lines[1]}</span>
-				<span className="preview-stagger-highlight">{lines[2]}</span>
-			</div>
-		);
-	}
-	return (
-		<div className="graphic-preview-text">
-			{lines.map((line, idx) => {
-				const isHighlight =
-					template.highlightWord &&
-					line.toLowerCase().includes(template.highlightWord.toLowerCase());
-				const color = isHighlight ? template.previewColors.accent : template.previewColors.primary;
-				return (
-					<span
-						key={idx}
-						style={{
-							fontFamily: template.style.fontFamily,
-							fontWeight: template.style.fontWeight ?? 'bold',
-							fontStyle: template.style.fontStyle ?? 'normal',
-							letterSpacing: `${Math.min(template.style.letterSpacing ?? 2, 4)}px`,
-							color,
-							fontSize: idx === 0 && lines.length > 1 ? '14px' : '16px',
-							textShadow:
-								template.category === 'neon'
-									? `0 0 10px ${template.previewColors.accent}`
-									: undefined
-						}}
-					>
-						{line}
-					</span>
-				);
-			})}
-		</div>
-	);
-}
 
 export default function GraphicsPanel() {
 	const store = useEditorStoreApi();
@@ -519,6 +183,14 @@ export default function GraphicsPanel() {
 
 	// Add template to timeline at playhead
 	const handleAddTemplate = (template: GraphicTemplate) => {
+		const mogrt = getBuiltinMotionTemplate(template.id);
+		if (mogrt) {
+			const createdId = store.getState().instantiateTemplate(mogrt);
+			if (createdId) {
+				setAnnouncement(`Added ${template.name} motion template to timeline.`);
+				return;
+			}
+		}
 		const createdId = store.getState().addGraphicClip(template.id);
 		if (createdId) {
 			setAnnouncement(`Added ${template.name} graphic to timeline.`);
@@ -533,31 +205,6 @@ export default function GraphicsPanel() {
 		if (!selectedClip || !isTextClipSelected) return;
 		store.getState().applyGraphicTemplate(selectedClip.id, template.id, undefined);
 		setAnnouncement(`Applied ${template.name} style to selected clip.`);
-	};
-
-	// Drag start handler for timeline drop
-	const handleDragStart = (e: DragEvent, template: GraphicTemplate) => {
-		setTransparentDragImage(e.dataTransfer);
-		startDragGhost({
-			title: template.name,
-			kind: 'graphic',
-			badge: template.category
-		});
-		e.dataTransfer.setData('application/x-tfve-graphic-template', template.id);
-		e.dataTransfer.setData('application/x-tfve-graphic-name', template.name);
-		e.dataTransfer.setData('text/plain', template.id);
-		e.dataTransfer.effectAllowed = 'copy';
-		store.getState().beginTimelineDrag({
-			kind: 'graphic-template',
-			clipIds: [],
-			original: [],
-			preview: [],
-			pointerStartTime: 0,
-			pointerTime: 0,
-			graphicTemplateId: template.id,
-			allowed: true,
-			unlink: false
-		});
 	};
 
 	// Text edits in Quick Editor
@@ -987,7 +634,7 @@ export default function GraphicsPanel() {
 
 			<div className="graphics-content">
 				{activeTab === 'templates' ? (
-					<div className="graphics-grid" role="list">
+					<div className="custom-templates-grid" role="list">
 						{filteredTemplates.length === 0 ? (
 							<div className="graphics-empty-state">
 								<div className="graphics-empty-title">No templates found</div>
@@ -997,71 +644,16 @@ export default function GraphicsPanel() {
 							</div>
 						) : (
 							filteredTemplates.map((template) => {
+								const mogrt = getBuiltinMotionTemplate(template.id);
+								if (!mogrt) return null;
 								return (
-									<div
+									<MotionTemplateCard
 										key={template.id}
-										className="graphic-card"
-										draggable
-										onDragStart={(e) => handleDragStart(e, template)}
-										onDragEnd={() => {
-											stopDragGhost();
-											store.getState().cancelTimelineDrag();
-										}}
-										onDoubleClick={() => handleAddTemplate(template)}
-										role="listitem"
-										aria-label={`${template.name} graphic template`}
-										data-testid={`graphic-card-${template.id}`}
-									>
-										{/* Stylized Visual Preview */}
-										<div
-											className="graphic-preview-box"
-											style={{ background: template.previewColors.background }}
-										>
-											<div className="graphic-motion-badge">
-												<svg
-													width="10"
-													height="10"
-													viewBox="0 0 24 24"
-													fill="currentColor"
-													stroke="none"
-													aria-hidden="true"
-												>
-													<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-												</svg>
-												<span>{template.animationPresetId}</span>
-											</div>
-
-											<GraphicCardPreview template={template} />
-										</div>
-
-										{/* Card Footer */}
-										<div className="graphic-card-footer">
-											<div className="graphic-card-meta">
-												<span className="graphic-card-title">{template.name}</span>
-												<span className="graphic-card-tag">{template.category}</span>
-											</div>
-											<div className="graphic-card-actions">
-												{isTextClipSelected && (
-													<button
-														type="button"
-														className="graphic-apply-btn"
-														onClick={() => handleApplyToSelected(template)}
-														title="Apply style to selected clip"
-													>
-														Apply
-													</button>
-												)}
-												<button
-													type="button"
-													className="graphic-add-btn"
-													onClick={() => handleAddTemplate(template)}
-													title="Add to timeline at playhead"
-												>
-													+ Add
-												</button>
-											</div>
-										</div>
-									</div>
+										template={mogrt}
+										onAdd={() => handleAddTemplate(template)}
+										onExport={() => downloadTemplateFile(mogrt)}
+										onApply={isTextClipSelected ? () => handleApplyToSelected(template) : undefined}
+									/>
 								);
 							})
 						)}

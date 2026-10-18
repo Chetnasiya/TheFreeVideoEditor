@@ -1,0 +1,319 @@
+{
+  "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
+  "tfve_type": "motion_template",
+  "version": 1,
+  "id": "run-wild-side",
+  "name": "Run Wild Side",
+  "category": "Kinetic",
+  "description": "Solid bold headline overlaid on stroked outline typography with sharp diagonal cut slash",
+  "author": "TheFreeVideoEditor",
+  "createdAt": 1792312586926,
+  "duration": 5000000,
+  "responsiveTiming": {
+    "introDuration": 400000,
+    "outroDuration": 400000
+  },
+  "bounds": {
+    "width": 710,
+    "height": 188,
+    "originX": 15,
+    "originY": 0
+  },
+  "tracks": [
+    {
+      "id": "tpl_trk_1",
+      "kind": "video",
+      "name": "Background Frame",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "shape",
+            "shapeType": "rect",
+            "width": 560,
+            "height": 5,
+            "cornerRadius": 3,
+            "fillColor": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "strokeWidth": 0
+          },
+          "properties": {
+            "position": {
+              "value": [
+                -15,
+                0
+              ]
+            },
+            "rotation": {
+              "value": -12
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    1.15,
+                    0.9
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 100000,
+                  "value": [
+                    0.95,
+                    1.05
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 350000,
+                  "value": [
+                    1,
+                    1
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 80000,
+                  "value": 1,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 140000,
+                  "value": 0.25,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 200000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "tpl_trk_2",
+      "kind": "video",
+      "name": "Title Text",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_2",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "RUN ON THE\nWILD SIDE.",
+            "style": {
+              "fontFamily": "Montserrat",
+              "fontWeight": "900",
+              "alignment": "left",
+              "letterSpacing": 2
+            },
+            "box": {
+              "autoSize": true,
+              "paddingX": 28,
+              "paddingY": 20,
+              "verticalAnchor": "center",
+              "frameStyle": "split-slash",
+              "badgeText": "WILD SIDE."
+            },
+            "colorRuns": [],
+            "graphicTemplateId": "run-wild-side",
+            "animationPresetId": "glitch-snap"
+          },
+          "properties": {
+            "text.fontSize": {
+              "value": 60
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.strokeColor": {
+              "value": [
+                1,
+                1,
+                1,
+                0.9
+              ]
+            },
+            "text.strokeWidth": {
+              "value": 2
+            },
+            "text.letterSpacing": {
+              "value": 2
+            },
+            "text.lineHeight": {
+              "value": 1.15
+            },
+            "text.reveal": {
+              "value": 1
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 80000,
+                  "value": 1,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 140000,
+                  "value": 0.25,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 200000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    1.15,
+                    0.9
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 100000,
+                  "value": [
+                    0.95,
+                    1.05
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 350000,
+                  "value": [
+                    1,
+                    1
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": [],
+          "transform": {
+            "x": -15,
+            "y": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "rotation": 0,
+            "opacity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "publishedParams": [
+    {
+      "id": "param_title_text",
+      "name": "Title Text",
+      "type": "text",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.content",
+      "defaultValue": "RUN ON THE\nWILD SIDE."
+    },
+    {
+      "id": "param_font_family",
+      "name": "Font Family",
+      "type": "font",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.fontFamily",
+      "defaultValue": "Montserrat"
+    },
+    {
+      "id": "param_text_color",
+      "name": "Text Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "text.fill",
+      "defaultValue": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    },
+    {
+      "id": "param_shape_fill",
+      "name": "Accent / Background Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "shape.fill",
+      "defaultValue": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    }
+  ]
+}

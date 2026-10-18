@@ -512,6 +512,21 @@ describe('editor store', () => {
 		// Easy ease
 		store.getState().easyEase();
 
+		// Move selected keyframe multiple consecutive times (as in dragging)
+		store.getState().selectKeyframe({ clipId, propertyId: 'opacity', time: 1_500_000 });
+		store.getState().moveSelectedKeyframes(100_000, false);
+		expect(store.getState().keyframes.selection).toEqual([
+			{ clipId, propertyId: 'opacity', time: 1_600_000 }
+		]);
+		store.getState().moveSelectedKeyframes(100_000, false);
+		expect(store.getState().keyframes.selection).toEqual([
+			{ clipId, propertyId: 'opacity', time: 1_700_000 }
+		]);
+		store.getState().moveSelectedKeyframes(0, true);
+		expect(store.getState().keyframes.selection).toEqual([
+			{ clipId, propertyId: 'opacity', time: 1_700_000 }
+		]);
+
 		// Undo restores keyframe selection
 		expect(store.getState().undo()).toBe(true);
 		expect(store.getState().redo()).toBe(true);
@@ -967,4 +982,50 @@ LUT_3D_SIZE 2
 			expect(textClip.source.box?.gradientAngle).toBe(45);
 		}
 	});
+
+	it('supports GraphEditor keyframe manipulations: addKeyframeAtTime, setKeyframeValue, and setBezierHandles', async () => {
+		const store = createEditorStore();
+		await store.getState().createProject({ name: 'Keyframe Graph Test' });
+
+		const solidId = store.getState().addSolidLayer('#ffffff')!;
+		expect(solidId).toBeTruthy();
+
+		// Enable animation on opacity
+		store.getState().enableAnimation(solidId, 'opacity');
+
+		// Add a keyframe at 1 second (1_000_000 ticks) with value 0.4
+		store.getState().addKeyframeAtTime(solidId, 'opacity', 1_000_000, 0.4);
+
+		let clip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === solidId);
+		let curve = clip?.properties?.opacity as any;
+		expect(curve?.keyframes).toHaveLength(2);
+		expect(curve?.keyframes[1].value).toBe(0.4);
+
+		// Adjust the keyframe value via setKeyframeValue
+		store.getState().setKeyframeValue(solidId, 'opacity', 1_000_000, 0.85);
+		clip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === solidId);
+		curve = clip?.properties?.opacity as any;
+		expect(curve?.keyframes[1].value).toBe(0.85);
+
+		// Adjust bezier handles
+		store.getState().setBezierHandles(solidId, 'opacity', 1_000_000, {
+			easeIn: { x: 0.4, y: 0.8 },
+			easeOut: { x: 0.6, y: 0.2 }
+		});
+		clip = store
+			.getState()
+			.project?.tracks.flatMap((t) => t.clips)
+			.find((c) => c.id === solidId);
+		curve = clip?.properties?.opacity as any;
+		expect(curve?.keyframes[1].interpolation).toBe('bezier');
+		expect(curve?.keyframes[1].easeIn).toEqual({ x: 0.4, y: 0.8 });
+		expect(curve?.keyframes[1].easeOut).toEqual({ x: 0.6, y: 0.2 });
+	});
 });
+

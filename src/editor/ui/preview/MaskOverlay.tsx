@@ -9,7 +9,9 @@ import {
 	evaluateMask,
 	flattenBezier,
 	distanceToSegment,
+	getSequence,
 	layerAffine,
+	readProperty,
 	resolveFrame,
 	type Clip,
 	type EvaluatedMask,
@@ -17,6 +19,7 @@ import {
 	type Point2D,
 	type Project
 } from '../../core';
+import { getTextDimensions } from '../../services/render/text/rasterizer';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 
 interface MaskOverlayProps {
@@ -122,6 +125,88 @@ function findClosestPointOnPath(
 	return bestHit;
 }
 
+export function getClipSourceDimensions(
+	clip: Clip,
+	project: Project,
+	localTime: number
+): { width: number; height: number } {
+	const src = clip.source;
+	if (src && 'type' in src && src.type === 'text') {
+		const textSrc = src as {
+			text: string;
+			style?: { fontFamily?: string; letterSpacing?: number; lineHeight?: number };
+			box?: import('../../core').TextBox;
+		};
+		const fontSize = (readProperty(clip, 'text.fontSize', localTime) as number) ?? 48;
+		const letterSpacing =
+			(readProperty(clip, 'text.letterSpacing', localTime) as number) ??
+			textSrc.style?.letterSpacing ??
+			0;
+		const lineHeight =
+			(readProperty(clip, 'text.lineHeight', localTime) as number) ??
+			textSrc.style?.lineHeight ??
+			1.2;
+		const dims = getTextDimensions(
+			textSrc.text,
+			{
+				...(textSrc.style ?? {}),
+				fontFamily: textSrc.style?.fontFamily ?? 'sans-serif',
+				letterSpacing,
+				lineHeight
+			},
+			textSrc.box,
+			fontSize
+		);
+		return { width: dims.width, height: dims.height };
+	}
+	if (src && 'type' in src && src.type === 'shape') {
+		const shapeSrc = src as { width?: number; height?: number };
+		const w =
+			(readProperty(clip, 'shape.width', localTime) as number) ??
+			shapeSrc.width ??
+			300;
+		const h =
+			(readProperty(clip, 'shape.height', localTime) as number) ??
+			shapeSrc.height ??
+			200;
+		return { width: w, height: h };
+	}
+	if (src && 'type' in src && src.type === 'sequence') {
+		const seqSrc = src as { sequenceId: import('../../core').SequenceId };
+		const nestedSeq = getSequence(project, seqSrc.sequenceId);
+		if (nestedSeq?.settings?.width && nestedSeq?.settings?.height) {
+			return { width: nestedSeq.settings.width, height: nestedSeq.settings.height };
+		}
+	}
+	const asset = clip.assetId ? project.assets[clip.assetId] : undefined;
+	return {
+		width: asset?.width ?? project.settings.width,
+		height: asset?.height ?? project.settings.height
+	};
+}
+
+/**
+ * Maps a mask local offset (lx, ly) in normalized units (where lx is fraction of sourceWidth, ly of sourceHeight)
+ * to monitor screen pixels, accounting for source aspect ratio during rotation and layerAffine.
+ */
+export function maskLocalToMonitor(
+	lx: number,
+	ly: number,
+	cx: number,
+	cy: number,
+	rotDeg: number,
+	aspect: number,
+	toMonitor: (p: Point2D) => Point2D
+): Point2D {
+	const rad = (rotDeg * Math.PI) / 180;
+	const cos = Math.cos(rad);
+	const sin = Math.sin(rad);
+	const invAspect = 1 / Math.max(0.0001, aspect);
+	const u = cx + lx * cos - ly * invAspect * sin;
+	const v = cy + lx * aspect * sin + ly * cos;
+	return toMonitor({ x: u, y: v });
+}
+
 export default function MaskOverlay({ project, renderedWidth, renderedHeight }: MaskOverlayProps) {
 	const store = useEditorStoreApi();
 	const selectedClipIds = useEditorStore((state) => state.timeline.selection.clipIds);
@@ -145,6 +230,14 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 
 	const masks = useMemo(() => selectedClip?.masks ?? [], [selectedClip]);
 	const showOverlay = maskTool.showOverlay && masks.length > 0;
+
+	const localTime = selectedClip ? playhead - selectedClip.start : 0;
+	const { width: sourceWidth, height: sourceHeight } = useMemo(() => {
+		if (!selectedClip) return { width: project.settings.width, height: project.settings.height };
+		return getClipSourceDimensions(selectedClip, project, localTime);
+	}, [selectedClip, project, localTime]);
+
+	const aspect = sourceWidth / Math.max(1, sourceHeight);
 
 	// Compute transform matrix from normalized layer space to monitor space
 	const { toMonitor, fromMonitor } = useMemo(() => {
@@ -172,25 +265,35 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 			return { toMonitor: fallbackToMon, fromMonitor: fallbackFromMon };
 		}
 
-		const affine = layerAffine(layer, compW, compH, compW, compH);
+		const affine = layerAffine(layer, sourceWidth, sourceHeight, compW, compH);
+		const det = affine.a * affine.d - affine.b * affine.c;
+
+		const [cropL, cropT, cropR, cropB] = layer.crop ?? [0, 0, 0, 0];
+		const cropW = Math.max(0.0001, 1 - cropL - cropR);
+		const cropH = Math.max(0.0001, 1 - cropT - cropB);
+
 		const toMon = (p: Point2D): Point2D => {
-			const cx = affine.a * p.x + affine.c * p.y + affine.e;
-			const cy = affine.b * p.x + affine.d * p.y + affine.f;
+			const qx = (p.x - cropL) / cropW;
+			const qy = (p.y - cropT) / cropH;
+			const cx = affine.a * qx + affine.c * qy + affine.e;
+			const cy = affine.b * qx + affine.d * qy + affine.f;
 			return { x: cx * scale, y: cy * scale };
 		};
 
-		const det = affine.a * affine.d - affine.b * affine.c;
 		const fromMon = (p: Point2D): Point2D => {
 			if (Math.abs(det) < 0.000001) return { x: 0.5, y: 0.5 };
 			const cx = p.x / scale - affine.e;
 			const cy = p.y / scale - affine.f;
-			const x = (affine.d * cx - affine.c * cy) / det;
-			const y = (-affine.b * cx + affine.a * cy) / det;
-			return { x, y };
+			const qx = (affine.d * cx - affine.c * cy) / det;
+			const qy = (-affine.b * cx + affine.a * cy) / det;
+			return {
+				x: cropL + qx * cropW,
+				y: cropT + qy * cropH
+			};
 		};
 
 		return { toMonitor: toMon, fromMonitor: fromMon };
-	}, [project, selectedClip, playhead, renderedWidth, renderedHeight]);
+	}, [project, selectedClip, playhead, renderedWidth, renderedHeight, sourceWidth, sourceHeight]);
 
 	// Listen for Delete / Backspace, Arrow keys, Esc
 	useEffect(() => {
@@ -283,10 +386,9 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		store
 	]);
 
-	if (!showOverlay || !selectedClip) return null;
-
-	const localTime = playhead - selectedClip.start;
-	const evaluatedMasks = masks.map((m) => evaluateMask(m, localTime, selectedClip.properties));
+	const evaluatedMasks = selectedClip
+		? masks.map((m) => evaluateMask(m, localTime, selectedClip.properties))
+		: [];
 	const activeMaskId = maskTool.selectedMaskId ?? (masks.length > 0 ? masks[0]!.id : null);
 	const activeMask = evaluatedMasks.find((m) => m.id === activeMaskId);
 
@@ -297,10 +399,12 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		idx = 0,
 		handle?: 'in' | 'out'
 	) => {
+		if (!selectedClip) return;
 		e.stopPropagation();
 		e.preventDefault();
+		svgRef.current?.focus();
 		try {
-			(e.target as SVGElement).setPointerCapture(e.pointerId);
+			svgRef.current?.setPointerCapture(e.pointerId);
 		} catch {
 			// ignore if capture fails
 		}
@@ -308,7 +412,12 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		const svg = svgRef.current;
 		if (!svg) return;
 		const rect = svg.getBoundingClientRect();
-		const p = fromMonitor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+		const scaleX = rect.width > 0 ? renderedWidth / rect.width : 1;
+		const scaleY = rect.height > 0 ? renderedHeight / rect.height : 1;
+		const p = fromMonitor({
+			x: (e.clientX - rect.left) * scaleX,
+			y: (e.clientY - rect.top) * scaleY
+		});
 
 		setDragging({
 			maskId: mask.id,
@@ -343,6 +452,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 	};
 
 	const handleDoubleClickAnchor = (e: React.MouseEvent, mask: EvaluatedMask, idx: number) => {
+		if (!selectedClip) return;
 		e.stopPropagation();
 		e.preventDefault();
 		const pts = (mask.points ?? []).map((pt) => ({
@@ -370,15 +480,22 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 	};
 
 	const handlePathPointerDown = (e: ReactPointerEvent, mask: EvaluatedMask) => {
+		if (!selectedClip) return;
 		const svg = svgRef.current;
 		if (!svg) return;
 		const rect = svg.getBoundingClientRect();
-		const screenPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+		const scaleX = rect.width > 0 ? renderedWidth / rect.width : 1;
+		const scaleY = rect.height > 0 ? renderedHeight / rect.height : 1;
+		const screenPos = {
+			x: (e.clientX - rect.left) * scaleX,
+			y: (e.clientY - rect.top) * scaleY
+		};
 		const hit = findClosestPointOnPath(mask, screenPos, toMonitor, fromMonitor, 24);
 		if (!hit) return;
 
 		e.stopPropagation();
 		e.preventDefault();
+		svgRef.current?.focus();
 
 		const pts: MaskPoint[] = (mask.points ?? []).map((pt) => ({
 			...pt,
@@ -389,8 +506,8 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		// Insert new point at segmentIndex + 1
 		const insertIdx = hit.segmentIndex + 1;
 		const newPt: MaskPoint = {
-			x: Math.max(0, Math.min(1, hit.normPoint.x)),
-			y: Math.max(0, Math.min(1, hit.normPoint.y))
+			x: Math.max(-2, Math.min(3, hit.normPoint.x)),
+			y: Math.max(-2, Math.min(3, hit.normPoint.y))
 		};
 		pts.splice(insertIdx, 0, newPt);
 
@@ -400,7 +517,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 
 		// Immediately start dragging the newly added point
 		try {
-			(e.target as SVGElement).setPointerCapture(e.pointerId);
+			svgRef.current?.setPointerCapture(e.pointerId);
 		} catch {
 			// ignore if capture fails
 		}
@@ -419,190 +536,276 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		setHoverHit(null);
 	};
 
-	const handlePointerMove = (e: ReactPointerEvent) => {
+	const updateDrag = (clientX: number, clientY: number, shiftKey: boolean) => {
+		if (!dragging || !selectedClip) return;
 		const svg = svgRef.current;
 		if (!svg) return;
 		const rect = svg.getBoundingClientRect();
-		const currentScreen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+		const scaleX = rect.width > 0 ? renderedWidth / rect.width : 1;
+		const scaleY = rect.height > 0 ? renderedHeight / rect.height : 1;
+		const currentScreen = {
+			x: (clientX - rect.left) * scaleX,
+			y: (clientY - rect.top) * scaleY
+		};
 		const currentNorm = fromMonitor(currentScreen);
 
-		if (dragging) {
-			const currentMask = masks.find((m) => m.id === dragging.maskId);
-			if (!currentMask) return;
-			const handleType =
-				dragging.handleType ??
-				(dragging.handle
-					? dragging.handle === 'in'
-						? 'path-in'
-						: 'path-out'
-					: currentMask.type === 'path'
-						? 'path-vertex'
-						: 'move');
+		const currentMask = masks.find((m) => m.id === dragging.maskId);
+		if (!currentMask) return;
+		const handleType =
+			dragging.handleType ??
+			(dragging.handle
+				? dragging.handle === 'in'
+					? 'path-in'
+					: 'path-out'
+				: currentMask.type === 'path'
+					? 'path-vertex'
+					: 'move');
 
-			if (currentMask.type === 'rect') {
-				const [origCx, origCy, origW, origH, origRot = 0] = dragging.originalShape as [
-					number,
-					number,
-					number,
-					number,
-					number?
-				];
-				const rotRad = ((origRot ?? 0) * Math.PI) / 180;
-				const cos = Math.cos(rotRad);
-				const sin = Math.sin(rotRad);
+		if (currentMask.type === 'rect') {
+			const [origCx, origCy, origW, origH, origRot = 0] = dragging.originalShape as [
+				number,
+				number,
+				number,
+				number,
+				number?
+			];
+			const rotRad = ((origRot ?? 0) * Math.PI) / 180;
+			const cos = Math.cos(rotRad);
+			const sin = Math.sin(rotRad);
 
-				if (handleType === 'move') {
-					const dx = currentNorm.x - dragging.startPos.x;
-					const dy = currentNorm.y - dragging.startPos.y;
-					const shape = [...dragging.originalShape];
-					shape[0] = Math.max(0, Math.min(1, origCx + dx));
-					shape[1] = Math.max(0, Math.min(1, origCy + dy));
-					store
-						.getState()
-						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
-				} else if (handleType === 'rotate') {
-					const centerMon = toMonitor({ x: origCx, y: origCy });
-					const vX = currentScreen.x - centerMon.x;
-					const vY = currentScreen.y - centerMon.y;
-					const angleDeg = Math.atan2(vY, vX) * (180 / Math.PI) + 90;
-					let newRot = ((Math.round(angleDeg) % 360) + 360) % 360;
-					if (e.shiftKey) {
-						newRot = Math.round(newRot / 15) * 15;
-					}
-					const shape = [...dragging.originalShape];
-					shape[4] = newRot;
-					store
-						.getState()
-						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
-				} else {
-					// Resizing rectangle handles ('nw', 'ne', 'se', 'sw', 'n', 'e', 's', 'w')
-					const dX = currentNorm.x - origCx;
-					const dY = currentNorm.y - origCy;
-					const localX = dX * cos + dY * sin;
-					const localY = -dX * sin + dY * cos;
-
-					const shape = [...dragging.originalShape];
-					let w = origW;
-					let h = origH;
-
-					if (handleType === 'e' || handleType === 'w') {
-						w = Math.max(0.02, Math.min(1, 2 * Math.abs(localX)));
-					} else if (handleType === 'n' || handleType === 's') {
-						h = Math.max(0.02, Math.min(1, 2 * Math.abs(localY)));
-					} else {
-						// Corners
-						w = Math.max(0.02, Math.min(1, 2 * Math.abs(localX)));
-						h = Math.max(0.02, Math.min(1, 2 * Math.abs(localY)));
-						if (e.shiftKey) {
-							const maxDim = Math.max(w, h);
-							w = maxDim;
-							h = maxDim;
-						}
-					}
-					shape[2] = w;
-					shape[3] = h;
-					store
-						.getState()
-						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
-				}
-				return;
-			} else if (currentMask.type === 'ellipse') {
-				const [origCx, origCy, origRx, origRy, origRot = 0] = dragging.originalShape as [
-					number,
-					number,
-					number,
-					number,
-					number?
-				];
-				const rotRad = ((origRot ?? 0) * Math.PI) / 180;
-				const cos = Math.cos(rotRad);
-				const sin = Math.sin(rotRad);
-
-				if (handleType === 'move') {
-					const dx = currentNorm.x - dragging.startPos.x;
-					const dy = currentNorm.y - dragging.startPos.y;
-					const shape = [...dragging.originalShape];
-					shape[0] = Math.max(0, Math.min(1, origCx + dx));
-					shape[1] = Math.max(0, Math.min(1, origCy + dy));
-					store
-						.getState()
-						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
-				} else if (handleType === 'rotate') {
-					const centerMon = toMonitor({ x: origCx, y: origCy });
-					const vX = currentScreen.x - centerMon.x;
-					const vY = currentScreen.y - centerMon.y;
-					const angleDeg = Math.atan2(vY, vX) * (180 / Math.PI) + 90;
-					let newRot = ((Math.round(angleDeg) % 360) + 360) % 360;
-					if (e.shiftKey) {
-						newRot = Math.round(newRot / 15) * 15;
-					}
-					const shape = [...dragging.originalShape];
-					shape[4] = newRot;
-					store
-						.getState()
-						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
-				} else {
-					// Resizing ellipse handles ('e', 'w', 'n', 's', 'nw', 'ne', 'se', 'sw')
-					const dX = currentNorm.x - origCx;
-					const dY = currentNorm.y - origCy;
-					const localX = dX * cos + dY * sin;
-					const localY = -dX * sin + dY * cos;
-
-					const shape = [...dragging.originalShape];
-					let rx = origRx;
-					let ry = origRy;
-
-					if (handleType === 'e' || handleType === 'w') {
-						rx = Math.max(0.01, Math.min(0.5, Math.abs(localX)));
-					} else if (handleType === 'n' || handleType === 's') {
-						ry = Math.max(0.01, Math.min(0.5, Math.abs(localY)));
-					} else {
-						// Corners
-						rx = Math.max(0.01, Math.min(0.5, Math.abs(localX)));
-						ry = Math.max(0.01, Math.min(0.5, Math.abs(localY)));
-						if (e.shiftKey) {
-							const maxR = Math.max(rx, ry);
-							rx = maxR;
-							ry = maxR;
-						}
-					}
-					shape[2] = rx;
-					shape[3] = ry;
-					store
-						.getState()
-						.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
-				}
-				return;
-			} else if (currentMask.type === 'path' && dragging.originalPoints) {
+			if (handleType === 'move') {
 				const dx = currentNorm.x - dragging.startPos.x;
 				const dy = currentNorm.y - dragging.startPos.y;
-				const points = dragging.originalPoints.map((pt) => ({
-					...pt,
-					inHandle: pt.inHandle ? { ...pt.inHandle } : undefined,
-					outHandle: pt.outHandle ? { ...pt.outHandle } : undefined
-				}));
-				const pt = points[dragging.pointIndex];
-				if (pt) {
-					const origPt = dragging.originalPoints[dragging.pointIndex]!;
-					if (dragging.handle === 'in' || handleType === 'path-in') {
-						const origIn = origPt.inHandle ?? { x: 0, y: 0 };
-						pt.inHandle = { x: origIn.x + dx, y: origIn.y + dy };
-					} else if (dragging.handle === 'out' || handleType === 'path-out') {
-						const origOut = origPt.outHandle ?? { x: 0, y: 0 };
-						pt.outHandle = { x: origOut.x + dx, y: origOut.y + dy };
-					} else {
-						pt.x = Math.max(0, Math.min(1, origPt.x + dx));
-						pt.y = Math.max(0, Math.min(1, origPt.y + dy));
-					}
-					store
-						.getState()
-						.updateMask(selectedClip.id, dragging.maskId, { points }, { coalesce: true });
+				const shape = [...dragging.originalShape];
+				shape[0] = Math.max(-2, Math.min(3, origCx + dx));
+				shape[1] = Math.max(-2, Math.min(3, origCy + dy));
+				store
+					.getState()
+					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+			} else if (handleType === 'rotate') {
+				const pMouseLayer = currentNorm;
+				const dxPix = (pMouseLayer.x - origCx) * sourceWidth;
+				const dyPix = (pMouseLayer.y - origCy) * sourceHeight;
+				let angleDeg = ((Math.atan2(dxPix, -dyPix) * (180 / Math.PI)) % 360 + 360) % 360;
+				if (shiftKey) {
+					angleDeg = Math.round(angleDeg / 15) * 15;
 				}
+				const shape = [...dragging.originalShape];
+				shape[4] = Math.round(angleDeg);
+				store
+					.getState()
+					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+			} else {
+				// Resizing rectangle handles ('nw', 'ne', 'se', 'sw', 'n', 'e', 's', 'w')
+				const pMouseLayer = currentNorm;
+				const dxPix = (pMouseLayer.x - origCx) * sourceWidth;
+				const dyPix = (pMouseLayer.y - origCy) * sourceHeight;
+				const rotPixX = dxPix * cos + dyPix * sin;
+				const rotPixY = -dxPix * sin + dyPix * cos;
+
+				const shape = [...dragging.originalShape];
+				let w = origW;
+				let h = origH;
+
+				const newW = Math.max(0.02, Math.min(2, (2 * Math.abs(rotPixX)) / sourceWidth));
+				const newH = Math.max(0.02, Math.min(2, (2 * Math.abs(rotPixY)) / sourceHeight));
+
+				if (handleType === 'e' || handleType === 'w') {
+					w = newW;
+				} else if (handleType === 'n' || handleType === 's') {
+					h = newH;
+				} else {
+					// Corners
+					w = newW;
+					h = newH;
+					if (shiftKey) {
+						const scaleW = newW / Math.max(0.001, origW);
+						const scaleH = newH / Math.max(0.001, origH);
+						const s = Math.max(scaleW, scaleH);
+						w = Math.max(0.02, Math.min(2, origW * s));
+						h = Math.max(0.02, Math.min(2, origH * s));
+					}
+				}
+				shape[2] = w;
+				shape[3] = h;
+				store
+					.getState()
+					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+			}
+			return;
+		} else if (currentMask.type === 'ellipse') {
+			const [origCx, origCy, origRx, origRy, origRot = 0] = dragging.originalShape as [
+				number,
+				number,
+				number,
+				number,
+				number?
+			];
+			const rotRad = ((origRot ?? 0) * Math.PI) / 180;
+			const cos = Math.cos(rotRad);
+			const sin = Math.sin(rotRad);
+
+			if (handleType === 'move') {
+				const dx = currentNorm.x - dragging.startPos.x;
+				const dy = currentNorm.y - dragging.startPos.y;
+				const shape = [...dragging.originalShape];
+				shape[0] = Math.max(-2, Math.min(3, origCx + dx));
+				shape[1] = Math.max(-2, Math.min(3, origCy + dy));
+				store
+					.getState()
+					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+			} else if (handleType === 'rotate') {
+				const pMouseLayer = currentNorm;
+				const dxPix = (pMouseLayer.x - origCx) * sourceWidth;
+				const dyPix = (pMouseLayer.y - origCy) * sourceHeight;
+				let angleDeg = ((Math.atan2(dxPix, -dyPix) * (180 / Math.PI)) % 360 + 360) % 360;
+				if (shiftKey) {
+					angleDeg = Math.round(angleDeg / 15) * 15;
+				}
+				const shape = [...dragging.originalShape];
+				shape[4] = Math.round(angleDeg);
+				store
+					.getState()
+					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+			} else {
+				// Resizing ellipse handles ('e', 'w', 'n', 's', 'nw', 'ne', 'se', 'sw')
+				const pMouseLayer = currentNorm;
+				const dxPix = (pMouseLayer.x - origCx) * sourceWidth;
+				const dyPix = (pMouseLayer.y - origCy) * sourceHeight;
+				const rotPixX = dxPix * cos + dyPix * sin;
+				const rotPixY = -dxPix * sin + dyPix * cos;
+
+				const shape = [...dragging.originalShape];
+				let rx = origRx;
+				let ry = origRy;
+
+				const newRx = Math.max(0.01, Math.min(1.5, Math.abs(rotPixX) / sourceWidth));
+				const newRy = Math.max(0.01, Math.min(1.5, Math.abs(rotPixY) / sourceHeight));
+
+				if (handleType === 'e' || handleType === 'w') {
+					rx = newRx;
+				} else if (handleType === 'n' || handleType === 's') {
+					ry = newRy;
+				} else {
+					// Corners
+					rx = newRx;
+					ry = newRy;
+					if (shiftKey) {
+						const scaleRx = newRx / Math.max(0.001, origRx);
+						const scaleRy = newRy / Math.max(0.001, origRy);
+						const s = Math.max(scaleRx, scaleRy);
+						rx = Math.max(0.01, Math.min(1.5, origRx * s));
+						ry = Math.max(0.01, Math.min(1.5, origRy * s));
+					}
+				}
+				shape[2] = rx;
+				shape[3] = ry;
+				store
+					.getState()
+					.updateMask(selectedClip.id, dragging.maskId, { shape }, { coalesce: true });
+			}
+			return;
+		} else if (currentMask.type === 'path' && dragging.originalPoints) {
+			const dx = currentNorm.x - dragging.startPos.x;
+			const dy = currentNorm.y - dragging.startPos.y;
+
+			if (handleType === 'move') {
+				let clampedDx = dx;
+				let clampedDy = dy;
+				for (const pt of dragging.originalPoints) {
+					if (pt.x + clampedDx < -2) clampedDx = -2 - pt.x;
+					if (pt.x + clampedDx > 3) clampedDx = 3 - pt.x;
+					if (pt.y + clampedDy < -2) clampedDy = -2 - pt.y;
+					if (pt.y + clampedDy > 3) clampedDy = 3 - pt.y;
+				}
+				const points = dragging.originalPoints.map((origPt) => ({
+					...origPt,
+					x: origPt.x + clampedDx,
+					y: origPt.y + clampedDy,
+					inHandle: origPt.inHandle ? { ...origPt.inHandle } : undefined,
+					outHandle: origPt.outHandle ? { ...origPt.outHandle } : undefined
+				}));
+				store
+					.getState()
+					.updateMask(selectedClip.id, dragging.maskId, { points }, { coalesce: true });
 				return;
 			}
+
+			const points = dragging.originalPoints.map((pt) => ({
+				...pt,
+				inHandle: pt.inHandle ? { ...pt.inHandle } : undefined,
+				outHandle: pt.outHandle ? { ...pt.outHandle } : undefined
+			}));
+			const pt = points[dragging.pointIndex];
+			if (pt) {
+				const origPt = dragging.originalPoints[dragging.pointIndex]!;
+				if (dragging.handle === 'in' || handleType === 'path-in') {
+					const origIn = origPt.inHandle ?? { x: 0, y: 0 };
+					pt.inHandle = { x: origIn.x + dx, y: origIn.y + dy };
+				} else if (dragging.handle === 'out' || handleType === 'path-out') {
+					const origOut = origPt.outHandle ?? { x: 0, y: 0 };
+					pt.outHandle = { x: origOut.x + dx, y: origOut.y + dy };
+				} else {
+					pt.x = Math.max(-2, Math.min(3, origPt.x + dx));
+					pt.y = Math.max(-2, Math.min(3, origPt.y + dy));
+				}
+				store
+					.getState()
+					.updateMask(selectedClip.id, dragging.maskId, { points }, { coalesce: true });
+			}
+			return;
+		}
+	};
+
+	useEffect(() => {
+		if (!dragging) return;
+		const onPointerMove = (e: PointerEvent) => {
+			updateDrag(e.clientX, e.clientY, e.shiftKey);
+		};
+		const onPointerUp = (e: PointerEvent) => {
+			try {
+				svgRef.current?.releasePointerCapture(e.pointerId);
+			} catch {}
+			setDragging(null);
+		};
+		window.addEventListener('pointermove', onPointerMove);
+		window.addEventListener('pointerup', onPointerUp);
+		window.addEventListener('pointercancel', onPointerUp);
+		return () => {
+			window.removeEventListener('pointermove', onPointerMove);
+			window.removeEventListener('pointerup', onPointerUp);
+			window.removeEventListener('pointercancel', onPointerUp);
+		};
+	}, [
+		dragging,
+		selectedClip,
+		masks,
+		fromMonitor,
+		renderedWidth,
+		renderedHeight,
+		sourceWidth,
+		sourceHeight,
+		aspect,
+		store
+	]);
+
+	const handlePointerMove = (e: ReactPointerEvent) => {
+		if (dragging) {
+			updateDrag(e.clientX, e.clientY, e.shiftKey);
+			return;
 		}
 
 		// When not dragging, check for hover over active path mask to show add-point indicator
+		const svg = svgRef.current;
+		if (!svg) return;
+		const rect = svg.getBoundingClientRect();
+		const scaleX = rect.width > 0 ? renderedWidth / rect.width : 1;
+		const scaleY = rect.height > 0 ? renderedHeight / rect.height : 1;
+		const currentScreen = {
+			x: (e.clientX - rect.left) * scaleX,
+			y: (e.clientY - rect.top) * scaleY
+		};
+
 		if (activeMask && activeMask.type === 'path') {
 			const hit = findClosestPointOnPath(activeMask, currentScreen, toMonitor, fromMonitor, 14);
 			if (hit) {
@@ -630,11 +833,16 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 		}
 	};
 
-	const handlePointerUp = () => {
+	const handlePointerUp = (e: ReactPointerEvent) => {
 		if (dragging) {
+			try {
+				svgRef.current?.releasePointerCapture(e.pointerId);
+			} catch {}
 			setDragging(null);
 		}
 	};
+
+	if (!showOverlay || !selectedClip) return null;
 
 	return (
 		<>
@@ -670,7 +878,6 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 				onPointerUp={handlePointerUp}
 				onPointerLeave={() => {
 					setHoverHit(null);
-					if (dragging) setDragging(null);
 				}}
 			>
 				{evaluatedMasks.map((mask) => {
@@ -679,39 +886,19 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 
 					if (mask.type === 'rect') {
 						const [cx, cy, w, h, rotDeg = 0] = mask.shape;
-						const rad = (rotDeg * Math.PI) / 180;
-						const cos = Math.cos(rad);
-						const sin = Math.sin(rad);
 
-						// 4 corners in rotated layer space
-						const p0Layer = {
-							x: cx - (w / 2) * cos + (h / 2) * sin,
-							y: cy - (w / 2) * sin - (h / 2) * cos
-						};
-						const p1Layer = {
-							x: cx + (w / 2) * cos + (h / 2) * sin,
-							y: cy + (w / 2) * sin - (h / 2) * cos
-						};
-						const p2Layer = {
-							x: cx + (w / 2) * cos - (h / 2) * sin,
-							y: cy + (w / 2) * sin + (h / 2) * cos
-						};
-						const p3Layer = {
-							x: cx - (w / 2) * cos - (h / 2) * sin,
-							y: cy - (w / 2) * sin + (h / 2) * cos
-						};
-
-						const p0 = toMonitor(p0Layer);
-						const p1 = toMonitor(p1Layer);
-						const p2 = toMonitor(p2Layer);
-						const p3 = toMonitor(p3Layer);
+						// 4 corners in rotated layer space mapped to monitor
+						const p0 = maskLocalToMonitor(-w / 2, -h / 2, cx, cy, rotDeg, aspect, toMonitor);
+						const p1 = maskLocalToMonitor(+w / 2, -h / 2, cx, cy, rotDeg, aspect, toMonitor);
+						const p2 = maskLocalToMonitor(+w / 2, +h / 2, cx, cy, rotDeg, aspect, toMonitor);
+						const p3 = maskLocalToMonitor(-w / 2, +h / 2, cx, cy, rotDeg, aspect, toMonitor);
 						const center = toMonitor({ x: cx, y: cy });
 
 						// 4 edge midpoints
-						const pTopMid = toMonitor({ x: cx + (h / 2) * sin, y: cy - (h / 2) * cos });
-						const pRightMid = toMonitor({ x: cx + (w / 2) * cos, y: cy + (w / 2) * sin });
-						const pBotMid = toMonitor({ x: cx - (h / 2) * sin, y: cy + (h / 2) * cos });
-						const pLeftMid = toMonitor({ x: cx - (w / 2) * cos, y: cy - (w / 2) * sin });
+						const pTopMid = maskLocalToMonitor(0, -h / 2, cx, cy, rotDeg, aspect, toMonitor);
+						const pRightMid = maskLocalToMonitor(+w / 2, 0, cx, cy, rotDeg, aspect, toMonitor);
+						const pBotMid = maskLocalToMonitor(0, +h / 2, cx, cy, rotDeg, aspect, toMonitor);
+						const pLeftMid = maskLocalToMonitor(-w / 2, 0, cx, cy, rotDeg, aspect, toMonitor);
 
 						// Rotation stem
 						const upDir = { x: pTopMid.x - center.x, y: pTopMid.y - center.y };
@@ -721,15 +908,26 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 							y: pTopMid.y + (upDir.y / upLen) * 22
 						};
 
-						const featherScale = renderedWidth / Math.max(1, project.settings.width);
-						const featherMon = mask.feather * featherScale;
+						// Feather indicator in local coordinates
+						let f0 = p0;
+						let f1 = p1;
+						let f2 = p2;
+						let f3 = p3;
+						if (isSelected && mask.feather > 0) {
+							const fW = (mask.feather / sourceWidth) * 2;
+							const fH = (mask.feather / sourceHeight) * 2;
+							f0 = maskLocalToMonitor(-(w + fW) / 2, -(h + fH) / 2, cx, cy, rotDeg, aspect, toMonitor);
+							f1 = maskLocalToMonitor(+(w + fW) / 2, -(h + fH) / 2, cx, cy, rotDeg, aspect, toMonitor);
+							f2 = maskLocalToMonitor(+(w + fW) / 2, +(h + fH) / 2, cx, cy, rotDeg, aspect, toMonitor);
+							f3 = maskLocalToMonitor(-(w + fW) / 2, +(h + fH) / 2, cx, cy, rotDeg, aspect, toMonitor);
+						}
 
 						return (
 							<g key={mask.id}>
 								{/* Visual feather indicator when selected */}
 								{isSelected && mask.feather > 0 && (
 									<polygon
-										points={`${p0.x - featherMon},${p0.y - featherMon} ${p1.x + featherMon},${p1.y - featherMon} ${p2.x + featherMon},${p2.y + featherMon} ${p3.x - featherMon},${p3.y + featherMon}`}
+										points={`${f0.x},${f0.y} ${f1.x},${f1.y} ${f2.x},${f2.y} ${f3.x},${f3.y}`}
 										fill="none"
 										stroke="rgba(59, 130, 246, 0.35)"
 										strokeWidth={1}
@@ -744,7 +942,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 									stroke={strokeColor}
 									strokeWidth={1.5}
 									strokeDasharray={isSelected ? undefined : '4 4'}
-									style={{ cursor: 'move' }}
+									style={{ cursor: 'move', pointerEvents: 'all' }}
 									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
 								/>
 
@@ -756,7 +954,8 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 									fill="#ffffff"
 									stroke={strokeColor}
 									strokeWidth={2}
-									style={{ cursor: 'move' }}
+									data-handle="move"
+									style={{ cursor: 'move', pointerEvents: 'all' }}
 									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
 								>
 									<title>Drag to move mask</title>
@@ -895,44 +1094,35 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 
 					if (mask.type === 'ellipse') {
 						const [cx, cy, rx, ry, rotDeg = 0] = mask.shape;
-						const rad = (rotDeg * Math.PI) / 180;
-						const cos = Math.cos(rad);
-						const sin = Math.sin(rad);
 
 						const center = toMonitor({ x: cx, y: cy });
 
-						// 4 cardinal handles in layer space
-						const pRight = toMonitor({ x: cx + rx * cos, y: cy + rx * sin });
-						const pLeft = toMonitor({ x: cx - rx * cos, y: cy - rx * sin });
-						const pTop = toMonitor({ x: cx + ry * sin, y: cy - ry * cos });
-						const pBot = toMonitor({ x: cx - ry * sin, y: cy + ry * cos });
+						// 4 cardinal handles in monitor coordinates
+						const pTop = maskLocalToMonitor(0, -ry, cx, cy, rotDeg, aspect, toMonitor);
+						const pRight = maskLocalToMonitor(+rx, 0, cx, cy, rotDeg, aspect, toMonitor);
+						const pBot = maskLocalToMonitor(0, +ry, cx, cy, rotDeg, aspect, toMonitor);
+						const pLeft = maskLocalToMonitor(-rx, 0, cx, cy, rotDeg, aspect, toMonitor);
 
 						// 4 bounding box corner handles
-						const pTL = toMonitor({
-							x: cx - rx * cos + ry * sin,
-							y: cy - rx * sin - ry * cos
-						});
-						const pTR = toMonitor({
-							x: cx + rx * cos + ry * sin,
-							y: cy + rx * sin - ry * cos
-						});
-						const pBR = toMonitor({
-							x: cx + rx * cos - ry * sin,
-							y: cy + rx * sin + ry * cos
-						});
-						const pBL = toMonitor({
-							x: cx - rx * cos - ry * sin,
-							y: cy - rx * sin + ry * cos
-						});
+						const pTL = maskLocalToMonitor(-rx, -ry, cx, cy, rotDeg, aspect, toMonitor);
+						const pTR = maskLocalToMonitor(+rx, -ry, cx, cy, rotDeg, aspect, toMonitor);
+						const pBR = maskLocalToMonitor(+rx, +ry, cx, cy, rotDeg, aspect, toMonitor);
+						const pBL = maskLocalToMonitor(-rx, +ry, cx, cy, rotDeg, aspect, toMonitor);
 
 						// Generate 32-sample smooth polygon path for rotated ellipse in monitor coordinates
 						const numSamples = 32;
 						let ellipsePath = '';
 						for (let s = 0; s < numSamples; s++) {
 							const t = (s / numSamples) * Math.PI * 2;
-							const ex = cx + rx * Math.cos(t) * cos - ry * Math.sin(t) * sin;
-							const ey = cy + rx * Math.cos(t) * sin + ry * Math.sin(t) * cos;
-							const sp = toMonitor({ x: ex, y: ey });
+							const sp = maskLocalToMonitor(
+								rx * Math.cos(t),
+								ry * Math.sin(t),
+								cx,
+								cy,
+								rotDeg,
+								aspect,
+								toMonitor
+							);
 							ellipsePath += s === 0 ? `M ${sp.x} ${sp.y}` : ` L ${sp.x} ${sp.y}`;
 						}
 						ellipsePath += ' Z';
@@ -948,19 +1138,19 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 						// Feather guide outline
 						let featherPath = '';
 						if (isSelected && mask.feather > 0) {
-							const featherNormX = mask.feather / Math.max(1, project.settings.width);
-							const featherNormY = mask.feather / Math.max(1, project.settings.height);
+							const fRx = rx + mask.feather / sourceWidth;
+							const fRy = ry + mask.feather / sourceHeight;
 							for (let s = 0; s < numSamples; s++) {
 								const t = (s / numSamples) * Math.PI * 2;
-								const ex =
-									cx +
-									(rx + featherNormX) * Math.cos(t) * cos -
-									(ry + featherNormY) * Math.sin(t) * sin;
-								const ey =
-									cy +
-									(rx + featherNormX) * Math.cos(t) * sin +
-									(ry + featherNormY) * Math.sin(t) * cos;
-								const sp = toMonitor({ x: ex, y: ey });
+								const sp = maskLocalToMonitor(
+									fRx * Math.cos(t),
+									fRy * Math.sin(t),
+									cx,
+									cy,
+									rotDeg,
+									aspect,
+									toMonitor
+								);
 								featherPath += s === 0 ? `M ${sp.x} ${sp.y}` : ` L ${sp.x} ${sp.y}`;
 							}
 							featherPath += ' Z';
@@ -986,7 +1176,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 									stroke={strokeColor}
 									strokeWidth={1.5}
 									strokeDasharray={isSelected ? undefined : '4 4'}
-									style={{ cursor: 'move' }}
+									style={{ cursor: 'move', pointerEvents: 'all' }}
 									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
 								/>
 
@@ -998,7 +1188,8 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 									fill="#ffffff"
 									stroke={strokeColor}
 									strokeWidth={2}
-									style={{ cursor: 'move' }}
+									data-handle="move"
+									style={{ cursor: 'move', pointerEvents: 'all' }}
 									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
 								>
 									<title>Drag to move mask</title>
@@ -1148,6 +1339,11 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 						const pts = mask.points;
 						const screenPts = pts.map((p) => toMonitor({ x: p.x, y: p.y }));
 
+						// Centroid for center move handle
+						const centroidX = pts.reduce((sum, pt) => sum + pt.x, 0) / pts.length;
+						const centroidY = pts.reduce((sum, pt) => sum + pt.y, 0) / pts.length;
+						const center = toMonitor({ x: centroidX, y: centroidY });
+
 						let d = `M ${screenPts[0]!.x} ${screenPts[0]!.y}`;
 						for (let i = 1; i < screenPts.length; i++) {
 							const prevPt = pts[i - 1]!;
@@ -1185,13 +1381,15 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 
 						return (
 							<g key={mask.id}>
-								{/* Visible stroke path */}
+								{/* Visible stroke path (dragging inside moves entire path mask) */}
 								<path
 									d={d}
 									fill="rgba(59, 130, 246, 0.05)"
 									stroke={strokeColor}
 									strokeWidth={1.5}
 									strokeDasharray={isSelected ? undefined : '4 4'}
+									style={{ cursor: 'move', pointerEvents: mask.closed ? 'all' : 'stroke' }}
+									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
 								/>
 								{/* Thick hit path for easy clicking anywhere along the edge to add points */}
 								<path
@@ -1202,6 +1400,21 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 									style={{ cursor: 'crosshair', pointerEvents: 'stroke' }}
 									onPointerDown={(e) => handlePathPointerDown(e, mask)}
 								/>
+
+								{/* Center move handle */}
+								<circle
+									cx={center.x}
+									cy={center.y}
+									r={5}
+									fill="#ffffff"
+									stroke={strokeColor}
+									strokeWidth={2}
+									data-handle="move"
+									style={{ cursor: 'move', pointerEvents: 'all' }}
+									onPointerDown={(e) => handlePointerDownHandle(e, mask, 'move')}
+								>
+									<title>Drag to move mask</title>
+								</circle>
 
 								{/* Vertices & Tangent Handles */}
 								{screenPts.map((p, idx) => {
@@ -1222,7 +1435,7 @@ export default function MaskOverlay({ project, renderedWidth, renderedHeight }: 
 																	toMonitor({ x: pt.x + pt.inHandle.x, y: pt.y + pt.inHandle.y }).x
 																}
 																y2={
-																	toMonitor({ x: pt.x + pt.inHandle.y, y: pt.y + pt.inHandle.y }).y
+																	toMonitor({ x: pt.x + pt.inHandle.x, y: pt.y + pt.inHandle.y }).y
 																}
 																stroke="#3b82f6"
 																strokeWidth={1.5}
