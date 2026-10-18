@@ -469,33 +469,42 @@ export default function ClipView({
 		clip.source?.type === 'shape' && clip.source.shapeType
 			? clip.source.shapeType.charAt(0).toUpperCase() + clip.source.shapeType.slice(1)
 			: 'Shape';
+	const isTemplate =
+		clip.source?.type === 'sequence' &&
+		Boolean(clip.source.templateId || clip.source.publishedParams?.length);
+	const templateName = clip.source?.type === 'sequence' ? clip.source.templateName : undefined;
+
 	const clipName =
 		asset?.name ??
-		(isSequence
-			? `▸ ${sequenceName}`
-			: isText
-				? `T ${textContent || 'Text'}`
-				: isShape
-					? `◆ ${shapeTypeLabel}`
-					: isAdjustment
-						? 'Adjustment Layer'
-						: isSolid
-							? 'Solid'
-							: 'Clip');
+		(isTemplate
+			? `✦ ${templateName || sequenceName || 'Template'}`
+			: isSequence
+				? `▸ ${sequenceName}`
+				: isText
+					? `T ${textContent || 'Text'}`
+					: isShape
+						? `◆ ${shapeTypeLabel}`
+						: isAdjustment
+							? 'Adjustment Layer'
+							: isSolid
+								? 'Solid'
+								: 'Clip');
 	const kindClass =
 		track.kind === 'audio'
 			? 'is-audio'
-			: isSequence
-				? 'is-sequence'
-				: isText
-					? 'is-text'
-					: isShape
-						? 'is-shape'
-						: isAdjustment
-							? 'is-adjustment'
-							: isSolid
-								? 'is-solid'
-								: 'is-video';
+			: isTemplate
+				? 'is-sequence is-motion-template'
+				: isSequence
+					? 'is-sequence'
+					: isText
+						? 'is-text'
+						: isShape
+							? 'is-shape'
+							: isAdjustment
+								? 'is-adjustment'
+								: isSolid
+									? 'is-solid'
+									: 'is-video';
 
 	// Drag & Drop effects onto clip
 	const [isEffectTarget, setIsEffectTarget] = useState(false);

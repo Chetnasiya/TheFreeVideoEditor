@@ -171,6 +171,31 @@ export interface TextColorRun {
 	strokeColor?: { r: number; g: number; b: number; a: number };
 }
 
+export type PublishedPropertyType = 'text' | 'color' | 'font' | 'number';
+
+export interface PublishedTemplateParam {
+	id: string;
+	name: string;
+	type: PublishedPropertyType;
+	targetClipId: ClipId;
+	targetProperty:
+		| 'text.content'
+		| 'text.fontFamily'
+		| 'text.fontSize'
+		| 'text.fill'
+		| 'text.stroke'
+		| 'shape.fill'
+		| 'shape.stroke'
+		| 'shape.gradient'
+		| 'solid.color'
+		| 'transform.scale'
+		| 'transform.opacity';
+	defaultValue: any;
+	min?: number;
+	max?: number;
+	step?: number;
+}
+
 export type ClipSource =
 	| { type: 'asset' }
 	| {
@@ -182,7 +207,19 @@ export type ClipSource =
 			graphicTemplateId?: string;
 			animationPresetId?: string;
 	  }
-	| { type: 'sequence'; sequenceId: SequenceId }
+	| {
+			type: 'sequence';
+			sequenceId: SequenceId;
+			templateId?: string;
+			templateName?: string;
+			templateCategory?: string;
+			publishedParams?: PublishedTemplateParam[];
+			paramOverrides?: Record<string, any>;
+			responsiveTiming?: {
+				introDuration: Time;
+				outroDuration: Time;
+			};
+	  }
 	| {
 			type: 'solid';
 			color: { r: number; g: number; b: number; a: number };

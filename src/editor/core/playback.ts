@@ -9,6 +9,7 @@ import { transitionWindow, transitionProgress, transitionGain } from './transiti
 import { DEFAULT_CAPTION_STYLE } from './captions/presets';
 import { findWordSpanInText } from './captions/operations';
 import { viewProject, getSequence } from './sequences/access';
+import { applyParamOverridesToSequence, computeResponsiveTemplateTime } from './templates/templateService';
 import { evaluateLiveTrackingBinding } from './tracking/apply';
 import type {
 	AnimatedValue,
@@ -712,15 +713,39 @@ export function resolveFrame(
 				const nestedSeq = getSequence(project, nestedSeqId);
 				if (!nestedSeq || depth >= maxDepth) return null;
 
-				const rawSource = timelineToSource(clip, t);
+				let rawSource = timelineToSource(clip, t);
 				const seqDur = nestedSeq.tracks.reduce((d, trk) => {
 					const cMax = trk.clips.reduce((lat, c) => Math.max(lat, clipEnd(c)), d);
 					return (trk.captions ?? []).reduce((lat, cap) => Math.max(lat, cap.end), cMax);
 				}, 0);
 
+				if (clip.source.responsiveTiming && seqDur > 0) {
+					rawSource = computeResponsiveTemplateTime(
+						rawSource,
+						clip.duration,
+						seqDur,
+						clip.source.responsiveTiming
+					);
+				}
+
 				// Past sequence end renders transparent (empty layers)
 				const isPastEnd = rawSource < 0 || (seqDur > 0 && rawSource >= seqDur);
-				const nestedView = viewProject(project, nestedSeqId);
+				let nestedView = viewProject(project, nestedSeqId);
+				if (
+					clip.source.publishedParams &&
+					clip.source.paramOverrides &&
+					Object.keys(clip.source.paramOverrides).length > 0
+				) {
+					const overriddenSeq = applyParamOverridesToSequence(
+						nestedSeq,
+						clip.source.publishedParams,
+						clip.source.paramOverrides
+					);
+					nestedView = {
+						...nestedView,
+						tracks: overriddenSeq.tracks
+					};
+				}
 				const childResolved = isPastEnd
 					? { videoLayers: [], audioSources: [], duration: seqDur, missing: [] }
 					: resolveFrame(nestedView, rawSource, depth + 1, maxDepth, hostInstanceKey);
@@ -728,6 +753,9 @@ export function resolveFrame(
 				for (const m of childResolved.missing) missing.add(m);
 
 				const seqSettings = nestedView.settings;
+				const isCustomSized =
+					Boolean(nestedSeq.settings?.width && nestedSeq.settings?.height) ||
+					Boolean(clip.source.templateId);
 				return {
 					clipId: clip.id,
 					instanceKey: hostInstanceKey,
@@ -736,6 +764,7 @@ export function resolveFrame(
 					sourceTime: rawSource,
 					kind: 'sequence',
 					opacity: 1,
+					fit: isCustomSized ? 'none' : 'contain',
 					nested: {
 						sequenceId: nestedSeqId,
 						nestedTime: rawSource,
@@ -965,9 +994,38 @@ export function resolveFrame(
 					const nestedSeqId = clip.source.sequenceId;
 					const nestedSeq = getSequence(project, nestedSeqId);
 					if (nestedSeq && depth < maxDepth) {
-						const rawSource = timelineToSource(clip, time);
+						let rawSource = timelineToSource(clip, time);
+						if (clip.source.responsiveTiming) {
+							const seqDur = nestedSeq.tracks.reduce((d, trk) => {
+								const cMax = trk.clips.reduce((lat, c) => Math.max(lat, clipEnd(c)), d);
+								return (trk.captions ?? []).reduce((lat, cap) => Math.max(lat, cap.end), cMax);
+							}, 0);
+							if (seqDur > 0) {
+								rawSource = computeResponsiveTemplateTime(
+									rawSource,
+									clip.duration,
+									seqDur,
+									clip.source.responsiveTiming
+								);
+							}
+						}
 						const hostInstanceKey = instancePrefix ? `${instancePrefix}/${clip.id}` : clip.id;
-						const nestedView = viewProject(project, nestedSeqId);
+						let nestedView = viewProject(project, nestedSeqId);
+						if (
+							clip.source.publishedParams &&
+							clip.source.paramOverrides &&
+							Object.keys(clip.source.paramOverrides).length > 0
+						) {
+							const overriddenSeq = applyParamOverridesToSequence(
+								nestedSeq,
+								clip.source.publishedParams,
+								clip.source.paramOverrides
+							);
+							nestedView = {
+								...nestedView,
+								tracks: overriddenSeq.tracks
+							};
+						}
 						const childResolved = resolveFrame(
 							nestedView,
 							rawSource,

@@ -125,7 +125,21 @@ export const clipSourceSchema = z.discriminatedUnion('type', [
 		style: textStyleSchema.optional(),
 		box: textBoxSchema.optional()
 	}),
-	z.object({ type: z.literal('sequence'), sequenceId: z.string().min(1) }),
+	z.object({
+		type: z.literal('sequence'),
+		sequenceId: z.string().min(1),
+		templateId: z.string().optional(),
+		templateName: z.string().optional(),
+		templateCategory: z.string().optional(),
+		publishedParams: z.array(z.any()).optional(),
+		paramOverrides: z.record(z.string(), z.any()).optional(),
+		responsiveTiming: z
+			.object({
+				introDuration: z.number().nonnegative(),
+				outroDuration: z.number().nonnegative()
+			})
+			.optional()
+	}),
 	z.object({ type: z.literal('solid'), color: colorSchema }),
 	z.object({ type: z.literal('adjustment') }),
 	z.object({

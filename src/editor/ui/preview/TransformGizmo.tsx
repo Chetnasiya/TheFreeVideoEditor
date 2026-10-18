@@ -13,6 +13,7 @@ import {
 	edgeMidpoints,
 	evaluateLayerProperties,
 	hitTest,
+	getSequence,
 	pivotPoint,
 	readProperty,
 	resolveTrackingContext,
@@ -166,6 +167,21 @@ export default function TransformGizmo({
 				fit: 'none',
 				kind: 'shape'
 			};
+		}
+		if (selectedClip?.source?.type === 'sequence') {
+			const nestedSeq = getSequence(project, selectedClip.source.sequenceId);
+			const seqSettings = nestedSeq?.settings;
+			if (seqSettings?.width && seqSettings?.height) {
+				return {
+					sourceWidth: seqSettings.width,
+					sourceHeight: seqSettings.height,
+					width: project.settings.width,
+					height: project.settings.height,
+					crop,
+					fit: 'none',
+					kind: 'sequence'
+				};
+			}
 		}
 		const asset = selectedClip?.assetId ? project.assets[selectedClip.assetId] : undefined;
 		return {

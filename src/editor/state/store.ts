@@ -184,6 +184,18 @@ import {
 	GRAPHIC_ANIMATION_PRESETS,
 	applyAnimationPresetToClip
 } from '../core/text/graphicsTemplates';
+import {
+	createTemplateFromClips,
+	detectPublishableProperties,
+	instantiateTemplateIntoProject,
+	unpackTemplateInstanceClip,
+	saveCustomTemplate
+} from '../core/templates/templateService';
+import type {
+	MotionGraphicTemplate,
+	PublishedTemplateParam,
+	TemplateCategory
+} from '../core/templates/templateTypes';
 import { detectVoiceActivity, generateDuckingKeyframes } from '../core/audio/ducking';
 import { defaultTrackAudio } from '../core/audioMath';
 import { ensureLutLoaded, storeParsedLut } from '../services/media/lutCache';
@@ -957,6 +969,23 @@ export interface EditorState {
 	openSequenceSettingsDialog: (sequenceId?: SequenceId) => void;
 	closeSequenceSettingsDialog: () => void;
 	updateSequenceSettings: (sequenceId: SequenceId, settings: ProjectSettings | undefined) => void;
+	// Motion Graphic Template actions
+	saveSelectionAsTemplate: (options: {
+		name: string;
+		category?: TemplateCategory;
+		description?: string;
+		author?: string;
+		publishedParams?: PublishedTemplateParam[];
+		responsiveTiming?: { introDuration: Time; outroDuration: Time };
+	}) => MotionGraphicTemplate | null;
+	instantiateTemplate: (
+		template: MotionGraphicTemplate,
+		start?: Time,
+		trackId?: TrackId
+	) => ClipId | null;
+	setTemplateParamOverride: (clipId: ClipId, paramId: string, value: any) => void;
+	resetTemplateParamOverrides: (clipId: ClipId) => void;
+	unpackTemplateClip: (clipId: ClipId) => boolean;
 	// Workspace actions
 	switchWorkspace: (workspaceId: string) => void;
 	updateLayout: (layout: LayoutNode) => void;
@@ -7589,6 +7618,171 @@ export function createEditorStore() {
 						set((state) => {
 							state.projectMessage = errorMessage(error);
 						});
+					}
+				},
+
+				saveSelectionAsTemplate(options) {
+					const project = get().project;
+					if (!project) return null;
+					const clipIds = get().timeline.selection.clipIds;
+					if (clipIds.length === 0) return null;
+					const activeSeqId = get().activeSequenceId;
+					const activeView = viewProject(project, activeSeqId);
+					const selectedClips = activeView.tracks
+						.flatMap((t) => t.clips)
+						.filter((c) => clipIds.includes(c.id));
+					if (selectedClips.length === 0) return null;
+
+					const publishedParams =
+						options.publishedParams || detectPublishableProperties(selectedClips);
+
+					try {
+						const template = createTemplateFromClips({
+							name: options.name,
+							category: options.category,
+							description: options.description,
+							author: options.author,
+							clips: selectedClips,
+							tracks: activeView.tracks,
+							publishedParams,
+							projectSettings: activeView.settings,
+							responsiveTiming: options.responsiveTiming
+						});
+						saveCustomTemplate(template);
+						return template;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				instantiateTemplate(template, start, trackId) {
+					const project = get().project;
+					if (!project) return null;
+					const activeSeqId = get().activeSequenceId;
+					const playhead = snapToFrame(start ?? get().timeline.playhead, project.settings.fps);
+
+					try {
+						let createdId: ClipId | null = null;
+						mutateProject(
+							`Add template ${template.name}`,
+							(p) => {
+								const res = instantiateTemplateIntoProject(
+									p,
+									activeSeqId,
+									template,
+									playhead,
+									trackId
+								);
+								createdId = res.instanceClipId;
+								return res.project;
+							},
+							{ history: 'record' }
+						);
+						if (createdId) {
+							get().selectClips([createdId]);
+						}
+						return createdId;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return null;
+					}
+				},
+
+				setTemplateParamOverride(clipId, paramId, value) {
+					const project = get().project;
+					if (!project) return;
+					const activeSeqId = get().activeSequenceId;
+
+					try {
+						mutateProject(
+							'Update template property',
+							(p) =>
+								applyToSequence(p, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'sequence') return c;
+											const currentOverrides = c.source.paramOverrides || {};
+											return {
+												...c,
+												source: {
+													...c.source,
+													paramOverrides: {
+														...currentOverrides,
+														[paramId]: value
+													}
+												}
+											};
+										})
+									}))
+								})),
+							{ history: 'record' }
+						);
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+					}
+				},
+
+				resetTemplateParamOverrides(clipId) {
+					const project = get().project;
+					if (!project) return;
+					const activeSeqId = get().activeSequenceId;
+
+					try {
+						mutateProject(
+							'Reset template properties',
+							(p) =>
+								applyToSequence(p, activeSeqId, (view) => ({
+									...view,
+									tracks: view.tracks.map((t) => ({
+										...t,
+										clips: t.clips.map((c) => {
+											if (c.id !== clipId || c.source?.type !== 'sequence') return c;
+											return {
+												...c,
+												source: {
+													...c.source,
+													paramOverrides: {}
+												}
+											};
+										})
+									}))
+								})),
+							{ history: 'record' }
+						);
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+					}
+				},
+
+				unpackTemplateClip(clipId) {
+					const project = get().project;
+					if (!project) return false;
+					const activeSeqId = get().activeSequenceId;
+
+					try {
+						mutateProject(
+							'Unpack motion template',
+							(p) => unpackTemplateInstanceClip(p, activeSeqId, clipId),
+							{ history: 'record' }
+						);
+						get().clearSelection();
+						return true;
+					} catch (error) {
+						set((state) => {
+							state.timeline.message = errorMessage(error);
+						});
+						return false;
 					}
 				},
 

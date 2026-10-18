@@ -1,4 +1,4 @@
-import { useState, useMemo, type DragEvent } from 'react';
+import { useState, useMemo, useEffect, useRef, type DragEvent } from 'react';
 import { useEditorStore, useEditorStoreApi } from '../../state/EditorProvider';
 import {
 	GRAPHIC_TEMPLATES,
@@ -11,6 +11,16 @@ import { readProperty } from '../../core/properties';
 import { ColorPickerField } from '../inspector/ColorPickerField';
 import { setTransparentDragImage, startDragGhost, stopDragGhost } from '../drag/dragOverlayService';
 import type { Clip, GraphicFrameStyle } from '../../core/types';
+import {
+	getCustomTemplates,
+	saveCustomTemplate,
+	deleteCustomTemplate,
+	downloadTemplateFile,
+	deserializeTemplate
+} from '../../core/templates/templateService';
+import type { MotionGraphicTemplate } from '../../core/templates/templateTypes';
+import { SaveTemplateModal } from './SaveTemplateModal';
+import { MotionTemplateCard } from './MotionTemplateCard';
 import './graphics.css';
 
 const CATEGORIES: Array<{ id: GraphicCategory; label: string }> = [
@@ -388,8 +398,59 @@ export default function GraphicsPanel() {
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [activeCategory, setActiveCategory] = useState<GraphicCategory>('all');
-	const [activeTab, setActiveTab] = useState<'templates' | 'editor'>('templates');
+	const [activeTab, setActiveTab] = useState<'templates' | 'custom' | 'editor'>('templates');
 	const [announcement, setAnnouncement] = useState('');
+	const [customTemplates, setCustomTemplates] = useState<MotionGraphicTemplate[]>([]);
+	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	// Load custom templates on mount
+	useEffect(() => {
+		setCustomTemplates(getCustomTemplates());
+	}, []);
+
+	const refreshCustomTemplates = () => {
+		setCustomTemplates(getCustomTemplates());
+	};
+
+	const handleAddCustomTemplate = (template: MotionGraphicTemplate) => {
+		const createdId = store.getState().instantiateTemplate(template);
+		if (createdId) {
+			setAnnouncement(`Added ${template.name} template to timeline.`);
+		}
+	};
+
+	const handleDeleteCustomTemplate = (templateId: string, templateName: string) => {
+		if (window.confirm(`Delete "${templateName}" from your template library?`)) {
+			deleteCustomTemplate(templateId);
+			refreshCustomTemplates();
+			setAnnouncement(`Deleted ${templateName} template.`);
+		}
+	};
+
+	const handleExportCustomTemplate = (template: MotionGraphicTemplate) => {
+		downloadTemplateFile(template);
+		setAnnouncement(`Exported ${template.name}.tfvetemplate`);
+	};
+
+	const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			try {
+				const content = event.target?.result as string;
+				const template = deserializeTemplate(content);
+				saveCustomTemplate(template);
+				refreshCustomTemplates();
+				setAnnouncement(`Imported motion template "${template.name}" successfully!`);
+			} catch (err) {
+				alert('Failed to import template: ' + (err as Error).message);
+			}
+		};
+		reader.readAsText(file);
+		e.target.value = '';
+	};
 
 	// Currently selected clip on timeline
 	const selectedClip: Clip | null = useMemo(() => {
@@ -801,6 +862,19 @@ export default function GraphicsPanel() {
 						<button
 							type="button"
 							role="tab"
+							aria-selected={activeTab === 'custom'}
+							className={`graphics-mode-tab ${activeTab === 'custom' ? 'is-active' : ''}`}
+							onClick={() => setActiveTab('custom')}
+							data-testid="tab-graphic-custom"
+						>
+							<span>✦ My Templates</span>
+							{customTemplates.length > 0 && (
+								<span style={{ opacity: 0.65, fontSize: '10px' }}>{customTemplates.length}</span>
+							)}
+						</button>
+						<button
+							type="button"
+							role="tab"
 							aria-selected={activeTab === 'editor'}
 							className={`graphics-mode-tab ${activeTab === 'editor' ? 'is-active' : ''}`}
 							onClick={() => setActiveTab('editor')}
@@ -836,6 +910,49 @@ export default function GraphicsPanel() {
 						</button>
 					</div>
 				</div>
+
+				{activeTab === 'custom' && (
+					<div className="custom-templates-toolbar">
+						<input
+							type="file"
+							ref={fileInputRef}
+							accept=".tfvetemplate,.json"
+							style={{ display: 'none' }}
+							onChange={handleImportFileChange}
+						/>
+						<button
+							type="button"
+							className="custom-template-btn-primary"
+							onClick={() => setIsCreateModalOpen(true)}
+							title={
+								selectedClipIds.length > 0
+									? `Create template from ${selectedClipIds.length} selected clip${selectedClipIds.length === 1 ? '' : 's'}`
+									: 'Select clips on the timeline first'
+							}
+						>
+							<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+								<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+							</svg>
+							<span>Create From Selection</span>
+							{selectedClipIds.length > 0 && (
+								<span className="custom-template-badge">{selectedClipIds.length}</span>
+							)}
+						</button>
+						<button
+							type="button"
+							className="custom-template-btn-secondary"
+							onClick={() => fileInputRef.current?.click()}
+							title="Import a .tfvetemplate file from your computer"
+						>
+							<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+								<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+								<polyline points="17 8 12 3 7 8" />
+								<line x1="12" y1="3" x2="12" y2="15" />
+							</svg>
+							<span>Import .tfvetemplate</span>
+						</button>
+					</div>
+				)}
 
 				{activeTab === 'templates' && (
 					<>
@@ -947,6 +1064,46 @@ export default function GraphicsPanel() {
 									</div>
 								);
 							})
+						)}
+					</div>
+				) : activeTab === 'custom' ? (
+					<div className="graphics-custom-view">
+						{customTemplates.length === 0 ? (
+							<div className="graphics-empty-state">
+								<div className="graphics-empty-title">✦ No Custom Motion Templates Yet</div>
+								<div className="graphics-empty-desc">
+									Create your own animated lower thirds, title sequences, callouts, or transitions by arranging text, shapes, keyframes, and masks on the timeline. Select the clips, then click <strong>"Create From Selection"</strong> to export or save a reusable template clip (.tfvetemplate).
+								</div>
+								<div className="custom-empty-actions">
+									<button
+										type="button"
+										className="custom-template-btn-primary"
+										onClick={() => setIsCreateModalOpen(true)}
+										disabled={selectedClipIds.length === 0}
+									>
+										✦ Create From Selection ({selectedClipIds.length} selected)
+									</button>
+									<button
+										type="button"
+										className="custom-template-btn-secondary"
+										onClick={() => fileInputRef.current?.click()}
+									>
+										📥 Import .tfvetemplate File
+									</button>
+								</div>
+							</div>
+						) : (
+							<div className="custom-templates-grid" role="list">
+								{customTemplates.map((template) => (
+									<MotionTemplateCard
+										key={template.id}
+										template={template}
+										onAdd={() => handleAddCustomTemplate(template)}
+										onExport={() => handleExportCustomTemplate(template)}
+										onDelete={() => handleDeleteCustomTemplate(template.id, template.name)}
+									/>
+								))}
+							</div>
 						)}
 					</div>
 				) : (
@@ -1547,6 +1704,15 @@ export default function GraphicsPanel() {
 			<div className="sr-only" role="status" aria-live="polite">
 				{announcement}
 			</div>
+
+			<SaveTemplateModal
+				isOpen={isCreateModalOpen}
+				onClose={() => setIsCreateModalOpen(false)}
+				onSuccess={() => {
+					refreshCustomTemplates();
+					setActiveTab('custom');
+				}}
+			/>
 		</div>
 	);
 }

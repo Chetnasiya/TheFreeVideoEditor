@@ -28,6 +28,8 @@ import { TrackingSection } from './TrackingSection';
 import TimeRemapSection from './TimeRemapSection';
 import { TextSection } from './TextSection';
 import { ShapeSection } from './ShapeSection';
+import { MotionTemplateSection } from './MotionTemplateSection';
+import { isMotionTemplateClip } from '../../core/templates/templateTypes';
 import { TransitionInspector } from './TransitionInspector';
 import { audioEffectRegistry } from '../../core/audio/effects';
 import { ColorPickerField } from './ColorPickerField';
@@ -199,30 +201,40 @@ export default function Inspector() {
 	const hasAudio =
 		!isText && !isShape && (clipTrack?.kind === 'audio' || (clipAsset?.hasAudio ?? false));
 
-	const kindLabel = isText
-		? 'Text'
-		: isShape
-			? 'Shape'
-			: isSolid
-				? 'Solid Color'
-				: isAdjustment
-					? 'Adjustment'
-					: clipTrack?.kind === 'audio'
-						? 'Audio'
-						: 'Video';
+	const isTemplate = isMotionTemplateClip(selectedClip);
+
+	const kindLabel = isTemplate
+		? 'Motion Template'
+		: isText
+			? 'Text'
+			: isShape
+				? 'Shape'
+				: isSolid
+					? 'Solid Color'
+					: isAdjustment
+						? 'Adjustment'
+						: clipTrack?.kind === 'audio'
+							? 'Audio'
+							: selectedClip.source?.type === 'sequence'
+								? 'Sequence'
+								: 'Video';
 	const clipDurationSec = (selectedClip.duration / 1_000_000).toFixed(2);
+	const templateName = selectedClip.source?.type === 'sequence' ? selectedClip.source.templateName : undefined;
 
 	return (
 		<div className="inspector-container">
 			{/* Selected Clip Summary Banner */}
 			<div className="inspector-clip-banner">
 				<div className="inspector-clip-title-row">
-					<span className="inspector-clip-name" title={clipAsset?.name ?? kindLabel}>
-						{clipAsset?.name ?? `${kindLabel} Clip`}
+					<span className="inspector-clip-name" title={clipAsset?.name ?? templateName ?? kindLabel}>
+						{clipAsset?.name ?? templateName ?? `${kindLabel} Clip`}
 					</span>
 					<span
 						className="timeline-counter-badge"
-						style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+						style={{
+							color: isTemplate ? '#ec4899' : '#38bdf8',
+							borderColor: isTemplate ? 'rgba(236, 72, 153, 0.35)' : 'rgba(56, 189, 248, 0.3)'
+						}}
 					>
 						<span className="timeline-badge-dot" aria-hidden="true" />
 						{kindLabel}
@@ -233,6 +245,19 @@ export default function Inspector() {
 					<span className="timeline-counter-badge">{clipDurationSec}s</span>
 				</div>
 			</div>
+
+			{/* Motion Graphic Template Section */}
+			{isTemplate && (
+				<section className="inspector-section is-open">
+					<div className="inspector-section-header" style={{ cursor: 'default' }}>
+						<span className="inspector-section-title">
+							<ChevronIcon />
+							Template Customizer
+						</span>
+					</div>
+					<MotionTemplateSection clip={selectedClip} />
+				</section>
+			)}
 
 			{/* Text Section */}
 			{isText && (

@@ -43,6 +43,8 @@ import type { TransitionType } from '../../core/transitionsRegistry';
 import { createGraphicClip } from '../../core/text/graphicsTemplates';
 import { createShapeClip } from '../../core/adjustment';
 import type { ShapeConfig } from '../../core/shapes/shapeTypes';
+import { SaveTemplateModal } from '../graphics/SaveTemplateModal';
+import { isMotionTemplateClip, type MotionGraphicTemplate } from '../../core/templates/templateTypes';
 import { EFFECT_DEFINITIONS } from '../../core/effects/registry';
 import { audioEffectRegistry } from '../../core/audio/effects';
 import type { EffectType } from '../../core/effects/types';
@@ -523,6 +525,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 	} | null>(null);
 	const [removePending, setRemovePending] = useState<Track | null>(null);
 	const removeDialogRef = useRef<HTMLDialogElement>(null);
+	const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
 	const contextMenuRef = useRef<HTMLDivElement>(null);
 	const contextTriggerRef = useRef<HTMLElement | null>(null);
 
@@ -1070,6 +1073,16 @@ function ActiveTimeline({ project }: { project: Project }) {
 		return session?.kind === 'graphic-template' ? (session.graphicTemplateId ?? null) : null;
 	}
 
+	function customMotionTemplateFromData(dataTransfer: DataTransfer): MotionGraphicTemplate | null {
+		const raw = dataTransfer.getData('application/x-tfve-motion-template');
+		if (raw) {
+			try {
+				return JSON.parse(raw) as MotionGraphicTemplate;
+			} catch {}
+		}
+		return null;
+	}
+
 	function beginGraphicTemplatePreview(
 		event: DragEvent<HTMLElement>,
 		targetTrackId: TrackId
@@ -1557,6 +1570,18 @@ function ActiveTimeline({ project }: { project: Project }) {
 			}
 			return;
 		}
+		const customTemplate = customMotionTemplateFromData(event.dataTransfer);
+		if (customTemplate) {
+			event.preventDefault();
+			if (track.kind !== 'video' || track.locked) {
+				cancelTimelineDrag();
+				setTimelineMessage('Motion templates can only be placed on unlocked video tracks.');
+				return;
+			}
+			const time = pointerTime(event.clientX);
+			store.getState().instantiateTemplate(customTemplate, time, track.id);
+			return;
+		}
 		const sequenceId = sequenceFromData(event.dataTransfer);
 		if (sequenceId) {
 			event.preventDefault();
@@ -1618,6 +1643,13 @@ function ActiveTimeline({ project }: { project: Project }) {
 					start: pointerTime(event.clientX)
 				});
 			}
+			return;
+		}
+		const customTemplate = customMotionTemplateFromData(event.dataTransfer);
+		if (customTemplate) {
+			event.preventDefault();
+			const time = pointerTime(event.clientX);
+			store.getState().instantiateTemplate(customTemplate, time);
 			return;
 		}
 		const assetId = assetFromData(event.dataTransfer);
@@ -3438,11 +3470,33 @@ function ActiveTimeline({ project }: { project: Project }) {
 									>
 										<span>Sequence Settings…</span>
 									</button>
+									{isMotionTemplateClip(context.clip) && (
+										<button
+											type="button"
+											onClick={() => {
+												store.getState().unpackTemplateClip(context.clip!.id);
+												closeContextMenu();
+											}}
+											title="Unpack this motion template into individual tracks"
+										>
+											<span>✦ Unpack Motion Template</span>
+										</button>
+									)}
 								</>
 							)}
 							{selection.clipIds.length > 0 && (
 								<>
 									<hr />
+									<button
+										type="button"
+										onClick={() => {
+											setIsSaveTemplateModalOpen(true);
+											closeContextMenu();
+										}}
+										title="Package selected clips into a reusable Motion Graphic Template"
+									>
+										<span>✦ Save as Motion Template…</span>
+									</button>
 									<button
 										type="button"
 										onClick={() => {
@@ -3463,6 +3517,10 @@ function ActiveTimeline({ project }: { project: Project }) {
 				</div>
 			)}
 			{message && <span className="sr-only">{message}</span>}
+			<SaveTemplateModal
+				isOpen={isSaveTemplateModalOpen}
+				onClose={() => setIsSaveTemplateModalOpen(false)}
+			/>
 			<dialog
 				ref={removeDialogRef}
 				className="editor-dialog timeline-remove-dialog"
