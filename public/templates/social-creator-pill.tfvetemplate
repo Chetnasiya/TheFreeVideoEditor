@@ -2,22 +2,22 @@
   "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
   "tfve_type": "motion_template",
   "version": 1,
-  "id": "broadcast-news-lower-third",
-  "name": "Broadcast News Lower Third",
-  "category": "Lower Thirds",
-  "description": "Television broadcast two-tier lower third with crisp cyan rule and weighted hierarchy",
+  "id": "social-creator-pill",
+  "name": "Social Creator Pill",
+  "category": "Titles",
+  "description": "Smooth rounded pill badge with bouncy pop-in for YouTube and social media handles",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586928,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
-    "introDuration": 550000,
+    "introDuration": 500000,
     "outroDuration": 400000
   },
   "bounds": {
-    "width": 988,
-    "height": 200,
-    "originX": -160,
-    "originY": -25
+    "width": 580,
+    "height": 202,
+    "originX": 0,
+    "originY": 0
   },
   "tracks": [
     {
@@ -39,48 +39,70 @@
           "source": {
             "type": "shape",
             "shapeType": "rect",
-            "width": 620,
-            "height": 5,
-            "cornerRadius": 2,
+            "width": 460,
+            "height": 68,
+            "cornerRadius": 34,
             "fillColor": {
-              "r": 0.22,
-              "g": 0.74,
-              "b": 0.98,
+              "r": 0.55,
+              "g": 0.25,
+              "b": 0.95,
               "a": 1
             },
             "strokeWidth": 0
           },
           "properties": {
             "position": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": [
-                    -160,
-                    73
-                  ],
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.16,
-                    "y": 1
-                  },
-                  "easeIn": {
-                    "x": 0.3,
-                    "y": 1
-                  }
-                },
-                {
-                  "time": 550000,
-                  "value": [
-                    160,
-                    73
-                  ],
-                  "interpolation": "linear"
-                }
+              "value": [
+                0,
+                0
               ]
             },
             "rotation": {
               "value": 0
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0.6,
+                    0.6
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.34,
+                    "y": 1.56
+                  },
+                  "easeIn": {
+                    "x": 0.64,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 350000,
+                  "value": [
+                    1.05,
+                    1.05
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 500000,
+                  "value": [
+                    1,
+                    1
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
             },
             "opacity": {
               "keyframes": [
@@ -90,7 +112,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 260000,
+                  "time": 200000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -129,67 +151,37 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "MARCUS CHEN\nCHIEF TECHNOLOGY OFFICER",
+            "text": "@CREATIVE_STUDIO\nFOLLOW FOR WEEKLY DROPS",
             "style": {
-              "fontFamily": "Montserrat",
+              "fontFamily": "Inter",
               "fontWeight": "800",
-              "alignment": "left",
-              "letterSpacing": 2
+              "alignment": "center",
+              "letterSpacing": 1
             },
             "box": {
               "autoSize": true,
-              "verticalAnchor": "bottom",
-              "paddingX": 28,
+              "verticalAnchor": "center",
+              "paddingX": 32,
               "paddingY": 16,
-              "frameStyle": "lower-third-line",
-              "badgeText": "CHIEF TECHNOLOGY OFFICER"
+              "frameStyle": "social-pill",
+              "badgeText": "FOLLOW FOR WEEKLY DROPS"
             },
-            "colorRuns": [
-              {
-                "startIndex": 0,
-                "endIndex": 11,
-                "fillColor": {
-                  "r": 0.22,
-                  "g": 0.74,
-                  "b": 0.98,
-                  "a": 1
-                }
-              }
-            ],
-            "graphicTemplateId": "broadcast-news-lower-third",
-            "animationPresetId": "broadcast-lower-third-in"
+            "colorRuns": [],
+            "graphicTemplateId": "social-creator-pill",
+            "animationPresetId": "pop-in"
           },
           "properties": {
             "position": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": [
-                    -160,
-                    25
-                  ],
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.16,
-                    "y": 1
-                  },
-                  "easeIn": {
-                    "x": 0.3,
-                    "y": 1
-                  }
-                },
-                {
-                  "time": 550000,
-                  "value": [
-                    160,
-                    25
-                  ],
-                  "interpolation": "linear"
-                }
+              "value": [
+                0,
+                0
               ]
             },
             "text.fontSize": {
-              "value": 42
+              "value": 46
+            },
+            "text.letterSpacing": {
+              "value": 1
             },
             "text.fillColor": {
               "value": [
@@ -199,22 +191,8 @@
                 1
               ]
             },
-            "text.strokeWidth": {
-              "value": 0
-            },
-            "text.letterSpacing": {
-              "value": 2
-            },
             "text.lineHeight": {
               "value": 1.25
-            },
-            "text.accentBarColor": {
-              "value": [
-                0.22,
-                0.74,
-                0.98,
-                1
-              ]
             },
             "opacity": {
               "keyframes": [
@@ -224,7 +202,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 260000,
+                  "time": 200000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -236,6 +214,50 @@
                 {
                   "time": 5000000,
                   "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0.6,
+                    0.6
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.34,
+                    "y": 1.56
+                  },
+                  "easeIn": {
+                    "x": 0.64,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 350000,
+                  "value": [
+                    1.05,
+                    1.05
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 500000,
+                  "value": [
+                    1,
+                    1
+                  ],
                   "interpolation": "linear"
                 }
               ]
@@ -253,7 +275,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.content",
-      "defaultValue": "MARCUS CHEN\nCHIEF TECHNOLOGY OFFICER"
+      "defaultValue": "@CREATIVE_STUDIO\nFOLLOW FOR WEEKLY DROPS"
     },
     {
       "id": "param_font_family",
@@ -261,7 +283,7 @@
       "type": "font",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fontFamily",
-      "defaultValue": "Montserrat"
+      "defaultValue": "Inter"
     },
     {
       "id": "param_text_color",
@@ -270,9 +292,9 @@
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fill",
       "defaultValue": {
-        "r": 0.22,
-        "g": 0.74,
-        "b": 0.98,
+        "r": 1,
+        "g": 1,
+        "b": 1,
         "a": 1
       }
     },
@@ -283,9 +305,9 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "shape.fill",
       "defaultValue": {
-        "r": 0.22,
-        "g": 0.74,
-        "b": 0.98,
+        "r": 0.55,
+        "g": 0.25,
+        "b": 0.95,
         "a": 1
       }
     }

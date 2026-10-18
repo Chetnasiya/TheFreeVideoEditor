@@ -61,14 +61,50 @@ export function detectPublishableProperties(clips: Clip[]): PublishedTemplatePar
 				defaultValue: clip.source.style?.fontFamily || 'Montserrat'
 			});
 
-			if (clip.source.colorRuns && clip.source.colorRuns[0]?.fillColor) {
+			// Resolve default fill color: check properties['text.fillColor'] first, then colorRuns, fallback to pure white
+			let defaultColor = { r: 1, g: 1, b: 1, a: 1 };
+			try {
+				const col = readProperty(clip, 'text.fillColor', 0);
+				if (Array.isArray(col) && col.length >= 3) {
+					defaultColor = { r: col[0], g: col[1], b: col[2], a: col[3] ?? 1 };
+				} else if (col && typeof col === 'object' && 'r' in (col as any)) {
+					defaultColor = col as any;
+				} else if (clip.source.colorRuns && clip.source.colorRuns[0]?.fillColor) {
+					defaultColor = clip.source.colorRuns[0].fillColor;
+				}
+			} catch {
+				if (clip.source.colorRuns && clip.source.colorRuns[0]?.fillColor) {
+					defaultColor = clip.source.colorRuns[0].fillColor;
+				}
+			}
+
+			params.push({
+				id: `param_${clip.id}_fill`,
+				name: `${labelPrefix} Color`,
+				type: 'color',
+				targetClipId: clip.id,
+				targetProperty: 'text.fill',
+				defaultValue: defaultColor
+			});
+
+			if (clip.source?.box?.frameStyle === 'accent-bar') {
+				let barColor = { r: 0.0, g: 0.82, b: 0.95, a: 1 };
+				try {
+					const abc = readProperty(clip, 'text.accentBarColor', 0);
+					if (Array.isArray(abc) && abc.length >= 3) {
+						barColor = { r: abc[0], g: abc[1], b: abc[2], a: abc[3] ?? 1 };
+					} else if (clip.source.box.accentBarColor) {
+						barColor = clip.source.box.accentBarColor;
+					}
+				} catch {}
+
 				params.push({
-					id: `param_${clip.id}_fill`,
-					name: `${labelPrefix} Color`,
+					id: `param_${clip.id}_accent_bar_color`,
+					name: `${labelPrefix} Accent Bar`,
 					type: 'color',
 					targetClipId: clip.id,
-					targetProperty: 'text.fill',
-					defaultValue: clip.source.colorRuns[0].fillColor
+					targetProperty: 'text.accentBarColor',
+					defaultValue: barColor
 				});
 			}
 		} else if (clip.source?.type === 'shape') {
@@ -113,33 +149,26 @@ export function detectPublishableProperties(clips: Clip[]): PublishedTemplatePar
 /**
  * Offsets a clip's transform and keyframed position properties by (dx, dy).
  * When dx, dy are positive, shifts the clip toward center by subtracting dx, dy.
+ * Keeps transform.x/y and properties.position synchronized without double-shifting.
  */
 export function offsetClipPosition(clip: Clip, dx: number, dy: number): Clip {
 	const cloned: Clip = JSON.parse(JSON.stringify(clip));
 
-	// 1. Offset transform if present
-	if (cloned.transform) {
-		cloned.transform.x = Math.round((cloned.transform.x ?? 0) - dx);
-		cloned.transform.y = Math.round((cloned.transform.y ?? 0) - dy);
-	} else if (!cloned.properties?.position) {
-		cloned.transform = {
-			x: -Math.round(dx),
-			y: -Math.round(dy),
-			scaleX: 1,
-			scaleY: 1,
-			rotation: 0,
-			opacity: 1
-		};
-	}
+	let hasPositionProp = false;
 
-	// 2. Offset properties['position'] if present
+	// 1. Offset properties['position'] if present
 	if (cloned.properties?.position) {
+		hasPositionProp = true;
 		const posProp = cloned.properties.position as any;
 		if ('value' in posProp && Array.isArray(posProp.value)) {
 			posProp.value = [
 				Math.round(posProp.value[0] - dx),
 				Math.round(posProp.value[1] - dy)
 			];
+			if (cloned.transform) {
+				cloned.transform.x = posProp.value[0];
+				cloned.transform.y = posProp.value[1];
+			}
 		} else if ('keyframes' in posProp && Array.isArray(posProp.keyframes)) {
 			posProp.keyframes = posProp.keyframes.map((kf: any) => ({
 				...kf,
@@ -148,29 +177,62 @@ export function offsetClipPosition(clip: Clip, dx: number, dy: number): Clip {
 					Math.round(kf.value[1] - dy)
 				]
 			}));
+			if (cloned.transform && posProp.keyframes.length > 0) {
+				cloned.transform.x = posProp.keyframes[0].value[0];
+				cloned.transform.y = posProp.keyframes[0].value[1];
+			}
 		}
 	}
 
-	if (cloned.properties?.['position.x']) {
-		const prop = cloned.properties['position.x'] as any;
-		if ('value' in prop && typeof prop.value === 'number') {
-			prop.value = Math.round(prop.value - dx);
-		} else if ('keyframes' in prop && Array.isArray(prop.keyframes)) {
-			prop.keyframes = prop.keyframes.map((kf: any) => ({
-				...kf,
-				value: Math.round(kf.value - dx)
-			}));
+	// 2. Fallback to separate position.x / position.y properties if position vec2 is not present
+	if (!hasPositionProp && (cloned.properties?.['position.x'] || cloned.properties?.['position.y'])) {
+		hasPositionProp = true;
+		if (cloned.properties['position.x']) {
+			const prop = cloned.properties['position.x'] as any;
+			if ('value' in prop && typeof prop.value === 'number') {
+				prop.value = Math.round(prop.value - dx);
+				if (cloned.transform) cloned.transform.x = prop.value;
+			} else if ('keyframes' in prop && Array.isArray(prop.keyframes)) {
+				prop.keyframes = prop.keyframes.map((kf: any) => ({
+					...kf,
+					value: Math.round(kf.value - dx)
+				}));
+				if (cloned.transform && prop.keyframes.length > 0) {
+					cloned.transform.x = prop.keyframes[0].value;
+				}
+			}
+		}
+		if (cloned.properties['position.y']) {
+			const prop = cloned.properties['position.y'] as any;
+			if ('value' in prop && typeof prop.value === 'number') {
+				prop.value = Math.round(prop.value - dy);
+				if (cloned.transform) cloned.transform.y = prop.value;
+			} else if ('keyframes' in prop && Array.isArray(prop.keyframes)) {
+				prop.keyframes = prop.keyframes.map((kf: any) => ({
+					...kf,
+					value: Math.round(kf.value - dy)
+				}));
+				if (cloned.transform && prop.keyframes.length > 0) {
+					cloned.transform.y = prop.keyframes[0].value;
+				}
+			}
 		}
 	}
-	if (cloned.properties?.['position.y']) {
-		const prop = cloned.properties['position.y'] as any;
-		if ('value' in prop && typeof prop.value === 'number') {
-			prop.value = Math.round(prop.value - dy);
-		} else if ('keyframes' in prop && Array.isArray(prop.keyframes)) {
-			prop.keyframes = prop.keyframes.map((kf: any) => ({
-				...kf,
-				value: Math.round(kf.value - dy)
-			}));
+
+	// 3. If no position property, offset transform directly
+	if (!hasPositionProp) {
+		if (cloned.transform) {
+			cloned.transform.x = Math.round((cloned.transform.x ?? 0) - dx);
+			cloned.transform.y = Math.round((cloned.transform.y ?? 0) - dy);
+		} else {
+			cloned.transform = {
+				x: -Math.round(dx),
+				y: -Math.round(dy),
+				scaleX: 1,
+				scaleY: 1,
+				rotation: 0,
+				opacity: 1
+			};
 		}
 	}
 
@@ -220,14 +282,35 @@ export function calculateClipsBoundingBox(
 				}
 			}
 
+			let letterSpacing = 0;
+			try {
+				const ls = readProperty(clip, 'text.letterSpacing', 0);
+				if (typeof ls === 'number' && Number.isFinite(ls)) letterSpacing = ls;
+				else if (typeof clip.source.style?.letterSpacing === 'number') letterSpacing = clip.source.style.letterSpacing;
+			} catch {
+				if (typeof clip.source.style?.letterSpacing === 'number') letterSpacing = clip.source.style.letterSpacing;
+			}
+
 			const text = clip.source.text || clip.text || 'Sample Text';
-			const style = clip.source.style || { fontFamily: 'Montserrat' };
+			const style = {
+				fontFamily: 'Montserrat',
+				...(clip.source.style || {}),
+				letterSpacing
+			};
 			let dims = { width: 300, height: 100 };
 			try {
 				dims = getTextDimensions(text, style, clip.source.box, fontSize);
+				if (letterSpacing > 0) {
+					const longestLine = Math.max(...text.split('\n').map((l) => l.length));
+					dims.width += longestLine * letterSpacing;
+				}
+				if (clip.source.box?.frameStyle === 'accent-bar') {
+					const barW = (readProperty(clip, 'text.accentBarWidth', 0) as number) || clip.source.box.accentBarWidth || 16;
+					dims.width += barW + 28;
+				}
 			} catch {
 				dims = {
-					width: Math.max(100, text.length * fontSize * 0.6),
+					width: Math.max(100, text.length * (fontSize * 0.6 + letterSpacing)),
 					height: Math.max(50, fontSize * 1.3)
 				};
 			}
@@ -243,7 +326,7 @@ export function calculateClipsBoundingBox(
 				fillColor: { r: 1, g: 1, b: 1, a: 1 },
 				strokeColor: { r: 0, g: 0, b: 0, a: 1 },
 				strokeWidth: 0,
-				letterSpacing: 0,
+				letterSpacing,
 				lineHeight: 1.2,
 				reveal: 1
 			};
@@ -369,8 +452,8 @@ export function calculateClipsBoundingBox(
 		};
 	}
 
-	// 24px padding on each side so strokes, shadows, and transform handles don't clip
-	const PADDING = 24;
+	// 48px padding on each side so strokes, shadows, and transform handles don't clip
+	const PADDING = 48;
 	let w = Math.ceil(rawWidth + PADDING * 2);
 	let h = Math.ceil(rawHeight + PADDING * 2);
 	// Multiples of 2 for clean GPU texture alignment
@@ -657,6 +740,33 @@ export function applyParamOverridesToSequence(
 										fillColor: value
 									}
 								];
+								if (!clip.properties) clip.properties = {};
+								const rgbaArray = Array.isArray(value)
+									? value
+									: typeof value === 'object' && 'r' in value
+									? [value.r, value.g, value.b, value.a ?? 1]
+									: [1, 1, 1, 1];
+								clip.properties['text.fillColor'] = {
+									value: rgbaArray
+								};
+							}
+							break;
+
+						case 'text.accentBarColor':
+							if (clip.source?.type === 'text') {
+								if (!clip.source.box) {
+									clip.source.box = { autoSize: true, verticalAnchor: 'bottom', frameStyle: 'accent-bar' };
+								}
+								clip.source.box.accentBarColor = value;
+								if (!clip.properties) clip.properties = {};
+								const rgbaArray = Array.isArray(value)
+									? value
+									: typeof value === 'object' && 'r' in value
+									? [value.r, value.g, value.b, value.a ?? 1]
+									: [0, 0.82, 0.95, 1];
+								clip.properties['text.accentBarColor'] = {
+									value: rgbaArray
+								};
 							}
 							break;
 

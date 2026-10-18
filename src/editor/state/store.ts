@@ -202,6 +202,7 @@ import type {
 import { detectVoiceActivity, generateDuckingKeyframes } from '../core/audio/ducking';
 import { defaultTrackAudio } from '../core/audioMath';
 import { ensureLutLoaded, storeParsedLut } from '../services/media/lutCache';
+import { BUNDLED_FONTS, ensureFontLoaded, loadSavedCustomFonts } from '../services/render/text/fontLoader';
 import type { ScopeFrameData } from '../services/render/passes/scopes';
 import {
 	CorruptProjectError,
@@ -724,7 +725,25 @@ export interface EditorState {
 		clipId: ClipId,
 		propertyId: PropertyId,
 		value: PropertyValue,
-		options?: { autoKey?: boolean; editedChannel?: number; coalesce?: boolean }
+		options?: {
+			autoKey?: boolean;
+			editedChannel?: number;
+			coalesce?: boolean;
+			mergeKey?: string;
+			coalesceWindowMs?: number;
+			label?: string;
+		}
+	) => void;
+	setProperties: (
+		clipId: ClipId,
+		properties: Array<{ propertyId: PropertyId; value: PropertyValue; editedChannel?: number }>,
+		options?: {
+			autoKey?: boolean;
+			coalesce?: boolean;
+			mergeKey?: string;
+			coalesceWindowMs?: number;
+			label?: string;
+		}
 	) => void;
 	enableAnimation: (clipId: ClipId, propertyId: PropertyId) => void;
 	disableAnimation: (
@@ -1560,6 +1579,12 @@ export function createEditorStore() {
 							? ''
 							: 'Theme preference could not be read.';
 					});
+
+					// Pre-warm fonts so canvas rendering doesn't drop to fallback on page refresh
+					void loadSavedCustomFonts().catch(() => {});
+					for (const font of BUNDLED_FONTS) {
+						void ensureFontLoaded(font.family).catch(() => {});
+					}
 
 					try {
 						const projects = await listProjects();
@@ -4124,12 +4149,23 @@ export function createEditorStore() {
 						state.keyframes.graph.viewport = viewport;
 					});
 				},
-				setProperty(clipId, propertyId, value, options) {
+				setProperties(clipId, properties, options) {
 					const project = get().project;
-					if (!project) return;
+					if (!project || properties.length === 0) return;
 					try {
+						const label =
+							options?.label ??
+							(properties.length === 1
+								? `Change ${descriptorFor(properties[0]!.propertyId)?.label ?? properties[0]!.propertyId}`
+								: 'Change properties');
+						const defaultMergeKey =
+							properties.length === 1
+								? `set-prop:${clipId}:${properties[0]!.propertyId}`
+								: `set-props:${clipId}`;
+						const mergeKey = options?.mergeKey ?? (options?.coalesce ? defaultMergeKey : undefined);
+
 						mutateProject(
-							`Change ${descriptorFor(propertyId)?.label ?? propertyId}`,
+							label,
 							(proj) => {
 								let updatedTargetClip: Clip | null = null;
 								const nextTracks = proj.tracks.map((track) => ({
@@ -4137,20 +4173,32 @@ export function createEditorStore() {
 									clips: track.clips.map((clip) => {
 										if (clip.id !== clipId) return clip;
 										const localTime = get().timeline.playhead - clip.start;
-										const updated = setPropertyAtTime(clip, propertyId, localTime, value, {
-											autoKey: options?.autoKey ?? true,
-											fps: proj.settings.fps,
-											editedChannel: options?.editedChannel
-										});
+										let updated = clip;
+										for (const prop of properties) {
+											updated = setPropertyAtTime(
+												updated,
+												prop.propertyId,
+												localTime,
+												prop.value,
+												{
+													autoKey: options?.autoKey ?? true,
+													fps: proj.settings.fps,
+													editedChannel: prop.editedChannel
+												}
+											);
+										}
 										updatedTargetClip = updated;
 										return updated;
 									})
 								}));
 
-								if (
-									updatedTargetClip &&
-									(propertyId === 'position' || propertyId === 'scale' || propertyId === 'rotation')
-								) {
+								const hasTransform = properties.some(
+									(p) =>
+										p.propertyId === 'position' ||
+										p.propertyId === 'scale' ||
+										p.propertyId === 'rotation'
+								);
+								if (updatedTargetClip && hasTransform) {
 									const target = updatedTargetClip;
 									const playhead = get().timeline.playhead;
 									for (const track of nextTracks) {
@@ -4193,7 +4241,9 @@ export function createEditorStore() {
 							},
 							{
 								history: 'record',
-								mergeKey: options?.coalesce ? `set-prop:${clipId}:${propertyId}` : undefined
+								mergeKey,
+								coalesceWindowMs:
+									options?.coalesceWindowMs ?? (options?.coalesce ? 1000 : undefined)
 							}
 						);
 					} catch (error) {
@@ -4201,6 +4251,13 @@ export function createEditorStore() {
 							state.projectMessage = errorMessage(error);
 						});
 					}
+				},
+				setProperty(clipId, propertyId, value, options) {
+					get().setProperties(
+						clipId,
+						[{ propertyId, value, editedChannel: options?.editedChannel }],
+						options
+					);
 				},
 				enableAnimation(clipId, propertyId) {
 					const project = get().project;
@@ -7152,19 +7209,24 @@ export function createEditorStore() {
 											const tplId = c.source.graphicTemplateId;
 											const tpl = tplId ? getGraphicTemplate(tplId) : undefined;
 											const text = c.source.text || '';
-											const colorRuns = tpl
+											const colorRuns = tpl?.highlightWord
 												? computeColorRuns(text, tpl, color)
-												: [
-														{
-															startIndex: Math.max(0, text.lastIndexOf('\n') + 1),
-															endIndex: text.length,
-															fillColor: color
-														}
-													];
+												: (c.source.colorRuns && c.source.colorRuns.length > 0)
+												? c.source.colorRuns.map((r) => ({ ...r, fillColor: color }))
+												: [];
+											const box = c.source.box
+												? { ...c.source.box, accentBarColor: color }
+												: undefined;
+											const properties = {
+												...(c.properties || {}),
+												'text.accentBarColor': { value: [color.r, color.g, color.b, color.a ?? 1] }
+											};
 											return {
 												...c,
+												properties,
 												source: {
 													...c.source,
+													...(box ? { box } : {}),
 													colorRuns
 												}
 											};

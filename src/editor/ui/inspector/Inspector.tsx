@@ -1092,22 +1092,26 @@ function ChannelField({
 		? (evaluatedValue[channelIdx] ?? 0)
 		: evaluatedValue;
 
-	// In display units:
 	const displayVal = Number((numericValue * desc.displayFactor).toFixed(2));
 	const [textDraft, setTextDraft] = useState<string | null>(null);
 	const isDraggingRef = useRef(false);
 	const startDragPos = useRef(0);
 	const startDragVal = useRef(0);
+	const dragSessionIdRef = useRef<string | null>(null);
 
 	const commitValue = useCallback(
-		(nextDisplayVal: number, coalesce: boolean) => {
+		(nextDisplayVal: number, coalesce: boolean, sessionId?: string) => {
 			if (!Number.isFinite(nextDisplayVal)) return;
 			const storedSingle = nextDisplayVal / desc.displayFactor;
+			const mergeKey = sessionId ? `scrub:${clip.id}:${desc.id}:${sessionId}` : undefined;
+			const coalesceWindowMs = sessionId ? 3600000 : undefined;
 
 			if (desc.shape === 'number') {
 				store.getState().setProperty(clip.id, desc.id, storedSingle, {
 					autoKey: true,
-					coalesce
+					coalesce,
+					mergeKey,
+					coalesceWindowMs
 				});
 			} else {
 				const currentArr = Array.isArray(evaluatedValue)
@@ -1131,7 +1135,9 @@ function ChannelField({
 				store.getState().setProperty(clip.id, desc.id, currentArr, {
 					autoKey: true,
 					editedChannel: channelIdx,
-					coalesce
+					coalesce,
+					mergeKey,
+					coalesceWindowMs
 				});
 			}
 		},
@@ -1186,6 +1192,7 @@ function ChannelField({
 		isDraggingRef.current = true;
 		startDragPos.current = e.clientX;
 		startDragVal.current = displayVal;
+		dragSessionIdRef.current = `scrub-${clip.id}-${desc.id}-${channelIdx}-${Date.now()}`;
 		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 	};
 
@@ -1194,12 +1201,13 @@ function ChannelField({
 		const deltaPx = e.clientX - startDragPos.current;
 		const multiplier = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
 		const next = startDragVal.current + deltaPx * desc.step * 0.5 * multiplier;
-		commitValue(next, true);
+		commitValue(next, true, dragSessionIdRef.current ?? undefined);
 	};
 
 	const handlePointerUp = (e: ReactPointerEvent<HTMLSpanElement>) => {
 		if (!isDraggingRef.current) return;
 		isDraggingRef.current = false;
+		dragSessionIdRef.current = null;
 		try {
 			(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 		} catch {}

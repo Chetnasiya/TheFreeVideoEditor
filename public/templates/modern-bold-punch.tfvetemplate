@@ -2,21 +2,21 @@
   "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
   "tfve_type": "motion_template",
   "version": 1,
-  "id": "minimal-tech-headline",
-  "name": "Minimalist Tech Launch",
+  "id": "modern-bold-punch",
+  "name": "Modern Bold Punch",
   "category": "Titles",
-  "description": "Clean modern Silicon Valley product launch header with emerald accent and crisp tracking",
+  "description": "Heavy punchy kinetic zoom typography with neon lime accent for product launches and ads",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586931,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
     "introDuration": 450000,
     "outroDuration": 400000
   },
   "bounds": {
-    "width": 952,
-    "height": 154,
-    "originX": -151,
+    "width": 692,
+    "height": 210,
+    "originX": -86,
     "originY": 0
   },
   "tracks": [
@@ -43,44 +43,66 @@
             "height": 105,
             "cornerRadius": 3,
             "fillColor": {
-              "r": 0.15,
-              "g": 0.92,
-              "b": 0.58,
+              "r": 0.65,
+              "g": 0.98,
+              "b": 0.2,
               "a": 1
             },
             "strokeWidth": 0
           },
           "properties": {
             "position": {
+              "value": [
+                -294,
+                0
+              ]
+            },
+            "rotation": {
+              "value": 0
+            },
+            "scale": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": [
-                    -449,
-                    0
+                    0.3,
+                    0.3
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
-                    "x": 0.05,
-                    "y": 0.95
+                    "x": 0.16,
+                    "y": 1
                   },
                   "easeIn": {
-                    "x": 0.1,
+                    "x": 0.3,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 320000,
+                  "value": [
+                    1.08,
+                    1.08
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
                     "y": 1
                   }
                 },
                 {
                   "time": 450000,
                   "value": [
-                    -69,
-                    0
+                    1,
+                    1
                   ],
                   "interpolation": "linear"
                 }
               ]
-            },
-            "rotation": {
-              "value": 0
             },
             "opacity": {
               "keyframes": [
@@ -129,28 +151,44 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "NEXT GENERATION ENGINE\nBUILT FOR SPEED AND PRECISION",
+            "text": "BOLD IMPACT\nFUTURE OF CREATIVE DESIGN",
             "style": {
-              "fontFamily": "Inter",
-              "fontWeight": "800",
+              "fontFamily": "Montserrat",
+              "fontWeight": "900",
               "alignment": "left",
-              "letterSpacing": 2
+              "letterSpacing": -1
             },
             "box": {
               "autoSize": true,
               "verticalAnchor": "center",
-              "paddingX": 24,
+              "paddingX": 28,
               "paddingY": 16,
               "frameStyle": "accent-bar",
-              "badgeText": "BUILT FOR SPEED AND PRECISION"
+              "accentBarColor": {
+                "r": 0.65,
+                "g": 0.98,
+                "b": 0.2,
+                "a": 1
+              },
+              "accentBarWidth": 16,
+              "badgeText": "FUTURE OF CREATIVE DESIGN"
             },
             "colorRuns": [],
-            "graphicTemplateId": "minimal-tech-headline",
-            "animationPresetId": "whip-slide-left"
+            "graphicTemplateId": "modern-bold-punch",
+            "animationPresetId": "kinetic-zoom"
           },
           "properties": {
+            "position": {
+              "value": [
+                -74,
+                0
+              ]
+            },
             "text.fontSize": {
-              "value": 48
+              "value": 68
+            },
+            "text.letterSpacing": {
+              "value": -1
             },
             "text.fillColor": {
               "value": [
@@ -160,25 +198,19 @@
                 1
               ]
             },
-            "text.strokeWidth": {
-              "value": 0
-            },
-            "text.letterSpacing": {
-              "value": 2
-            },
-            "text.lineHeight": {
-              "value": 1.25
-            },
-            "text.accentBarWidth": {
-              "value": 6
-            },
             "text.accentBarColor": {
               "value": [
-                0.15,
-                0.92,
-                0.58,
+                0.65,
+                0.98,
+                0.2,
                 1
               ]
+            },
+            "text.accentBarWidth": {
+              "value": 16
+            },
+            "text.lineHeight": {
+              "value": 1.15
             },
             "opacity": {
               "keyframes": [
@@ -204,29 +236,45 @@
                 }
               ]
             },
-            "position": {
+            "scale": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": [
-                    -229,
-                    0
+                    0.3,
+                    0.3
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
-                    "x": 0.05,
-                    "y": 0.95
+                    "x": 0.16,
+                    "y": 1
                   },
                   "easeIn": {
-                    "x": 0.1,
+                    "x": 0.3,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 320000,
+                  "value": [
+                    1.08,
+                    1.08
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
                     "y": 1
                   }
                 },
                 {
                   "time": 450000,
                   "value": [
-                    151,
-                    0
+                    1,
+                    1
                   ],
                   "interpolation": "linear"
                 }
@@ -245,7 +293,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.content",
-      "defaultValue": "NEXT GENERATION ENGINE\nBUILT FOR SPEED AND PRECISION"
+      "defaultValue": "BOLD IMPACT\nFUTURE OF CREATIVE DESIGN"
     },
     {
       "id": "param_font_family",
@@ -253,7 +301,7 @@
       "type": "font",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fontFamily",
-      "defaultValue": "Inter"
+      "defaultValue": "Montserrat"
     },
     {
       "id": "param_text_color",
@@ -275,9 +323,9 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "shape.fill",
       "defaultValue": {
-        "r": 0.15,
-        "g": 0.92,
-        "b": 0.58,
+        "r": 0.65,
+        "g": 0.98,
+        "b": 0.2,
         "a": 1
       }
     }

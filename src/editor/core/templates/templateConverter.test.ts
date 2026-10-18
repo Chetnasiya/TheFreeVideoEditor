@@ -7,9 +7,9 @@ import {
 import { serializeTemplate, deserializeTemplate } from './templateService';
 
 describe('convertGraphicTemplateToMotionTemplate', () => {
-	it('converts all 34 existing graphic templates to valid Motion Graphic Templates (.tfvetemplate)', () => {
+	it('converts all existing graphic templates to valid Motion Graphic Templates (.tfvetemplate)', () => {
 		const convertedList = convertAllGraphicTemplates();
-		expect(convertedList.length).toBe(34);
+		expect(convertedList.length).toBe(13);
 
 		for (const tpl of convertedList) {
 			expect(tpl.version).toBe(1);
@@ -34,49 +34,43 @@ describe('convertGraphicTemplateToMotionTemplate', () => {
 		}
 	});
 
-	it('converts card template with background shape track and synchronized keyframes', () => {
-		const original = GRAPHIC_TEMPLATES.find((t) => t.id === 'trendy-typography-card')!;
+	it('converts mixkit-minimal-wipe-lower-third with multi-track layout and published parameters', () => {
+		const original = GRAPHIC_TEMPLATES.find((t) => t.id === 'mixkit-minimal-wipe-lower-third')!;
+		expect(original).toBeDefined();
 		const mogrt = convertGraphicTemplateToMotionTemplate(original);
 
-		expect(mogrt.name).toBe('Trendy Typography Card');
-		expect(mogrt.category).toBe('Badges');
-		expect(mogrt.tracks.length).toBe(2); // Shape track + Text track
-
-		const shapeTrack = mogrt.tracks.find((t) => t.name === 'Background Frame');
-		expect(shapeTrack).toBeDefined();
-		const shapeClip = shapeTrack?.clips[0];
-		expect(shapeClip?.source?.type).toBe('shape');
-
-		const textTrack = mogrt.tracks.find((t) => t.name === 'Title Text');
-		expect(textTrack).toBeDefined();
-		const textClip = textTrack?.clips[0];
-		expect(textClip?.source?.type).toBe('text');
-
-		// Checks that keyframes exist on text clip
-		expect(textClip?.properties?.scale).toBeDefined();
-
-		// Published params contains title, font, text color, and shape color
-		const paramNames = mogrt.publishedParams.map((p) => p.name);
-		expect(paramNames).toContain('Title Text');
-		expect(paramNames).toContain('Font Family');
-		expect(paramNames).toContain('Text Color');
-		expect(paramNames).toContain('Accent / Background Color');
-	});
-
-	it('converts broadcast news lower third with lower-third line', () => {
-		const original = GRAPHIC_TEMPLATES.find((t) => t.id === 'broadcast-news-lower-third')!;
-		const mogrt = convertGraphicTemplateToMotionTemplate(original);
-
-		expect(mogrt.name).toBe('Broadcast News Lower Third');
+		expect(mogrt.id).toBe('mixkit-minimal-wipe-lower-third');
+		expect(mogrt.name).toBe('Clean Minimal Wipe Lower Third');
 		expect(mogrt.category).toBe('Lower Thirds');
-		expect(mogrt.tracks.length).toBe(2);
+		expect(mogrt.tracks.length).toBe(4); // Accent lead bar, Title, Wipe block, Subtitle
+		expect(mogrt.duration).toBe(5_900_000);
+		expect(mogrt.responsiveTiming?.introDuration).toBe(1_400_000);
+		expect(mogrt.responsiveTiming?.outroDuration).toBe(1_200_000);
 
-		const textTrack = mogrt.tracks.find((t) => t.name === 'Title Text');
-		const textClip = textTrack?.clips[0];
-		expect(textClip?.properties?.position).toBeDefined();
+		const accentTrack = mogrt.tracks.find((t) => t.name === 'Accent Lead Bar');
+		expect(accentTrack).toBeDefined();
+		expect(accentTrack?.clips[0].source?.type).toBe('shape');
+
+		const titleTrack = mogrt.tracks.find((t) => t.name === 'Title Text');
+		expect(titleTrack).toBeDefined();
+		expect(titleTrack?.clips[0].source?.type).toBe('text');
+
+		const wipeTrack = mogrt.tracks.find((t) => t.name === 'Wipe Block');
+		expect(wipeTrack).toBeDefined();
+		expect(wipeTrack?.clips[0].source?.type).toBe('shape');
+
+		const subtitleTrack = mogrt.tracks.find((t) => t.name === 'Subtitle Text');
+		expect(subtitleTrack).toBeDefined();
+		expect(subtitleTrack?.clips[0].source?.type).toBe('text');
+
+		const paramIds = mogrt.publishedParams.map((p) => p.id);
+		expect(paramIds).toContain('param_title_text');
+		expect(paramIds).toContain('param_subtitle_text');
+		expect(paramIds).toContain('param_accent_color');
+		expect(paramIds).toContain('param_wipe_color');
 	});
 
-	it('emits all 34 .tfvetemplate files into public/templates/ directory and verifies validity', async () => {
+	it('emits .tfvetemplate files into public/templates/ directory and verifies validity', async () => {
 		const fs = await import('fs');
 		const path = await import('path');
 		const outDir = path.resolve(process.cwd(), 'public/templates');
@@ -86,8 +80,18 @@ describe('convertGraphicTemplateToMotionTemplate', () => {
 
 		const templates = convertAllGraphicTemplates();
 		for (const tpl of templates) {
-			const json = serializeTemplate(tpl);
 			const filePath = path.join(outDir, `${tpl.id}.tfvetemplate`);
+			if (fs.existsSync(filePath)) {
+				try {
+					const existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+					if (existing.createdAt) {
+						tpl.createdAt = existing.createdAt;
+					}
+				} catch {
+					// ignore
+				}
+			}
+			const json = serializeTemplate(tpl);
 			fs.writeFileSync(filePath, json, 'utf-8');
 
 			expect(fs.existsSync(filePath)).toBe(true);
@@ -98,7 +102,7 @@ describe('convertGraphicTemplateToMotionTemplate', () => {
 		}
 
 		const files = fs.readdirSync(outDir).filter((f) => f.endsWith('.tfvetemplate'));
-		expect(files.length).toBe(34);
+		expect(files.length).toBe(13);
 	});
 });
 

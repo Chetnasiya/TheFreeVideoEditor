@@ -15,7 +15,7 @@ import { extractCanvasScopeFrame, type ScopeFrameData } from '../render/passes/s
 import { createPlaybackClock, type PlaybackRate } from './clock';
 import { MediaPool } from './mediaPool';
 import { TextRasterCache } from '../render/text/cache';
-import { ensureFontLoaded, isFontLoaded } from '../render/text/fontLoader';
+import { ensureFontLoaded, isFontLoaded, onFontLoaded } from '../render/text/fontLoader';
 import { ensureLutLoaded, getParsedLut } from '../media/lutCache';
 import { rasterizeShape } from '../render/shapes/shapeRasterizer';
 
@@ -120,6 +120,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 	private readonly listeners = new Set<(snapshot: PlaybackSnapshot) => void>();
 	private readonly lastGoodFrames: LastGoodFrames = new Map();
 	private readonly textCache = new TextRasterCache();
+	private readonly fontUnsubscribe?: () => void;
 	private readonly runtimeMissing = new Set<AssetId>();
 	private readonly clockUnsubscribe: () => void;
 	private readonly storeUnsubscribe: () => void;
@@ -289,6 +290,10 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		if (typeof document !== 'undefined') {
 			document.addEventListener('visibilitychange', this.visibilityListener);
 		}
+		this.fontUnsubscribe = onFontLoaded(() => {
+			this.textCache.clear();
+			this.requestRender();
+		});
 	}
 
 	get snapshot(): PlaybackSnapshot {
@@ -499,6 +504,7 @@ class PlaybackEngineImpl implements PlaybackEngine {
 		void audioDispose.catch((error: unknown) => this.reportError(error));
 		this.listeners.clear();
 		this.lastGoodFrames.clear();
+		this.fontUnsubscribe?.();
 		this.textCache.dispose();
 	}
 
@@ -598,7 +604,10 @@ class PlaybackEngineImpl implements PlaybackEngine {
 					const data = layer.textData;
 					if (data.style.fontFamily && !isFontLoaded(data.style.fontFamily)) {
 						void ensureFontLoaded(data.style.fontFamily).then((loaded) => {
-							if (loaded) this.requestRender();
+							if (loaded) {
+								this.textCache.clear();
+								this.requestRender();
+							}
 						});
 					}
 					const scale = Math.max(layer.transform?.scaleX ?? 1, layer.transform?.scaleY ?? 1);

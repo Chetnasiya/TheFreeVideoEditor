@@ -62,10 +62,76 @@ export const BUNDLED_FONTS: readonly BundledFont[] = [
 	}
 ];
 
+export const SYSTEM_FALLBACK_FONTS = new Set([
+	'sans-serif',
+	'serif',
+	'monospace',
+	'cursive',
+	'fantasy',
+	'system-ui',
+	'arial',
+	'helvetica',
+	'times new roman',
+	'courier new',
+	'georgia',
+	'verdana'
+]);
+
 const loadedFonts = new Set<string>();
 const failedFonts = new Set<string>();
 const loadingPromises = new Map<string, Promise<boolean>>();
 const customFonts = new Map<string, CustomFont>();
+
+export type FontLoadListener = (family: string) => void;
+const fontLoadListeners = new Set<FontLoadListener>();
+
+export function onFontLoaded(listener: FontLoadListener): () => void {
+	fontLoadListeners.add(listener);
+	return () => fontLoadListeners.delete(listener);
+}
+
+export function notifyFontLoaded(family: string): void {
+	for (const listener of fontLoadListeners) {
+		try {
+			listener(family);
+		} catch (err) {
+			console.error('Error in onFontLoaded listener:', err);
+		}
+	}
+}
+
+// Auto-listen to document.fonts in browser window environments so web fonts (e.g. Google Fonts)
+// automatically notify subscribers the moment they finish downloading
+if (typeof document !== 'undefined' && document.fonts) {
+	void document.fonts.ready.then(() => {
+		try {
+			for (const face of document.fonts) {
+				if (face.status === 'loaded') {
+					const clean = face.family.replace(/^['"]|['"]$/g, '');
+					loadedFonts.add(clean);
+				}
+			}
+		} catch {
+			// ignore
+		}
+		notifyFontLoaded('*');
+	});
+
+	try {
+		document.fonts.addEventListener('loadingdone', (event: Event) => {
+			const fontEvent = event as unknown as { fontfaces?: FontFace[] };
+			if (fontEvent.fontfaces) {
+				for (const face of fontEvent.fontfaces) {
+					const clean = face.family.replace(/^['"]|['"]$/g, '');
+					loadedFonts.add(clean);
+				}
+			}
+			notifyFontLoaded('*');
+		});
+	} catch {
+		// ignore
+	}
+}
 
 const CUSTOM_FONTS_DB_NAME = 'tfve-custom-fonts';
 const CUSTOM_FONTS_DB_VERSION = 1;
@@ -160,6 +226,7 @@ export async function registerCustomFont(font: CustomFont): Promise<boolean> {
 		loadedFonts.add(font.family);
 		failedFonts.delete(font.family.toLowerCase());
 		customFonts.set(font.family.toLowerCase(), font);
+		notifyFontLoaded(font.family);
 		return true;
 	} catch (err) {
 		console.warn('Failed to register custom font:', font.family, err);
@@ -264,44 +331,68 @@ export async function deleteCustomFont(family: string): Promise<void> {
 }
 
 /**
- * Ensures a font family is loaded via FontFace.
+ * Ensures a font family is loaded via FontFace or document.fonts.
  * Works in Window and DedicatedWorker contexts where FontFace is available.
  */
 export async function ensureFontLoaded(family: string, url?: string): Promise<boolean> {
-	if (loadedFonts.has(family)) return true;
-	if (failedFonts.has(family.toLowerCase())) return false;
-	if (loadingPromises.has(family)) return loadingPromises.get(family)!;
+	if (!family) return true;
+	const clean = family.trim().replace(/^['"]|['"]$/g, '');
+	const lower = clean.toLowerCase();
+
+	if (SYSTEM_FALLBACK_FONTS.has(lower)) {
+		loadedFonts.add(clean);
+		return true;
+	}
+	if (loadedFonts.has(clean)) return true;
+	if (failedFonts.has(lower)) return false;
+	if (loadingPromises.has(clean)) return loadingPromises.get(clean)!;
 
 	const loadPromise = (async () => {
 		try {
 			if (typeof FontFace === 'undefined') {
-				loadedFonts.add(family);
+				loadedFonts.add(clean);
 				return true;
 			}
 
 			// If font is already available in document.fonts (e.g. loaded via CSS link tag)
 			if (typeof document !== 'undefined' && document.fonts) {
 				try {
-					if (document.fonts.check(`16px "${family}"`)) {
-						loadedFonts.add(family);
+					if (document.fonts.check(`16px "${clean}"`)) {
+						loadedFonts.add(clean);
+						notifyFontLoaded(clean);
 						return true;
 					}
-					const loadedList = await document.fonts.load(`16px "${family}"`);
-					if (loadedList.length > 0 || document.fonts.check(`16px "${family}"`)) {
-						loadedFonts.add(family);
+
+					// If document fonts are actively loading stylesheets, wait briefly for document.fonts.ready
+					if (document.fonts.status === 'loading') {
+						await Promise.race([
+							document.fonts.ready,
+							new Promise((r) => setTimeout(r, 1500))
+						]);
+						if (document.fonts.check(`16px "${clean}"`)) {
+							loadedFonts.add(clean);
+							notifyFontLoaded(clean);
+							return true;
+						}
+					}
+
+					const loadedList = await document.fonts.load(`16px "${clean}"`);
+					if (loadedList.length > 0 || document.fonts.check(`16px "${clean}"`)) {
+						loadedFonts.add(clean);
+						notifyFontLoaded(clean);
 						return true;
 					}
 				} catch {
-					// Fall through to manual FontFace loading
+					// Fall through to manual FontFace / URL loading
 				}
 			}
 
 			// If font is bundled or custom url is given
-			const fontInfo = BUNDLED_FONTS.find((f) => f.family.toLowerCase() === family.toLowerCase());
+			const fontInfo = BUNDLED_FONTS.find((f) => f.family.toLowerCase() === lower);
 			const fontUrl = url || fontInfo?.url;
 
 			// Check custom fonts registry
-			const custom = customFonts.get(family.toLowerCase());
+			const custom = customFonts.get(lower);
 			let fontSource: string | ArrayBuffer | undefined = fontUrl;
 			if (!fontSource && custom) {
 				fontSource = custom.data || (custom.url ? `url(${custom.url})` : undefined);
@@ -312,7 +403,7 @@ export async function ensureFontLoaded(family: string, url?: string): Promise<bo
 				try {
 					const db = await getCustomFontsDb();
 					if (db) {
-						const rec: CustomFontRecord | undefined = await db.get(CUSTOM_FONTS_STORE, family);
+						const rec: CustomFontRecord | undefined = await db.get(CUSTOM_FONTS_STORE, clean);
 						if (rec) {
 							await registerCustomFont({
 								family: rec.family,
@@ -321,6 +412,7 @@ export async function ensureFontLoaded(family: string, url?: string): Promise<bo
 								data: rec.data,
 								dateAdded: rec.dateAdded
 							});
+							notifyFontLoaded(clean);
 							return true;
 						}
 					}
@@ -329,16 +421,46 @@ export async function ensureFontLoaded(family: string, url?: string): Promise<bo
 				}
 			}
 
+			// If it's a web font (e.g. Google Font) not yet loaded, inject link tag and await load
+			if (!fontSource && typeof document !== 'undefined') {
+				try {
+					const tagId = `tfve-font-${lower.replace(/[^a-z0-9]/g, '-')}`;
+					if (!document.getElementById(tagId)) {
+						const link = document.createElement('link');
+						link.id = tagId;
+						link.rel = 'stylesheet';
+						link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(clean.replace(/ /g, '+'))}:ital,wght@0,300..900;1,300..900&display=swap`;
+						document.head.appendChild(link);
+					}
+
+					const startWait = Date.now();
+					while (Date.now() - startWait < 2500) {
+						await new Promise((r) => setTimeout(r, 60));
+						try {
+							const list = await document.fonts.load(`16px "${clean}"`);
+							if (list.length > 0 || document.fonts.check(`16px "${clean}"`)) {
+								loadedFonts.add(clean);
+								notifyFontLoaded(clean);
+								return true;
+							}
+						} catch {
+							// continue waiting
+						}
+					}
+				} catch {
+					// ignore
+				}
+			}
+
 			if (!fontSource) {
-				// System fallback font (sans-serif, monospace, etc.)
-				loadedFonts.add(family);
-				return true;
+				failedFonts.add(lower);
+				return false;
 			}
 
 			const fontFace =
 				typeof fontSource === 'string'
-					? new FontFace(family, fontSource.startsWith('url(') ? fontSource : `url(${fontSource})`)
-					: new FontFace(family, fontSource);
+					? new FontFace(clean, fontSource.startsWith('url(') ? fontSource : `url(${fontSource})`)
+					: new FontFace(clean, fontSource);
 			const loadedFace = await fontFace.load();
 
 			interface WithFonts {
@@ -350,17 +472,18 @@ export async function ensureFontLoaded(family: string, url?: string): Promise<bo
 				globalFonts.add(loadedFace);
 			}
 
-			loadedFonts.add(family);
+			loadedFonts.add(clean);
+			notifyFontLoaded(clean);
 			return true;
 		} catch {
-			failedFonts.add(family.toLowerCase());
+			failedFonts.add(lower);
 			return false;
 		} finally {
-			loadingPromises.delete(family);
+			loadingPromises.delete(clean);
 		}
 	})();
 
-	loadingPromises.set(family, loadPromise);
+	loadingPromises.set(clean, loadPromise);
 	return loadPromise;
 }
 
@@ -368,30 +491,20 @@ export async function ensureFontLoaded(family: string, url?: string): Promise<bo
  * Synchronous check whether font is already loaded.
  */
 export function isFontLoaded(family: string): boolean {
-	const lower = family.toLowerCase();
-	if (
-		[
-			'sans-serif',
-			'serif',
-			'monospace',
-			'cursive',
-			'fantasy',
-			'system-ui',
-			'arial',
-			'helvetica'
-		].includes(lower)
-	) {
+	if (!family) return true;
+	const clean = family.trim().replace(/^['"]|['"]$/g, '');
+	const lower = clean.toLowerCase();
+
+	if (SYSTEM_FALLBACK_FONTS.has(lower)) {
 		return true;
 	}
-	if (failedFonts.has(lower)) {
+	if (loadedFonts.has(clean)) {
 		return true;
 	}
-	if (loadedFonts.has(family)) {
-		return true;
-	}
-	if (typeof document !== 'undefined' && document.fonts?.check?.(`16px "${family}"`)) {
-		loadedFonts.add(family);
+	if (typeof document !== 'undefined' && document.fonts?.check?.(`16px "${clean}"`)) {
+		loadedFonts.add(clean);
 		return true;
 	}
 	return false;
 }
+

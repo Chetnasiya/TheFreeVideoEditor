@@ -1,4 +1,4 @@
-import type { Clip, Track, TrackId, ClipId, PropertyId, Keyframe } from '../types';
+import type { Clip, Track, TrackId, ClipId, PropertyId } from '../types';
 import type {
 	MotionGraphicTemplate,
 	PublishedTemplateParam,
@@ -7,7 +7,6 @@ import type {
 import {
 	GRAPHIC_TEMPLATES,
 	createGraphicClip,
-	computeColorRuns,
 	type GraphicTemplate,
 	type GraphicCategory
 } from '../text/graphicsTemplates';
@@ -72,6 +71,10 @@ export function convertGraphicTemplateToMotionTemplate(
 	template: GraphicTemplate,
 	duration: number = 5_000_000
 ): MotionGraphicTemplate {
+	if (template.id === 'mixkit-minimal-wipe-lower-third') {
+		return createMixkitMinimalWipeTemplate();
+	}
+
 	// 1. Build the primary animated text clip
 	const textClip = createGraphicClip(template.id, 0, duration, template.defaultText);
 	textClip.id = `clip_text_${template.id}` as ClipId;
@@ -365,9 +368,388 @@ export function convertGraphicTemplateToMotionTemplate(
 }
 
 /**
- * Converts all 34 built-in GraphicTemplates into full MotionGraphicTemplates (.tfvetemplate).
+ * Converts all built-in GraphicTemplates into full MotionGraphicTemplates (.tfvetemplate).
  */
 export function convertAllGraphicTemplates(): MotionGraphicTemplate[] {
 	return GRAPHIC_TEMPLATES.map((tpl) => convertGraphicTemplateToMotionTemplate(tpl));
 }
+
+/**
+ * Creates the authentic Mixkit 312 reference template:
+ * Clean modern lower third with cobalt accent bar, smooth white block wipe reveal,
+ * and wide-tracked subtitle.
+ */
+export function createMixkitMinimalWipeTemplate(): MotionGraphicTemplate {
+	const duration = 5_900_000;
+
+	// Track 1: Accent Lead Bar (Cyan Pill)
+	const accentBarClip: Clip = {
+		id: 'tpl_clip_accent_bar' as ClipId,
+		start: 0,
+		duration,
+		sourceIn: 0,
+		sourceOut: duration,
+		speed: 1,
+		volume: 0,
+		source: {
+			type: 'shape',
+			shapeType: 'rect',
+			width: 18,
+			height: 104,
+			cornerRadius: 4,
+			fillColor: { r: 0.0, g: 0.82, b: 0.95, a: 1 },
+			strokeWidth: 0
+		},
+		properties: {
+			position: { value: [-360, 0] },
+			scale: {
+				keyframes: [
+					{
+						time: 0,
+						value: [1, 0],
+						interpolation: 'bezier',
+						easeOut: { x: 0.16, y: 1 },
+						easeIn: { x: 0.3, y: 1 }
+					},
+					{ time: 300_000, value: [1, 1.15], interpolation: 'linear' },
+					{ time: 450_000, value: [1, 1.0], interpolation: 'linear' },
+					{
+						time: 4_900_000,
+						value: [1, 1.0],
+						interpolation: 'bezier',
+						easeOut: { x: 0.16, y: 1 }
+					},
+					{ time: 5_400_000, value: [1, 0.0], interpolation: 'linear' }
+				]
+			},
+			opacity: {
+				keyframes: [
+					{ time: 0, value: 0, interpolation: 'linear' },
+					{ time: 200_000, value: 1, interpolation: 'linear' },
+					{ time: 4_900_000, value: 1, interpolation: 'linear' },
+					{ time: 5_400_000, value: 0, interpolation: 'linear' }
+				]
+			}
+		}
+	};
+
+	// Track 2: Title Text
+	const titleTextClip: Clip = {
+		id: 'tpl_clip_title' as ClipId,
+		start: 0,
+		duration,
+		sourceIn: 0,
+		sourceOut: duration,
+		speed: 1,
+		volume: 0,
+		source: {
+			type: 'text',
+			text: 'MATT TYLER',
+			style: {
+				fontFamily: 'Montserrat',
+				fontWeight: '900',
+				alignment: 'left',
+				letterSpacing: 2
+			},
+			box: {
+				autoSize: true,
+				verticalAnchor: 'top',
+				paddingX: 0,
+				paddingY: 0,
+				frameStyle: 'none'
+			},
+			colorRuns: [
+				{
+					startIndex: 0,
+					endIndex: 10,
+					fillColor: { r: 1, g: 1, b: 1, a: 1 }
+				}
+			],
+			graphicTemplateId: 'mixkit-minimal-wipe-lower-third'
+		},
+		properties: {
+			position: { value: [-320, -22] },
+			'text.fontSize': { value: 58 },
+			'text.fillColor': { value: [1, 1, 1, 1] },
+			'text.letterSpacing': { value: 2 },
+			crop: {
+				keyframes: [
+					{ time: 0, value: [0, 0, 100, 0], interpolation: 'linear' },
+					{ time: 500_000, value: [0, 0, 100, 0], interpolation: 'linear' },
+					{ time: 850_000, value: [0, 0, 55, 0], interpolation: 'linear' },
+					{ time: 1_250_000, value: [0, 0, 0, 0], interpolation: 'linear' },
+					{ time: 4_600_000, value: [0, 0, 0, 0], interpolation: 'linear' },
+					{ time: 5_200_000, value: [0, 0, 100, 0], interpolation: 'linear' }
+				]
+			},
+			opacity: {
+				keyframes: [
+					{ time: 0, value: 0, interpolation: 'linear' },
+					{ time: 500_000, value: 1, interpolation: 'linear' },
+					{ time: 5_200_000, value: 1, interpolation: 'linear' },
+					{ time: 5_400_000, value: 0, interpolation: 'linear' }
+				]
+			}
+		}
+	};
+
+	// Track 3: Sliding Wipe Block
+	const wipeBlockClip: Clip = {
+		id: 'tpl_clip_wipe_block' as ClipId,
+		start: 0,
+		duration,
+		sourceIn: 0,
+		sourceOut: duration,
+		speed: 1,
+		volume: 0,
+		source: {
+			type: 'shape',
+			shapeType: 'rect',
+			width: 220,
+			height: 76,
+			cornerRadius: 2,
+			fillColor: { r: 1, g: 1, b: 1, a: 1 },
+			strokeWidth: 0
+		},
+		properties: {
+			position: {
+				keyframes: [
+					{ time: 0, value: [-320, -22], interpolation: 'linear' },
+					{
+						time: 450_000,
+						value: [-320, -22],
+						interpolation: 'bezier',
+						easeOut: { x: 0.2, y: 1 }
+					},
+					{ time: 750_000, value: [-190, -22], interpolation: 'linear' },
+					{ time: 1_050_000, value: [-40, -22], interpolation: 'linear' },
+					{ time: 1_300_000, value: [120, -22], interpolation: 'linear' },
+					{ time: 1_450_000, value: [180, -22], interpolation: 'linear' },
+					{ time: 4_450_000, value: [180, -22], interpolation: 'linear' },
+					{
+						time: 4_600_000,
+						value: [120, -22],
+						interpolation: 'bezier',
+						easeIn: { x: 0.3, y: 1 }
+					},
+					{ time: 4_900_000, value: [-60, -22], interpolation: 'linear' },
+					{ time: 5_200_000, value: [-320, -22], interpolation: 'linear' }
+				]
+			},
+			scale: {
+				keyframes: [
+					{ time: 0, value: [1, 1], interpolation: 'linear' },
+					{ time: 1_250_000, value: [1, 1], interpolation: 'linear' },
+					{ time: 1_400_000, value: [0.1, 1], interpolation: 'linear' },
+					{ time: 4_550_000, value: [0.1, 1], interpolation: 'linear' },
+					{ time: 4_650_000, value: [1, 1], interpolation: 'linear' },
+					{ time: 5_350_000, value: [0.1, 1], interpolation: 'linear' }
+				]
+			},
+			opacity: {
+				keyframes: [
+					{ time: 0, value: 0, interpolation: 'linear' },
+					{ time: 450_000, value: 1, interpolation: 'linear' },
+					{ time: 1_250_000, value: 1, interpolation: 'linear' },
+					{ time: 1_400_000, value: 0, interpolation: 'linear' },
+					{ time: 4_550_000, value: 0, interpolation: 'linear' },
+					{ time: 4_650_000, value: 1, interpolation: 'linear' },
+					{ time: 5_200_000, value: 1, interpolation: 'linear' },
+					{ time: 5_350_000, value: 0, interpolation: 'linear' }
+				]
+			}
+		}
+	};
+
+	// Track 4: Subtitle Text
+	const subtitleTextClip: Clip = {
+		id: 'tpl_clip_subtitle' as ClipId,
+		start: 0,
+		duration,
+		sourceIn: 0,
+		sourceOut: duration,
+		speed: 1,
+		volume: 0,
+		source: {
+			type: 'text',
+			text: 'ART DEPARTMENT ASSISTANT',
+			style: {
+				fontFamily: 'Montserrat',
+				fontWeight: '600',
+				alignment: 'left',
+				letterSpacing: 4
+			},
+			box: {
+				autoSize: true,
+				verticalAnchor: 'top',
+				paddingX: 0,
+				paddingY: 0,
+				frameStyle: 'none'
+			},
+			colorRuns: [
+				{
+					startIndex: 0,
+					endIndex: 24,
+					fillColor: { r: 1, g: 1, b: 1, a: 1 }
+				}
+			]
+		},
+		properties: {
+			position: {
+				keyframes: [
+					{ time: 0, value: [-320, 42], interpolation: 'linear' },
+					{
+						time: 850_000,
+						value: [-320, 42],
+						interpolation: 'bezier',
+						easeOut: { x: 0.16, y: 1 }
+					},
+					{ time: 1_350_000, value: [-320, 28], interpolation: 'linear' },
+					{
+						time: 4_650_000,
+						value: [-320, 28],
+						interpolation: 'bezier',
+						easeIn: { x: 0.3, y: 1 }
+					},
+					{ time: 5_150_000, value: [-320, 42], interpolation: 'linear' }
+				]
+			},
+			opacity: {
+				keyframes: [
+					{ time: 0, value: 0, interpolation: 'linear' },
+					{ time: 850_000, value: 0, interpolation: 'linear' },
+					{ time: 1_350_000, value: 1, interpolation: 'linear' },
+					{ time: 4_650_000, value: 1, interpolation: 'linear' },
+					{ time: 5_150_000, value: 0, interpolation: 'linear' }
+				]
+			},
+			'text.fontSize': { value: 22 },
+			'text.letterSpacing': { value: 4 },
+			'text.fillColor': { value: [1, 1, 1, 1] }
+		}
+	};
+
+	const tracks: Track[] = [
+		{
+			id: 'tpl_trk_accent' as TrackId,
+			kind: 'video',
+			name: 'Accent Lead Bar',
+			muted: false,
+			locked: false,
+			hidden: false,
+			clips: [accentBarClip]
+		},
+		{
+			id: 'tpl_trk_title' as TrackId,
+			kind: 'video',
+			name: 'Title Text',
+			muted: false,
+			locked: false,
+			hidden: false,
+			clips: [titleTextClip]
+		},
+		{
+			id: 'tpl_trk_wipe' as TrackId,
+			kind: 'video',
+			name: 'Wipe Block',
+			muted: false,
+			locked: false,
+			hidden: false,
+			clips: [wipeBlockClip]
+		},
+		{
+			id: 'tpl_trk_subtitle' as TrackId,
+			kind: 'video',
+			name: 'Subtitle Text',
+			muted: false,
+			locked: false,
+			hidden: false,
+			clips: [subtitleTextClip]
+		}
+	];
+
+	const publishedParams: PublishedTemplateParam[] = [
+		{
+			id: 'param_title_text',
+			name: 'Title Text',
+			type: 'text',
+			targetClipId: 'tpl_clip_title' as ClipId,
+			targetProperty: 'text.content',
+			defaultValue: 'MATT TYLER'
+		},
+		{
+			id: 'param_title_font',
+			name: 'Title Font',
+			type: 'font',
+			targetClipId: 'tpl_clip_title' as ClipId,
+			targetProperty: 'text.fontFamily',
+			defaultValue: 'Montserrat'
+		},
+		{
+			id: 'param_title_color',
+			name: 'Title Color',
+			type: 'color',
+			targetClipId: 'tpl_clip_title' as ClipId,
+			targetProperty: 'text.fill',
+			defaultValue: { r: 1, g: 1, b: 1, a: 1 }
+		},
+		{
+			id: 'param_subtitle_text',
+			name: 'Subtitle Text',
+			type: 'text',
+			targetClipId: 'tpl_clip_subtitle' as ClipId,
+			targetProperty: 'text.content',
+			defaultValue: 'ART DEPARTMENT ASSISTANT'
+		},
+		{
+			id: 'param_subtitle_color',
+			name: 'Subtitle Color',
+			type: 'color',
+			targetClipId: 'tpl_clip_subtitle' as ClipId,
+			targetProperty: 'text.fill',
+			defaultValue: { r: 1, g: 1, b: 1, a: 1 }
+		},
+		{
+			id: 'param_accent_color',
+			name: 'Accent Bar Color',
+			type: 'color',
+			targetClipId: 'tpl_clip_accent_bar' as ClipId,
+			targetProperty: 'shape.fill',
+			defaultValue: { r: 0.0, g: 0.82, b: 0.95, a: 1 }
+		},
+		{
+			id: 'param_wipe_color',
+			name: 'Wipe Block Color',
+			type: 'color',
+			targetClipId: 'tpl_clip_wipe_block' as ClipId,
+			targetProperty: 'shape.fill',
+			defaultValue: { r: 1, g: 1, b: 1, a: 1 }
+		}
+	];
+
+	return {
+		version: 1,
+		id: 'mixkit-minimal-wipe-lower-third',
+		name: 'Clean Minimal Wipe Lower Third',
+		category: 'Lower Thirds',
+		description:
+			'Clean modern lower third with cyan accent bar, smooth white block wipe reveal, and wide-tracked subtitle inspired by Mixkit 312',
+		author: 'TheFreeVideoEditor',
+		createdAt: 1792312600000,
+		duration,
+		responsiveTiming: {
+			introDuration: 1_400_000,
+			outroDuration: 1_200_000
+		},
+		bounds: {
+			width: 1100,
+			height: 180,
+			originX: -340,
+			originY: 280
+		},
+		tracks,
+		publishedParams
+	};
+}
+
 

@@ -108,13 +108,27 @@ export const textStyleSchema = z.object({
 	letterSpacing: z.number().optional()
 });
 
+export const textColorRunSchema = z.object({
+	startIndex: z.number().int().nonnegative(),
+	endIndex: z.number().int().nonnegative(),
+	fillColor: colorSchema.optional(),
+	strokeColor: colorSchema.optional()
+});
+
 export const textBoxSchema = z.object({
 	width: z.number().positive().optional(),
 	height: z.number().positive().optional(),
 	autoSize: z.boolean().optional(),
 	verticalAnchor: z.enum(['top', 'center', 'bottom']).optional(),
 	paddingX: z.number().nonnegative().optional(),
-	paddingY: z.number().nonnegative().optional()
+	paddingY: z.number().nonnegative().optional(),
+	frameStyle: z.string().optional(),
+	badgeText: z.string().optional(),
+	borderColor: colorSchema.optional(),
+	borderWidth: z.number().nonnegative().optional(),
+	borderRadius: z.number().nonnegative().optional(),
+	accentBarColor: colorSchema.optional(),
+	accentBarWidth: z.number().nonnegative().optional()
 });
 
 export const clipSourceSchema = z.discriminatedUnion('type', [
@@ -123,7 +137,10 @@ export const clipSourceSchema = z.discriminatedUnion('type', [
 		type: z.literal('text'),
 		text: z.string(),
 		style: textStyleSchema.optional(),
-		box: textBoxSchema.optional()
+		box: textBoxSchema.optional(),
+		colorRuns: z.array(textColorRunSchema).optional(),
+		graphicTemplateId: z.string().optional(),
+		animationPresetId: z.string().optional()
 	}),
 	z.object({
 		type: z.literal('sequence'),

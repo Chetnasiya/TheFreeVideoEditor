@@ -3,21 +3,21 @@
   "tfve_type": "motion_template",
   "version": 1,
   "id": "documentary-speaker-card",
-  "name": "Documentary Speaker Title",
-  "category": "Lower Thirds",
-  "description": "Refined serif typography with delicate gold divider for high-end film and docuseries",
+  "name": "Documentary Elegant Card",
+  "category": "Titles",
+  "description": "Glass-morphism lower third card with smooth slide-in-left for documentaries and interviews",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586931,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
-    "introDuration": 800000,
-    "outroDuration": 500000
+    "introDuration": 600000,
+    "outroDuration": 450000
   },
   "bounds": {
-    "width": 666,
-    "height": 286,
-    "originX": -220,
-    "originY": 330
+    "width": 1012,
+    "height": 206,
+    "originX": -122,
+    "originY": 0
   },
   "tracks": [
     {
@@ -39,40 +39,31 @@
           "source": {
             "type": "shape",
             "shapeType": "rect",
-            "width": 600,
-            "height": 230,
-            "cornerRadius": 4,
+            "width": 660,
+            "height": 110,
+            "cornerRadius": 10,
             "fillColor": {
-              "r": 0,
-              "g": 0,
-              "b": 0,
-              "a": 0
+              "r": 0.06,
+              "g": 0.09,
+              "b": 0.16,
+              "a": 0.85
             },
             "strokeColor": {
-              "r": 0.92,
-              "g": 0.78,
-              "b": 0.45,
+              "r": 0,
+              "g": 0.82,
+              "b": 0.95,
               "a": 1
             },
-            "strokeWidth": 2.5
+            "strokeWidth": 1.5
           },
           "properties": {
             "position": {
-              "value": [
-                0,
-                0
-              ]
-            },
-            "rotation": {
-              "value": 0
-            },
-            "scale": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": [
-                    0.95,
-                    0.95
+                    -128,
+                    0
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
@@ -85,14 +76,17 @@
                   }
                 },
                 {
-                  "time": 900000,
+                  "time": 600000,
                   "value": [
-                    1.03,
-                    1.03
+                    122,
+                    0
                   ],
                   "interpolation": "linear"
                 }
               ]
+            },
+            "rotation": {
+              "value": 0
             },
             "opacity": {
               "keyframes": [
@@ -102,7 +96,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 650000,
+                  "time": 300000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -141,113 +135,33 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "DR. ELENA ROSTOVA\nProfessor of Astrophysics",
+            "text": "DR. ELENA VANCE\nCHIEF RESEARCH SCIENTIST",
             "style": {
-              "fontFamily": "Playfair Display",
+              "fontFamily": "Inter",
               "fontWeight": "700",
               "alignment": "left",
-              "letterSpacing": 2
+              "letterSpacing": 1.5
             },
             "box": {
               "autoSize": true,
-              "verticalAnchor": "bottom",
-              "paddingX": 26,
+              "verticalAnchor": "center",
+              "paddingX": 28,
               "paddingY": 16,
-              "frameStyle": "divided-box",
-              "badgeText": "Professor of Astrophysics"
+              "frameStyle": "lower-third-glass",
+              "badgeText": "CHIEF RESEARCH SCIENTIST"
             },
             "colorRuns": [],
             "graphicTemplateId": "documentary-speaker-card",
-            "animationPresetId": "cinematic-reveal"
+            "animationPresetId": "slide-in-left"
           },
           "properties": {
             "position": {
-              "value": [
-                0,
-                0
-              ]
-            },
-            "text.fontSize": {
-              "value": 36
-            },
-            "text.fillColor": {
-              "value": [
-                0.96,
-                0.96,
-                0.96,
-                1
-              ]
-            },
-            "text.strokeWidth": {
-              "value": 0
-            },
-            "text.letterSpacing": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": 12,
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.16,
-                    "y": 1
-                  },
-                  "easeIn": {
-                    "x": 0.3,
-                    "y": 1
-                  }
-                },
-                {
-                  "time": 900000,
-                  "value": 3,
-                  "interpolation": "linear"
-                }
-              ]
-            },
-            "text.lineHeight": {
-              "value": 1.3
-            },
-            "text.boxBorderColor": {
-              "value": [
-                0.92,
-                0.78,
-                0.45,
-                0.9
-              ]
-            },
-            "text.boxBorderWidth": {
-              "value": 2
-            },
-            "opacity": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": 0,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 650000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 4500000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 5000000,
-                  "value": 0,
-                  "interpolation": "linear"
-                }
-              ]
-            },
-            "scale": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": [
-                    0.95,
-                    0.95
+                    -128,
+                    0
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
@@ -260,11 +174,52 @@
                   }
                 },
                 {
-                  "time": 900000,
+                  "time": 600000,
                   "value": [
-                    1.03,
-                    1.03
+                    122,
+                    0
                   ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "text.fontSize": {
+              "value": 50
+            },
+            "text.letterSpacing": {
+              "value": 1.5
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.lineHeight": {
+              "value": 1.25
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 300000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
                   "interpolation": "linear"
                 }
               ]
@@ -282,7 +237,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.content",
-      "defaultValue": "DR. ELENA ROSTOVA\nProfessor of Astrophysics"
+      "defaultValue": "DR. ELENA VANCE\nCHIEF RESEARCH SCIENTIST"
     },
     {
       "id": "param_font_family",
@@ -290,7 +245,7 @@
       "type": "font",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fontFamily",
-      "defaultValue": "Playfair Display"
+      "defaultValue": "Inter"
     },
     {
       "id": "param_text_color",
@@ -299,9 +254,9 @@
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fill",
       "defaultValue": {
-        "r": 0.96,
-        "g": 0.96,
-        "b": 0.96,
+        "r": 1,
+        "g": 1,
+        "b": 1,
         "a": 1
       }
     },
@@ -312,10 +267,10 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "shape.fill",
       "defaultValue": {
-        "r": 0,
-        "g": 0,
-        "b": 0,
-        "a": 0
+        "r": 0.06,
+        "g": 0.09,
+        "b": 0.16,
+        "a": 0.85
       }
     },
     {
@@ -325,9 +280,9 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "shape.stroke",
       "defaultValue": {
-        "r": 0.92,
-        "g": 0.78,
-        "b": 0.45,
+        "r": 0,
+        "g": 0.82,
+        "b": 0.95,
         "a": 1
       }
     }

@@ -26,7 +26,9 @@ import {
 	type GizmoState,
 	type Guide,
 	type Point,
-	type Project
+	type Project,
+	type PropertyId,
+	type PropertyValue
 } from '../../core';
 import { getTextDimensions } from '../../services/render/text/rasterizer';
 
@@ -229,6 +231,7 @@ export default function TransformGizmo({
 	// Interactive dragging session
 	const dragSession = useRef<{
 		handle: GizmoHandle;
+		sessionId: string;
 		startPointer: Point;
 		rectLeft: number;
 		rectTop: number;
@@ -249,8 +252,10 @@ export default function TransformGizmo({
 		e.preventDefault();
 		e.stopPropagation();
 
+		const sessionId = `gizmo-${Date.now()}-${Math.random()}`;
 		dragSession.current = {
 			handle,
+			sessionId,
 			startPointer: compPt,
 			rectLeft: rect.left,
 			rectTop: rect.top,
@@ -262,7 +267,7 @@ export default function TransformGizmo({
 
 	const handlePointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
 		if (!dragSession.current || !selectedClip) return;
-		const { handle, startPointer, rectLeft, rectTop, startState } = dragSession.current;
+		const { handle, sessionId, startPointer, rectLeft, rectTop, startState } = dragSession.current;
 
 		const currentCompPt: Point = {
 			x: (e.clientX - rectLeft) / monitorScale,
@@ -305,29 +310,28 @@ export default function TransformGizmo({
 			setActiveGuides([]);
 		}
 
-		// Apply partial values live
+		// Apply all updated transform properties atomically in a single history transaction
+		const updates: Array<{ propertyId: PropertyId; value: PropertyValue }> = [];
 		if (partial.position) {
-			store.getState().setProperty(selectedClip.id, 'position', partial.position, {
-				autoKey: true,
-				coalesce: true
-			});
+			updates.push({ propertyId: 'position', value: partial.position });
 		}
 		if (partial.scale) {
-			store.getState().setProperty(selectedClip.id, 'scale', partial.scale, {
-				autoKey: true,
-				coalesce: true
-			});
+			updates.push({ propertyId: 'scale', value: partial.scale });
 		}
 		if (partial.rotation !== undefined) {
-			store.getState().setProperty(selectedClip.id, 'rotation', partial.rotation, {
-				autoKey: true,
-				coalesce: true
-			});
+			updates.push({ propertyId: 'rotation', value: partial.rotation });
 		}
 		if (partial.anchor) {
-			store.getState().setProperty(selectedClip.id, 'anchor', partial.anchor, {
+			updates.push({ propertyId: 'anchor', value: partial.anchor });
+		}
+
+		if (updates.length > 0) {
+			store.getState().setProperties(selectedClip.id, updates, {
 				autoKey: true,
-				coalesce: true
+				coalesce: true,
+				mergeKey: `gizmo-drag:${selectedClip.id}:${sessionId}`,
+				coalesceWindowMs: 3600000,
+				label: `Transform ${selectedClip.source?.type === 'text' ? 'Text' : 'Layer'}`
 			});
 		}
 	};
@@ -357,7 +361,11 @@ export default function TransformGizmo({
 			store
 				.getState()
 				.setProperty(selectedClip.id, 'position', [position[0] + dx, position[1] + dy], {
-					autoKey: true
+					autoKey: true,
+					coalesce: true,
+					mergeKey: `nudge-position:${selectedClip.id}`,
+					coalesceWindowMs: 800,
+					label: 'Nudge position'
 				});
 		}
 	};

@@ -2,20 +2,20 @@
   "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
   "tfve_type": "motion_template",
   "version": 1,
-  "id": "modern-clean",
-  "name": "Modern & Clean",
+  "id": "typewriter-terminal",
+  "name": "Typewriter Terminal",
   "category": "Titles",
-  "description": "Minimalist editorial lockup with tracked tagline and bold center title",
+  "description": "Authentic character-by-character digital typewriter reveal for coding tutorials and tech intros",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586928,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
-    "introDuration": 800000,
+    "introDuration": 1500000,
     "outroDuration": 500000
   },
   "bounds": {
-    "width": 354,
-    "height": 150,
+    "width": 442,
+    "height": 196,
     "originX": 0,
     "originY": 0
   },
@@ -38,66 +38,51 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "CREATE WITH PASSION\nTHE FREE VIDEO EDITOR",
+            "text": "INITIALIZING SYSTEM...\nCORE ENGINE OPERATIONAL",
             "style": {
-              "fontFamily": "Montserrat",
-              "fontWeight": "bold",
+              "fontFamily": "Roboto Mono",
+              "fontWeight": "normal",
               "alignment": "center",
-              "letterSpacing": 3
+              "letterSpacing": 2
             },
             "box": {
               "autoSize": true,
               "verticalAnchor": "center",
-              "badgeText": "THE FREE VIDEO EDITOR"
+              "paddingX": 24,
+              "paddingY": 16,
+              "frameStyle": "none",
+              "badgeText": "CORE ENGINE OPERATIONAL"
             },
-            "colorRuns": [
-              {
-                "startIndex": 20,
-                "endIndex": 41,
-                "fillColor": {
-                  "r": 0.22,
-                  "g": 0.74,
-                  "b": 0.97,
-                  "a": 1
-                }
-              }
-            ],
-            "graphicTemplateId": "modern-clean",
-            "animationPresetId": "smooth-drift"
+            "colorRuns": [],
+            "graphicTemplateId": "typewriter-terminal",
+            "animationPresetId": "typewriter"
           },
           "properties": {
+            "position": {
+              "value": [
+                0,
+                0
+              ]
+            },
             "text.fontSize": {
-              "value": 48
+              "value": 52
+            },
+            "text.letterSpacing": {
+              "value": 2
             },
             "text.fillColor": {
               "value": [
-                1,
-                1,
-                1,
+                0.2,
+                0.95,
+                0.45,
                 1
               ]
-            },
-            "text.strokeWidth": {
-              "value": 0
-            },
-            "text.letterSpacing": {
-              "value": 3
             },
             "text.lineHeight": {
               "value": 1.3
             },
             "opacity": {
               "keyframes": [
-                {
-                  "time": 0,
-                  "value": 0,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 600000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
                 {
                   "time": 4500000,
                   "value": 1,
@@ -110,36 +95,22 @@
                 }
               ]
             },
-            "scale": {
+            "text.reveal": {
               "keyframes": [
                 {
                   "time": 0,
-                  "value": [
-                    0.95,
-                    0.95
-                  ],
+                  "value": 0,
                   "interpolation": "linear"
                 },
                 {
-                  "time": 800000,
-                  "value": [
-                    1.02,
-                    1.02
-                  ],
+                  "time": 1500000,
+                  "value": 1,
                   "interpolation": "linear"
                 }
               ]
             }
           },
-          "effects": [],
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scaleX": 1,
-            "scaleY": 1,
-            "rotation": 0,
-            "opacity": 1
-          }
+          "effects": []
         }
       ]
     }
@@ -151,7 +122,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_1",
       "targetProperty": "text.content",
-      "defaultValue": "CREATE WITH PASSION\nTHE FREE VIDEO EDITOR"
+      "defaultValue": "INITIALIZING SYSTEM...\nCORE ENGINE OPERATIONAL"
     },
     {
       "id": "param_font_family",
@@ -159,7 +130,7 @@
       "type": "font",
       "targetClipId": "tpl_clip_1",
       "targetProperty": "text.fontFamily",
-      "defaultValue": "Montserrat"
+      "defaultValue": "Roboto Mono"
     },
     {
       "id": "param_text_color",
@@ -168,9 +139,9 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "text.fill",
       "defaultValue": {
-        "r": 0.22,
-        "g": 0.74,
-        "b": 0.97,
+        "r": 0.2,
+        "g": 0.95,
+        "b": 0.45,
         "a": 1
       }
     }

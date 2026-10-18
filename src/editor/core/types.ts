@@ -184,6 +184,7 @@ export interface PublishedTemplateParam {
 		| 'text.fontSize'
 		| 'text.fill'
 		| 'text.stroke'
+		| 'text.accentBarColor'
 		| 'shape.fill'
 		| 'shape.stroke'
 		| 'shape.gradient'

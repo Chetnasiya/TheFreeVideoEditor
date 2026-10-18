@@ -752,7 +752,8 @@ export default function GraphicsPanel() {
 											type="button"
 											className="graphic-apply-btn"
 											onClick={() => {
-												const created = store.getState().addGraphicClip('trendy-typography-card');
+												const defaultId = GRAPHIC_TEMPLATES[0]?.id ?? 'mixkit-minimal-wipe-lower-third';
+												const created = store.getState().addGraphicClip(defaultId);
 												if (created) setActiveTab('editor');
 											}}
 										>
@@ -1268,7 +1269,8 @@ export default function GraphicsPanel() {
 										type="button"
 										className="graphics-create-btn"
 										onClick={() => {
-											const created = store.getState().addGraphicClip('trendy-typography-card');
+											const defaultId = GRAPHIC_TEMPLATES[0]?.id ?? 'mixkit-minimal-wipe-lower-third';
+											const created = store.getState().addGraphicClip(defaultId);
 											if (created) setActiveTab('editor');
 										}}
 									>

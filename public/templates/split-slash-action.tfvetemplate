@@ -2,22 +2,22 @@
   "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
   "tfve_type": "motion_template",
   "version": 1,
-  "id": "new-cubed-box",
-  "name": "New Cubed Box",
+  "id": "split-slash-action",
+  "name": "Dynamic Split Angle",
   "category": "Titles",
-  "description": "Solid white square card containing clean 3-line stacked black bold uppercase typography",
+  "description": "High-velocity horizontal slash with angular snap for sports, fitness, and energetic reels",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586927,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
-    "introDuration": 550000,
-    "outroDuration": 400000
+    "introDuration": 500000,
+    "outroDuration": 450000
   },
   "bounds": {
-    "width": 700,
-    "height": 506,
-    "originX": 0,
-    "originY": -95
+    "width": 826,
+    "height": 218,
+    "originX": -90,
+    "originY": 0
   },
   "tracks": [
     {
@@ -39,13 +39,13 @@
           "source": {
             "type": "shape",
             "shapeType": "rect",
-            "width": 620,
-            "height": 250,
-            "cornerRadius": 16,
+            "width": 560,
+            "height": 5,
+            "cornerRadius": 3,
             "fillColor": {
               "r": 1,
-              "g": 1,
-              "b": 1,
+              "g": 0.28,
+              "b": 0.12,
               "a": 1
             },
             "strokeWidth": 0
@@ -56,24 +56,8 @@
                 {
                   "time": 0,
                   "value": [
-                    0,
-                    -85
-                  ],
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.34,
-                    "y": 1.56
-                  },
-                  "easeIn": {
-                    "x": 0.64,
-                    "y": 1
-                  }
-                },
-                {
-                  "time": 420000,
-                  "value": [
-                    0,
-                    110
+                    -90,
+                    0
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
@@ -86,45 +70,17 @@
                   }
                 },
                 {
-                  "time": 600000,
+                  "time": 500000,
                   "value": [
-                    0,
-                    95
+                    90,
+                    0
                   ],
                   "interpolation": "linear"
                 }
               ]
             },
             "rotation": {
-              "value": 0
-            },
-            "scale": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": [
-                    0.85,
-                    1.15
-                  ],
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 420000,
-                  "value": [
-                    1.05,
-                    0.95
-                  ],
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 600000,
-                  "value": [
-                    1,
-                    1
-                  ],
-                  "interpolation": "linear"
-                }
-              ]
+              "value": -12
             },
             "opacity": {
               "keyframes": [
@@ -134,7 +90,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 200000,
+                  "time": 250000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -173,64 +129,71 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "NEW\nNEW\nNEW",
+            "text": "BREAKING LIMITS\nTHE ULTIMATE PERFORMANCE",
             "style": {
-              "fontFamily": "Montserrat",
-              "fontWeight": "900",
+              "fontFamily": "Bebas Neue",
+              "fontWeight": "bold",
+              "fontStyle": "italic",
               "alignment": "center",
-              "letterSpacing": 3
+              "letterSpacing": 2
             },
             "box": {
-              "width": 280,
-              "height": 280,
-              "autoSize": false,
-              "paddingX": 32,
-              "paddingY": 32,
+              "autoSize": true,
               "verticalAnchor": "center",
-              "frameStyle": "card",
-              "badgeText": "NEW"
+              "paddingX": 32,
+              "paddingY": 18,
+              "frameStyle": "split-slash",
+              "badgeText": "THE ULTIMATE PERFORMANCE"
             },
             "colorRuns": [],
-            "graphicTemplateId": "new-cubed-box",
-            "animationPresetId": "bounce-in"
+            "graphicTemplateId": "split-slash-action",
+            "animationPresetId": "split-slide"
           },
           "properties": {
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    -90,
+                    0
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 500000,
+                  "value": [
+                    90,
+                    0
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
             "text.fontSize": {
-              "value": 56
+              "value": 62
+            },
+            "text.letterSpacing": {
+              "value": 2
             },
             "text.fillColor": {
               "value": [
-                0.06,
-                0.06,
-                0.08,
-                1
-              ]
-            },
-            "text.strokeWidth": {
-              "value": 0
-            },
-            "text.backgroundBoxColor": {
-              "value": [
                 1,
                 1,
                 1,
                 1
               ]
-            },
-            "text.backgroundBoxRadius": {
-              "value": 2
-            },
-            "text.backgroundBoxPadding": {
-              "value": 32
-            },
-            "text.letterSpacing": {
-              "value": 3
             },
             "text.lineHeight": {
-              "value": 1.05
-            },
-            "text.reveal": {
-              "value": 1
+              "value": 1.2
             },
             "opacity": {
               "keyframes": [
@@ -240,7 +203,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 200000,
+                  "time": 250000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -256,74 +219,16 @@
                 }
               ]
             },
-            "position": {
+            "rotation": {
               "keyframes": [
                 {
                   "time": 0,
-                  "value": [
-                    0,
-                    -85
-                  ],
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.34,
-                    "y": 1.56
-                  },
-                  "easeIn": {
-                    "x": 0.64,
-                    "y": 1
-                  }
+                  "value": -3,
+                  "interpolation": "bezier"
                 },
                 {
-                  "time": 420000,
-                  "value": [
-                    0,
-                    110
-                  ],
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.25,
-                    "y": 0.1
-                  },
-                  "easeIn": {
-                    "x": 0.25,
-                    "y": 1
-                  }
-                },
-                {
-                  "time": 600000,
-                  "value": [
-                    0,
-                    95
-                  ],
-                  "interpolation": "linear"
-                }
-              ]
-            },
-            "scale": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": [
-                    0.85,
-                    1.15
-                  ],
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 420000,
-                  "value": [
-                    1.05,
-                    0.95
-                  ],
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 600000,
-                  "value": [
-                    1,
-                    1
-                  ],
+                  "time": 500000,
+                  "value": 0,
                   "interpolation": "linear"
                 }
               ]
@@ -341,7 +246,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.content",
-      "defaultValue": "NEW\nNEW\nNEW"
+      "defaultValue": "BREAKING LIMITS\nTHE ULTIMATE PERFORMANCE"
     },
     {
       "id": "param_font_family",
@@ -349,7 +254,7 @@
       "type": "font",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fontFamily",
-      "defaultValue": "Montserrat"
+      "defaultValue": "Bebas Neue"
     },
     {
       "id": "param_text_color",
@@ -358,9 +263,9 @@
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fill",
       "defaultValue": {
-        "r": 0.06,
-        "g": 0.06,
-        "b": 0.08,
+        "r": 1,
+        "g": 1,
+        "b": 1,
         "a": 1
       }
     },
@@ -372,8 +277,8 @@
       "targetProperty": "shape.fill",
       "defaultValue": {
         "r": 1,
-        "g": 1,
-        "b": 1,
+        "g": 0.28,
+        "b": 0.12,
         "a": 1
       }
     }

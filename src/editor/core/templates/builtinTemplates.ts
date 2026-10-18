@@ -2,7 +2,7 @@ import type { MotionGraphicTemplate, TemplateCategory } from './templateTypes';
 import { convertAllGraphicTemplates } from './templateConverter';
 
 /**
- * All 34 curated built-in templates converted into full Motion Graphic Templates (.tfvetemplate).
+ * Built-in Motion Graphic Templates (.tfvetemplate).
  */
 export const BUILTIN_MOTION_TEMPLATES: MotionGraphicTemplate[] = convertAllGraphicTemplates();
 

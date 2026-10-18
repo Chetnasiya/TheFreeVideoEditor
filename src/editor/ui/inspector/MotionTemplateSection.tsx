@@ -2,6 +2,7 @@ import { useEditorStoreApi } from '../../state/EditorProvider';
 import type { Clip } from '../../core/types';
 import { ColorPickerField } from './ColorPickerField';
 import type { PublishedTemplateParam } from '../../core/templates/templateTypes';
+import { ensureFontLoaded } from '../../services/render/text/fontLoader';
 import './motionTemplateSection.css';
 
 interface MotionTemplateSectionProps {
@@ -12,12 +13,20 @@ const COMMON_FONTS = [
 	'Montserrat',
 	'Inter',
 	'Roboto',
-	'Arial',
-	'Oswald',
+	'Roboto Mono',
 	'Playfair Display',
 	'Bebas Neue',
-	'Pacifico',
+	'Caveat',
+	'Poppins',
+	'Oswald',
+	'Anton',
 	'Cinzel',
+	'Bodoni Moda',
+	'Pacifico',
+	'Lobster',
+	'Fira Code',
+	'JetBrains Mono',
+	'Arial',
 	'Courier New'
 ];
 
@@ -109,15 +118,23 @@ export function MotionTemplateSection({ clip }: MotionTemplateSectionProps) {
 						}
 
 						if (param.type === 'font') {
+							const currentFont = String(currentValue ?? param.defaultValue ?? 'Montserrat');
+							const fontList = COMMON_FONTS.includes(currentFont)
+								? COMMON_FONTS
+								: [currentFont, ...COMMON_FONTS];
+
 							return (
 								<div key={param.id} className="motion-template-field">
 									<label className="motion-template-label">{param.name}</label>
 									<select
 										className="motion-template-select"
-										value={String(currentValue ?? 'Montserrat')}
-										onChange={(e) => handleParamChange(param.id, e.target.value)}
+										value={currentFont}
+										onChange={(e) => {
+											handleParamChange(param.id, e.target.value);
+											void ensureFontLoaded(e.target.value);
+										}}
 									>
-										{COMMON_FONTS.map((font) => (
+										{fontList.map((font) => (
 											<option key={font} value={font} style={{ fontFamily: font }}>
 												{font}
 											</option>

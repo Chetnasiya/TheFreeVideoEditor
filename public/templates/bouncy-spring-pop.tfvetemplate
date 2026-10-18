@@ -2,22 +2,22 @@
   "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
   "tfve_type": "motion_template",
   "version": 1,
-  "id": "universal-slanted-box",
-  "name": "Universal Slanted Box",
-  "category": "Kinetic",
-  "description": "Slanted / rotated -8° rectangular outline border enclosing bold uppercase typography",
+  "id": "bouncy-spring-pop",
+  "name": "Bouncy Pop Headline",
+  "category": "Titles",
+  "description": "Energetic spring drop with squash and stretch settling for YouTube vlogs and social videos",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586928,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
-    "introDuration": 450000,
+    "introDuration": 600000,
     "outroDuration": 400000
   },
   "bounds": {
-    "width": 828,
-    "height": 278,
-    "originX": -90,
-    "originY": 0
+    "width": 748,
+    "height": 554,
+    "originX": 0,
+    "originY": -95
   },
   "tracks": [
     {
@@ -39,22 +39,16 @@
           "source": {
             "type": "shape",
             "shapeType": "rect",
-            "width": 600,
-            "height": 230,
-            "cornerRadius": 4,
+            "width": 620,
+            "height": 250,
+            "cornerRadius": 16,
             "fillColor": {
-              "r": 0,
-              "g": 0,
-              "b": 0,
-              "a": 0
-            },
-            "strokeColor": {
               "r": 1,
-              "g": 1,
-              "b": 1,
+              "g": 0.84,
+              "b": 0.15,
               "a": 1
             },
-            "strokeWidth": 2.5
+            "strokeWidth": 0
           },
           "properties": {
             "position": {
@@ -62,8 +56,24 @@
                 {
                   "time": 0,
                   "value": [
-                    -90,
-                    0
+                    0,
+                    -85
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.34,
+                    "y": 1.56
+                  },
+                  "easeIn": {
+                    "x": 0.64,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 420000,
+                  "value": [
+                    0,
+                    110
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
@@ -76,10 +86,10 @@
                   }
                 },
                 {
-                  "time": 500000,
+                  "time": 600000,
                   "value": [
-                    90,
-                    0
+                    0,
+                    95
                   ],
                   "interpolation": "linear"
                 }
@@ -87,6 +97,34 @@
             },
             "rotation": {
               "value": 0
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0.85,
+                    1.15
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 420000,
+                  "value": [
+                    1.05,
+                    0.95
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    1,
+                    1
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
             },
             "opacity": {
               "keyframes": [
@@ -96,7 +134,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 250000,
+                  "time": 200000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -135,69 +173,94 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "UNIVERSAL",
+            "text": "NEW EPISODE!\nWATCH UNTIL THE VERY END",
             "style": {
               "fontFamily": "Montserrat",
               "fontWeight": "900",
               "alignment": "center",
-              "letterSpacing": 3
+              "letterSpacing": 1
             },
             "box": {
               "autoSize": true,
-              "paddingX": 34,
-              "paddingY": 16,
               "verticalAnchor": "center",
-              "frameStyle": "frame"
+              "paddingX": 36,
+              "paddingY": 20,
+              "frameStyle": "card",
+              "badgeText": "WATCH UNTIL THE VERY END"
             },
             "colorRuns": [],
-            "graphicTemplateId": "universal-slanted-box",
-            "animationPresetId": "split-slide"
+            "graphicTemplateId": "bouncy-spring-pop",
+            "animationPresetId": "bounce-in"
           },
           "properties": {
-            "text.fontSize": {
-              "value": 54
-            },
-            "text.fillColor": {
-              "value": [
-                1,
-                1,
-                1,
-                1
-              ]
-            },
-            "text.boxBorderColor": {
-              "value": [
-                1,
-                1,
-                1,
-                1
-              ]
-            },
-            "text.boxBorderWidth": {
-              "value": 4
-            },
-            "text.letterSpacing": {
-              "value": 3
-            },
-            "text.lineHeight": {
-              "value": 1.1
-            },
-            "rotation": {
+            "position": {
               "keyframes": [
                 {
                   "time": 0,
-                  "value": -3,
-                  "interpolation": "bezier"
+                  "value": [
+                    0,
+                    -85
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.34,
+                    "y": 1.56
+                  },
+                  "easeIn": {
+                    "x": 0.64,
+                    "y": 1
+                  }
                 },
                 {
-                  "time": 500000,
-                  "value": 0,
+                  "time": 420000,
+                  "value": [
+                    0,
+                    110
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    0,
+                    95
+                  ],
                   "interpolation": "linear"
                 }
               ]
             },
-            "text.reveal": {
+            "text.fontSize": {
+              "value": 64
+            },
+            "text.letterSpacing": {
               "value": 1
+            },
+            "text.fillColor": {
+              "value": [
+                0.1,
+                0.1,
+                0.14,
+                1
+              ]
+            },
+            "text.backgroundBoxColor": {
+              "value": [
+                1,
+                0.84,
+                0.15,
+                1
+              ]
+            },
+            "text.lineHeight": {
+              "value": 1.2
             },
             "opacity": {
               "keyframes": [
@@ -207,7 +270,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 250000,
+                  "time": 200000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -223,29 +286,29 @@
                 }
               ]
             },
-            "position": {
+            "scale": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": [
-                    -90,
-                    0
+                    0.85,
+                    1.15
                   ],
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.25,
-                    "y": 0.1
-                  },
-                  "easeIn": {
-                    "x": 0.25,
-                    "y": 1
-                  }
+                  "interpolation": "linear"
                 },
                 {
-                  "time": 500000,
+                  "time": 420000,
                   "value": [
-                    90,
-                    0
+                    1.05,
+                    0.95
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    1,
+                    1
                   ],
                   "interpolation": "linear"
                 }
@@ -264,7 +327,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.content",
-      "defaultValue": "UNIVERSAL"
+      "defaultValue": "NEW EPISODE!\nWATCH UNTIL THE VERY END"
     },
     {
       "id": "param_font_family",
@@ -281,9 +344,9 @@
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fill",
       "defaultValue": {
-        "r": 1,
-        "g": 1,
-        "b": 1,
+        "r": 0.1,
+        "g": 0.1,
+        "b": 0.14,
         "a": 1
       }
     },
@@ -294,22 +357,9 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "shape.fill",
       "defaultValue": {
-        "r": 0,
-        "g": 0,
-        "b": 0,
-        "a": 0
-      }
-    },
-    {
-      "id": "param_shape_stroke",
-      "name": "Border Color",
-      "type": "color",
-      "targetClipId": "tpl_clip_1",
-      "targetProperty": "shape.stroke",
-      "defaultValue": {
         "r": 1,
-        "g": 1,
-        "b": 1,
+        "g": 0.84,
+        "b": 0.15,
         "a": 1
       }
     }

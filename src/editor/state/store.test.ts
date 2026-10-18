@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createEmptyProject } from '../core';
+import { createEmptyProject, readProperty } from '../core';
 import type { AssetId, ClipId, DragPosition, ProjectId, ProjectSummary } from '../core';
 import { registerProjectExport } from '../services/export/session';
 import { createEditorStore } from './store';
@@ -1027,5 +1027,63 @@ LUT_3D_SIZE 2
 		expect(curve?.keyframes[1].easeIn).toEqual({ x: 0.4, y: 0.8 });
 		expect(curve?.keyframes[1].easeOut).toEqual({ x: 0.6, y: 0.2 });
 	});
+
+	it('coalesces multi-property resize drags and reverts them in a single undo', async () => {
+		const store = createEditorStore();
+		await store.getState().createProject({ name: 'Gizmo Coalesce Test' });
+
+		const textClipId = store.getState().addTextClip({ text: 'Resize Me' })!;
+		expect(textClipId).toBeTruthy();
+
+		const getClip = () =>
+			store
+				.getState()
+				.project?.tracks.flatMap((t) => t.clips)
+				.find((c) => c.id === textClipId);
+
+		const initialScale = readProperty(getClip()!, 'scale', 0);
+		const initialPos = readProperty(getClip()!, 'position', 0);
+		expect(initialScale).toEqual([1, 1]);
+		expect(initialPos).toEqual([0, 0]);
+
+		const historySizeBeforeDrag = store.getState().history.size;
+
+		// Simulate gizmo drag updates: 10 pointer move updates with combined scale and position
+		const sessionId = 'test-drag-session-1';
+		for (let i = 1; i <= 10; i++) {
+			store.getState().setProperties(
+				textClipId,
+				[
+					{ propertyId: 'scale', value: [1 + i * 0.1, 1 + i * 0.1] },
+					{ propertyId: 'position', value: [i * 5, i * 2] }
+				],
+				{
+					coalesce: true,
+					mergeKey: `gizmo-drag:${textClipId}:${sessionId}`,
+					coalesceWindowMs: 3600000
+				}
+			);
+		}
+
+		// Only 1 history entry should have been recorded for the entire drag sequence
+		expect(store.getState().history.size).toBe(historySizeBeforeDrag + 1);
+
+		// Verify final drag state
+		expect(readProperty(getClip()!, 'scale', 0)).toEqual([2, 2]);
+		expect(readProperty(getClip()!, 'position', 0)).toEqual([50, 20]);
+
+		// Single undo should revert the entire drag sequence back to initial values!
+		expect(store.getState().undo()).toBe(true);
+		expect(store.getState().history.size).toBe(historySizeBeforeDrag);
+		expect(readProperty(getClip()!, 'scale', 0)).toEqual(initialScale);
+		expect(readProperty(getClip()!, 'position', 0)).toEqual(initialPos);
+
+		// Redo should restore to the final drag state in a single step
+		expect(store.getState().redo()).toBe(true);
+		expect(store.getState().history.size).toBe(historySizeBeforeDrag + 1);
+		expect(readProperty(getClip()!, 'scale', 0)).toEqual([2, 2]);
+		expect(readProperty(getClip()!, 'position', 0)).toEqual([50, 20]);
+	});
 });
+
 

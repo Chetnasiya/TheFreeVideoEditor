@@ -2,20 +2,20 @@
   "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
   "tfve_type": "motion_template",
   "version": 1,
-  "id": "new-trend-italic-slash",
-  "name": "Italic Kinetic Lockup",
-  "category": "Kinetic",
-  "description": "Dynamic angled upward italic kinetic lockup with alternating outline and solid typography",
+  "id": "circle-crest-seal",
+  "name": "Circular Crest Emblem",
+  "category": "Titles",
+  "description": "Regal circular crest outline badge with smooth pop-in for podcasts, luxury, and creator brands",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586928,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
-    "introDuration": 450000,
-    "outroDuration": 400000
+    "introDuration": 500000,
+    "outroDuration": 450000
   },
   "bounds": {
-    "width": 642,
-    "height": 222,
+    "width": 496,
+    "height": 496,
     "originX": 0,
     "originY": 0
   },
@@ -38,17 +38,23 @@
           "volume": 0,
           "source": {
             "type": "shape",
-            "shapeType": "rect",
-            "width": 560,
-            "height": 5,
-            "cornerRadius": 3,
+            "shapeType": "circle",
+            "width": 380,
+            "height": 380,
+            "cornerRadius": 12,
             "fillColor": {
-              "r": 1,
-              "g": 1,
-              "b": 1,
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "strokeColor": {
+              "r": 0.88,
+              "g": 0.74,
+              "b": 0.38,
               "a": 1
             },
-            "strokeWidth": 0
+            "strokeWidth": 3
           },
           "properties": {
             "position": {
@@ -58,31 +64,31 @@
               ]
             },
             "rotation": {
-              "value": -12
+              "value": 0
             },
             "scale": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": [
-                    0.3,
-                    0.3
+                    0.6,
+                    0.6
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
-                    "x": 0.16,
-                    "y": 1
+                    "x": 0.34,
+                    "y": 1.56
                   },
                   "easeIn": {
-                    "x": 0.3,
+                    "x": 0.64,
                     "y": 1
                   }
                 },
                 {
-                  "time": 320000,
+                  "time": 350000,
                   "value": [
-                    1.08,
-                    1.08
+                    1.05,
+                    1.05
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
@@ -95,7 +101,7 @@
                   }
                 },
                 {
-                  "time": 450000,
+                  "time": 500000,
                   "value": [
                     1,
                     1
@@ -112,7 +118,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 180000,
+                  "time": 200000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -151,29 +157,37 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "NEW TREND\nTREND NEW",
+            "text": "EST. 2026\nMASTERCLASS SERIES",
             "style": {
-              "fontFamily": "Montserrat",
-              "fontWeight": "900",
-              "fontStyle": "italic",
+              "fontFamily": "Playfair Display",
+              "fontWeight": "700",
               "alignment": "center",
-              "letterSpacing": 2
+              "letterSpacing": 3
             },
             "box": {
               "autoSize": true,
-              "paddingX": 32,
-              "paddingY": 20,
               "verticalAnchor": "center",
-              "frameStyle": "split-slash",
-              "badgeText": "TREND NEW"
+              "paddingX": 44,
+              "paddingY": 44,
+              "frameStyle": "circle",
+              "badgeText": "MASTERCLASS SERIES"
             },
             "colorRuns": [],
-            "graphicTemplateId": "new-trend-italic-slash",
-            "animationPresetId": "kinetic-zoom"
+            "graphicTemplateId": "circle-crest-seal",
+            "animationPresetId": "pop-in"
           },
           "properties": {
+            "position": {
+              "value": [
+                0,
+                0
+              ]
+            },
             "text.fontSize": {
-              "value": 56
+              "value": 46
+            },
+            "text.letterSpacing": {
+              "value": 3
             },
             "text.fillColor": {
               "value": [
@@ -183,28 +197,8 @@
                 1
               ]
             },
-            "text.strokeColor": {
-              "value": [
-                1,
-                1,
-                1,
-                0.85
-              ]
-            },
-            "text.strokeWidth": {
-              "value": 2
-            },
-            "text.letterSpacing": {
-              "value": 2
-            },
             "text.lineHeight": {
-              "value": 1.15
-            },
-            "rotation": {
-              "value": -12
-            },
-            "text.reveal": {
-              "value": 1
+              "value": 1.3
             },
             "opacity": {
               "keyframes": [
@@ -214,7 +208,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 180000,
+                  "time": 200000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -235,24 +229,24 @@
                 {
                   "time": 0,
                   "value": [
-                    0.3,
-                    0.3
+                    0.6,
+                    0.6
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
-                    "x": 0.16,
-                    "y": 1
+                    "x": 0.34,
+                    "y": 1.56
                   },
                   "easeIn": {
-                    "x": 0.3,
+                    "x": 0.64,
                     "y": 1
                   }
                 },
                 {
-                  "time": 320000,
+                  "time": 350000,
                   "value": [
-                    1.08,
-                    1.08
+                    1.05,
+                    1.05
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
@@ -265,7 +259,7 @@
                   }
                 },
                 {
-                  "time": 450000,
+                  "time": 500000,
                   "value": [
                     1,
                     1
@@ -275,15 +269,7 @@
               ]
             }
           },
-          "effects": [],
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scaleX": 1,
-            "scaleY": 1,
-            "rotation": 0,
-            "opacity": 1
-          }
+          "effects": []
         }
       ]
     }
@@ -295,7 +281,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.content",
-      "defaultValue": "NEW TREND\nTREND NEW"
+      "defaultValue": "EST. 2026\nMASTERCLASS SERIES"
     },
     {
       "id": "param_font_family",
@@ -303,7 +289,7 @@
       "type": "font",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fontFamily",
-      "defaultValue": "Montserrat"
+      "defaultValue": "Playfair Display"
     },
     {
       "id": "param_text_color",
@@ -325,9 +311,22 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "shape.fill",
       "defaultValue": {
-        "r": 1,
-        "g": 1,
-        "b": 1,
+        "r": 0,
+        "g": 0,
+        "b": 0,
+        "a": 0
+      }
+    },
+    {
+      "id": "param_shape_stroke",
+      "name": "Border Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "shape.stroke",
+      "defaultValue": {
+        "r": 0.88,
+        "g": 0.74,
+        "b": 0.38,
         "a": 1
       }
     }

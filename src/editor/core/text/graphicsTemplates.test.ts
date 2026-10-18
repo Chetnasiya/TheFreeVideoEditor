@@ -12,48 +12,16 @@ import { createEditorStore } from '../../state/store';
 import { createEmptyProject } from '../factory';
 
 describe('Graphic Motion Templates & Kinetic Typography', () => {
-	it('defines 34 curated graphic templates with valid metadata, colors, and frame styles', () => {
-		expect(GRAPHIC_TEMPLATES.length).toBe(34);
+	it('defines curated graphic templates with valid metadata, colors, and frame styles', () => {
+		expect(GRAPHIC_TEMPLATES.length).toBe(13);
 
 		const categories = new Set(GRAPHIC_TEMPLATES.map((t) => t.category));
-		expect(categories.has('kinetic')).toBe(true);
 		expect(categories.has('lower-third')).toBe(true);
 		expect(categories.has('titles')).toBe(true);
-		expect(categories.has('callouts')).toBe(true);
-		expect(categories.has('minimal')).toBe(true);
-		expect(categories.has('badge')).toBe(true);
-		expect(categories.has('neon')).toBe(true);
-		expect(categories.has('social')).toBe(true);
 
-		// Verify image-exact template IDs
 		const ids = new Set(GRAPHIC_TEMPLATES.map((t) => t.id));
-		expect(ids.has('trendy-typography-card')).toBe(true);
-		expect(ids.has('modern-title-split')).toBe(true);
-		expect(ids.has('run-wild-side')).toBe(true);
-		expect(ids.has('tutorial-video-badge')).toBe(true);
-		expect(ids.has('new-trend-diagonal-repeat')).toBe(true);
-		expect(ids.has('new-cubed-box')).toBe(true);
-		expect(ids.has('circular-titles-4k')).toBe(true);
-		expect(ids.has('kinetic-typography-bar')).toBe(true);
-		expect(ids.has('stylish-boxed-frame')).toBe(true);
-		expect(ids.has('trends-af-circle')).toBe(true);
-		expect(ids.has('universal-slanted-box')).toBe(true);
-		expect(ids.has('new-trend-italic-slash')).toBe(true);
-		expect(ids.has('typography-titles-multiline')).toBe(true);
-		// Verify professional lower thirds, titles, and callouts
-		expect(ids.has('broadcast-news-lower-third')).toBe(true);
-		expect(ids.has('minimal-creator-tag')).toBe(true);
-		expect(ids.has('glass-streamer-badge')).toBe(true);
-		expect(ids.has('documentary-speaker-card')).toBe(true);
-		expect(ids.has('blockbuster-trailer')).toBe(true);
-		expect(ids.has('editorial-serif-title')).toBe(true);
-		expect(ids.has('cyberpunk-glitch-title')).toBe(true);
-		expect(ids.has('youtube-subscribe-bell')).toBe(true);
-		expect(ids.has('reels-hook-headline')).toBe(true);
-		expect(ids.has('pointer-feature-callout')).toBe(true);
-		expect(ids.has('verified-pill-badge')).toBe(true);
-		expect(ids.has('kinetic-bold-punch')).toBe(true);
-		expect(ids.has('kinetic-stagger-stack')).toBe(true);
+		expect(ids.has('mixkit-minimal-wipe-lower-third')).toBe(true);
+		expect(ids.has('cinematic-blockbuster')).toBe(true);
 
 		for (const tpl of GRAPHIC_TEMPLATES) {
 			expect(tpl.id).toBeTruthy();
@@ -77,67 +45,45 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 	});
 
 	it('creates a motion graphic clip with template styles and animated properties', () => {
-		const tpl = getGraphicTemplate('dream-big');
+		const tpl = getGraphicTemplate('mixkit-minimal-wipe-lower-third');
 		expect(tpl).toBeDefined();
 		if (!tpl) return;
 
-		const clip = createGraphicClip('dream-big', 1_000_000, 4_000_000);
+		const clip = createGraphicClip('mixkit-minimal-wipe-lower-third', 1_000_000, 4_000_000);
 		expect(clip.start).toBe(1_000_000);
 		expect(clip.duration).toBe(4_000_000);
 		expect(clip.source?.type).toBe('text');
 
 		if (clip.source?.type === 'text') {
 			expect(clip.source.text).toBe(tpl.defaultText);
-			expect(clip.source.graphicTemplateId).toBe('dream-big');
-			expect(clip.source.colorRuns?.length).toBeGreaterThan(0);
-		}
-
-		// Check animated position from slide-in-up preset
-		const posProp = clip.properties?.['position'];
-		expect(posProp).toBeDefined();
-		expect('keyframes' in posProp!).toBe(true);
-
-		if (posProp && 'keyframes' in posProp) {
-			const startPos = evaluate(posProp, 0) as [number, number];
-			expect(startPos[1]).toBeCloseTo(150, 1);
-		}
-
-		// Also check kinetic-zoom on imagine-real
-		const zoomClip = createGraphicClip('imagine-real', 0, 4_000_000);
-		const scaleProp = zoomClip.properties?.['scale'];
-		expect(scaleProp).toBeDefined();
-		if (scaleProp && 'keyframes' in scaleProp) {
-			const startScale = evaluate(scaleProp, 0) as [number, number];
-			expect(startScale[0]).toBeCloseTo(0.3, 1);
+			expect(clip.source.graphicTemplateId).toBe('mixkit-minimal-wipe-lower-third');
+			expect(clip.source.box?.frameStyle).toBe('accent-bar');
+			expect(clip.source.box?.accentBarColor).toEqual(tpl.box.accentBarColor);
 		}
 	});
 
 	it('computes color runs for highlighted accent words', () => {
-		const tpl = getGraphicTemplate('dream-big');
-		expect(tpl).toBeDefined();
-		if (!tpl) return;
+		const mockTpl = {
+			...getGraphicTemplate('mixkit-minimal-wipe-lower-third')!,
+			highlightWord: 'MATT TYLER'
+		};
 
-		const runs = computeColorRuns(tpl.defaultText, tpl);
+		const runs = computeColorRuns(mockTpl.defaultText, mockTpl);
 		expect(runs.length).toBe(1);
-		expect(runs[0]?.startIndex).toBeGreaterThan(0);
-		expect(runs[0]?.endIndex).toBe(tpl.defaultText.length);
-		expect(runs[0]?.fillColor).toEqual(tpl.accentColor);
+		expect(runs[0]?.startIndex).toBe(0);
+		expect(runs[0]?.endIndex).toBe(10);
+		expect(runs[0]?.fillColor).toEqual(mockTpl.accentColor);
 	});
 
-	it('applies a new graphic template onto an existing clip', () => {
-		const originalClip = createGraphicClip('dream-big', 0, 3_000_000, 'CUSTOM HEADLINE');
-		const updated = applyGraphicTemplateToClip(originalClip, 'cyber-nights');
+	it('applies a graphic template onto an existing clip', () => {
+		const originalClip = createGraphicClip('mixkit-minimal-wipe-lower-third', 0, 3_000_000, 'CUSTOM HEADLINE');
+		const updated = applyGraphicTemplateToClip(originalClip, 'mixkit-minimal-wipe-lower-third');
 
 		expect(updated.source?.type).toBe('text');
 		if (updated.source?.type === 'text') {
-			// Preserves custom text
 			expect(updated.source.text).toBe('CUSTOM HEADLINE');
-			expect(updated.source.graphicTemplateId).toBe('cyber-nights');
+			expect(updated.source.graphicTemplateId).toBe('mixkit-minimal-wipe-lower-third');
 		}
-
-		// Verifies shadow effect properties were applied for neon style
-		const shadowColor = updated.properties?.['text.shadowColor'];
-		expect(shadowColor).toBeDefined();
 	});
 
 	it('integrates store methods: addGraphicClip, applyGraphicTemplate, and setGraphicAccentColor', () => {
@@ -146,7 +92,7 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 		store.setState({ project });
 
 		// Add graphic clip to track via store
-		const clipId = store.getState().addGraphicClip('modern-clean');
+		const clipId = store.getState().addGraphicClip('mixkit-minimal-wipe-lower-third');
 		expect(clipId).toBeTruthy();
 
 		const projectAfter = store.getState().project;
@@ -154,14 +100,14 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 		expect(addedClip).toBeDefined();
 		expect(addedClip?.source?.type).toBe('text');
 
-		// Apply another template
-		store.getState().applyGraphicTemplate(clipId!, 'ae-motion-title');
+		// Apply template
+		store.getState().applyGraphicTemplate(clipId!, 'mixkit-minimal-wipe-lower-third');
 		const modifiedClip = store
 			.getState()
 			.project?.tracks.flatMap((t) => t.clips)
 			.find((c) => c.id === clipId);
 		if (modifiedClip?.source?.type === 'text') {
-			expect(modifiedClip.source.graphicTemplateId).toBe('ae-motion-title');
+			expect(modifiedClip.source.graphicTemplateId).toBe('mixkit-minimal-wipe-lower-third');
 		}
 
 		// Update accent color
@@ -171,8 +117,8 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 			.project?.tracks.flatMap((t) => t.clips)
 			.find((c) => c.id === clipId);
 		if (accentClip?.source?.type === 'text') {
-			expect(accentClip.source.colorRuns?.[0]?.fillColor?.r).toBe(1);
-			expect(accentClip.source.colorRuns?.[0]?.fillColor?.b).toBe(0.5);
+			expect(accentClip.source.box?.accentBarColor?.r).toBe(1);
+			expect(accentClip.source.box?.accentBarColor?.b).toBe(0.5);
 		}
 	});
 
@@ -182,7 +128,7 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 		store.setState({ project, isProjectManagerOpen: false });
 
 		// 1. Add graphic clip
-		const clipId = store.getState().addGraphicClip('dream-big')!;
+		const clipId = store.getState().addGraphicClip('mixkit-minimal-wipe-lower-third')!;
 		expect(clipId).toBeTruthy();
 		expect(store.getState().history.canUndo).toBe(true);
 		expect(store.getState().timeline.selection.clipIds).toEqual([clipId]);
@@ -224,7 +170,7 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 			.project?.tracks.flatMap((t) => t.clips)
 			.find((c) => c.id === clipId);
 		expect(currentClip?.source?.type === 'text' && currentClip.source.text).toBe(
-			'DREAM BIG\nAND DARE\nTO FAIL'
+			'MATT TYLER\nART DEPARTMENT ASSISTANT'
 		);
 
 		// Redo text edit
@@ -238,33 +184,13 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 		);
 
 		// 3. Switch template
-		store.getState().applyGraphicTemplate(clipId, 'ae-motion-title');
+		store.getState().applyGraphicTemplate(clipId, 'mixkit-minimal-wipe-lower-third');
 		currentClip = store
 			.getState()
 			.project?.tracks.flatMap((t) => t.clips)
 			.find((c) => c.id === clipId);
 		expect(currentClip?.source?.type === 'text' && currentClip.source.graphicTemplateId).toBe(
-			'ae-motion-title'
-		);
-
-		// Undo template switch
-		expect(store.getState().undo()).toBe(true);
-		currentClip = store
-			.getState()
-			.project?.tracks.flatMap((t) => t.clips)
-			.find((c) => c.id === clipId);
-		expect(currentClip?.source?.type === 'text' && currentClip.source.graphicTemplateId).toBe(
-			'dream-big'
-		);
-
-		// Redo template switch
-		expect(store.getState().redo()).toBe(true);
-		currentClip = store
-			.getState()
-			.project?.tracks.flatMap((t) => t.clips)
-			.find((c) => c.id === clipId);
-		expect(currentClip?.source?.type === 'text' && currentClip.source.graphicTemplateId).toBe(
-			'ae-motion-title'
+			'mixkit-minimal-wipe-lower-third'
 		);
 
 		// 4. Apply animation preset
@@ -288,7 +214,7 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 			.project?.tracks.flatMap((t) => t.clips)
 			.find((c) => c.id === clipId);
 		if (currentClip?.source?.type === 'text') {
-			expect(currentClip.source.colorRuns?.[0]?.fillColor?.r).toBeCloseTo(0.1, 2);
+			expect(currentClip.source.box?.accentBarColor?.r).toBeCloseTo(0.1, 2);
 		}
 
 		// Undo color
@@ -301,7 +227,7 @@ describe('Graphic Motion Templates & Kinetic Typography', () => {
 			.project?.tracks.flatMap((t) => t.clips)
 			.find((c) => c.id === clipId);
 		if (currentClip?.source?.type === 'text') {
-			expect(currentClip.source.colorRuns?.[0]?.fillColor?.r).toBeCloseTo(0.1, 2);
+			expect(currentClip.source.box?.accentBarColor?.r).toBeCloseTo(0.1, 2);
 		}
 	});
 });

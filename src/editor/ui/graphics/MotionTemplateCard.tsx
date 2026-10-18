@@ -108,11 +108,62 @@ export function MotionTemplateCard({
 
 	// Calculate proportional SVG viewBox around the graphic bounds
 	const { viewBoxX, viewBoxY, viewBoxW, viewBoxH } = useMemo(() => {
-		const bw = template.bounds?.width ?? 400;
-		const bh = template.bounds?.height ?? 225;
+		let bw = template.bounds?.width ?? 400;
+		let bh = template.bounds?.height ?? 225;
+
+		// Find the spatial centroid of all clips at settledTime to center the preview SVG accurately
+		let minX = Infinity;
+		let maxX = -Infinity;
+		let minY = Infinity;
+		let maxY = -Infinity;
+
+		for (const track of template.tracks) {
+			for (const clip of track.clips) {
+				let posX = clip.transform?.x ?? 0;
+				let posY = clip.transform?.y ?? 0;
+				try {
+					const p = readProperty(clip, 'position', settledTime) as [number, number];
+					if (Array.isArray(p)) {
+						posX = p[0];
+						posY = p[1];
+					}
+				} catch {}
+
+				let w = 200;
+				let h = 80;
+				if (clip.source?.type === 'shape') {
+					w = clip.source.width ?? 200;
+					h = clip.source.height ?? 80;
+				} else if (clip.source?.type === 'text') {
+					const text = clip.source.text || clip.text || '';
+					let fs = 44;
+					try {
+						const val = readProperty(clip, 'text.fontSize', settledTime);
+						if (typeof val === 'number' && val > 0) fs = val;
+					} catch {}
+					w = Math.max(120, text.length * fs * 0.55);
+					h = fs * 1.5;
+				}
+
+				minX = Math.min(minX, posX - w / 2);
+				maxX = Math.max(maxX, posX + w / 2);
+				minY = Math.min(minY, posY - h / 2);
+				maxY = Math.max(maxY, posY + h / 2);
+			}
+		}
+
+		let centerX = 0;
+		let centerY = 0;
+		if (Number.isFinite(minX) && Number.isFinite(maxX)) {
+			centerX = (minX + maxX) / 2;
+			centerY = (minY + maxY) / 2;
+			bw = Math.max(bw, maxX - minX);
+			bh = Math.max(bh, maxY - minY);
+		}
+
 		// Add padding around graphic so nothing clips at the edge
-		let w = Math.max(bw * 1.3, 240);
-		let h = Math.max(bh * 1.3, 135);
+		let w = Math.max(bw * 1.35, 320);
+		let h = Math.max(bh * 1.35, 180);
 		// Maintain a clean 16:9 preview aspect ratio
 		const aspect = 16 / 9;
 		if (w / h < aspect) {
@@ -121,12 +172,12 @@ export function MotionTemplateCard({
 			h = w / aspect;
 		}
 		return {
-			viewBoxX: -w / 2,
-			viewBoxY: -h / 2,
+			viewBoxX: centerX - w / 2,
+			viewBoxY: centerY - h / 2,
 			viewBoxW: w,
 			viewBoxH: h
 		};
-	}, [template.bounds]);
+	}, [template, settledTime]);
 
 	// Drag start handler for timeline dropping
 	const handleDragStart = (e: React.DragEvent) => {
@@ -326,13 +377,23 @@ export function MotionTemplateCard({
 												if (typeof hProp === 'number' && hProp > 0) sh = hProp;
 											} catch {}
 
+											let resolvedFillColor = clip.source.fillColor;
+											try {
+												const sf = readProperty(clip, 'shape.fill', previewTime) || readProperty(clip, 'shape.fillColor', previewTime);
+												if (Array.isArray(sf) && sf.length >= 3) {
+													resolvedFillColor = { r: sf[0], g: sf[1], b: sf[2], a: sf[3] ?? 1 };
+												} else if (sf && typeof sf === 'object' && 'r' in (sf as any)) {
+													resolvedFillColor = sf as any;
+												}
+											} catch {}
+
 											const hasGrad =
 												clip.source.gradientType &&
 												clip.source.gradientType !== 'none' &&
 												clip.source.gradientColorEnd;
 											const fill = hasGrad
 												? `url(#grad_${clip.id})`
-												: rgbaToCss(clip.source.fillColor) || '#38bdf8';
+												: rgbaToCss(resolvedFillColor) || '#38bdf8';
 											const stroke = clip.source.strokeColor
 												? rgbaToCss(clip.source.strokeColor)
 												: undefined;
@@ -421,35 +482,112 @@ export function MotionTemplateCard({
 												}
 											} catch {}
 
-											const fillColor = clip.source.colorRuns?.[0]?.fillColor
-												? rgbaToCss(clip.source.colorRuns[0].fillColor)
-												: '#ffffff';
+											// Priority: readProperty('text.fillColor') -> colorRuns -> pure white
+											let fillColor = '#ffffff';
+											try {
+												const fc = readProperty(clip, 'text.fillColor', previewTime);
+												if (Array.isArray(fc) && fc.length >= 3) {
+													fillColor = rgbaToCss({ r: fc[0], g: fc[1], b: fc[2], a: fc[3] ?? 1 });
+												} else if (fc && typeof fc === 'object' && 'r' in (fc as any)) {
+													fillColor = rgbaToCss(fc as any);
+												} else if (clip.source.colorRuns?.[0]?.fillColor) {
+													fillColor = rgbaToCss(clip.source.colorRuns[0].fillColor);
+												}
+											} catch {
+												if (clip.source.colorRuns?.[0]?.fillColor) {
+													fillColor = rgbaToCss(clip.source.colorRuns[0].fillColor);
+												}
+											}
+
 											const fontFamily = clip.source.style?.fontFamily || 'Montserrat, sans-serif';
 											const fontWeight = clip.source.style?.fontWeight || 'bold';
-											const letterSpacing = clip.source.style?.letterSpacing
-												? `${clip.source.style.letterSpacing}px`
-												: undefined;
+											let letterSpacing = clip.source.style?.letterSpacing ?? 0;
+											try {
+												const ls = readProperty(clip, 'text.letterSpacing', previewTime);
+												if (typeof ls === 'number') letterSpacing = ls;
+											} catch {}
 
-											const startY = -(lines.length - 1) * fontSize * 0.6;
+											const alignment = clip.source.style?.alignment || 'left';
+											const textAnchor = alignment === 'left' ? 'start' : alignment === 'right' ? 'end' : 'middle';
+
+											// If multiple lines in a single text layer (title + subtitle pattern),
+											// scale the subtitle appropriately so it doesn't inflate or truncate.
+											const isMultiLine = lines.length > 1;
+											const subScale = 0.42;
+
+											// Accent bar decoration if frameStyle is 'accent-bar'
+											let accentBarEl: React.ReactNode = null;
+											if (clip.source.box?.frameStyle === 'accent-bar') {
+												let barColor = '#00d2f2';
+												try {
+													const abc = readProperty(clip, 'text.accentBarColor', previewTime);
+													if (Array.isArray(abc) && abc.length >= 3) {
+														barColor = rgbaToCss({ r: abc[0], g: abc[1], b: abc[2], a: abc[3] ?? 1 });
+													} else if (abc && typeof abc === 'object' && 'r' in (abc as any)) {
+														barColor = rgbaToCss(abc as any);
+													} else if (clip.source.box.accentBarColor) {
+														barColor = rgbaToCss(clip.source.box.accentBarColor);
+													}
+												} catch {}
+
+												let barWidth = 16;
+												try {
+													const bw = readProperty(clip, 'text.accentBarWidth', previewTime) as number;
+													if (typeof bw === 'number' && bw > 0) barWidth = bw;
+													else if (clip.source.box.accentBarWidth) barWidth = clip.source.box.accentBarWidth;
+												} catch {}
+
+												const totalH = isMultiLine ? fontSize * 1.1 + fontSize * subScale * 1.2 : fontSize * 1.3;
+												const barX = alignment === 'left' ? -barWidth - 14 : -180;
+												const barY = -totalH / 2;
+
+												accentBarEl = (
+													<rect
+														x={barX}
+														y={barY}
+														width={barWidth}
+														height={totalH}
+														rx={barWidth / 4}
+														fill={barColor}
+													/>
+												);
+											}
+
+											const startY = isMultiLine ? -fontSize * 0.4 : 0;
 
 											return (
-												<text
-													x={0}
-													y={startY}
-													textAnchor="middle"
-													dominantBaseline="central"
-													fill={fillColor}
-													fontFamily={fontFamily}
-													fontWeight={fontWeight}
-													fontSize={fontSize}
-													letterSpacing={letterSpacing}
-												>
-													{lines.map((line, idx) => (
-														<tspan key={idx} x={0} dy={idx === 0 ? 0 : fontSize * 1.2}>
-															{line}
-														</tspan>
-													))}
-												</text>
+												<>
+													{accentBarEl}
+													<text
+														x={0}
+														y={startY}
+														textAnchor={textAnchor}
+														dominantBaseline="central"
+														fill={fillColor}
+														fontFamily={fontFamily}
+														fontWeight={fontWeight}
+													>
+														{lines.map((line, idx) => {
+															const lineFs = idx === 0 ? fontSize : Math.round(fontSize * subScale);
+															const lineSpacing = idx === 0 ? letterSpacing : Math.max(letterSpacing, 4);
+															const lineWeight = idx === 0 ? fontWeight : '600';
+															const dy = idx === 0 ? 0 : Math.round(fontSize * 0.75 + lineFs * 0.5);
+
+															return (
+																<tspan
+																	key={idx}
+																	x={0}
+																	dy={dy}
+																	fontSize={lineFs}
+																	fontWeight={lineWeight}
+																	letterSpacing={`${lineSpacing}px`}
+																>
+																	{line}
+																</tspan>
+															);
+														})}
+													</text>
+												</>
 											);
 										})()}
 

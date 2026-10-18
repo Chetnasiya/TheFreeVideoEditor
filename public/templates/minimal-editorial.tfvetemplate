@@ -2,20 +2,20 @@
   "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
   "tfve_type": "motion_template",
   "version": 1,
-  "id": "typography-titles-multiline",
-  "name": "Framed Multiline Titles",
+  "id": "minimal-editorial",
+  "name": "Minimal Editorial",
   "category": "Titles",
-  "description": "Framed rectangular box with top header, horizontal divider line, and multi-tier titles",
+  "description": "Refined luxury editorial title with upward slide and divided frame for fashion and art",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586928,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
-    "introDuration": 500000,
-    "outroDuration": 400000
+    "introDuration": 600000,
+    "outroDuration": 500000
   },
   "bounds": {
-    "width": 648,
-    "height": 428,
+    "width": 696,
+    "height": 476,
     "originX": 0,
     "originY": 75
   },
@@ -49,9 +49,9 @@
               "a": 0
             },
             "strokeColor": {
-              "r": 1,
-              "g": 1,
-              "b": 1,
+              "r": 0.92,
+              "g": 0.86,
+              "b": 0.76,
               "a": 1
             },
             "strokeWidth": 2.5
@@ -135,81 +135,26 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "NEW TREND\nTYPOGRAPHY\nTITLES",
+            "text": "EDITORIAL VOL. 10\nAUTUMN & WINTER COLLECTION",
             "style": {
-              "fontFamily": "Montserrat",
-              "fontWeight": "900",
-              "alignment": "left",
-              "letterSpacing": 2
+              "fontFamily": "Playfair Display",
+              "fontWeight": "600",
+              "alignment": "center",
+              "letterSpacing": 5
             },
             "box": {
               "autoSize": true,
-              "paddingX": 32,
-              "paddingY": 22,
               "verticalAnchor": "center",
+              "paddingX": 36,
+              "paddingY": 20,
               "frameStyle": "divided-box",
-              "badgeText": "TYPOGRAPHY"
+              "badgeText": "AUTUMN & WINTER COLLECTION"
             },
             "colorRuns": [],
-            "graphicTemplateId": "typography-titles-multiline",
+            "graphicTemplateId": "minimal-editorial",
             "animationPresetId": "slide-in-up"
           },
           "properties": {
-            "text.fontSize": {
-              "value": 46
-            },
-            "text.fillColor": {
-              "value": [
-                1,
-                1,
-                1,
-                1
-              ]
-            },
-            "text.boxBorderColor": {
-              "value": [
-                1,
-                1,
-                1,
-                1
-              ]
-            },
-            "text.boxBorderWidth": {
-              "value": 3
-            },
-            "text.letterSpacing": {
-              "value": 2
-            },
-            "text.lineHeight": {
-              "value": 1.2
-            },
-            "text.reveal": {
-              "value": 1
-            },
-            "opacity": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": 0,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 300000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 4500000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 5000000,
-                  "value": 0,
-                  "interpolation": "linear"
-                }
-              ]
-            },
             "position": {
               "keyframes": [
                 {
@@ -237,6 +182,47 @@
                   "interpolation": "linear"
                 }
               ]
+            },
+            "text.fontSize": {
+              "value": 52
+            },
+            "text.letterSpacing": {
+              "value": 5
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.lineHeight": {
+              "value": 1.3
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 300000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
             }
           },
           "effects": []
@@ -251,7 +237,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.content",
-      "defaultValue": "NEW TREND\nTYPOGRAPHY\nTITLES"
+      "defaultValue": "EDITORIAL VOL. 10\nAUTUMN & WINTER COLLECTION"
     },
     {
       "id": "param_font_family",
@@ -259,7 +245,7 @@
       "type": "font",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fontFamily",
-      "defaultValue": "Montserrat"
+      "defaultValue": "Playfair Display"
     },
     {
       "id": "param_text_color",
@@ -294,9 +280,9 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "shape.stroke",
       "defaultValue": {
-        "r": 1,
-        "g": 1,
-        "b": 1,
+        "r": 0.92,
+        "g": 0.86,
+        "b": 0.76,
         "a": 1
       }
     }

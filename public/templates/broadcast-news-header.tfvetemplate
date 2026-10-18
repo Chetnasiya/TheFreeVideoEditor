@@ -2,22 +2,22 @@
   "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
   "tfve_type": "motion_template",
   "version": 1,
-  "id": "run-wild-side",
-  "name": "Run Wild Side",
-  "category": "Kinetic",
-  "description": "Solid bold headline overlaid on stroked outline typography with sharp diagonal cut slash",
+  "id": "broadcast-news-header",
+  "name": "Broadcast News Header",
+  "category": "Titles",
+  "description": "Television-style breaking news banner header with top badge banner for journalism and reports",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586926,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
-    "introDuration": 400000,
-    "outroDuration": 400000
+    "introDuration": 600000,
+    "outroDuration": 500000
   },
   "bounds": {
-    "width": 710,
-    "height": 188,
-    "originX": 15,
-    "originY": 0
+    "width": 556,
+    "height": 346,
+    "originX": 0,
+    "originY": -75
   },
   "tracks": [
     {
@@ -39,74 +39,58 @@
           "source": {
             "type": "shape",
             "shapeType": "rect",
-            "width": 560,
-            "height": 5,
-            "cornerRadius": 3,
+            "width": 460,
+            "height": 68,
+            "cornerRadius": 34,
             "fillColor": {
-              "r": 1,
-              "g": 1,
-              "b": 1,
+              "r": 0.12,
+              "g": 0.45,
+              "b": 0.95,
               "a": 1
             },
             "strokeWidth": 0
           },
           "properties": {
             "position": {
-              "value": [
-                -15,
-                0
-              ]
-            },
-            "rotation": {
-              "value": -12
-            },
-            "scale": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": [
-                    1.15,
-                    0.9
+                    0,
+                    -75
                   ],
-                  "interpolation": "linear"
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
                 },
                 {
-                  "time": 100000,
+                  "time": 600000,
                   "value": [
-                    0.95,
-                    1.05
-                  ],
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 350000,
-                  "value": [
-                    1,
-                    1
+                    0,
+                    75
                   ],
                   "interpolation": "linear"
                 }
               ]
+            },
+            "rotation": {
+              "value": 0
             },
             "opacity": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": 0,
-                  "interpolation": "hold"
+                  "interpolation": "linear"
                 },
                 {
-                  "time": 80000,
-                  "value": 1,
-                  "interpolation": "hold"
-                },
-                {
-                  "time": 140000,
-                  "value": 0.25,
-                  "interpolation": "hold"
-                },
-                {
-                  "time": 200000,
+                  "time": 300000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -145,28 +129,59 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "RUN ON THE\nWILD SIDE.",
+            "text": "BREAKING NEWS\nGLOBAL ECONOMIC SUMMIT",
             "style": {
-              "fontFamily": "Montserrat",
-              "fontWeight": "900",
-              "alignment": "left",
+              "fontFamily": "Inter",
+              "fontWeight": "800",
+              "alignment": "center",
               "letterSpacing": 2
             },
             "box": {
               "autoSize": true,
-              "paddingX": 28,
-              "paddingY": 20,
               "verticalAnchor": "center",
-              "frameStyle": "split-slash",
-              "badgeText": "WILD SIDE."
+              "paddingX": 32,
+              "paddingY": 18,
+              "frameStyle": "badge-header",
+              "badgeText": "GLOBAL ECONOMIC SUMMIT"
             },
             "colorRuns": [],
-            "graphicTemplateId": "run-wild-side",
-            "animationPresetId": "glitch-snap"
+            "graphicTemplateId": "broadcast-news-header",
+            "animationPresetId": "slide-in-down"
           },
           "properties": {
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0,
+                    -75
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    0,
+                    75
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
             "text.fontSize": {
-              "value": 60
+              "value": 56
+            },
+            "text.letterSpacing": {
+              "value": 2
             },
             "text.fillColor": {
               "value": [
@@ -176,45 +191,18 @@
                 1
               ]
             },
-            "text.strokeColor": {
-              "value": [
-                1,
-                1,
-                1,
-                0.9
-              ]
-            },
-            "text.strokeWidth": {
-              "value": 2
-            },
-            "text.letterSpacing": {
-              "value": 2
-            },
             "text.lineHeight": {
-              "value": 1.15
-            },
-            "text.reveal": {
-              "value": 1
+              "value": 1.25
             },
             "opacity": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": 0,
-                  "interpolation": "hold"
+                  "interpolation": "linear"
                 },
                 {
-                  "time": 80000,
-                  "value": 1,
-                  "interpolation": "hold"
-                },
-                {
-                  "time": 140000,
-                  "value": 0.25,
-                  "interpolation": "hold"
-                },
-                {
-                  "time": 200000,
+                  "time": 300000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -229,45 +217,9 @@
                   "interpolation": "linear"
                 }
               ]
-            },
-            "scale": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": [
-                    1.15,
-                    0.9
-                  ],
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 100000,
-                  "value": [
-                    0.95,
-                    1.05
-                  ],
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 350000,
-                  "value": [
-                    1,
-                    1
-                  ],
-                  "interpolation": "linear"
-                }
-              ]
             }
           },
-          "effects": [],
-          "transform": {
-            "x": -15,
-            "y": 0,
-            "scaleX": 1,
-            "scaleY": 1,
-            "rotation": 0,
-            "opacity": 1
-          }
+          "effects": []
         }
       ]
     }
@@ -279,7 +231,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.content",
-      "defaultValue": "RUN ON THE\nWILD SIDE."
+      "defaultValue": "BREAKING NEWS\nGLOBAL ECONOMIC SUMMIT"
     },
     {
       "id": "param_font_family",
@@ -287,7 +239,7 @@
       "type": "font",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.fontFamily",
-      "defaultValue": "Montserrat"
+      "defaultValue": "Inter"
     },
     {
       "id": "param_text_color",
@@ -309,9 +261,9 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "shape.fill",
       "defaultValue": {
-        "r": 1,
-        "g": 1,
-        "b": 1,
+        "r": 0.12,
+        "g": 0.45,
+        "b": 0.95,
         "a": 1
       }
     }

@@ -151,8 +151,8 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 			if (!lane) return;
 
 			const dt = new DataTransfer();
-			dt.setData('application/x-tfve-graphic-template', 'trendy-typography-card');
-			dt.setData('application/x-tfve-graphic-name', 'Trendy Typography');
+			dt.setData('application/x-tfve-graphic-template', 'mixkit-minimal-wipe-lower-third');
+			dt.setData('application/x-tfve-graphic-name', 'Clean Minimal Wipe Lower Third');
 
 			lane.dispatchEvent(
 				new DragEvent('dragover', {
@@ -176,8 +176,8 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 			if (!lane) return;
 
 			const dt = new DataTransfer();
-			dt.setData('application/x-tfve-graphic-template', 'trendy-typography-card');
-			dt.setData('application/x-tfve-graphic-name', 'Trendy Typography');
+			dt.setData('application/x-tfve-graphic-template', 'mixkit-minimal-wipe-lower-third');
+			dt.setData('application/x-tfve-graphic-name', 'Clean Minimal Wipe Lower Third');
 
 			lane.dispatchEvent(
 				new DragEvent('drop', {

@@ -2,20 +2,20 @@
   "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
   "tfve_type": "motion_template",
   "version": 1,
-  "id": "tutorial-video-badge",
-  "name": "Tutorial Video Badge",
-  "category": "Badges",
-  "description": "Extra bold title with an anchored top-right inverted pill badge",
+  "id": "kinetic-marquee-stack",
+  "name": "Kinetic Marquee Stack",
+  "category": "Titles",
+  "description": "Streetwear kinetic typography with bold angular frame and punch zoom for music videos",
   "author": "TheFreeVideoEditor",
-  "createdAt": 1792312586926,
+  "createdAt": 1792321125276,
   "duration": 5000000,
   "responsiveTiming": {
     "introDuration": 450000,
     "outroDuration": 400000
   },
   "bounds": {
-    "width": 532,
-    "height": 154,
+    "width": 852,
+    "height": 554,
     "originX": 0,
     "originY": 0
   },
@@ -39,16 +39,22 @@
           "source": {
             "type": "shape",
             "shapeType": "rect",
-            "width": 460,
-            "height": 68,
-            "cornerRadius": 34,
+            "width": 660,
+            "height": 230,
+            "cornerRadius": 8,
             "fillColor": {
+              "r": 0.04,
+              "g": 0.05,
+              "b": 0.08,
+              "a": 0.7
+            },
+            "strokeColor": {
               "r": 1,
-              "g": 1,
-              "b": 1,
+              "g": 0.18,
+              "b": 0.48,
               "a": 1
             },
-            "strokeWidth": 0
+            "strokeWidth": 2
           },
           "properties": {
             "position": {
@@ -58,31 +64,31 @@
               ]
             },
             "rotation": {
-              "value": 0
+              "value": -18
             },
             "scale": {
               "keyframes": [
                 {
                   "time": 0,
                   "value": [
-                    0.6,
-                    0.6
+                    0.3,
+                    0.3
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
-                    "x": 0.34,
-                    "y": 1.56
+                    "x": 0.16,
+                    "y": 1
                   },
                   "easeIn": {
-                    "x": 0.64,
+                    "x": 0.3,
                     "y": 1
                   }
                 },
                 {
-                  "time": 350000,
+                  "time": 320000,
                   "value": [
-                    1.05,
-                    1.05
+                    1.08,
+                    1.08
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
@@ -95,7 +101,7 @@
                   }
                 },
                 {
-                  "time": 500000,
+                  "time": 450000,
                   "value": [
                     1,
                     1
@@ -112,7 +118,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 200000,
+                  "time": 180000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -151,28 +157,37 @@
           "volume": 0,
           "source": {
             "type": "text",
-            "text": "TUTORIAL\nVIDEO",
+            "text": "NEVER STOP\nTHE FUTURE IS CREATED TODAY",
             "style": {
               "fontFamily": "Montserrat",
               "fontWeight": "900",
               "alignment": "center",
-              "letterSpacing": 3
+              "letterSpacing": -0.5
             },
             "box": {
               "autoSize": true,
-              "paddingX": 32,
-              "paddingY": 20,
               "verticalAnchor": "center",
-              "frameStyle": "title-badge",
-              "badgeText": "VIDEO"
+              "paddingX": 36,
+              "paddingY": 22,
+              "frameStyle": "diagonal-repeat",
+              "badgeText": "THE FUTURE IS CREATED TODAY"
             },
             "colorRuns": [],
-            "graphicTemplateId": "tutorial-video-badge",
-            "animationPresetId": "pop-in"
+            "graphicTemplateId": "kinetic-marquee-stack",
+            "animationPresetId": "kinetic-zoom"
           },
           "properties": {
+            "position": {
+              "value": [
+                0,
+                0
+              ]
+            },
             "text.fontSize": {
-              "value": 68
+              "value": 64
+            },
+            "text.letterSpacing": {
+              "value": -0.5
             },
             "text.fillColor": {
               "value": [
@@ -182,17 +197,8 @@
                 1
               ]
             },
-            "text.strokeWidth": {
-              "value": 0
-            },
-            "text.letterSpacing": {
-              "value": 3
-            },
             "text.lineHeight": {
-              "value": 1.1
-            },
-            "text.reveal": {
-              "value": 1
+              "value": 1.15
             },
             "opacity": {
               "keyframes": [
@@ -202,7 +208,7 @@
                   "interpolation": "linear"
                 },
                 {
-                  "time": 200000,
+                  "time": 180000,
                   "value": 1,
                   "interpolation": "linear"
                 },
@@ -223,24 +229,24 @@
                 {
                   "time": 0,
                   "value": [
-                    0.6,
-                    0.6
+                    0.3,
+                    0.3
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
-                    "x": 0.34,
-                    "y": 1.56
+                    "x": 0.16,
+                    "y": 1
                   },
                   "easeIn": {
-                    "x": 0.64,
+                    "x": 0.3,
                     "y": 1
                   }
                 },
                 {
-                  "time": 350000,
+                  "time": 320000,
                   "value": [
-                    1.05,
-                    1.05
+                    1.08,
+                    1.08
                   ],
                   "interpolation": "bezier",
                   "easeOut": {
@@ -253,7 +259,7 @@
                   }
                 },
                 {
-                  "time": 500000,
+                  "time": 450000,
                   "value": [
                     1,
                     1
@@ -263,15 +269,7 @@
               ]
             }
           },
-          "effects": [],
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scaleX": 1,
-            "scaleY": 1,
-            "rotation": 0,
-            "opacity": 1
-          }
+          "effects": []
         }
       ]
     }
@@ -283,7 +281,7 @@
       "type": "text",
       "targetClipId": "tpl_clip_2",
       "targetProperty": "text.content",
-      "defaultValue": "TUTORIAL\nVIDEO"
+      "defaultValue": "NEVER STOP\nTHE FUTURE IS CREATED TODAY"
     },
     {
       "id": "param_font_family",
@@ -313,9 +311,22 @@
       "targetClipId": "tpl_clip_1",
       "targetProperty": "shape.fill",
       "defaultValue": {
+        "r": 0.04,
+        "g": 0.05,
+        "b": 0.08,
+        "a": 0.7
+      }
+    },
+    {
+      "id": "param_shape_stroke",
+      "name": "Border Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "shape.stroke",
+      "defaultValue": {
         "r": 1,
-        "g": 1,
-        "b": 1,
+        "g": 0.18,
+        "b": 0.48,
         "a": 1
       }
     }
