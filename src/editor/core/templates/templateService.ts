@@ -641,7 +641,7 @@ export function deserializeTemplate(jsonString: string): MotionGraphicTemplate {
 	void _type;
 	return {
 		...rest,
-		version: 1,
+		version: rest.version ?? TEMPLATE_FORMAT_VERSION,
 		id: rest.id || `mogrt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
 		name: rest.name.trim() || 'Imported Template',
 		category: (rest.category || 'Custom') as MotionGraphicTemplate['category'],
