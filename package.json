@@ -17,7 +17,8 @@
 		"test:e2e": "playwright test",
 		"test:gpu": "node scripts/test-gpu.mjs",
 		"test:captions:real": "playwright test tests/e2e/captions-real.spec.ts",
-		"format:check": "prettier --check src/editor src/pages/editor.astro src/layouts/Layout.astro src/styles astro.config.mjs eslint.config.mjs"
+		"format:check": "prettier --check src/editor src/pages/editor.astro src/layouts/Layout.astro src/styles astro.config.mjs eslint.config.mjs",
+		"templates:generate": "node scripts/generate-templates.mjs"
 	},
 	"dependencies": {
 		"@astrojs/react": "^7.0.0",

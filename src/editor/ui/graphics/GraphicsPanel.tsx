@@ -4,7 +4,6 @@ import {
 	GRAPHIC_TEMPLATES,
 	GRAPHIC_ANIMATION_PRESETS,
 	getGraphicTemplate,
-	type GraphicTemplate,
 	type GraphicCategory
 } from '../../core/text/graphicsTemplates';
 import { readProperty } from '../../core/properties';
@@ -20,7 +19,10 @@ import {
 import type { MotionGraphicTemplate } from '../../core/templates/templateTypes';
 import { SaveTemplateModal } from './SaveTemplateModal';
 import { MotionTemplateCard } from './MotionTemplateCard';
-import { getBuiltinMotionTemplate } from '../../core/templates/builtinTemplates';
+import {
+	BUILTIN_MOTION_TEMPLATES,
+	filterBuiltinTemplates
+} from '../../core/templates/builtinTemplates';
 import './graphics.css';
 
 const CATEGORIES: Array<{ id: GraphicCategory; label: string }> = [
@@ -164,44 +166,24 @@ export default function GraphicsPanel() {
 		}
 	};
 
-	// Filtered templates by category and search query
-	const filteredTemplates = useMemo(() => {
-		const query = searchQuery.toLowerCase().trim();
-		return GRAPHIC_TEMPLATES.filter((tpl) => {
-			if (activeCategory !== 'all' && tpl.category !== activeCategory) {
-				return false;
-			}
-			if (!query) return true;
-			return (
-				tpl.name.toLowerCase().includes(query) ||
-				tpl.description.toLowerCase().includes(query) ||
-				tpl.defaultText.toLowerCase().includes(query) ||
-				tpl.tags.some((tag) => tag.toLowerCase().includes(query))
-			);
-		});
-	}, [searchQuery, activeCategory]);
+	// The library is the shipped .tfvetemplate files, filtered by category and search query
+	const filteredTemplates = useMemo(
+		() => filterBuiltinTemplates(activeCategory, searchQuery),
+		[searchQuery, activeCategory]
+	);
 
 	// Add template to timeline at playhead
-	const handleAddTemplate = (template: GraphicTemplate) => {
-		const mogrt = getBuiltinMotionTemplate(template.id);
-		if (mogrt) {
-			const createdId = store.getState().instantiateTemplate(mogrt);
-			if (createdId) {
-				setAnnouncement(`Added ${template.name} motion template to timeline.`);
-				return;
-			}
-		}
-		const createdId = store.getState().addGraphicClip(template.id);
+	const handleAddTemplate = (template: MotionGraphicTemplate) => {
+		const createdId = store.getState().instantiateTemplate(template);
 		if (createdId) {
-			setAnnouncement(`Added ${template.name} graphic to timeline.`);
-			setActiveTab('editor');
+			setAnnouncement(`Added ${template.name} motion template to timeline.`);
 		} else {
 			setAnnouncement(`Could not add graphic. Check timeline track.`);
 		}
 	};
 
 	// Apply template to currently selected clip
-	const handleApplyToSelected = (template: GraphicTemplate) => {
+	const handleApplyToSelected = (template: MotionGraphicTemplate) => {
 		if (!selectedClip || !isTextClipSelected) return;
 		store.getState().applyGraphicTemplate(selectedClip.id, template.id, undefined);
 		setAnnouncement(`Applied ${template.name} style to selected clip.`);
@@ -504,7 +486,7 @@ export default function GraphicsPanel() {
 							data-testid="tab-graphic-templates"
 						>
 							<span>Templates</span>
-							<span style={{ opacity: 0.65, fontSize: '10px' }}>{GRAPHIC_TEMPLATES.length}</span>
+							<span style={{ opacity: 0.65, fontSize: '10px' }}>{BUILTIN_MOTION_TEMPLATES.length}</span>
 						</button>
 						<button
 							type="button"
@@ -643,19 +625,21 @@ export default function GraphicsPanel() {
 								</div>
 							</div>
 						) : (
-							filteredTemplates.map((template) => {
-								const mogrt = getBuiltinMotionTemplate(template.id);
-								if (!mogrt) return null;
-								return (
-									<MotionTemplateCard
-										key={template.id}
-										template={mogrt}
-										onAdd={() => handleAddTemplate(template)}
-										onExport={() => downloadTemplateFile(mogrt)}
-										onApply={isTextClipSelected ? () => handleApplyToSelected(template) : undefined}
-									/>
-								);
-							})
+							filteredTemplates.map((template) => (
+								<MotionTemplateCard
+									key={template.id}
+									template={template}
+									onAdd={() => handleAddTemplate(template)}
+									onExport={() => downloadTemplateFile(template)}
+									// "Apply" restyles a text clip from the legacy style registry, so it is only
+									// offered for templates that have an entry there.
+									onApply={
+										isTextClipSelected && getGraphicTemplate(template.id)
+											? () => handleApplyToSelected(template)
+											: undefined
+									}
+								/>
+							))
 						)}
 					</div>
 				) : activeTab === 'custom' ? (

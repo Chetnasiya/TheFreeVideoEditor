@@ -1,11 +1,30 @@
-import type { MotionGraphicTemplate, TemplateCategory } from './templateTypes';
-import { convertAllGraphicTemplates } from './templateConverter';
-import { getCustomTemplates } from './templateService';
+import type { MotionGraphicTemplate } from './templateTypes';
+import { deserializeTemplate, getCustomTemplates } from './templateService';
 
 /**
- * Built-in Motion Graphic Templates (.tfvetemplate).
+ * The shipped `.tfvetemplate` files. The files are the source of truth, so the same read path
+ * serves them and any template a user imports. `example.tfvetemplate` is a sample for template
+ * authors and is not part of the library.
  */
-export const BUILTIN_MOTION_TEMPLATES: MotionGraphicTemplate[] = convertAllGraphicTemplates();
+const TEMPLATE_FILES = import.meta.glob(
+	['/public/templates/*.tfvetemplate', '!/public/templates/example.tfvetemplate'],
+	{ query: '?raw', import: 'default', eager: true }
+) as Record<string, string>;
+
+/**
+ * Built-in Motion Graphic Templates (.tfvetemplate), in file-name order.
+ */
+export const BUILTIN_MOTION_TEMPLATES: MotionGraphicTemplate[] = Object.entries(TEMPLATE_FILES)
+	.sort(([a], [b]) => a.localeCompare(b))
+	.map(([path, text]) => {
+		try {
+			return deserializeTemplate(text);
+		} catch (error) {
+			throw new Error(`Built-in template ${path} is invalid: ${(error as Error).message}`, {
+				cause: error
+			});
+		}
+	});
 
 const BUILTIN_MAP = new Map<string, MotionGraphicTemplate>();
 for (const tpl of BUILTIN_MOTION_TEMPLATES) {

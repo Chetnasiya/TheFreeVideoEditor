@@ -194,3 +194,29 @@ test.describe('Graphics panel cards', () => {
 		await expect.poll(() => cardPixels(page, id), { timeout: 8000 }).toBe(still);
 	});
 });
+
+test.describe('Templates tab source', () => {
+	test('lists the built-in library, in library order', async ({ page }) => {
+		await openProject(page);
+		await page.locator('#graphics-panel-title').click();
+		const templatesTab = page.getByTestId('tab-graphic-templates');
+		if (await templatesTab.isVisible()) await templatesTab.click();
+		await expect(
+			page.locator('[data-testid^="graphic-card-"]:not([data-testid*="canvas"])').first()
+		).toBeVisible();
+
+		const shown = await page
+			.locator('[data-testid^="graphic-card-"]:not([data-testid*="canvas"])')
+			.evaluateAll((nodes) =>
+				nodes.map((node) => node.getAttribute('data-testid')!.replace('graphic-card-', ''))
+			);
+		const library = await page.evaluate(async () => {
+			const path = '/src/editor/core/templates/builtinTemplates.ts';
+			const { BUILTIN_MOTION_TEMPLATES } = (await import(
+				/* @vite-ignore */ path
+			)) as typeof import('../../src/editor/core/templates/builtinTemplates');
+			return BUILTIN_MOTION_TEMPLATES.map((template) => template.id);
+		});
+		expect(shown).toEqual(library);
+	});
+});
