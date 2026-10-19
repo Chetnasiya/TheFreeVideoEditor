@@ -63,6 +63,32 @@ export function mapCategory(cat: GraphicCategory): TemplateCategory {
 	}
 }
 
+/** Text properties that only paint the text clip's own box, border or accent bar. */
+const TEXT_FRAME_PROPERTIES = [
+	'text.backgroundBoxColor',
+	'text.backgroundBoxRadius',
+	'text.backgroundBoxPadding',
+	'text.boxBorderColor',
+	'text.boxBorderWidth',
+	'text.accentBarColor',
+	'text.accentBarWidth'
+] as const;
+
+/** Removes the frame a text clip draws for itself, for use when a separate shape layer takes over. */
+function stripTextFrame(clip: Clip): void {
+	if (clip.source?.type !== 'text') return;
+	const box = { ...clip.source.box, frameStyle: 'none' as const };
+	delete box.borderColor;
+	delete box.borderWidth;
+	delete box.borderRadius;
+	delete box.accentBarColor;
+	delete box.accentBarWidth;
+	delete box.badgeText;
+	clip.source.box = box;
+	if (!clip.properties) return;
+	for (const id of TEXT_FRAME_PROPERTIES) delete clip.properties[id];
+}
+
 /**
  * Converts a legacy GraphicTemplate into a full-featured, multi-layer,
  * animated Motion Graphic Template (.tfvetemplate).
@@ -268,6 +294,9 @@ export function convertGraphicTemplateToMotionTemplate(
 		};
 	}
 
+	// The shape layer is the frame now; leaving the text's own frame as well draws it twice.
+	if (shapeClip) stripTextFrame(textClip);
+
 	// 3. Define Published Editable Parameters
 	const publishedParams: PublishedTemplateParam[] = [
 		{
@@ -318,9 +347,21 @@ export function convertGraphicTemplateToMotionTemplate(
 		}
 	}
 
-	// 4. Organize into tracks (Shape background at bottom track, Text on top)
+	// 4. Organize into tracks. The first track is the top layer, so the text goes first and the
+	// background shape sits beneath it.
 	const tracks: Track[] = [];
 	const clipsToPackage: Clip[] = [];
+
+	clipsToPackage.push(textClip);
+	tracks.push({
+		id: 'track_text' as TrackId,
+		kind: 'video',
+		name: 'Title Text',
+		muted: false,
+		locked: false,
+		hidden: false,
+		clips: [textClip]
+	});
 
 	if (shapeClip) {
 		clipsToPackage.push(shapeClip);
@@ -334,17 +375,6 @@ export function convertGraphicTemplateToMotionTemplate(
 			clips: [shapeClip]
 		});
 	}
-
-	clipsToPackage.push(textClip);
-	tracks.push({
-		id: 'track_text' as TrackId,
-		kind: 'video',
-		name: 'Title Text',
-		muted: false,
-		locked: false,
-		hidden: false,
-		clips: [textClip]
-	});
 
 	// 5. Package via createTemplateFromClips for automatic bounding box & coordinate centering
 	const motionTemplate = createTemplateFromClips({
@@ -472,14 +502,15 @@ export function createMixkitMinimalWipeTemplate(): MotionGraphicTemplate {
 			'text.fontSize': { value: 58 },
 			'text.fillColor': { value: [1, 1, 1, 1] },
 			'text.letterSpacing': { value: 2 },
+			// Crop insets are fractions of the source: [left, top, right, bottom].
 			crop: {
 				keyframes: [
-					{ time: 0, value: [0, 0, 100, 0], interpolation: 'linear' },
-					{ time: 500_000, value: [0, 0, 100, 0], interpolation: 'linear' },
-					{ time: 850_000, value: [0, 0, 55, 0], interpolation: 'linear' },
+					{ time: 0, value: [0, 0, 1, 0], interpolation: 'linear' },
+					{ time: 500_000, value: [0, 0, 1, 0], interpolation: 'linear' },
+					{ time: 850_000, value: [0, 0, 0.55, 0], interpolation: 'linear' },
 					{ time: 1_250_000, value: [0, 0, 0, 0], interpolation: 'linear' },
 					{ time: 4_600_000, value: [0, 0, 0, 0], interpolation: 'linear' },
-					{ time: 5_200_000, value: [0, 0, 100, 0], interpolation: 'linear' }
+					{ time: 5_200_000, value: [0, 0, 1, 0], interpolation: 'linear' }
 				]
 			},
 			opacity: {

@@ -148,95 +148,56 @@ export function detectPublishableProperties(clips: Clip[]): PublishedTemplatePar
 }
 
 /**
- * Offsets a clip's transform and keyframed position properties by (dx, dy).
- * When dx, dy are positive, shifts the clip toward center by subtracting dx, dy.
- * Keeps transform.x/y and properties.position synchronized without double-shifting.
+ * Offsets a clip's transform and animated position properties by (dx, dy): positive values move the
+ * clip toward the origin by subtracting dx, dy. Positions keep sub-pixel precision, and the
+ * transform moves by the same offset so it stays in step with the position property.
  */
 export function offsetClipPosition(clip: Clip, dx: number, dy: number): Clip {
 	const cloned: Clip = JSON.parse(JSON.stringify(clip));
+	const shift = (id: string, index: 0 | 1, by: number): boolean => {
+		const prop = cloned.properties?.[id] as
+			| { value?: unknown; keyframes?: Array<{ value: unknown }> }
+			| undefined;
+		if (!prop) return false;
+		const apply = (value: unknown): unknown => {
+			if (Array.isArray(value)) {
+				const next = [...value];
+				next[index] = (next[index] as number) - by;
+				return next;
+			}
+			return typeof value === 'number' ? value - by : value;
+		};
+		if (prop.keyframes) {
+			for (const keyframe of prop.keyframes) keyframe.value = apply(keyframe.value);
+			return true;
+		}
+		if ('value' in prop) {
+			prop.value = apply(prop.value);
+			return true;
+		}
+		return false;
+	};
 
-	let hasPositionProp = false;
-
-	// 1. Offset properties['position'] if present
+	// A vec2 `position` wins over split position.x / position.y, matching the renderer.
+	let animated = false;
 	if (cloned.properties?.position) {
-		hasPositionProp = true;
-		const posProp = cloned.properties.position as any;
-		if ('value' in posProp && Array.isArray(posProp.value)) {
-			posProp.value = [
-				Math.round(posProp.value[0] - dx),
-				Math.round(posProp.value[1] - dy)
-			];
-			if (cloned.transform) {
-				cloned.transform.x = posProp.value[0];
-				cloned.transform.y = posProp.value[1];
-			}
-		} else if ('keyframes' in posProp && Array.isArray(posProp.keyframes)) {
-			posProp.keyframes = posProp.keyframes.map((kf: any) => ({
-				...kf,
-				value: [
-					Math.round(kf.value[0] - dx),
-					Math.round(kf.value[1] - dy)
-				]
-			}));
-			if (cloned.transform && posProp.keyframes.length > 0) {
-				cloned.transform.x = posProp.keyframes[0].value[0];
-				cloned.transform.y = posProp.keyframes[0].value[1];
-			}
-		}
+		animated = shift('position', 0, dx);
+		shift('position', 1, dy);
+	} else {
+		animated = shift('position.x', 0, dx);
+		animated = shift('position.y', 0, dy) || animated;
 	}
+	// Only the position property drives the layer, so a clip without a transform needs none.
+	if (animated && !cloned.transform) return cloned;
 
-	// 2. Fallback to separate position.x / position.y properties if position vec2 is not present
-	if (!hasPositionProp && (cloned.properties?.['position.x'] || cloned.properties?.['position.y'])) {
-		hasPositionProp = true;
-		if (cloned.properties['position.x']) {
-			const prop = cloned.properties['position.x'] as any;
-			if ('value' in prop && typeof prop.value === 'number') {
-				prop.value = Math.round(prop.value - dx);
-				if (cloned.transform) cloned.transform.x = prop.value;
-			} else if ('keyframes' in prop && Array.isArray(prop.keyframes)) {
-				prop.keyframes = prop.keyframes.map((kf: any) => ({
-					...kf,
-					value: Math.round(kf.value - dx)
-				}));
-				if (cloned.transform && prop.keyframes.length > 0) {
-					cloned.transform.x = prop.keyframes[0].value;
-				}
-			}
-		}
-		if (cloned.properties['position.y']) {
-			const prop = cloned.properties['position.y'] as any;
-			if ('value' in prop && typeof prop.value === 'number') {
-				prop.value = Math.round(prop.value - dy);
-				if (cloned.transform) cloned.transform.y = prop.value;
-			} else if ('keyframes' in prop && Array.isArray(prop.keyframes)) {
-				prop.keyframes = prop.keyframes.map((kf: any) => ({
-					...kf,
-					value: Math.round(kf.value - dy)
-				}));
-				if (cloned.transform && prop.keyframes.length > 0) {
-					cloned.transform.y = prop.keyframes[0].value;
-				}
-			}
-		}
-	}
-
-	// 3. If no position property, offset transform directly
-	if (!hasPositionProp) {
-		if (cloned.transform) {
-			cloned.transform.x = Math.round((cloned.transform.x ?? 0) - dx);
-			cloned.transform.y = Math.round((cloned.transform.y ?? 0) - dy);
-		} else {
-			cloned.transform = {
-				x: -Math.round(dx),
-				y: -Math.round(dy),
-				scaleX: 1,
-				scaleY: 1,
-				rotation: 0,
-				opacity: 1
-			};
-		}
-	}
-
+	cloned.transform = {
+		x: (cloned.transform?.x ?? 0) - dx,
+		y: (cloned.transform?.y ?? 0) - dy,
+		scaleX: cloned.transform?.scaleX ?? 1,
+		scaleY: cloned.transform?.scaleY ?? 1,
+		rotation: cloned.transform?.rotation ?? 0,
+		opacity: cloned.transform?.opacity ?? 1
+	};
 	return cloned;
 }
 
@@ -685,6 +646,60 @@ export function deleteCustomTemplate(templateId: string): void {
 	}
 }
 
+type Rgba = { r: number; g: number; b: number; a: number };
+
+function toRgba(value: unknown, fallback: Rgba): Rgba {
+	if (Array.isArray(value) && value.length >= 3) {
+		return { r: value[0], g: value[1], b: value[2], a: value[3] ?? 1 };
+	}
+	if (value && typeof value === 'object' && 'r' in value) {
+		const color = value as Partial<Rgba>;
+		return { r: color.r ?? 0, g: color.g ?? 0, b: color.b ?? 0, a: color.a ?? 1 };
+	}
+	return fallback;
+}
+
+function sameColor(a: Rgba, b: Rgba): boolean {
+	const near = (x: number, y: number) => Math.abs(x - y) < 1e-6;
+	return near(a.r, b.r) && near(a.g, b.g) && near(a.b, b.b) && near(a.a, b.a);
+}
+
+/**
+ * Sets a colour property to `color`. A keyframed colour keeps its timing and each keyframe's own
+ * alpha, so recolouring a template does not flatten its animation.
+ */
+function recolorProperty(clip: Clip, id: string, color: Rgba): void {
+	const properties = (clip.properties ??= {});
+	const current = properties[id] as
+		| { keyframes?: Array<{ value: unknown }>; value?: unknown }
+		| undefined;
+	if (current?.keyframes && current.keyframes.length > 0) {
+		for (const keyframe of current.keyframes) {
+			const alpha = Array.isArray(keyframe.value) ? (keyframe.value[3] ?? 1) : 1;
+			keyframe.value = [color.r, color.g, color.b, alpha];
+		}
+		return;
+	}
+	properties[id] = { value: [color.r, color.g, color.b, color.a] };
+}
+
+/** Sets a numeric property; a keyframed one is scaled so its shape over time is kept. */
+function setNumberProperty(clip: Clip, id: string, value: number): void {
+	const properties = (clip.properties ??= {});
+	const current = properties[id] as
+		| { keyframes?: Array<{ value: unknown }>; value?: unknown }
+		| undefined;
+	const first = current?.keyframes?.[0]?.value;
+	if (current?.keyframes && typeof first === 'number' && first !== 0) {
+		const ratio = value / first;
+		for (const keyframe of current.keyframes) {
+			if (typeof keyframe.value === 'number') keyframe.value *= ratio;
+		}
+		return;
+	}
+	properties[id] = { value };
+}
+
 /**
  * Applies user parameter overrides to a sequence clone in real time.
  */
@@ -726,30 +741,26 @@ export function applyParamOverridesToSequence(
 							break;
 
 						case 'text.fontSize':
-							// Handled via transform or style lineHeight
-							if (clip.source?.type === 'text' && clip.source.style) {
-								clip.source.style.lineHeight = Number(value);
+							// The renderer reads the size from this property; style.lineHeight is a multiplier.
+							if (clip.source?.type === 'text' && Number(value) > 0) {
+								setNumberProperty(clip, 'text.fontSize', Number(value));
 							}
 							break;
 
 						case 'text.fill':
 							if (clip.source?.type === 'text') {
-								clip.source.colorRuns = [
-									{
-										startIndex: 0,
-										endIndex: (clip.source.text || '').length || 1000,
-										fillColor: value
-									}
-								];
-								if (!clip.properties) clip.properties = {};
-								const rgbaArray = Array.isArray(value)
-									? value
-									: typeof value === 'object' && 'r' in value
-									? [value.r, value.g, value.b, value.a ?? 1]
-									: [1, 1, 1, 1];
-								clip.properties['text.fillColor'] = {
-									value: rgbaArray
-								};
+								const color = toRgba(value, { r: 1, g: 1, b: 1, a: 1 });
+								// Recolour only the runs that carried the template's colour; other runs are
+								// deliberate accents.
+								const runs = clip.source.colorRuns ?? [];
+								const base = toRgba(param.defaultValue, color);
+								const matching = runs.filter(
+									(run) => run.fillColor && sameColor(toRgba(run.fillColor, base), base)
+								);
+								for (const run of matching.length > 0 || runs.length !== 1 ? matching : runs) {
+									run.fillColor = color;
+								}
+								recolorProperty(clip, 'text.fillColor', color);
 							}
 							break;
 
@@ -758,28 +769,30 @@ export function applyParamOverridesToSequence(
 								if (!clip.source.box) {
 									clip.source.box = { autoSize: true, verticalAnchor: 'bottom', frameStyle: 'accent-bar' };
 								}
-								clip.source.box.accentBarColor = value;
-								if (!clip.properties) clip.properties = {};
-								const rgbaArray = Array.isArray(value)
-									? value
-									: typeof value === 'object' && 'r' in value
-									? [value.r, value.g, value.b, value.a ?? 1]
-									: [0, 0.82, 0.95, 1];
-								clip.properties['text.accentBarColor'] = {
-									value: rgbaArray
-								};
+								const color = toRgba(value, { r: 0, g: 0.82, b: 0.95, a: 1 });
+								clip.source.box.accentBarColor = color;
+								recolorProperty(clip, 'text.accentBarColor', color);
 							}
 							break;
 
 						case 'shape.fill':
 							if (clip.source?.type === 'shape') {
-								clip.source.fillColor = value;
+								const color = toRgba(value, { r: 1, g: 1, b: 1, a: 1 });
+								clip.source.fillColor = color;
+								// The renderer prefers an animated shape.fillColor, so keep it in step.
+								if (clip.properties?.['shape.fillColor']) {
+									recolorProperty(clip, 'shape.fillColor', color);
+								}
 							}
 							break;
 
 						case 'shape.stroke':
 							if (clip.source?.type === 'shape') {
-								clip.source.strokeColor = value;
+								const color = toRgba(value, { r: 0, g: 0, b: 0, a: 1 });
+								clip.source.strokeColor = color;
+								if (clip.properties?.['shape.strokeColor']) {
+									recolorProperty(clip, 'shape.strokeColor', color);
+								}
 							}
 							break;
 
