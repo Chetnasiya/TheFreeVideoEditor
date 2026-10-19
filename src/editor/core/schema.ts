@@ -35,7 +35,7 @@ export const markerIdSchema = z.custom<MarkerId>(
 export const trackerIdSchema = z.custom<TrackerId>(
 	(value) => typeof value === 'string' && value.length > 0
 );
-const timeSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+export const timeSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 
 export const projectSettingsSchema = z.object({
 	width: z.number().int().positive(),
@@ -108,6 +108,14 @@ export const textStyleSchema = z.object({
 	letterSpacing: z.number().optional()
 });
 
+export const gradientTypeSchema = z.enum([
+	'none',
+	'linear-horizontal',
+	'linear-vertical',
+	'radial',
+	'linear-angle'
+]);
+
 export const textColorRunSchema = z.object({
 	startIndex: z.number().int().nonnegative(),
 	endIndex: z.number().int().nonnegative(),
@@ -128,7 +136,10 @@ export const textBoxSchema = z.object({
 	borderWidth: z.number().nonnegative().optional(),
 	borderRadius: z.number().nonnegative().optional(),
 	accentBarColor: colorSchema.optional(),
-	accentBarWidth: z.number().nonnegative().optional()
+	accentBarWidth: z.number().nonnegative().optional(),
+	gradientType: gradientTypeSchema.optional(),
+	gradientColorEnd: colorSchema.optional(),
+	gradientAngle: z.number().optional()
 });
 
 export const clipSourceSchema = z.discriminatedUnion('type', [
@@ -157,7 +168,13 @@ export const clipSourceSchema = z.discriminatedUnion('type', [
 			})
 			.optional()
 	}),
-	z.object({ type: z.literal('solid'), color: colorSchema }),
+	z.object({
+		type: z.literal('solid'),
+		color: colorSchema,
+		gradientType: gradientTypeSchema.optional(),
+		gradientColorEnd: colorSchema.optional(),
+		gradientAngle: z.number().optional()
+	}),
 	z.object({ type: z.literal('adjustment') }),
 	z.object({
 		type: z.literal('shape'),
@@ -174,7 +191,10 @@ export const clipSourceSchema = z.discriminatedUnion('type', [
 		shadowColor: colorSchema.optional(),
 		shadowBlur: z.number().nonnegative().optional(),
 		shadowOffsetX: z.number().optional(),
-		shadowOffsetY: z.number().optional()
+		shadowOffsetY: z.number().optional(),
+		gradientType: gradientTypeSchema.optional(),
+		gradientColorEnd: colorSchema.optional(),
+		gradientAngle: z.number().optional()
 	})
 ]) as unknown as z.ZodType<ClipSource>;
 
@@ -286,6 +306,7 @@ export const clipSchema = z.object({
 	volume: z.number().nonnegative(),
 	linkId: z.string().min(1).optional(),
 	effects: z.array(effectSchema).optional(),
+	bypassEffects: z.boolean().optional(),
 	audioEffects: z.array(audioEffectInstanceSchema).optional(),
 	audioTag: z.enum(['dialogue', 'music', 'sfx', 'ambience']).optional(),
 	channelRouting: z
