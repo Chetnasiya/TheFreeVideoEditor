@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import * as path from 'path';
 
-const ARTIFACT_DIR = '/Users/gajananpalepwad/.gemini/antigravity/brain/fcf7ed63-3029-4ec5-b062-4e16714deed9';
+const ARTIFACT_DIR = path.join('test-results', 'screenshots');
 
 test.describe('Effects & Graphic Templates Drag and Drop with Animations', () => {
 	test.beforeEach(async ({ page }) => {
@@ -193,7 +193,7 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 		// Verify clip was placed
 		const clips = page.locator('.timeline-clip:not(.is-ghost)');
 		await expect(clips).toHaveCount(1);
-		await expect(clips.first()).toContainText('TRENDY TYPOGRAPHY');
+		await expect(clips.first()).toContainText('Clean Minimal Wipe Lower Third');
 		await page.screenshot({ path: path.join(ARTIFACT_DIR, 'graphic_placed_on_track.png') });
 
 		// 3. Test dragging to NEW TRACK drop area
@@ -208,8 +208,8 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 			if (!area) return;
 
 			const dt = new DataTransfer();
-			dt.setData('application/x-tfve-graphic-template', 'cyber-nights');
-			dt.setData('application/x-tfve-graphic-name', 'Cyberpunk Glitch');
+			dt.setData('application/x-tfve-graphic-template', 'cyber-glitch-tech');
+			dt.setData('application/x-tfve-graphic-name', 'Cyber Glitch Tech');
 
 			area.dispatchEvent(
 				new DragEvent('dragover', {
@@ -236,8 +236,8 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 			if (!area) return;
 
 			const dt = new DataTransfer();
-			dt.setData('application/x-tfve-graphic-template', 'cyber-nights');
-			dt.setData('application/x-tfve-graphic-name', 'Cyberpunk Glitch');
+			dt.setData('application/x-tfve-graphic-template', 'cyber-glitch-tech');
+			dt.setData('application/x-tfve-graphic-name', 'Cyber Glitch Tech');
 
 			area.dispatchEvent(
 				new DragEvent('drop', {
@@ -257,10 +257,53 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 		const finalClips = page.locator('.timeline-clip:not(.is-ghost)');
 		await expect(finalClips).toHaveCount(2);
 		const clipTexts = await finalClips.allTextContents();
-		expect(clipTexts.some((t) => t.includes('CYBER'))).toBe(true);
-		expect(clipTexts.some((t) => t.includes('TRENDY TYPOGRAPHY'))).toBe(true);
+		expect(clipTexts.some((t) => t.includes('Cyber Glitch Tech'))).toBe(true);
+		expect(clipTexts.some((t) => t.includes('Clean Minimal Wipe Lower Third'))).toBe(true);
 
 		await page.screenshot({ path: path.join(ARTIFACT_DIR, 'graphic_new_track_committed.png') });
+	});
+
+	test('dragging a real template card drops the same nested instance as "+ Add", without overlap', async ({
+		page
+	}) => {
+		await page.locator('#graphics-panel-title').click();
+		const card = page.getByTestId('graphic-card-cinematic-blockbuster');
+		await expect(card).toBeVisible();
+		const lane = page.locator('.timeline-track-row.track-video .timeline-track-lane').first();
+		await expect(lane).toBeVisible();
+
+		await card.dragTo(lane, { targetPosition: { x: 120, y: 20 } });
+
+		const clips = page.locator('.timeline-clip:not(.is-ghost)');
+		await expect(clips).toHaveCount(1);
+		await expect(clips.first()).toContainText('Cinematic Blockbuster');
+		await page.screenshot({ path: path.join(ARTIFACT_DIR, 'template_card_drop.png') });
+
+		const snapshot = () =>
+			page.evaluate(() => {
+				const project = (window as any).__TFVE_STORE__.getState().project;
+				return project.tracks.flatMap((track: any) =>
+					track.clips.map((clip: any) => ({
+						trackId: track.id,
+						start: clip.start,
+						duration: clip.duration,
+						type: clip.source?.type,
+						templateId: clip.source?.templateId
+					}))
+				);
+			});
+		const [dragged] = await snapshot();
+		expect(dragged).toMatchObject({
+			duration: 5_000_000,
+			type: 'sequence',
+			templateId: 'cinematic-blockbuster'
+		});
+
+		// A second drop at the same time must land on a new track instead of overlapping.
+		await card.dragTo(lane, { targetPosition: { x: 120, y: 20 } });
+		await expect(clips).toHaveCount(2);
+		const placed = await snapshot();
+		expect(new Set(placed.map((clip: { trackId: string }) => clip.trackId)).size).toBe(2);
 	});
 
 	test('Graphic template drag near edge reveals new track preview and creates track on drop', async ({
@@ -290,8 +333,8 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 			if (!lane) return;
 
 			const dt = new DataTransfer();
-			dt.setData('application/x-tfve-graphic-template', 'dream-big');
-			dt.setData('application/x-tfve-graphic-name', 'Dream Big Kinetic');
+			dt.setData('application/x-tfve-graphic-template', 'kinetic-marquee-stack');
+			dt.setData('application/x-tfve-graphic-name', 'Kinetic Marquee Stack');
 
 			lane.dispatchEvent(
 				new DragEvent('dragover', {
@@ -316,8 +359,8 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 			if (!lane) return;
 
 			const dt = new DataTransfer();
-			dt.setData('application/x-tfve-graphic-template', 'dream-big');
-			dt.setData('application/x-tfve-graphic-name', 'Dream Big Kinetic');
+			dt.setData('application/x-tfve-graphic-template', 'kinetic-marquee-stack');
+			dt.setData('application/x-tfve-graphic-name', 'Kinetic Marquee Stack');
 
 			lane.dispatchEvent(
 				new DragEvent('drop', {
@@ -338,7 +381,7 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 		expect(finalClipCount).toBe(initialClipCount + 1);
 
 		const allClipTexts = await page.locator('.timeline-clip:not(.is-ghost)').allTextContents();
-		expect(allClipTexts.some((t) => t.includes('DREAM BIG'))).toBe(true);
+		expect(allClipTexts.some((t) => t.includes('Kinetic Marquee Stack'))).toBe(true);
 	});
 
 	test('creates new tracks for text, caption, solid, adjustment, and graphic layers when clip already exists in existing track', async ({
@@ -395,7 +438,7 @@ test.describe('Effects & Graphic Templates Drag and Drop with Animations', () =>
 		await expect(graphicsTab).toBeVisible();
 		await graphicsTab.click();
 
-		const templatesTabBtn = page.getByRole('tab', { name: 'Templates' });
+		const templatesTabBtn = page.getByTestId('tab-graphic-templates');
 		if (await templatesTabBtn.isVisible()) {
 			await templatesTabBtn.click();
 		}

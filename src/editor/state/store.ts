@@ -191,9 +191,12 @@ import {
 	createTemplateFromClips,
 	detectPublishableProperties,
 	instantiateTemplateIntoProject,
+	createTemplateInstanceClip,
+	pickTemplateHostTrack,
 	unpackTemplateInstanceClip,
 	saveCustomTemplate
 } from '../core/templates/templateService';
+import { resolveMotionTemplate } from '../core/templates/builtinTemplates';
 import type {
 	MotionGraphicTemplate,
 	PublishedTemplateParam,
@@ -1113,6 +1116,14 @@ export interface EditorState {
 	analyzeSilence: () => Promise<void>;
 	recomputeSilencesFromCache: () => void;
 	applySilenceTrimAction: (mode: 'new-sequence' | 'in-place') => void;
+}
+
+function resolveDragTemplate(drag: DragSession): MotionGraphicTemplate {
+	const template =
+		drag.motionTemplate ??
+		(drag.graphicTemplateId ? resolveMotionTemplate(drag.graphicTemplateId) : undefined);
+	if (!template) throw new Error(`Template "${drag.graphicTemplateId}" was not found.`);
+	return template;
 }
 
 function errorMessage(error: unknown): string {
@@ -2859,23 +2870,20 @@ export function createEditorStore() {
 							drag.graphicTemplateId &&
 							targetTrackId
 						) {
-							const clip = createGraphicClip(drag.graphicTemplateId, snappedTime, 5_000_000);
-							const targetTrack = previewBase.tracks.find((t) => t.id === targetTrackId);
-							if (
-								targetTrack &&
-								targetTrack.clips.some(
-									(c) => c.start < clip.start + clip.duration && c.start + c.duration > clip.start
-								)
-							) {
-								const prevIds = new Set(previewBase.tracks.map((t) => t.id));
-								previewBase = addTrackOperation(previewBase, 'video');
-								const created = previewBase.tracks.find(
-									(candidate) => !prevIds.has(candidate.id) && candidate.kind === 'video'
-								);
-								if (created) {
-									targetTrackId = created.id;
-								}
-							}
+							const template = resolveDragTemplate(drag);
+							const picked = pickTemplateHostTrack(
+								previewBase,
+								snappedTime,
+								template.duration,
+								targetTrackId
+							);
+							previewBase = picked.view;
+							targetTrackId = picked.trackId;
+							const clip = createTemplateInstanceClip(
+								template,
+								snappedTime,
+								template.id as SequenceId
+							);
 							previewProject = insertClip(previewBase, targetTrackId, clip);
 						} else if (
 							(drag.kind === 'shape' || drag.shapeConfig) &&
@@ -3026,6 +3034,60 @@ export function createEditorStore() {
 						return false;
 					}
 
+					if (drag.kind === 'graphic-template' || drag.graphicTemplateId) {
+						// Same instantiation as "+ Add", so a dropped template is structurally identical.
+						try {
+							const template = resolveDragTemplate(drag);
+							const activeSeqId = get().activeSequenceId;
+							const previousClipIds = new Set(
+								viewProject(get().project!, activeSeqId).tracks.flatMap((track) =>
+									track.clips.map((clip) => clip.id)
+								)
+							);
+							mutateProject(
+								`Add template ${template.name}`,
+								(project) => {
+									let base = project;
+									let targetTrackId = drag.targetTrackId;
+									if (drag.createTrackKind) {
+										const before = viewProject(base, activeSeqId);
+										base = applyToSequence(base, activeSeqId, (view) =>
+											addTrackOperation(view, drag.createTrackKind!)
+										);
+										targetTrackId = viewProject(base, activeSeqId).tracks.find(
+											(track) => !before.tracks.some((existing) => existing.id === track.id)
+										)?.id;
+									}
+									return instantiateTemplateIntoProject(
+										base,
+										activeSeqId,
+										template,
+										drag.pointerTime,
+										targetTrackId
+									).project;
+								},
+								{ history: 'record' }
+							);
+							const added = viewProject(get().project!, activeSeqId)
+								.tracks.flatMap((track) => track.clips)
+								.filter((clip) => !previousClipIds.has(clip.id))
+								.map((clip) => clip.id);
+							get().selectClips(added);
+							projectHistory.updateSelectionAfter(added);
+							set((state) => {
+								state.timeline.drag = null;
+								state.timeline.message = 'Timeline edit applied.';
+							});
+							return true;
+						} catch (error) {
+							set((state) => {
+								state.timeline.drag = null;
+								state.timeline.message = errorMessage(error);
+							});
+							return false;
+						}
+					}
+
 					try {
 						const activeSeqId = get().activeSequenceId;
 						const activeViewBefore = viewProject(get().project!, activeSeqId);
@@ -3035,13 +3097,11 @@ export function createEditorStore() {
 						mutateProject(
 							drag.kind === 'asset'
 								? 'Add clip'
-								: drag.kind === 'graphic-template' || drag.graphicTemplateId
-									? 'Add graphic title'
-									: drag.kind === 'shape' || drag.shapeConfig
-										? 'Add shape'
-										: drag.kind === 'move'
-											? 'Move clips'
-											: 'Trim clip',
+								: drag.kind === 'shape' || drag.shapeConfig
+									? 'Add shape'
+									: drag.kind === 'move'
+										? 'Move clips'
+										: 'Trim clip',
 							(project) =>
 								applyToSequence(project, activeSeqId, (view) => {
 									let currentView = view;
@@ -3069,32 +3129,6 @@ export function createEditorStore() {
 											trackId: actualTargetTrackId,
 											start: drag.pointerTime
 										});
-									}
-									if (
-										(drag.kind === 'graphic-template' || drag.graphicTemplateId) &&
-										drag.graphicTemplateId &&
-										actualTargetTrackId
-									) {
-										const clip = createGraphicClip(
-											drag.graphicTemplateId,
-											drag.pointerTime,
-											5_000_000
-										);
-										let trackToUse = currentView.tracks.find((t) => t.id === actualTargetTrackId);
-										if (
-											!trackToUse ||
-											trackToUse.clips.some(
-												(c) =>
-													c.start < clip.start + clip.duration && c.start + c.duration > clip.start
-											)
-										) {
-											const prevIds = new Set(currentView.tracks.map((t) => t.id));
-											currentView = addTrackOperation(currentView, 'video');
-											trackToUse = currentView.tracks.find(
-												(t) => !prevIds.has(t.id) && t.kind === 'video'
-											);
-										}
-										return insertClip(currentView, trackToUse!.id, clip);
 									}
 									if (
 										(drag.kind === 'shape' || drag.shapeConfig) &&
@@ -3166,8 +3200,6 @@ export function createEditorStore() {
 						if (
 							committed &&
 							(drag.kind === 'asset' ||
-								drag.kind === 'graphic-template' ||
-								Boolean(drag.graphicTemplateId) ||
 								drag.kind === 'shape' ||
 								Boolean(drag.shapeConfig))
 						) {

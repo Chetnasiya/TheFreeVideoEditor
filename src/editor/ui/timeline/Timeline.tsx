@@ -40,7 +40,8 @@ import ClipView from './ClipView';
 import { CaptionSegmentView } from './CaptionSegmentView';
 import { TransitionBlock } from './TransitionBlock';
 import type { TransitionType } from '../../core/transitionsRegistry';
-import { createGraphicClip } from '../../core/text/graphicsTemplates';
+import { createTemplateInstanceClip } from '../../core/templates/templateService';
+import { resolveMotionTemplate } from '../../core/templates/builtinTemplates';
 import { createShapeClip } from '../../core/adjustment';
 import type { ShapeConfig } from '../../core/shapes/shapeTypes';
 import { SaveTemplateModal } from '../graphics/SaveTemplateModal';
@@ -1083,6 +1084,28 @@ function ActiveTimeline({ project }: { project: Project }) {
 		return null;
 	}
 
+	function templateForDrop(
+		dataTransfer: DataTransfer,
+		templateId: string
+	): MotionGraphicTemplate | null {
+		return (
+			customMotionTemplateFromData(dataTransfer) ??
+			store.getState().timeline.drag?.motionTemplate ??
+			resolveMotionTemplate(templateId) ??
+			null
+		);
+	}
+
+	function ghostTemplateClip(session: DragSession | null, start: number, duration: number): Clip {
+		const template =
+			session?.motionTemplate ??
+			(session?.graphicTemplateId ? resolveMotionTemplate(session.graphicTemplateId) : undefined);
+		const clip = template
+			? createTemplateInstanceClip(template, start, template.id as SequenceId)
+			: undefined;
+		return clip ? { ...clip, duration, sourceOut: duration } : ({ start, duration } as Clip);
+	}
+
 	function beginGraphicTemplatePreview(
 		event: DragEvent<HTMLElement>,
 		targetTrackId: TrackId
@@ -1108,6 +1131,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 				targetTrackId,
 				createTrackKind: undefined,
 				graphicTemplateId: templateId,
+				motionTemplate:
+					drag?.motionTemplate ?? templateForDrop(event.dataTransfer, templateId) ?? undefined,
 				allowed: true,
 				unlink: false
 			});
@@ -1134,6 +1159,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 				targetTrackId: undefined,
 				createTrackKind: 'video',
 				graphicTemplateId: templateId,
+				motionTemplate:
+					drag?.motionTemplate ?? templateForDrop(event.dataTransfer, templateId) ?? undefined,
 				allowed: true,
 				unlink: false
 			});
@@ -1563,10 +1590,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 				commitTimelineDrag();
 			} else {
 				const time = pointerTime(event.clientX);
-				store.getState().addGraphicClip(graphicTemplateId, {
-					start: time,
-					trackId: track.id
-				});
+				const template = templateForDrop(event.dataTransfer, graphicTemplateId);
+				if (template) store.getState().instantiateTemplate(template, time, track.id);
 			}
 			return;
 		}
@@ -1639,9 +1664,10 @@ function ActiveTimeline({ project }: { project: Project }) {
 			if (session?.graphicTemplateId === graphicTemplateId && session.createTrackKind) {
 				commitTimelineDrag();
 			} else {
-				store.getState().addGraphicClip(graphicTemplateId, {
-					start: pointerTime(event.clientX)
-				});
+				const template = templateForDrop(event.dataTransfer, graphicTemplateId);
+				if (template) {
+					store.getState().instantiateTemplate(template, pointerTime(event.clientX));
+				}
 			}
 			return;
 		}
@@ -1990,10 +2016,8 @@ function ActiveTimeline({ project }: { project: Project }) {
 					)) ||
 				activeProject.tracks.find((t) => t.kind === 'video' && !t.locked);
 			const time = pointerTime(event.clientX);
-			store.getState().addGraphicClip(graphicTemplateId, {
-				start: time,
-				trackId: targetTrack?.id
-			});
+			const template = templateForDrop(event.dataTransfer, graphicTemplateId);
+			if (template) store.getState().instantiateTemplate(template, time, targetTrack?.id);
 			return;
 		}
 		const assetId = assetFromData(event.dataTransfer);
@@ -2689,11 +2713,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 													: drag.shapeConfig
 														? createShapeClip(position.start, position.duration, drag.shapeConfig)
 														: drag.graphicTemplateId
-															? createGraphicClip(
-																	drag.graphicTemplateId,
-																	position.start,
-																	position.duration
-																)
+															? ghostTemplateClip(drag, position.start, position.duration)
 															: {
 																	id: position.clipId,
 																	assetId: asset?.id,
@@ -3011,11 +3031,7 @@ function ActiveTimeline({ project }: { project: Project }) {
 																		drag.shapeConfig
 																	)
 																: drag?.graphicTemplateId
-																	? createGraphicClip(
-																			drag.graphicTemplateId,
-																			position.start,
-																			position.duration
-																		)
+																	? ghostTemplateClip(drag, position.start, position.duration)
 																	: {
 																			id: position.clipId,
 																			assetId: asset?.id,

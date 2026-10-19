@@ -1,5 +1,6 @@
 import type { MotionGraphicTemplate, TemplateCategory } from './templateTypes';
 import { convertAllGraphicTemplates } from './templateConverter';
+import { getCustomTemplates } from './templateService';
 
 /**
  * Built-in Motion Graphic Templates (.tfvetemplate).
@@ -16,6 +17,14 @@ for (const tpl of BUILTIN_MOTION_TEMPLATES) {
  */
 export function getBuiltinMotionTemplate(id: string): MotionGraphicTemplate | undefined {
 	return BUILTIN_MAP.get(id);
+}
+
+/**
+ * Resolves a template id against the built-in library, then the user's saved custom templates.
+ * Returns undefined for an unknown id so callers never silently substitute a different template.
+ */
+export function resolveMotionTemplate(id: string): MotionGraphicTemplate | undefined {
+	return BUILTIN_MAP.get(id) ?? getCustomTemplates().find((template) => template.id === id);
 }
 
 /**
@@ -53,4 +62,3 @@ export function filterBuiltinTemplates(
 		);
 	});
 }
-

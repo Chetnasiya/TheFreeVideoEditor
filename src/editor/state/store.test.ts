@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createEmptyProject, readProperty } from '../core';
-import type { AssetId, ClipId, DragPosition, ProjectId, ProjectSummary } from '../core';
+import type {
+	AssetId,
+	ClipId,
+	DragPosition,
+	ProjectId,
+	ProjectSummary,
+	SequenceId,
+	TrackId
+} from '../core';
+import { getBuiltinMotionTemplate } from '../core/templates/builtinTemplates';
+import type { MotionGraphicTemplate } from '../core/templates/templateTypes';
 import { registerProjectExport } from '../services/export/session';
 import { createEditorStore } from './store';
 
@@ -1083,6 +1093,147 @@ LUT_3D_SIZE 2
 		expect(store.getState().history.size).toBe(historySizeBeforeDrag + 1);
 		expect(readProperty(getClip()!, 'scale', 0)).toEqual([2, 2]);
 		expect(readProperty(getClip()!, 'position', 0)).toEqual([50, 20]);
+	});
+
+	describe('template drag-and-drop', () => {
+		function dragTemplate(
+			store: ReturnType<typeof createEditorStore>,
+			template: MotionGraphicTemplate,
+			time: number,
+			trackId?: TrackId
+		): boolean {
+			store.getState().beginTimelineDrag({
+				kind: 'graphic-template',
+				clipIds: [],
+				original: [],
+				preview: [],
+				pointerStartTime: 0,
+				pointerTime: time,
+				graphicTemplateId: template.id,
+				motionTemplate: template,
+				allowed: true,
+				unlink: false
+			});
+			store.getState().updateTimelineDrag(time, { targetTrackId: trackId });
+			return store.getState().commitTimelineDrag();
+		}
+
+		function instanceClips(store: ReturnType<typeof createEditorStore>) {
+			return store
+				.getState()
+				.project!.tracks.flatMap((track) => track.clips)
+				.filter((clip) => clip.source?.type === 'sequence');
+		}
+
+		function firstVideoTrackId(store: ReturnType<typeof createEditorStore>): TrackId {
+			return store.getState().project!.tracks.find((track) => track.kind === 'video')!.id;
+		}
+
+		it('drops a nested template instance with the template duration, not a flat 5 s text clip', async () => {
+			const store = createEditorStore();
+			await store.getState().createProject({ name: 'Template drop' });
+			const template: MotionGraphicTemplate = {
+				...getBuiltinMotionTemplate('cinematic-blockbuster')!,
+				duration: 5_900_000
+			};
+
+			expect(dragTemplate(store, template, 1_000_000, firstVideoTrackId(store))).toBe(true);
+
+			const [clip] = instanceClips(store);
+			expect(clip?.duration).toBe(5_900_000);
+			expect(clip?.source).toMatchObject({ type: 'sequence', templateId: 'cinematic-blockbuster' });
+			expect(store.getState().project!.tracks.flatMap((track) => track.clips)).toHaveLength(1);
+		});
+
+		it('drops a custom template as itself instead of falling back to the first built-in', async () => {
+			const store = createEditorStore();
+			await store.getState().createProject({ name: 'Custom drop' });
+			const template: MotionGraphicTemplate = {
+				...getBuiltinMotionTemplate('cinematic-blockbuster')!,
+				id: 'my-custom-template',
+				name: 'My Custom Template'
+			};
+
+			expect(dragTemplate(store, template, 0, firstVideoTrackId(store))).toBe(true);
+
+			const [clip] = instanceClips(store);
+			expect(clip?.source).toMatchObject({
+				type: 'sequence',
+				templateId: 'my-custom-template',
+				templateName: 'My Custom Template'
+			});
+		});
+
+		it('produces the same clip structure as the "+ Add" path', async () => {
+			const template = getBuiltinMotionTemplate('cinematic-blockbuster')!;
+			const dragged = createEditorStore();
+			await dragged.getState().createProject({ name: 'Dragged' });
+			dragTemplate(dragged, template, 2_000_000, firstVideoTrackId(dragged));
+
+			const added = createEditorStore();
+			await added.getState().createProject({ name: 'Added' });
+			added.getState().instantiateTemplate(template, 2_000_000, firstVideoTrackId(added));
+
+			const strip = (store: ReturnType<typeof createEditorStore>) => {
+				const [clip] = instanceClips(store);
+				const sequenceId = (clip!.source as { sequenceId: string }).sequenceId;
+				const sequence = store.getState().project!.sequences![sequenceId as SequenceId]!;
+				return {
+					start: clip!.start,
+					duration: clip!.duration,
+					transform: clip!.transform,
+					source: { ...clip!.source, sequenceId: undefined, publishedParams: undefined },
+					params: (clip!.source as { publishedParams: unknown[] }).publishedParams.length,
+					tracks: sequence.tracks.map((track) => ({
+						kind: track.kind,
+						clips: track.clips.map((inner) => ({
+							start: inner.start,
+							duration: inner.duration,
+							source: inner.source?.type
+						}))
+					}))
+				};
+			};
+			expect(strip(dragged)).toEqual(strip(added));
+		});
+
+		it('never overlaps an occupied track when dropping or adding a template', async () => {
+			const store = createEditorStore();
+			await store.getState().createProject({ name: 'Occupied track' });
+			const template = getBuiltinMotionTemplate('cinematic-blockbuster')!;
+			const trackId = firstVideoTrackId(store);
+
+			expect(dragTemplate(store, template, 0, trackId)).toBe(true);
+			expect(dragTemplate(store, template, 1_000_000, trackId)).toBe(true);
+			store.getState().instantiateTemplate(template, 2_000_000, trackId);
+
+			for (const track of store.getState().project!.tracks) {
+				const clips = [...track.clips].sort((a, b) => a.start - b.start);
+				for (let index = 1; index < clips.length; index += 1) {
+					expect(clips[index]!.start).toBeGreaterThanOrEqual(
+						clips[index - 1]!.start + clips[index - 1]!.duration
+					);
+				}
+			}
+			expect(instanceClips(store)).toHaveLength(3);
+		});
+
+		it('records one undo entry for a template drop', async () => {
+			const store = createEditorStore();
+			await store.getState().createProject({ name: 'Undo drop' });
+			const before = store.getState().history.size;
+
+			dragTemplate(
+				store,
+				getBuiltinMotionTemplate('cinematic-blockbuster')!,
+				0,
+				firstVideoTrackId(store)
+			);
+
+			expect(store.getState().history.size).toBe(before + 1);
+			expect(store.getState().undo()).toBe(true);
+			expect(instanceClips(store)).toHaveLength(0);
+		});
 	});
 });
 
