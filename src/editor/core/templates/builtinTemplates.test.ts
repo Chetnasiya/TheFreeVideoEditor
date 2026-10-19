@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
 	BUILTIN_MOTION_TEMPLATES,
+	filterBuiltinTemplates,
 	getBuiltinMotionTemplate,
 	resolveMotionTemplate
 } from './builtinTemplates';
@@ -66,5 +67,29 @@ describe('example template', () => {
 		const [layer] = resolveFrame(project, 1_500_000).videoLayers;
 		const text = layer!.nested!.layers.find((nested) => nested.kind === 'text');
 		expect(text!.textData!.text).toBe('YOUR NAME HERE');
+	});
+});
+
+describe('filtering the library', () => {
+	it('returns everything for "all" and an empty query', () => {
+		expect(filterBuiltinTemplates('all', '')).toEqual(BUILTIN_MOTION_TEMPLATES);
+	});
+
+	it('filters by the category ids the panel uses', () => {
+		const lower = filterBuiltinTemplates('lower-third');
+		expect(lower.length).toBeGreaterThan(0);
+		expect(lower.every((template) => template.category === 'Lower Thirds')).toBe(true);
+		const titles = filterBuiltinTemplates('titles');
+		expect(titles.every((template) => template.category === 'Titles')).toBe(true);
+	});
+
+	it('searches names and the text a template shows by default', () => {
+		expect(filterBuiltinTemplates('all', 'cinematic').map((template) => template.id)).toContain(
+			'cinematic-blockbuster'
+		);
+		expect(
+			filterBuiltinTemplates('all', 'epic adventure').map((template) => template.id)
+		).toContain('cinematic-blockbuster');
+		expect(filterBuiltinTemplates('all', 'zzz-no-match')).toEqual([]);
 	});
 });
