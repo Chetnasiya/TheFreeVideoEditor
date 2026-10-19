@@ -215,7 +215,7 @@
                   "value": [
                     0,
                     0,
-                    100,
+                    1,
                     0
                   ],
                   "interpolation": "linear"
@@ -225,7 +225,7 @@
                   "value": [
                     0,
                     0,
-                    100,
+                    1,
                     0
                   ],
                   "interpolation": "linear"
@@ -235,7 +235,7 @@
                   "value": [
                     0,
                     0,
-                    55,
+                    0.55,
                     0
                   ],
                   "interpolation": "linear"
@@ -265,7 +265,7 @@
                   "value": [
                     0,
                     0,
-                    100,
+                    1,
                     0
                   ],
                   "interpolation": "linear"

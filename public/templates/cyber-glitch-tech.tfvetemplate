@@ -23,13 +23,140 @@
     {
       "id": "tpl_trk_1",
       "kind": "video",
-      "name": "Background Frame",
+      "name": "Title Text",
       "muted": false,
       "locked": false,
       "hidden": false,
       "clips": [
         {
           "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "CYBER PROTOCOL\nSYSTEM INITIALIZED // 2049",
+            "style": {
+              "fontFamily": "Roboto Mono",
+              "fontWeight": "700",
+              "alignment": "center",
+              "letterSpacing": 3
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "center",
+              "paddingX": 32,
+              "paddingY": 18,
+              "frameStyle": "none"
+            },
+            "colorRuns": [],
+            "graphicTemplateId": "cyber-glitch-tech",
+            "animationPresetId": "glitch-snap"
+          },
+          "properties": {
+            "position": {
+              "value": [
+                0,
+                0
+              ]
+            },
+            "text.fontSize": {
+              "value": 58
+            },
+            "text.letterSpacing": {
+              "value": 3
+            },
+            "text.fillColor": {
+              "value": [
+                0,
+                0.95,
+                0.9,
+                1
+              ]
+            },
+            "text.lineHeight": {
+              "value": 1.25
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 80000,
+                  "value": 1,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 140000,
+                  "value": 0.25,
+                  "interpolation": "hold"
+                },
+                {
+                  "time": 200000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    1.15,
+                    0.9
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 100000,
+                  "value": [
+                    0.95,
+                    1.05
+                  ],
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 350000,
+                  "value": [
+                    1,
+                    1
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "tpl_trk_2",
+      "kind": "video",
+      "name": "Background Frame",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_2",
           "start": 0,
           "duration": 5000000,
           "sourceIn": 0,
@@ -132,134 +259,6 @@
           "effects": []
         }
       ]
-    },
-    {
-      "id": "tpl_trk_2",
-      "kind": "video",
-      "name": "Title Text",
-      "muted": false,
-      "locked": false,
-      "hidden": false,
-      "clips": [
-        {
-          "id": "tpl_clip_2",
-          "start": 0,
-          "duration": 5000000,
-          "sourceIn": 0,
-          "sourceOut": 5000000,
-          "speed": 1,
-          "volume": 0,
-          "source": {
-            "type": "text",
-            "text": "CYBER PROTOCOL\nSYSTEM INITIALIZED // 2049",
-            "style": {
-              "fontFamily": "Roboto Mono",
-              "fontWeight": "700",
-              "alignment": "center",
-              "letterSpacing": 3
-            },
-            "box": {
-              "autoSize": true,
-              "verticalAnchor": "center",
-              "paddingX": 32,
-              "paddingY": 18,
-              "frameStyle": "frame",
-              "badgeText": "SYSTEM INITIALIZED // 2049"
-            },
-            "colorRuns": [],
-            "graphicTemplateId": "cyber-glitch-tech",
-            "animationPresetId": "glitch-snap"
-          },
-          "properties": {
-            "position": {
-              "value": [
-                0,
-                0
-              ]
-            },
-            "text.fontSize": {
-              "value": 58
-            },
-            "text.letterSpacing": {
-              "value": 3
-            },
-            "text.fillColor": {
-              "value": [
-                0,
-                0.95,
-                0.9,
-                1
-              ]
-            },
-            "text.lineHeight": {
-              "value": 1.25
-            },
-            "opacity": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": 0,
-                  "interpolation": "hold"
-                },
-                {
-                  "time": 80000,
-                  "value": 1,
-                  "interpolation": "hold"
-                },
-                {
-                  "time": 140000,
-                  "value": 0.25,
-                  "interpolation": "hold"
-                },
-                {
-                  "time": 200000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 4500000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 5000000,
-                  "value": 0,
-                  "interpolation": "linear"
-                }
-              ]
-            },
-            "scale": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": [
-                    1.15,
-                    0.9
-                  ],
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 100000,
-                  "value": [
-                    0.95,
-                    1.05
-                  ],
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 350000,
-                  "value": [
-                    1,
-                    1
-                  ],
-                  "interpolation": "linear"
-                }
-              ]
-            }
-          },
-          "effects": []
-        }
-      ]
     }
   ],
   "publishedParams": [
@@ -267,7 +266,7 @@
       "id": "param_title_text",
       "name": "Title Text",
       "type": "text",
-      "targetClipId": "tpl_clip_2",
+      "targetClipId": "tpl_clip_1",
       "targetProperty": "text.content",
       "defaultValue": "CYBER PROTOCOL\nSYSTEM INITIALIZED // 2049"
     },
@@ -275,7 +274,7 @@
       "id": "param_font_family",
       "name": "Font Family",
       "type": "font",
-      "targetClipId": "tpl_clip_2",
+      "targetClipId": "tpl_clip_1",
       "targetProperty": "text.fontFamily",
       "defaultValue": "Roboto Mono"
     },
@@ -283,7 +282,7 @@
       "id": "param_text_color",
       "name": "Text Color",
       "type": "color",
-      "targetClipId": "tpl_clip_2",
+      "targetClipId": "tpl_clip_1",
       "targetProperty": "text.fill",
       "defaultValue": {
         "r": 0,
@@ -296,7 +295,7 @@
       "id": "param_shape_fill",
       "name": "Accent / Background Color",
       "type": "color",
-      "targetClipId": "tpl_clip_1",
+      "targetClipId": "tpl_clip_2",
       "targetProperty": "shape.fill",
       "defaultValue": {
         "r": 0,
@@ -309,7 +308,7 @@
       "id": "param_shape_stroke",
       "name": "Border Color",
       "type": "color",
-      "targetClipId": "tpl_clip_1",
+      "targetClipId": "tpl_clip_2",
       "targetProperty": "shape.stroke",
       "defaultValue": {
         "r": 1,

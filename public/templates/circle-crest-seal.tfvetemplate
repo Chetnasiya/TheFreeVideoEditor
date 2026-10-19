@@ -23,13 +23,146 @@
     {
       "id": "tpl_trk_1",
       "kind": "video",
-      "name": "Background Frame",
+      "name": "Title Text",
       "muted": false,
       "locked": false,
       "hidden": false,
       "clips": [
         {
           "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "EST. 2026\nMASTERCLASS SERIES",
+            "style": {
+              "fontFamily": "Playfair Display",
+              "fontWeight": "700",
+              "alignment": "center",
+              "letterSpacing": 3
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "center",
+              "paddingX": 44,
+              "paddingY": 44,
+              "frameStyle": "none"
+            },
+            "colorRuns": [],
+            "graphicTemplateId": "circle-crest-seal",
+            "animationPresetId": "pop-in"
+          },
+          "properties": {
+            "position": {
+              "value": [
+                0,
+                0
+              ]
+            },
+            "text.fontSize": {
+              "value": 46
+            },
+            "text.letterSpacing": {
+              "value": 3
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.lineHeight": {
+              "value": 1.3
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 200000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "scale": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0.6,
+                    0.6
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.34,
+                    "y": 1.56
+                  },
+                  "easeIn": {
+                    "x": 0.64,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 350000,
+                  "value": [
+                    1.05,
+                    1.05
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 500000,
+                  "value": [
+                    1,
+                    1
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "tpl_trk_2",
+      "kind": "video",
+      "name": "Background Frame",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_2",
           "start": 0,
           "duration": 5000000,
           "sourceIn": 0,
@@ -138,140 +271,6 @@
           "effects": []
         }
       ]
-    },
-    {
-      "id": "tpl_trk_2",
-      "kind": "video",
-      "name": "Title Text",
-      "muted": false,
-      "locked": false,
-      "hidden": false,
-      "clips": [
-        {
-          "id": "tpl_clip_2",
-          "start": 0,
-          "duration": 5000000,
-          "sourceIn": 0,
-          "sourceOut": 5000000,
-          "speed": 1,
-          "volume": 0,
-          "source": {
-            "type": "text",
-            "text": "EST. 2026\nMASTERCLASS SERIES",
-            "style": {
-              "fontFamily": "Playfair Display",
-              "fontWeight": "700",
-              "alignment": "center",
-              "letterSpacing": 3
-            },
-            "box": {
-              "autoSize": true,
-              "verticalAnchor": "center",
-              "paddingX": 44,
-              "paddingY": 44,
-              "frameStyle": "circle",
-              "badgeText": "MASTERCLASS SERIES"
-            },
-            "colorRuns": [],
-            "graphicTemplateId": "circle-crest-seal",
-            "animationPresetId": "pop-in"
-          },
-          "properties": {
-            "position": {
-              "value": [
-                0,
-                0
-              ]
-            },
-            "text.fontSize": {
-              "value": 46
-            },
-            "text.letterSpacing": {
-              "value": 3
-            },
-            "text.fillColor": {
-              "value": [
-                1,
-                1,
-                1,
-                1
-              ]
-            },
-            "text.lineHeight": {
-              "value": 1.3
-            },
-            "opacity": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": 0,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 200000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 4500000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 5000000,
-                  "value": 0,
-                  "interpolation": "linear"
-                }
-              ]
-            },
-            "scale": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": [
-                    0.6,
-                    0.6
-                  ],
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.34,
-                    "y": 1.56
-                  },
-                  "easeIn": {
-                    "x": 0.64,
-                    "y": 1
-                  }
-                },
-                {
-                  "time": 350000,
-                  "value": [
-                    1.05,
-                    1.05
-                  ],
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.25,
-                    "y": 0.1
-                  },
-                  "easeIn": {
-                    "x": 0.25,
-                    "y": 1
-                  }
-                },
-                {
-                  "time": 500000,
-                  "value": [
-                    1,
-                    1
-                  ],
-                  "interpolation": "linear"
-                }
-              ]
-            }
-          },
-          "effects": []
-        }
-      ]
     }
   ],
   "publishedParams": [
@@ -279,7 +278,7 @@
       "id": "param_title_text",
       "name": "Title Text",
       "type": "text",
-      "targetClipId": "tpl_clip_2",
+      "targetClipId": "tpl_clip_1",
       "targetProperty": "text.content",
       "defaultValue": "EST. 2026\nMASTERCLASS SERIES"
     },
@@ -287,7 +286,7 @@
       "id": "param_font_family",
       "name": "Font Family",
       "type": "font",
-      "targetClipId": "tpl_clip_2",
+      "targetClipId": "tpl_clip_1",
       "targetProperty": "text.fontFamily",
       "defaultValue": "Playfair Display"
     },
@@ -295,7 +294,7 @@
       "id": "param_text_color",
       "name": "Text Color",
       "type": "color",
-      "targetClipId": "tpl_clip_2",
+      "targetClipId": "tpl_clip_1",
       "targetProperty": "text.fill",
       "defaultValue": {
         "r": 1,
@@ -308,7 +307,7 @@
       "id": "param_shape_fill",
       "name": "Accent / Background Color",
       "type": "color",
-      "targetClipId": "tpl_clip_1",
+      "targetClipId": "tpl_clip_2",
       "targetProperty": "shape.fill",
       "defaultValue": {
         "r": 0,
@@ -321,7 +320,7 @@
       "id": "param_shape_stroke",
       "name": "Border Color",
       "type": "color",
-      "targetClipId": "tpl_clip_1",
+      "targetClipId": "tpl_clip_2",
       "targetProperty": "shape.stroke",
       "defaultValue": {
         "r": 0.88,

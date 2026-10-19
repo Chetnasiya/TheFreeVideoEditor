@@ -23,13 +23,124 @@
     {
       "id": "tpl_trk_1",
       "kind": "video",
-      "name": "Background Frame",
+      "name": "Title Text",
       "muted": false,
       "locked": false,
       "hidden": false,
       "clips": [
         {
           "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 5000000,
+          "sourceIn": 0,
+          "sourceOut": 5000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "EDITORIAL VOL. 10\nAUTUMN & WINTER COLLECTION",
+            "style": {
+              "fontFamily": "Playfair Display",
+              "fontWeight": "600",
+              "alignment": "center",
+              "letterSpacing": 5
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "center",
+              "paddingX": 36,
+              "paddingY": 20,
+              "frameStyle": "none"
+            },
+            "colorRuns": [],
+            "graphicTemplateId": "minimal-editorial",
+            "animationPresetId": "slide-in-up"
+          },
+          "properties": {
+            "position": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": [
+                    0,
+                    75
+                  ],
+                  "interpolation": "bezier",
+                  "easeOut": {
+                    "x": 0.25,
+                    "y": 0.1
+                  },
+                  "easeIn": {
+                    "x": 0.25,
+                    "y": 1
+                  }
+                },
+                {
+                  "time": 600000,
+                  "value": [
+                    0,
+                    -75
+                  ],
+                  "interpolation": "linear"
+                }
+              ]
+            },
+            "text.fontSize": {
+              "value": 52
+            },
+            "text.letterSpacing": {
+              "value": 5
+            },
+            "text.fillColor": {
+              "value": [
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            "text.lineHeight": {
+              "value": 1.3
+            },
+            "opacity": {
+              "keyframes": [
+                {
+                  "time": 0,
+                  "value": 0,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 300000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 4500000,
+                  "value": 1,
+                  "interpolation": "linear"
+                },
+                {
+                  "time": 5000000,
+                  "value": 0,
+                  "interpolation": "linear"
+                }
+              ]
+            }
+          },
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "tpl_trk_2",
+      "kind": "video",
+      "name": "Background Frame",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_2",
           "start": 0,
           "duration": 5000000,
           "sourceIn": 0,
@@ -116,118 +227,6 @@
           "effects": []
         }
       ]
-    },
-    {
-      "id": "tpl_trk_2",
-      "kind": "video",
-      "name": "Title Text",
-      "muted": false,
-      "locked": false,
-      "hidden": false,
-      "clips": [
-        {
-          "id": "tpl_clip_2",
-          "start": 0,
-          "duration": 5000000,
-          "sourceIn": 0,
-          "sourceOut": 5000000,
-          "speed": 1,
-          "volume": 0,
-          "source": {
-            "type": "text",
-            "text": "EDITORIAL VOL. 10\nAUTUMN & WINTER COLLECTION",
-            "style": {
-              "fontFamily": "Playfair Display",
-              "fontWeight": "600",
-              "alignment": "center",
-              "letterSpacing": 5
-            },
-            "box": {
-              "autoSize": true,
-              "verticalAnchor": "center",
-              "paddingX": 36,
-              "paddingY": 20,
-              "frameStyle": "divided-box",
-              "badgeText": "AUTUMN & WINTER COLLECTION"
-            },
-            "colorRuns": [],
-            "graphicTemplateId": "minimal-editorial",
-            "animationPresetId": "slide-in-up"
-          },
-          "properties": {
-            "position": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": [
-                    0,
-                    75
-                  ],
-                  "interpolation": "bezier",
-                  "easeOut": {
-                    "x": 0.25,
-                    "y": 0.1
-                  },
-                  "easeIn": {
-                    "x": 0.25,
-                    "y": 1
-                  }
-                },
-                {
-                  "time": 600000,
-                  "value": [
-                    0,
-                    -75
-                  ],
-                  "interpolation": "linear"
-                }
-              ]
-            },
-            "text.fontSize": {
-              "value": 52
-            },
-            "text.letterSpacing": {
-              "value": 5
-            },
-            "text.fillColor": {
-              "value": [
-                1,
-                1,
-                1,
-                1
-              ]
-            },
-            "text.lineHeight": {
-              "value": 1.3
-            },
-            "opacity": {
-              "keyframes": [
-                {
-                  "time": 0,
-                  "value": 0,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 300000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 4500000,
-                  "value": 1,
-                  "interpolation": "linear"
-                },
-                {
-                  "time": 5000000,
-                  "value": 0,
-                  "interpolation": "linear"
-                }
-              ]
-            }
-          },
-          "effects": []
-        }
-      ]
     }
   ],
   "publishedParams": [
@@ -235,7 +234,7 @@
       "id": "param_title_text",
       "name": "Title Text",
       "type": "text",
-      "targetClipId": "tpl_clip_2",
+      "targetClipId": "tpl_clip_1",
       "targetProperty": "text.content",
       "defaultValue": "EDITORIAL VOL. 10\nAUTUMN & WINTER COLLECTION"
     },
@@ -243,7 +242,7 @@
       "id": "param_font_family",
       "name": "Font Family",
       "type": "font",
-      "targetClipId": "tpl_clip_2",
+      "targetClipId": "tpl_clip_1",
       "targetProperty": "text.fontFamily",
       "defaultValue": "Playfair Display"
     },
@@ -251,7 +250,7 @@
       "id": "param_text_color",
       "name": "Text Color",
       "type": "color",
-      "targetClipId": "tpl_clip_2",
+      "targetClipId": "tpl_clip_1",
       "targetProperty": "text.fill",
       "defaultValue": {
         "r": 1,
@@ -264,7 +263,7 @@
       "id": "param_shape_fill",
       "name": "Accent / Background Color",
       "type": "color",
-      "targetClipId": "tpl_clip_1",
+      "targetClipId": "tpl_clip_2",
       "targetProperty": "shape.fill",
       "defaultValue": {
         "r": 0,
@@ -277,7 +276,7 @@
       "id": "param_shape_stroke",
       "name": "Border Color",
       "type": "color",
-      "targetClipId": "tpl_clip_1",
+      "targetClipId": "tpl_clip_2",
       "targetProperty": "shape.stroke",
       "defaultValue": {
         "r": 0.92,
