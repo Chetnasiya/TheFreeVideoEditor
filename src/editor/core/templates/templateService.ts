@@ -14,6 +14,7 @@ import type {
 	TemplateCategory
 } from './templateTypes';
 import { getSequence, viewProject } from '../sequences/access';
+import { addTrack } from '../operations/tracks';
 import { expandSequenceInstance } from '../sequences/operations';
 import { layerCorners } from '../gizmo';
 import { getTextDimensions } from '../../services/render/text/rasterizer';
@@ -872,6 +873,75 @@ export function computeResponsiveTemplateTime(
 }
 
 /**
+ * Chooses the track an instance clip of `duration` placed at `start` should land on. The requested
+ * track is used when it is an unlocked video track with room for the whole instance; otherwise a
+ * new video track is added so the Track Overlap Invariant holds. Pure: returns the (possibly
+ * extended) view and the chosen track id.
+ */
+export function pickTemplateHostTrack(
+	view: Project,
+	start: Time,
+	duration: Time,
+	targetTrackId?: Track['id']
+): { view: Project; trackId: Track['id'] } {
+	const end = start + duration;
+	const hasRoom = (track: Track): boolean =>
+		track.kind === 'video' &&
+		!track.locked &&
+		!track.clips.some((clip) => clip.start < end && clip.start + clip.duration > start);
+	const requested = targetTrackId
+		? view.tracks.find((track) => track.id === targetTrackId)
+		: undefined;
+	if (requested && hasRoom(requested)) return { view, trackId: requested.id };
+	const free = requested ? undefined : view.tracks.find(hasRoom);
+	if (free) return { view, trackId: free.id };
+	const existing = new Set(view.tracks.map((track) => track.id));
+	const extended = addTrack(view, 'video');
+	const created = extended.tracks.find((track) => !existing.has(track.id));
+	if (!created) throw new Error('No available track found to place the template.');
+	return { view: extended, trackId: created.id };
+}
+
+/**
+ * Builds the nested-sequence instance clip for a template. Shared by "+ Add", drag-and-drop
+ * commit and the drag preview ghost so every entry point produces the same clip.
+ */
+export function createTemplateInstanceClip(
+	template: MotionGraphicTemplate,
+	start: Time,
+	sequenceId: SequenceId,
+	publishedParams: PublishedTemplateParam[] = template.publishedParams
+): Clip {
+	return {
+		id: generateId() as ClipId,
+		start,
+		duration: template.duration,
+		sourceIn: 0,
+		sourceOut: template.duration,
+		speed: 1,
+		volume: 1,
+		transform: {
+			x: template.bounds?.originX ?? 0,
+			y: template.bounds?.originY ?? 0,
+			scaleX: 1,
+			scaleY: 1,
+			rotation: 0,
+			opacity: 1
+		},
+		source: {
+			type: 'sequence',
+			sequenceId,
+			templateId: template.id,
+			templateName: template.name,
+			templateCategory: template.category,
+			publishedParams,
+			paramOverrides: {},
+			responsiveTiming: template.responsiveTiming
+		}
+	};
+}
+
+/**
  * Instantiates a template into a Project as a new sequence and inserts a single clip on the timeline.
  */
 export function instantiateTemplateIntoProject(
@@ -918,55 +988,19 @@ export function instantiateTemplateIntoProject(
 		tracks: newTracks
 	};
 
-	// Determine host track
-	const hostView = viewProject(project, activeSequenceId);
-	let trackId = targetTrackId;
-	if (!trackId) {
-		const videoTrack = hostView.tracks.find((t) => t.kind === 'video' && !t.locked);
-		trackId = videoTrack?.id || hostView.tracks[0]?.id;
-	}
-
-	if (!trackId) {
-		throw new Error('No available track found to place the template.');
-	}
-
-	const instanceClipId = generateId() as ClipId;
-	const instanceClip: Clip = {
-		id: instanceClipId,
-		start: playheadTime,
-		duration: template.duration,
-		sourceIn: 0,
-		sourceOut: template.duration,
-		speed: 1,
-		volume: 1,
-		transform: template.bounds
-			? {
-					x: template.bounds.originX,
-					y: template.bounds.originY,
-					scaleX: 1,
-					scaleY: 1,
-					rotation: 0,
-					opacity: 1
-				}
-			: {
-					x: 0,
-					y: 0,
-					scaleX: 1,
-					scaleY: 1,
-					rotation: 0,
-					opacity: 1
-				},
-		source: {
-			type: 'sequence',
-			sequenceId: newSubSequenceId,
-			templateId: template.id,
-			templateName: template.name,
-			templateCategory: template.category,
-			publishedParams: remappedPublishedParams,
-			paramOverrides: {},
-			responsiveTiming: template.responsiveTiming
-		}
-	};
+	const { view: hostView, trackId } = pickTemplateHostTrack(
+		viewProject(project, activeSequenceId),
+		playheadTime,
+		template.duration,
+		targetTrackId
+	);
+	const instanceClip = createTemplateInstanceClip(
+		template,
+		playheadTime,
+		newSubSequenceId,
+		remappedPublishedParams
+	);
+	const instanceClipId = instanceClip.id;
 
 	// Insert clip into track
 	const updatedHostTracks = hostView.tracks.map((t) => {

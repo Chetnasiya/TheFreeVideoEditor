@@ -655,6 +655,8 @@ export interface DragSession {
 	createTrackKind?: Track['kind'];
 	assetId?: AssetId;
 	graphicTemplateId?: string;
+	/** Full template being dragged; the drop instantiates this exact template. */
+	motionTemplate?: import('./templates/templateTypes').MotionGraphicTemplate;
 	shapeConfig?: import('./shapes/shapeTypes').ShapeConfig;
 	snappedTo?: Time;
 	allowed: boolean;

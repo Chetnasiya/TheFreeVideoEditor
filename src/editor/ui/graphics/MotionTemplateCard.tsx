@@ -198,6 +198,7 @@ export function MotionTemplateCard({
 			pointerStartTime: 0,
 			pointerTime: 0,
 			graphicTemplateId: template.id,
+			motionTemplate: template,
 			allowed: true,
 			unlink: false
 		});
