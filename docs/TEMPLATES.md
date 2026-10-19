@@ -14,7 +14,9 @@ published fields (text, colours, size) the user can edit.
 | Author sample (not listed) | `public/templates/example.tfvetemplate`          | A small template to copy from; excluded from the library.                          |
 
 The files are the source of truth. The built-in library is whatever is in `public/templates/`, listed in
-file-name order, and a file that does not read cleanly fails the build with its path in the error.
+file-name order, and a file that does not read cleanly fails the build with its path in the error. The
+Graphics panel's Templates tab lists this library (`filterBuiltinTemplates`), so a file added there shows up
+in the tab.
 
 ## File format
 
