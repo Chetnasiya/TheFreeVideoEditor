@@ -1,4 +1,4 @@
-import type { MotionGraphicTemplate, TemplateCategory } from './templateTypes';
+import type { MotionGraphicTemplate } from './templateTypes';
 import { deserializeTemplate, getCustomTemplates } from './templateService';
 
 /**
