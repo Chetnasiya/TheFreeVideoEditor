@@ -18,6 +18,12 @@ import { addTrack } from '../operations/tracks';
 import { expandSequenceInstance } from '../sequences/operations';
 import { layerCorners } from '../gizmo';
 import { getTextDimensions } from '../../services/render/text/rasterizer';
+import {
+	TEMPLATE_FILE_TYPE,
+	TEMPLATE_FORMAT_VERSION,
+	describeTemplateIssues,
+	templateSchema
+} from './templateSchema';
 import { readProperty } from '../properties';
 
 function generateId(): string {
@@ -437,6 +443,17 @@ export function calculateClipsBoundingBox(
 	};
 }
 
+function remapTransitionEdge(
+	edge: NonNullable<Track['transitions']>[number]['edge'],
+	clipIdMap: Map<ClipId, ClipId>
+): NonNullable<Track['transitions']>[number]['edge'] {
+	const map = (id: ClipId) => clipIdMap.get(id) ?? id;
+	if (edge.kind === 'cut') {
+		return { kind: 'cut', fromClipId: map(edge.fromClipId), toClipId: map(edge.toClipId) };
+	}
+	return { kind: edge.kind, clipId: map(edge.clipId) };
+}
+
 /**
  * Bundles clips and tracks into a self-contained Motion Graphic Template.
  */
@@ -499,6 +516,20 @@ export function createTemplateFromClips(options: {
 			const trackClips = track.clips.filter((c) => selectedSet.has(c.id));
 			if (trackClips.length === 0) return null;
 
+			// Transitions only make sense while every clip they join is still in the template.
+			const transitions = track.transitions
+				?.filter((transition) => {
+					const ids =
+						transition.edge.kind === 'cut'
+							? [transition.edge.fromClipId, transition.edge.toClipId]
+							: [transition.edge.clipId];
+					return ids.every((id) => selectedSet.has(id));
+				})
+				.map((transition) => ({
+					...JSON.parse(JSON.stringify(transition)),
+					edge: remapTransitionEdge(transition.edge, clipIdMap)
+				}));
+
 			return {
 				id: `tpl_trk_${trackIndex + 1}` as Track['id'],
 				kind: track.kind,
@@ -506,6 +537,12 @@ export function createTemplateFromClips(options: {
 				muted: Boolean(track.muted),
 				locked: Boolean(track.locked),
 				hidden: Boolean(track.hidden),
+				...(transitions && transitions.length > 0 ? { transitions } : {}),
+				...(track.audio ? { audio: JSON.parse(JSON.stringify(track.audio)) } : {}),
+				...(track.captions ? { captions: JSON.parse(JSON.stringify(track.captions)) } : {}),
+				...(track.captionStyle
+					? { captionStyle: JSON.parse(JSON.stringify(track.captionStyle)) }
+					: {}),
 				clips: trackClips.map((c) => {
 					const newClipId = clipIdMap.get(c.id) || (generateId() as ClipId);
 					const shiftedClip = offsetClipPosition(c, originX, originY);
@@ -529,7 +566,7 @@ export function createTemplateFromClips(options: {
 	});
 
 	return {
-		version: 1,
+		version: TEMPLATE_FORMAT_VERSION,
 		id: `mogrt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
 		name: name.trim() || 'Untitled Motion Template',
 		category,
@@ -554,7 +591,7 @@ export function serializeTemplate(template: MotionGraphicTemplate): string {
 	return JSON.stringify(
 		{
 			$schema: 'https://thefreevideoeditor.com/schemas/motion-template-v1.json',
-			tfve_type: 'motion_template',
+			tfve_type: TEMPLATE_FILE_TYPE,
 			...template
 		},
 		null,
@@ -563,33 +600,57 @@ export function serializeTemplate(template: MotionGraphicTemplate): string {
 }
 
 /**
- * Deserializes and validates a template JSON string.
+ * Deserializes and validates a template JSON string. Checks the format version and the shape of
+ * every track against the project schema, keeps unknown top-level fields, and drops only the
+ * `$schema` / `tfve_type` file envelope.
  */
 export function deserializeTemplate(jsonString: string): MotionGraphicTemplate {
-	const parsed = JSON.parse(jsonString);
-	if (!parsed || typeof parsed !== 'object') {
+	let raw: unknown;
+	try {
+		raw = JSON.parse(jsonString);
+	} catch {
+		throw new Error('Invalid template: the file is not valid JSON.');
+	}
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
 		throw new Error('Invalid template data: expected JSON object.');
 	}
 
-	if (!parsed.name || !Array.isArray(parsed.tracks) || typeof parsed.duration !== 'number') {
-		throw new Error('Invalid template format: missing required fields (name, tracks, duration).');
+	const { version, tfve_type: fileType } = raw as { version?: unknown; tfve_type?: unknown };
+	if (fileType !== undefined && fileType !== TEMPLATE_FILE_TYPE) {
+		throw new Error('Invalid template: this file is not a motion template.');
+	}
+	if (version !== undefined) {
+		if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
+			throw new Error('Invalid template: version must be a positive whole number.');
+		}
+		if (version > TEMPLATE_FORMAT_VERSION) {
+			throw new Error(
+				`This template uses format version ${version}, which is newer than this editor supports (version ${TEMPLATE_FORMAT_VERSION}). Update the editor to open it.`
+			);
+		}
 	}
 
+	const result = templateSchema.safeParse(raw);
+	if (!result.success) {
+		throw new Error(`Invalid template: ${describeTemplateIssues(result.error)}`);
+	}
+
+	// Drop the file envelope; everything else, including unknown fields, is kept.
+	const { $schema: _schema, tfve_type: _type, ...rest } = result.data;
+	void _schema;
+	void _type;
 	return {
-		version: 1,
-		id: parsed.id || `mogrt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-		name: String(parsed.name).trim() || 'Imported Template',
-		category: parsed.category || 'Custom',
-		description: parsed.description || '',
-		author: parsed.author || 'Imported',
-		createdAt: parsed.createdAt || Date.now(),
-		duration: parsed.duration,
-		responsiveTiming: parsed.responsiveTiming,
-		bounds: parsed.bounds,
-		tracks: parsed.tracks,
-		publishedParams: Array.isArray(parsed.publishedParams) ? parsed.publishedParams : [],
-		previewThumbnail: parsed.previewThumbnail
-	};
+		...rest,
+		version: rest.version ?? TEMPLATE_FORMAT_VERSION,
+		id: rest.id || `mogrt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+		name: rest.name.trim() || 'Imported Template',
+		category: (rest.category || 'Custom') as MotionGraphicTemplate['category'],
+		description: rest.description ?? '',
+		author: rest.author || 'Imported',
+		createdAt: rest.createdAt || Date.now(),
+		tracks: rest.tracks as Track[],
+		publishedParams: rest.publishedParams ?? []
+	} as MotionGraphicTemplate;
 }
 
 /**
