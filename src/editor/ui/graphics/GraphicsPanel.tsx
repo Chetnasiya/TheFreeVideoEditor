@@ -4,7 +4,6 @@ import {
 	GRAPHIC_TEMPLATES,
 	GRAPHIC_ANIMATION_PRESETS,
 	getGraphicTemplate,
-	type GraphicTemplate,
 	type GraphicCategory
 } from '../../core/text/graphicsTemplates';
 import { readProperty } from '../../core/properties';
