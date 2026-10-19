@@ -70,39 +70,22 @@ describe('convertGraphicTemplateToMotionTemplate', () => {
 		expect(paramIds).toContain('param_wipe_color');
 	});
 
-	it('emits .tfvetemplate files into public/templates/ directory and verifies validity', async () => {
+	it('matches the shipped .tfvetemplate files (run `npm run templates:generate` if not)', async () => {
 		const fs = await import('fs');
 		const path = await import('path');
-		const outDir = path.resolve(process.cwd(), 'public/templates');
-		if (!fs.existsSync(outDir)) {
-			fs.mkdirSync(outDir, { recursive: true });
-		}
-
+		const dir = path.resolve(process.cwd(), 'public/templates');
 		const templates = convertAllGraphicTemplates();
 		for (const tpl of templates) {
-			const filePath = path.join(outDir, `${tpl.id}.tfvetemplate`);
-			if (fs.existsSync(filePath)) {
-				try {
-					const existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-					if (existing.createdAt) {
-						tpl.createdAt = existing.createdAt;
-					}
-				} catch {
-					// ignore
-				}
-			}
-			const json = serializeTemplate(tpl);
-			fs.writeFileSync(filePath, json, 'utf-8');
-
-			expect(fs.existsSync(filePath)).toBe(true);
-			const readBack = fs.readFileSync(filePath, 'utf-8');
-			const parsed = deserializeTemplate(readBack);
-			expect(parsed.id).toBe(tpl.id);
-			expect(parsed.name).toBe(tpl.name);
+			const file = path.join(dir, `${tpl.id}.tfvetemplate`);
+			expect(fs.existsSync(file), `${tpl.id}.tfvetemplate is missing`).toBe(true);
+			const shipped = deserializeTemplate(fs.readFileSync(file, 'utf-8'));
+			// createdAt is the moment of generation, not part of the design.
+			expect({ ...shipped, createdAt: 0 }, tpl.id).toEqual({ ...tpl, createdAt: 0 });
 		}
-
-		const files = fs.readdirSync(outDir).filter((f) => f.endsWith('.tfvetemplate'));
-		expect(files.length).toBe(13);
+		const files = fs
+			.readdirSync(dir)
+			.filter((f) => f.endsWith('.tfvetemplate') && f !== 'example.tfvetemplate');
+		expect(files.length).toBe(templates.length);
 	});
 });
 
