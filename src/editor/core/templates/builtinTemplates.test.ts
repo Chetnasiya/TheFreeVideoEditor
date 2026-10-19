@@ -5,7 +5,14 @@ import {
 	getBuiltinMotionTemplate,
 	resolveMotionTemplate
 } from './builtinTemplates';
-import { deserializeTemplate } from './templateService';
+import { createEmptyProject } from '../factory';
+import { resolveFrame } from '../playback';
+import type { SequenceId } from '../types';
+import {
+	deserializeTemplate,
+	instantiateTemplateIntoProject,
+	serializeTemplate
+} from './templateService';
 
 const DIR = 'public/templates';
 const read = (name: string) => readFileSync(`${DIR}/${name}`, 'utf8');
@@ -34,5 +41,30 @@ describe('built-in templates are data', () => {
 	it('resolves a built-in id and returns undefined for an unknown one', () => {
 		expect(resolveMotionTemplate('cinematic-blockbuster')?.name).toBe('Cinematic Blockbuster');
 		expect(resolveMotionTemplate('no-such-template')).toBeUndefined();
+	});
+});
+
+describe('example template', () => {
+	it('ships a valid sample for authors but keeps it out of the library', () => {
+		const example = deserializeTemplate(read('example.tfvetemplate'));
+		expect(example.tracks.length).toBeGreaterThan(0);
+		expect(getBuiltinMotionTemplate(example.id)).toBeUndefined();
+		expect(deserializeTemplate(serializeTemplate(example))).toEqual(example);
+	});
+
+	it('instantiates and renders its own text, with every published field pointing at a clip', () => {
+		const example = deserializeTemplate(read('example.tfvetemplate'));
+		const clipIds = new Set(example.tracks.flatMap((track) => track.clips.map((clip) => clip.id)));
+		for (const param of example.publishedParams) expect(clipIds.has(param.targetClipId)).toBe(true);
+
+		const { project } = instantiateTemplateIntoProject(
+			createEmptyProject({ name: 'Example' }),
+			'root' as SequenceId,
+			example,
+			0
+		);
+		const [layer] = resolveFrame(project, 1_500_000).videoLayers;
+		const text = layer!.nested!.layers.find((nested) => nested.kind === 'text');
+		expect(text!.textData!.text).toBe('YOUR NAME HERE');
 	});
 });

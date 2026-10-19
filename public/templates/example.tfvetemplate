@@ -1,0 +1,139 @@
+{
+  "$schema": "https://thefreevideoeditor.com/schemas/motion-template-v1.json",
+  "tfve_type": "motion_template",
+  "version": 1,
+  "id": "example-lower-third",
+  "name": "Example Lower Third",
+  "category": "Lower Thirds",
+  "description": "A small hand-written template to copy from: one text layer, one accent bar, and three editable fields.",
+  "author": "TheFreeVideoEditor",
+  "createdAt": 1792321125276,
+  "duration": 4000000,
+  "responsiveTiming": {
+    "introDuration": 500000,
+    "outroDuration": 400000
+  },
+  "bounds": {
+    "width": 700,
+    "height": 160,
+    "originX": 0,
+    "originY": 340
+  },
+  "tracks": [
+    {
+      "id": "tpl_trk_1",
+      "kind": "video",
+      "name": "Title Text",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_1",
+          "start": 0,
+          "duration": 4000000,
+          "sourceIn": 0,
+          "sourceOut": 4000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "text",
+            "text": "YOUR NAME HERE",
+            "style": {
+              "fontFamily": "Montserrat",
+              "fontWeight": "700",
+              "alignment": "left"
+            },
+            "box": {
+              "autoSize": true,
+              "verticalAnchor": "center",
+              "frameStyle": "none"
+            }
+          },
+          "properties": {
+            "position": {
+              "keyframes": [
+                { "time": 0, "value": [0, 0], "interpolation": "linear" },
+                { "time": 500000, "value": [40, 0], "interpolation": "linear" }
+              ]
+            },
+            "opacity": {
+              "keyframes": [
+                { "time": 0, "value": 0, "interpolation": "linear" },
+                { "time": 500000, "value": 1, "interpolation": "linear" },
+                { "time": 3600000, "value": 1, "interpolation": "linear" },
+                { "time": 4000000, "value": 0, "interpolation": "linear" }
+              ]
+            },
+            "text.fontSize": { "value": 56 },
+            "text.fillColor": { "value": [1, 1, 1, 1] }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tpl_trk_2",
+      "kind": "video",
+      "name": "Accent Bar",
+      "muted": false,
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "tpl_clip_2",
+          "start": 0,
+          "duration": 4000000,
+          "sourceIn": 0,
+          "sourceOut": 4000000,
+          "speed": 1,
+          "volume": 0,
+          "source": {
+            "type": "shape",
+            "shapeType": "rect",
+            "width": 8,
+            "height": 90,
+            "cornerRadius": 4,
+            "fillColor": { "r": 0, "g": 0.82, "b": 0.95, "a": 1 }
+          },
+          "properties": {
+            "position": { "value": [-300, 0] },
+            "opacity": {
+              "keyframes": [
+                { "time": 0, "value": 0, "interpolation": "linear" },
+                { "time": 300000, "value": 1, "interpolation": "linear" },
+                { "time": 3600000, "value": 1, "interpolation": "linear" },
+                { "time": 4000000, "value": 0, "interpolation": "linear" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "publishedParams": [
+    {
+      "id": "param_title_text",
+      "name": "Title Text",
+      "type": "text",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.content",
+      "defaultValue": "YOUR NAME HERE"
+    },
+    {
+      "id": "param_text_color",
+      "name": "Text Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_1",
+      "targetProperty": "text.fill",
+      "defaultValue": { "r": 1, "g": 1, "b": 1, "a": 1 }
+    },
+    {
+      "id": "param_accent_color",
+      "name": "Accent Color",
+      "type": "color",
+      "targetClipId": "tpl_clip_2",
+      "targetProperty": "shape.fill",
+      "defaultValue": { "r": 0, "g": 0.82, "b": 0.95, "a": 1 }
+    }
+  ]
+}
