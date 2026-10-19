@@ -3,6 +3,7 @@ import type { ActiveLayer } from '../../core/playback';
 import type { BlendMode } from '../../core/types';
 import type { ParsedLut3D } from '../../core/lut';
 import {
+	ScratchCanvasPool,
 	renderFrame,
 	type CompositionSize,
 	type FrameProvider,
@@ -1255,6 +1256,7 @@ export class Canvas2DRenderer implements FrameRenderer {
 	private scopesEnabled = false;
 	private lastScopeFrame: ScopeFrameData | null = null;
 	private lastScopeTime = 0;
+	private readonly scratch = new ScratchCanvasPool();
 
 	constructor(
 		private readonly context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -1280,7 +1282,8 @@ export class Canvas2DRenderer implements FrameRenderer {
 	): boolean {
 		const started = performance.now();
 		renderFrame(this.context, size, layers, frameProvider, lastGoodFrames, {
-			transparent: options.transparent
+			transparent: options.transparent,
+			scratch: this.scratch
 		});
 		const elapsed = performance.now() - started;
 		this.stats.frames += 1;
@@ -1304,5 +1307,7 @@ export class Canvas2DRenderer implements FrameRenderer {
 	}
 
 	releaseUnused(): void {}
-	dispose(): void {}
+	dispose(): void {
+		this.scratch.clear();
+	}
 }

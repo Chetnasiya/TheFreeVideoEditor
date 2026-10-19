@@ -89,6 +89,55 @@ async function runScenes(page: Page, tolerance: number): Promise<SceneResult[]> 
 			strict: boolean;
 			probeSource?: { id: string; width: number; height: number };
 		}
+		/** Nested sequences (template instances) must composite the same on both renderers. */
+		function nestedScenes(): Scene[] {
+			const nestedLayer = (
+				id: string,
+				children: Layer[],
+				extra: Partial<Layer> = {},
+				size = { width: 320, height: 180 }
+			): Layer =>
+				layer(id, {
+					kind: 'sequence',
+					fit: 'none',
+					nested: { sequenceId: id as never, nestedTime: 0, size, layers: children },
+					...extra
+				});
+			return [
+				{
+					name: 'nested-sequence-fit-none',
+					layers: [
+						layer('bg'),
+						nestedLayer('seq', [layer('card'), layer('badge', { transform: xf({ x: 40, scaleX: 0.4, scaleY: 0.4 }) })])
+					],
+					sources: { bg: solid('#263238'), card: pattern(320, 180), badge: circle(180) },
+					strict: false
+				},
+				{
+					name: 'nested-sequence-transformed',
+					layers: [
+						layer('bg'),
+						nestedLayer(
+							'seq',
+							[layer('card')],
+							{ fit: 'contain', transform: xf({ x: 50, y: -30, scaleX: 0.8, scaleY: 0.8, rotation: 12, opacity: 0.85 }) }
+						)
+					],
+					sources: { bg: solid('#3949ab'), card: pattern(320, 180) },
+					strict: false
+				},
+				{
+					name: 'nested-sequence-translucent-content',
+					layers: [
+						layer('bg'),
+						nestedLayer('seq', [layer('plate'), layer('badge')], {}, { width: 360, height: 360 })
+					],
+					sources: { bg: solid('#00897b'), plate: pattern(360, 360, 0.5), badge: circle(360) },
+					strict: false
+				}
+			];
+		}
+
 		const scenes: Scene[] = [
 			{
 				name: 'crop-axis-aligned',
@@ -190,6 +239,7 @@ async function runScenes(page: Page, tolerance: number): Promise<SceneResult[]> 
 				sources: { bg: solid('#8d6e63'), a: pattern(W, H) },
 				strict: false
 			})),
+			...nestedScenes(),
 			{
 				name: 'four-layers',
 				layers: [

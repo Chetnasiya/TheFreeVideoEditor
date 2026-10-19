@@ -86,7 +86,7 @@ export class CompatibilityFrameProvider {
 					colorRuns: data.colorRuns,
 					scale
 				});
-				this.prepared.set(layer.clipId, textCanvas);
+				this.prepared.set(layerKey, textCanvas);
 				continue;
 			}
 			if (!layer.assetId) continue;

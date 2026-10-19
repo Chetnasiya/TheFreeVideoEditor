@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyProject } from '../../core/factory';
 import { resolveFrame } from '../../core/playback';
-import { renderFrame, type CompositionContext, type FrameSource } from './compositor';
+import {
+	ScratchCanvasPool,
+	renderFrame,
+	type CompositionContext,
+	type FrameSource,
+	type ScratchCanvas
+} from './compositor';
 import type { ActiveLayer } from '../../core/playback';
 import type { Asset, AssetId, ClipId, TrackId } from '../../core/types';
 
@@ -141,5 +147,117 @@ describe('frame compositor', () => {
 		expect(operations).toContain('scale');
 		expect(operations).toContain('black');
 		expect(operations).toContain('restore');
+	});
+
+	describe('nested sequence layers', () => {
+		function scratchFactory() {
+			const created: { width: number; height: number; operations: string[] }[] = [];
+			const create = (width: number, height: number): ScratchCanvas => {
+				const { context, operations } = fakeContext();
+				const canvas = {
+					width,
+					height,
+					color: 'scratch',
+					getContext: () => context
+				};
+				created.push({ width, height, operations });
+				return canvas as unknown as ScratchCanvas;
+			};
+			return { created, create };
+		}
+
+		function sequenceLayer(id: string, children: ActiveLayer[], size = { width: 800, height: 200 }) {
+			return {
+				...layer(id, 0),
+				kind: 'sequence',
+				assetId: undefined,
+				fit: 'none',
+				nested: { sequenceId: 'seq' as never, nestedTime: 0, size, layers: children }
+			} as ActiveLayer;
+		}
+
+		it('renders child layers into a scratch canvas and composites it onto the frame', () => {
+			const { context, operations } = fakeContext();
+			const { created, create } = scratchFactory();
+			const child = layer('child', 0);
+			const instance = sequenceLayer('instance', [child]);
+
+			renderFrame(
+				context,
+				{ width: 1920, height: 1080 },
+				[instance],
+				(item) => (item.clipId === child.clipId ? frame('red') : null),
+				new Map(),
+				{ scratch: new ScratchCanvasPool(create) }
+			);
+
+			expect(created).toHaveLength(1);
+			expect(created[0]).toMatchObject({ width: 800, height: 200 });
+			expect(created[0]!.operations).toContain('red');
+			expect(operations.slice(2)).toEqual(['scratch']);
+		});
+
+		it('draws nothing for a sequence layer without nested content', () => {
+			const { context, operations } = fakeContext();
+			const bare = { ...sequenceLayer('bare', []), nested: undefined } as ActiveLayer;
+
+			renderFrame(context, { width: 100, height: 100 }, [bare], () => null);
+
+			expect(operations).toEqual(['clear', 'black']);
+		});
+
+		it('uses a separate scratch canvas for each nesting level', () => {
+			const { context, operations } = fakeContext();
+			const { created, create } = scratchFactory();
+			const child = layer('child', 0);
+			const inner = sequenceLayer('inner', [child], { width: 400, height: 100 });
+			const outer = sequenceLayer('outer', [inner]);
+
+			renderFrame(
+				context,
+				{ width: 1920, height: 1080 },
+				[outer],
+				(item) => (item.clipId === child.clipId ? frame('blue') : null),
+				new Map(),
+				{ scratch: new ScratchCanvasPool(create) }
+			);
+
+			expect(created.map((entry) => `${entry.width}x${entry.height}`)).toEqual([
+				'800x200',
+				'400x100'
+			]);
+			expect(created[1]!.operations).toContain('blue');
+			expect(created[0]!.operations).toContain('scratch');
+			expect(operations.slice(2)).toEqual(['scratch']);
+		});
+
+		it('reuses scratch canvases across frames instead of allocating each time', () => {
+			const { context } = fakeContext();
+			const { created, create } = scratchFactory();
+			const pool = new ScratchCanvasPool(create);
+			const instance = sequenceLayer('instance', [layer('child', 0)]);
+			const provider = () => frame('red');
+
+			for (let index = 0; index < 3; index += 1) {
+				renderFrame(context, { width: 1920, height: 1080 }, [instance], provider, new Map(), {
+					scratch: pool
+				});
+			}
+
+			expect(created).toHaveLength(1);
+		});
+
+		it('does not remember a pooled scratch canvas as the last good frame', () => {
+			const { context } = fakeContext();
+			const { create } = scratchFactory();
+			const lastGood = new Map<ClipId, FrameSource>();
+			const instance = sequenceLayer('instance', [layer('child', 0)]);
+
+			renderFrame(context, { width: 100, height: 100 }, [instance], () => frame('red'), lastGood, {
+				scratch: new ScratchCanvasPool(create)
+			});
+
+			expect(lastGood.has(instance.clipId)).toBe(false);
+		});
 	});
 });
