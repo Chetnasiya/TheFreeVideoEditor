@@ -14,6 +14,42 @@ export type FrameSource = CanvasImageSource | VideoFrame;
 export type FrameProvider = (layer: ActiveLayer) => FrameSource | null;
 export type LastGoodFrames = Map<string, FrameSource>;
 
+/** Offscreen surface a nested sequence is rendered into before it is composited. */
+export type ScratchCanvas = HTMLCanvasElement | OffscreenCanvas;
+
+function createScratchCanvas(width: number, height: number): ScratchCanvas {
+	if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
+	const canvas = document.createElement('canvas');
+	canvas.width = width;
+	canvas.height = height;
+	return canvas;
+}
+
+/**
+ * Reusable scratch canvases for nested sequences, keyed by size. Owned by the renderer so frames
+ * reuse surfaces instead of allocating a full-size canvas per nested layer per frame.
+ */
+export class ScratchCanvasPool {
+	private readonly free = new Map<string, ScratchCanvas[]>();
+
+	constructor(private readonly create: (width: number, height: number) => ScratchCanvas = createScratchCanvas) {}
+
+	acquire(width: number, height: number): ScratchCanvas {
+		return this.free.get(`${width}x${height}`)?.pop() ?? this.create(width, height);
+	}
+
+	release(canvas: ScratchCanvas): void {
+		const key = `${canvas.width}x${canvas.height}`;
+		const list = this.free.get(key) ?? [];
+		if (list.length < 4) list.push(canvas);
+		this.free.set(key, list);
+	}
+
+	clear(): void {
+		this.free.clear();
+	}
+}
+
 export interface CompositionSize {
 	width: number;
 	height: number;
@@ -136,11 +172,34 @@ export function renderFrame(
 	layers: readonly ActiveLayer[],
 	frameProvider: FrameProvider,
 	lastGoodFrames: LastGoodFrames = new Map(),
-	options: { transparent?: boolean } = {}
+	options: { transparent?: boolean; scratch?: ScratchCanvasPool } = {}
 ): void {
 	if (![size.width, size.height].every((value) => Number.isSafeInteger(value) && value > 0)) {
 		throw new RangeError('Composition size must use positive integer dimensions.');
 	}
+
+	const scratch = options.scratch ?? new ScratchCanvasPool();
+	const borrowed: ScratchCanvas[] = [];
+	/** Nested sequences are drawn into a pooled canvas, which then composites like any other source. */
+	const renderNested = (layer: ActiveLayer): ScratchCanvas | null => {
+		const nested = layer.nested;
+		if (!nested) return null;
+		const { width, height } = nested.size;
+		if (![width, height].every((value) => Number.isSafeInteger(value) && value > 0)) return null;
+		const canvas = scratch.acquire(width, height);
+		borrowed.push(canvas);
+		const nestedContext = canvas.getContext('2d');
+		if (!nestedContext) return null;
+		renderFrame(nestedContext, nested.size, nested.layers, frameProvider, lastGoodFrames, {
+			transparent: true,
+			scratch
+		});
+		return canvas;
+	};
+	const resolveSource = (layer: ActiveLayer): FrameSource | null =>
+		layer.kind === 'sequence'
+			? renderNested(layer)
+			: (frameProvider(layer) ?? lastGoodFrames.get(layer.clipId) ?? null);
 
 	context.clearRect(0, 0, size.width, size.height);
 	if (!options.transparent) {
@@ -207,11 +266,11 @@ export function renderFrame(
 					context.restore();
 					return;
 				}
-				const src = frameProvider(sub) ?? lastGoodFrames.get(sub.clipId) ?? null;
+				const src = resolveSource(sub);
 				if (!src) return;
 				const dims = sourceDimensions(src);
 				if (dims.width <= 0 || dims.height <= 0) return;
-				lastGoodFrames.set(sub.clipId, src);
+				if (sub.kind !== 'sequence') lastGoodFrames.set(sub.clipId, src);
 				const rect = fitRect(dims.width, dims.height, size.width, size.height);
 				const transform = sub.transform;
 				const blendMode = sub.blendMode ?? 'normal';
@@ -326,11 +385,11 @@ export function renderFrame(
 			context.restore();
 			continue;
 		}
-		const source = frameProvider(layer) ?? lastGoodFrames.get(layer.clipId) ?? null;
+		const source = resolveSource(layer);
 		if (!source) continue;
 		const dimensions = sourceDimensions(source);
 		if (dimensions.width <= 0 || dimensions.height <= 0) continue;
-		lastGoodFrames.set(layer.clipId, source);
+		if (layer.kind !== 'sequence') lastGoodFrames.set(layer.clipId, source);
 		const fit = layer.fit ?? 'contain';
 		const isText = layer.kind === 'text';
 		const isAutoSize = layer.textData?.box?.autoSize !== false;
@@ -397,4 +456,5 @@ export function renderFrame(
 		draw(size.width / 2 + anchor.x, size.height / 2 + anchor.y);
 		context.restore();
 	}
+	for (const canvas of borrowed) scratch.release(canvas);
 }
